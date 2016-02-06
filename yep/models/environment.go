@@ -1,5 +1,4 @@
-/*   Copyright (C) 2008-2016 by Nicolas Piganeau
- *   (See AUTHORS file)
+/*   Copyright (C) 2016 by Nicolas Piganeau
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,4 +16,14 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package main
+package models
+
+import (
+	"database/sql"
+)
+
+type Environment struct {
+	Tx      sql.Tx
+	Uid     uint
+	Context map[string]interface{}
+}

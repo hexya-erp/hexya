@@ -72,3 +72,5 @@ _testmain.go
 *.test
 *.prof
 
+# YEP Specifics
+vendor/

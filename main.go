@@ -1,5 +1,4 @@
-/*   Copyright (C) 2008-2016 by Nicolas Piganeau
- *   (See AUTHORS file)
+/*   Copyright (C) 2016 by Nicolas Piganeau
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -21,30 +20,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
-	_ "github.com/lib/pq"
-	"github.com/npiganeau/yep/addons"
-	"github.com/npiganeau/yep/yep"
+	//_ "github.com/lib/pq"
 )
 
 func main() {
 	fmt.Println("Hello world")
-	sl := addons.SizeStockLocation{
-		Size: 12,
-		ColoredStockLocation: addons.ColoredStockLocation{
-			Color: "Red",
-			BaseStockLocation: yep.BaseStockLocation{
-				Name: "This is my struct",
-			},
-		},
-	}
-
-	//	fmt.Println(sl.NameMethod())
-	sl.PrintName()
-	db, err := gorm.Open("postgres", "user=nicolas dbname=test_orm password=nicolas sslmode=disable")
-	if err != nil {
-		fmt.Println(err)
-	}
-	db.AutoMigrate(&addons.SizeStockLocation{})
-	db.Create(&sl)
+	//db, err := gorm.Open("postgres", "user=nicolas dbname=test_orm password=nicolas sslmode=disable")
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//db.AutoMigrate(&sale.ResPartner{}, &base.ResUser{})
+	//parent := sale.ResPartner{}
+	//children := []*sale.ResPartner{}
+	//db.Where("id=?", 2).Preload("Children", &children).Find(&parent)
+	//fmt.Printf("Parent: %+v\n", parent)
+	//fmt.Printf("Children: %v\n", children)
 }

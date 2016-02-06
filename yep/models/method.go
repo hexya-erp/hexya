@@ -1,5 +1,4 @@
-/*   Copyright (C) 2008-2016 by Nicolas Piganeau
- *   (See AUTHORS file)
+/*   Copyright (C) 2016 by Nicolas Piganeau
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -17,14 +16,20 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-package base
+package models
 
-import "github.com/jinzhu/gorm"
+/*
+MethodFunc is a function defined in a module that is to be added to a Model as a
+layer to a method.
 
-type BaseResUser struct {
-	gorm.Model
-}
+In YEP, methods are defined incrementally by adding MethodFunc to the MethodStack
+of a Model. A MethodFunc should call Super() to access the MethodFunc underneath
+in the stack.
+ */
+type MethodFunc func(RecordSet, ...interface{}) interface{}
 
-type ResUser struct {
-	BaseResUser `yep:"include"`
-}
+/*
+MethodStack is a stack of MethodFunc that represents a method in a Model. Models
+always call the MethodFunc at the top of the stack when calling the method.
+ */
+type MethodStack []*MethodFunc
