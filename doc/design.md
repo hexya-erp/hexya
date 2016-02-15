@@ -1,0 +1,94 @@
+Foreword
+========
+This document explains the design choices of YEP, including the reason why we decided to write
+YEP in the first place.
+
+Introduction
+============
+We used Odoo (http://www.odoo.com) for a few years to fulfil our customers need of business
+applications. We are great fans of Odoo and managed to create applications for very different
+businesses, from a 2 people service company to a 500 industrial company.
+
+However, if Odoo is perfectly fitted for small and medium businesses it does not scale well
+for bigger companies. When we say this, we don't mean that you can't have thousands of users
+on odoo servers, Odoo's SaaS platform proves the contrary. We say that Odoo does not scale for
+bigger companies because these companies need more business logic and calculations (such as
+schedulers, reporting, etc.) and on much larger sets of data. With a 500 people company, we
+feel we have reached the maximum of calculation power that Odoo could deliver.
+
+So we decided to write YEP to address this issue, with the following in mind:
+- We want to keep the best from Odoo
+- We want speed for the complex business logic calculation of medium and intermediate
+businesses.
+
+Odoo features
+=============
+If we want to keep the best from Odoo, we need to define what are, in our opinion, the great
+features of this software.
+
+Modular design
+--------------
+We believe that the success of Odoo among its partners and the opensource community is mainly
+due to its full modular architecture. From the user point of view, this is interesting since
+it allows to enable/disable features just by installing or uninstalling modules.
+
+But it is, in our opinion, really from the developer point of view that this makes a
+difference. Indeed, the theory of opensource is that you can modify a software to fit your
+need. This is great, but doing so you actually create a fork and do not benefit automatically
+from upstream updates. So in general very few people actually do it. The genius of Odoo's
+modular architecture is that you don't need to make a fork to make a modification to the
+application: you just have to create a module, and this module can modify any element of the
+main application (models, views, controllers, client, ...) without touching a single line of
+the original code.
+
+This is definitely something we want to have in YEP: **one should be able to customize YEP by
+creating a module without changing YEP code.**
+
+Large business code base
+------------------------
+Over the years, Odoo's business code (i.e. business logic in add-ons) has grown so much that
+it can handle business situations from sales to human resources through mrp and event
+management. This large number of business applications and associated code is also part of
+the success of Odoo.
+
+This code base is so developed that it would take years rewriting it from scratch. Although
+YEP will not be written in python and its internals will be completely different from that
+of Odoo, **YEP will keep Odoo's business data model** so that modules can be easily ported
+from Odoo to YEP.
+
+Design choices
+==============
+This section highlights design choices for YEP that are different from that of Odoo. They
+are all made in order to achieve a good speed in business logic calculation.
+
+Go instead of Python
+--------------------
+High calculation speed means a compiled language. Of course there are several workarounds
+to speed up interpreted languages, but we're better of with the right tool at the
+beginning rather than trying to make fixes all the time.
+
+**YEP will be written in GO** which is a compiled language known for its fast compilation
+and execution, that is easy to learn and has some reflection capacities.
+
+Static configuration
+--------------------
+One of Odoo's feature is that all the configuration of the software is dynamic and held in
+the database, such as installed modules, view definitions, etc. This is particularly
+interesting for Odoo in a SaaS environment where several customers use the same Odoo instance
+and each have its own database.
+
+The drawback of this feature is that the database is constantly queried to get data that
+hardly change over time. Due to its modular architecture, Odoo also needs to recompute the
+elements (such as views) at each request by adding data from all the modules that impact this
+element before sending it to the client. Here again, the data is the same at each request and
+the calculation gives the same result each time.
+
+**YEP configuration data will be computed at compile time**. Only business configuration will
+be dynamic and stored into the database. This means that a recompilation will be necessary
+each time an element (view, model, controller) will be modified, but with go's quick
+compilation this will not be a big issue.
+
+This choice has several implications that should not be an issue for the target businesses:
+- Installed modules will be determined at compile time, there is no one click install.
+- A running YEP instance will have all its database with the same configuration, so SaaS YEP
+will not be possible as it is in Odoo. Different configurations will mean several instances.
