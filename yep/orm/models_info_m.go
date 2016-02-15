@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +27,6 @@ type modelInfo struct {
 	name      string
 	fullName  string
 	table     string
-	model     interface{}
 	fields    *fields
 	manual    bool
 	addrField reflect.Value
@@ -84,7 +84,6 @@ func newModelInfo(val reflect.Value) (info *modelInfo) {
 			}
 		}
 
-		fi.fieldIndex = i
 		fi.mi = info
 		fi.inModel = true
 	}
@@ -115,7 +114,6 @@ func newM2MModelInfo(m1, m2 *modelInfo) (info *modelInfo) {
 	fa.dbcol = true
 	fa.name = "Id"
 	fa.column = "id"
-	fa.fullName = info.fullName + "." + fa.name
 
 	f1.dbcol = true
 	f2.dbcol = true
@@ -123,8 +121,6 @@ func newM2MModelInfo(m1, m2 *modelInfo) (info *modelInfo) {
 	f2.fieldType = RelForeignKey
 	f1.name = camelString(m1.table)
 	f2.name = camelString(m2.table)
-	f1.fullName = info.fullName + "." + f1.name
-	f2.fullName = info.fullName + "." + f2.name
 	f1.column = m1.table + "_id"
 	f2.column = m2.table + "_id"
 	f1.rel = true

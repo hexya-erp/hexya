@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -181,33 +182,35 @@ func getDbCreateSQL(al *alias) (sqls []string, tableIndexes map[string][]dbIndex
 			columns = append(columns, column)
 		}
 
-		if mi.model != nil {
-			allnames := getTableUnique(mi.addrField)
-			if !mi.manual && len(mi.uniques) > 0 {
-				allnames = append(allnames, mi.uniques)
-			}
-			for _, names := range allnames {
-				cols := make([]string, 0, len(names))
-				for _, name := range names {
-					if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
-						cols = append(cols, fi.column)
-					} else {
-						panic(fmt.Errorf("cannot found column `%s` when parse UNIQUE in `%s.TableUnique`", name, mi.fullName))
-					}
-				}
-				column := fmt.Sprintf("    UNIQUE (%s%s%s)", Q, strings.Join(cols, sep), Q)
-				columns = append(columns, column)
-			}
-		}
+		//TODO: Check this
+		//if mi.model != nil {
+		//	allnames := getTableUnique(mi.addrField)
+		//	if !mi.manual && len(mi.uniques) > 0 {
+		//		allnames = append(allnames, mi.uniques)
+		//	}
+		//	for _, names := range allnames {
+		//		cols := make([]string, 0, len(names))
+		//		for _, name := range names {
+		//			if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
+		//				cols = append(cols, fi.column)
+		//			} else {
+		//				panic(fmt.Errorf("cannot found column `%s` when parse UNIQUE in `%s.TableUnique`", name, mi.fullName))
+		//			}
+		//		}
+		//		column := fmt.Sprintf("    UNIQUE (%s%s%s)", Q, strings.Join(cols, sep), Q)
+		//		columns = append(columns, column)
+		//	}
+		//}
 
 		sql += strings.Join(columns, ",\n")
 		sql += "\n)"
 
 		if al.Driver == DRMySQL {
 			var engine string
-			if mi.model != nil {
-				engine = getTableEngine(mi.addrField)
-			}
+			//TODO: Check this
+			//if mi.model != nil {
+			//	engine = getTableEngine(mi.addrField)
+			//}
 			if engine == "" {
 				engine = al.Engine
 			}
@@ -217,19 +220,20 @@ func getDbCreateSQL(al *alias) (sqls []string, tableIndexes map[string][]dbIndex
 		sql += ";"
 		sqls = append(sqls, sql)
 
-		if mi.model != nil {
-			for _, names := range getTableIndex(mi.addrField) {
-				cols := make([]string, 0, len(names))
-				for _, name := range names {
-					if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
-						cols = append(cols, fi.column)
-					} else {
-						panic(fmt.Errorf("cannot found column `%s` when parse INDEX in `%s.TableIndex`", name, mi.fullName))
-					}
-				}
-				sqlIndexes = append(sqlIndexes, cols)
-			}
-		}
+		//TODO: Check this
+		//if mi.model != nil {
+		//	for _, names := range getTableIndex(mi.addrField) {
+		//		cols := make([]string, 0, len(names))
+		//		for _, name := range names {
+		//			if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
+		//				cols = append(cols, fi.column)
+		//			} else {
+		//				panic(fmt.Errorf("cannot found column `%s` when parse INDEX in `%s.TableIndex`", name, mi.fullName))
+		//			}
+		//		}
+		//		sqlIndexes = append(sqlIndexes, cols)
+		//	}
+		//}
 
 		for _, names := range sqlIndexes {
 			name := mi.table + "_" + strings.Join(names, "_")

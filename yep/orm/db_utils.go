@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +33,7 @@ func getDbAlias(name string) *alias {
 func getExistPk(mi *modelInfo, ind reflect.Value) (column string, value interface{}, exist bool) {
 	fi := mi.fields.pk
 
-	v := ind.Field(fi.fieldIndex)
+	v := ind.FieldByName(fi.name)
 	if fi.fieldType&IsPostiveIntegerField > 0 {
 		vu := v.Uint()
 		exist = vu > 0

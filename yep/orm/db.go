@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +114,7 @@ func (d *dbBase) collectFieldValue(mi *modelInfo, fi *fieldInfo, ind reflect.Val
 	if fi.pk {
 		_, value, _ = getExistPk(mi, ind)
 	} else {
-		field := ind.Field(fi.fieldIndex)
+		field := ind.FieldByName(fi.name)
 		if fi.isFielder {
 			f := field.Addr().Interface().(Fielder)
 			value = f.RawValue()
@@ -517,9 +518,9 @@ func (d *dbBase) Delete(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.
 		if num > 0 {
 			if mi.fields.pk.auto {
 				if mi.fields.pk.fieldType&IsPostiveIntegerField > 0 {
-					ind.Field(mi.fields.pk.fieldIndex).SetUint(0)
+					ind.FieldByName(mi.fields.pk.name).SetUint(0)
 				} else {
-					ind.Field(mi.fields.pk.fieldIndex).SetInt(0)
+					ind.FieldByName(mi.fields.pk.name).SetInt(0)
 				}
 			}
 			err := d.deleteRels(q, mi, []interface{}{pkValue}, tz)
@@ -859,13 +860,13 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 							mmi = fi.relModelInfo
 							field := last
 							if last.Kind() != reflect.Invalid {
-								field = reflect.Indirect(last.Field(fi.fieldIndex))
+								field = reflect.Indirect(last.FieldByName(fi.name))
 								if field.IsValid() {
 									d.setColsValues(mmi, &field, mmi.fields.dbcols, trefs[:len(mmi.fields.dbcols)], tz)
 									for _, fi := range mmi.fields.fieldsReverse {
 										if fi.inModel && fi.reverseFieldInfo.mi == lastm {
 											if fi.reverseFieldInfo != nil {
-												f := field.Field(fi.fieldIndex)
+												f := field.FieldByName(fi.name)
 												if f.Kind() == reflect.Ptr {
 													f.Set(last.Addr())
 												}
@@ -1014,7 +1015,7 @@ func (d *dbBase) setColsValues(mi *modelInfo, ind *reflect.Value, cols []string,
 
 		fi := mi.fields.GetByColumn(column)
 
-		field := ind.Field(fi.fieldIndex)
+		field := ind.FieldByName(fi.name)
 
 		value, err := d.convertValueFromDB(fi, val, tz)
 		if err != nil {
@@ -1350,7 +1351,7 @@ setValue:
 			fieldType = fi.relModelInfo.fields.pk.fieldType
 			mf := reflect.New(fi.relModelInfo.addrField.Elem().Type())
 			field.Set(mf)
-			f := mf.Elem().Field(fi.relModelInfo.fields.pk.fieldIndex)
+			f := mf.Elem().FieldByName(fi.relModelInfo.fields.pk.name)
 			field = f
 			goto setValue
 		}

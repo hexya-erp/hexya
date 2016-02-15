@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -342,7 +343,7 @@ func (o *rawSet) QueryRow(containers ...interface{}) error {
 				for _, col := range columns {
 					if fi := sMi.fields.GetByColumn(col); fi != nil {
 						value := reflect.ValueOf(columnsMp[col]).Elem().Interface()
-						o.setFieldValue(ind.FieldByIndex([]int{fi.fieldIndex}), value)
+						o.setFieldValue(ind.FieldByName(fi.name), value)
 					}
 				}
 			} else {
@@ -480,7 +481,7 @@ func (o *rawSet) QueryRows(containers ...interface{}) (int64, error) {
 				for _, col := range columns {
 					if fi := sMi.fields.GetByColumn(col); fi != nil {
 						value := reflect.ValueOf(columnsMp[col]).Elem().Interface()
-						o.setFieldValue(ind.FieldByIndex([]int{fi.fieldIndex}), value)
+						o.setFieldValue(ind.FieldByName(fi.name), value)
 					}
 				}
 			} else {

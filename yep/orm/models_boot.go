@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +75,6 @@ func registerModel(prefix string, model interface{}) {
 
 	info.table = table
 	info.pkg = typ.PkgPath()
-	info.model = model
 	info.manual = true
 
 	modelCache.set(table, info)

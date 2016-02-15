@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -102,7 +103,6 @@ func newFields() *fields {
 // single field info
 type fieldInfo struct {
 	mi                  *modelInfo
-	fieldIndex          int
 	fieldType           int
 	dbcol               bool
 	inModel             bool

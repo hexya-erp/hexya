@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/astaxie/beego/orm"
-	_ "github.com/lib/pq"
+	//"github.com/astaxie/beego/orm"
+	//_ "github.com/lib/pq"
 )
 
 type BaseResPartner struct {
@@ -39,15 +39,15 @@ type BaseResPartner struct {
 type ResPartner struct {
 	BaseResPartner
 }
-
+//
 func main() {
-	orm.Debug = true
+	//orm.Debug = true
 	fmt.Println("Hello world")
 
-	orm.RegisterModel(new(ResPartner))
+	//orm.RegisterModel(new(ResPartner))
 
-	orm.RegisterDataBase("default", "postgres", "user=nicolas password=nicolas name=test_beego host=localhost")
-	fmt.Println(orm.RunSyncdb("default", false, true))
+	//orm.RegisterDataBase("default", "postgres", "user=nicolas password=nicolas name=test_beego host=localhost")
+	//fmt.Println(orm.RunSyncdb("default", false, true))
 
 	//db, err := gorm.Open("postgres", "user=nicolas dbname=test_orm password=nicolas sslmode=disable")
 	//if err != nil {
