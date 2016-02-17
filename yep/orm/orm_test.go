@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -188,7 +189,10 @@ func TestSyncDb(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
-	err := RunSyncdb("default", true, Debug)
+	err := AddLayerToModel("Profile", new(ProfileExtension))
+	throwFail(t, err)
+
+	err = RunSyncdb("default", true, Debug)
 	throwFail(t, err)
 
 	modelCache.clean()
@@ -207,6 +211,9 @@ func TestRegisterModels(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
+	err := AddLayerToModel("Profile", new(ProfileExtension))
+	throwFail(t, err)
+
 	BootStrap()
 
 	dORM = NewOrm()
@@ -216,8 +223,8 @@ func TestRegisterModels(t *testing.T) {
 func TestModelSyntax(t *testing.T) {
 	user := &User{}
 	ind := reflect.ValueOf(user).Elem()
-	fn := getFullName(ind.Type())
-	mi, ok := modelCache.getByFN(fn)
+	fn := getName(ind.Type())
+	mi, ok := modelCache.getByName(fn)
 	throwFail(t, AssertIs(ok, true))
 
 	mi, ok = modelCache.get("user")

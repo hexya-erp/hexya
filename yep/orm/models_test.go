@@ -286,7 +286,7 @@ type Post struct {
 	Content string    `orm:"type(text)"`
 	Created time.Time `orm:"auto_now_add"`
 	Updated time.Time `orm:"auto_now"`
-	Tags    []*Tag    `orm:"rel(m2m);rel_through(github.com/npiganeau/yep/yep/orm.PostTags)"`
+	Tags    []*Tag    `orm:"rel(m2m);rel_through(PostTags)"`
 }
 
 func (u *Post) TableIndex() [][]string {
@@ -344,13 +344,18 @@ type Group struct {
 type Permission struct {
 	ID     int `orm:"column(id)"`
 	Name   string
-	Groups []*Group `orm:"rel(m2m);rel_through(github.com/npiganeau/yep/yep/orm.GroupPermissions)"`
+	Groups []*Group `orm:"rel(m2m);rel_through(GroupPermissions)"`
 }
 
 type GroupPermissions struct {
 	ID         int         `orm:"column(id)"`
 	Group      *Group      `orm:"rel(fk)"`
 	Permission *Permission `orm:"rel(fk)"`
+}
+
+type ProfileExtension struct {
+	City    string
+	Country string
 }
 
 var DBARGS = struct {

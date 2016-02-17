@@ -25,7 +25,6 @@ import (
 type modelInfo struct {
 	pkg       string
 	name      string
-	fullName  string
 	table     string
 	fields    *fields
 	manual    bool
@@ -36,11 +35,6 @@ type modelInfo struct {
 
 // new model info
 func newModelInfo(val reflect.Value) (info *modelInfo) {
-	var (
-		err error
-		fi  *fieldInfo
-		sf  reflect.StructField
-	)
 
 	info = &modelInfo{}
 	info.fields = newFields()
@@ -51,7 +45,25 @@ func newModelInfo(val reflect.Value) (info *modelInfo) {
 	info.addrField = val
 
 	info.name = typ.Name()
-	info.fullName = getFullName(typ)
+	err := addFieldsToModel(info, val)
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+
+	return info
+}
+
+// addFieldsToModel adds the fields of val to given model info
+func addFieldsToModel(info *modelInfo, val reflect.Value) error {
+	var (
+		err error
+		fi  *fieldInfo
+		sf  reflect.StructField
+	)
+
+	ind := reflect.Indirect(val)
 
 	for i := 0; i < ind.NumField(); i++ {
 		field := ind.Field(i)
@@ -89,11 +101,10 @@ func newModelInfo(val reflect.Value) (info *modelInfo) {
 	}
 
 	if err != nil {
-		fmt.Println(fmt.Errorf("field: %s.%s, %s", ind.Type(), sf.Name, err))
-		os.Exit(2)
+		return fmt.Errorf("field: %s.%s, %s", ind.Type(), sf.Name, err)
 	}
 
-	return
+	return nil
 }
 
 // combine related model info to new model info.
@@ -103,7 +114,6 @@ func newM2MModelInfo(m1, m2 *modelInfo) (info *modelInfo) {
 	info.fields = newFields()
 	info.table = m1.table + "_" + m2.table + "s"
 	info.name = camelString(info.table)
-	info.fullName = m1.pkg + "." + info.name
 
 	fa := new(fieldInfo)
 	f1 := new(fieldInfo)

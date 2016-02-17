@@ -68,10 +68,10 @@ func (o *orm) getMiInd(md interface{}, needPtr bool) (mi *modelInfo, ind reflect
 	ind = reflect.Indirect(val)
 	typ := ind.Type()
 	if needPtr && val.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("<Ormer> cannot use non-ptr model struct `%s`", getFullName(typ)))
+		panic(fmt.Errorf("<Ormer> cannot use non-ptr model struct `%s`", getName(typ)))
 	}
-	name := getFullName(typ)
-	if mi, ok := modelCache.getByFN(name); ok {
+	name := getName(typ)
+	if mi, ok := modelCache.getByName(name); ok {
 		return mi, ind
 	}
 	panic(fmt.Errorf("<Ormer> table: `%s` not found, maybe not RegisterModel", name))
@@ -81,7 +81,7 @@ func (o *orm) getMiInd(md interface{}, needPtr bool) (mi *modelInfo, ind reflect
 func (o *orm) getFieldInfo(mi *modelInfo, name string) *fieldInfo {
 	fi, ok := mi.fields.GetByAny(name)
 	if !ok {
-		panic(fmt.Errorf("<Ormer> cannot find field `%s` for model `%s`", name, mi.fullName))
+		panic(fmt.Errorf("<Ormer> cannot find field `%s` for model `%s`", name, mi.name))
 	}
 	return fi
 }
@@ -202,7 +202,7 @@ func (o *orm) QueryM2M(md interface{}, name string) QueryM2Mer {
 	case fi.fieldType == RelManyToMany:
 	case fi.fieldType == RelReverseMany && fi.reverseFieldInfo.mi.isThrough:
 	default:
-		panic(fmt.Errorf("<Ormer.QueryM2M> model `%s` . name `%s` is not a m2m field", fi.name, mi.fullName))
+		panic(fmt.Errorf("<Ormer.QueryM2M> model `%s` . name `%s` is not a m2m field", fi.name, mi.name))
 	}
 
 	return newQueryM2M(md, o, mi, fi, ind)
@@ -326,7 +326,7 @@ func (o *orm) getReverseQs(md interface{}, mi *modelInfo, fi *fieldInfo) *queryS
 	switch fi.fieldType {
 	case RelReverseOne, RelReverseMany:
 	default:
-		panic(fmt.Errorf("<Ormer> name `%s` for model `%s` is not an available reverse field", fi.name, mi.fullName))
+		panic(fmt.Errorf("<Ormer> name `%s` for model `%s` is not an available reverse field", fi.name, mi.name))
 	}
 
 	var q *querySet
@@ -347,7 +347,7 @@ func (o *orm) getRelQs(md interface{}, mi *modelInfo, fi *fieldInfo) *querySet {
 	switch fi.fieldType {
 	case RelOneToOne, RelForeignKey, RelManyToMany:
 	default:
-		panic(fmt.Errorf("<Ormer> name `%s` for model `%s` is not an available rel field", fi.name, mi.fullName))
+		panic(fmt.Errorf("<Ormer> name `%s` for model `%s` is not an available rel field", fi.name, mi.name))
 	}
 
 	q := newQuerySet(o, fi.relModelInfo).(*querySet)
@@ -373,8 +373,8 @@ func (o *orm) QueryTable(ptrStructOrTableName interface{}) (qs QuerySeter) {
 			qs = newQuerySet(o, mi)
 		}
 	} else {
-		name = getFullName(indirectType(reflect.TypeOf(ptrStructOrTableName)))
-		if mi, ok := modelCache.getByFN(name); ok {
+		name = getName(indirectType(reflect.TypeOf(ptrStructOrTableName)))
+		if mi, ok := modelCache.getByName(name); ok {
 			qs = newQuerySet(o, mi)
 		}
 	}

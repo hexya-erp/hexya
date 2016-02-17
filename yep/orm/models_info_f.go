@@ -278,7 +278,7 @@ checkType:
 	fi.column = getColumnName(fieldType, addrField, sf, tags["column"])
 	fi.addrValue = addrField
 	fi.sf = sf
-	fi.fullName = mi.fullName + "." + sf.Name
+	fi.fullName = mi.name + "." + sf.Name
 
 	fi.null = attrs["null"]
 	fi.index = attrs["index"]

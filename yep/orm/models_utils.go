@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +24,8 @@ import (
 )
 
 // get reflect.Type name with package path.
-func getFullName(typ reflect.Type) string {
-	return typ.PkgPath() + "." + typ.Name()
+func getName(typ reflect.Type) string {
+	return typ.Name()
 }
 
 // get table name. method, or field name. auto snaked.
@@ -107,6 +108,26 @@ func getColumnName(ft int, addrField reflect.Value, sf reflect.StructField, col 
 		column = sf.Name
 	}
 	return column
+}
+
+// getColumns returns the db columns present in the given indirect type.
+func getColumns(mi *modelInfo, ind reflect.Value) []string {
+	typ := ind.Type()
+	if ind.Kind() == reflect.Slice {
+		typ = ind.Type().Elem()
+	}
+	if typ.Kind() == reflect.Ptr{
+		typ = typ.Elem()
+	}
+	cols := make([]string, 0)
+	for i := 0 ; i< typ.NumField(); i++ {
+		name := typ.Field(i).Name
+		fi := mi.fields.GetByName(name)
+		if fi != nil && fi.dbcol {
+			cols = append(cols, fi.column)
+		}
+	}
+	return cols
 }
 
 // return field type as type constant from reflect.Value

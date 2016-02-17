@@ -143,9 +143,9 @@ outFor:
 				}
 			} else {
 				typ := val.Type()
-				name := getFullName(typ)
+				name := getName(typ)
 				var value interface{}
-				if mmi, ok := modelCache.getByFN(name); ok {
+				if mmi, ok := modelCache.getByName(name); ok {
 					if _, vu, exist := getExistPk(mmi, val); exist {
 						value = vu
 					}

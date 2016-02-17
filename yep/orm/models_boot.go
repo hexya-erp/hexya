@@ -31,7 +31,7 @@ func registerModel(prefix string, model interface{}) {
 	typ := ind.Type()
 
 	if val.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("<orm.RegisterModel> cannot use non-ptr model struct `%s`", getFullName(typ)))
+		panic(fmt.Errorf("<orm.RegisterModel> cannot use non-ptr model struct `%s`", getName(typ)))
 	}
 
 	table := getTableName(val)
@@ -40,8 +40,8 @@ func registerModel(prefix string, model interface{}) {
 		table = prefix + table
 	}
 
-	name := getFullName(typ)
-	if _, ok := modelCache.getByFN(name); ok {
+	name := getName(typ)
+	if _, ok := modelCache.getByName(name); ok {
 		fmt.Printf("<orm.RegisterModel> model `%s` repeat register, must be unique\n", name)
 		os.Exit(2)
 	}
@@ -80,6 +80,33 @@ func registerModel(prefix string, model interface{}) {
 	modelCache.set(table, info)
 }
 
+func AddLayerToModel(modelName string, modelExtension interface{}) error {
+	var err error
+
+	val := reflect.ValueOf(modelExtension)
+	ind := reflect.Indirect(val)
+	typ := ind.Type()
+
+	if val.Kind() != reflect.Ptr {
+		panic(fmt.Errorf("<orm.AddLayerToModel> cannot use non-ptr model struct `%s`", getName(typ)))
+	}
+
+	info, ok := modelCache.getByName(modelName)
+	if !ok {
+		fmt.Printf("<orm.AddLayerToModel> model `%s` must be registered before adding a layer\n", modelName)
+		os.Exit(2)
+	}
+
+	err = addFieldsToModel(info, val)
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
+
+	return nil
+}
+
 // boostrap models
 func bootStrap() {
 	if modelCache.done {
@@ -106,8 +133,8 @@ func bootStrap() {
 					elm = elm.Elem()
 				}
 
-				name := getFullName(elm)
-				mii, ok := modelCache.getByFN(name)
+				name := getName(elm)
+				mii, ok := modelCache.getByName(name)
 				if ok == false || mii.pkg != elm.PkgPath() {
 					err = fmt.Errorf("can not found rel in field `%s`, `%s` may be miss register", fi.fullName, elm.String())
 					goto end
@@ -118,21 +145,13 @@ func bootStrap() {
 				case RelManyToMany:
 					if fi.relThrough != "" {
 						msg := fmt.Sprintf("field `%s` wrong rel_through value `%s`", fi.fullName, fi.relThrough)
-						if i := strings.LastIndex(fi.relThrough, "."); i != -1 && len(fi.relThrough) > (i+1) {
-							pn := fi.relThrough[:i]
-							rmi, ok := modelCache.getByFN(fi.relThrough)
-							if ok == false || pn != rmi.pkg {
-								err = errors.New(msg + " cannot find table")
-								goto end
-							}
-
-							fi.relThroughModelInfo = rmi
-							fi.relTable = rmi.table
-
-						} else {
-							err = errors.New(msg)
+						rmi, ok := modelCache.getByName(fi.relThrough)
+						if ok == false {
+							err = errors.New(msg + " cannot find table")
 							goto end
 						}
+						fi.relThroughModelInfo = rmi
+						fi.relTable = rmi.table
 					} else {
 						i := newM2MModelInfo(mi, mii)
 						if fi.relTable != "" {
@@ -171,7 +190,7 @@ func bootStrap() {
 					ffi := new(fieldInfo)
 					ffi.name = mi.name
 					ffi.column = ffi.name
-					ffi.fullName = rmi.fullName + "." + ffi.name
+					ffi.fullName = rmi.name + "." + ffi.name
 					ffi.reverse = true
 					ffi.relModelInfo = mi
 					ffi.mi = rmi
@@ -185,7 +204,7 @@ func bootStrap() {
 						for cnt := 0; cnt < 5; cnt++ {
 							ffi.name = fmt.Sprintf("%s%d", mi.name, cnt)
 							ffi.column = ffi.name
-							ffi.fullName = rmi.fullName + "." + ffi.name
+							ffi.fullName = rmi.name + "." + ffi.name
 							if added = rmi.fields.Add(ffi); added {
 								break
 							}
@@ -219,7 +238,7 @@ func bootStrap() {
 
 				if fi.reverseFieldInfoTwo == nil {
 					err = fmt.Errorf("can not find m2m field for m2m model `%s`, ensure your m2m model defined correct",
-						fi.relThroughModelInfo.fullName)
+						fi.relThroughModelInfo.name)
 					goto end
 				}
 			}
@@ -245,7 +264,7 @@ func bootStrap() {
 					}
 				}
 				if found == false {
-					err = fmt.Errorf("reverse field `%s` not found in model `%s`", fi.fullName, fi.relModelInfo.fullName)
+					err = fmt.Errorf("reverse field `%s` not found in model `%s`", fi.fullName, fi.relModelInfo.name)
 					goto end
 				}
 			case RelReverseMany:
@@ -284,7 +303,7 @@ func bootStrap() {
 					}
 				}
 				if found == false {
-					err = fmt.Errorf("reverse field for `%s` not found in model `%s`", fi.fullName, fi.relModelInfo.fullName)
+					err = fmt.Errorf("reverse field for `%s` not found in model `%s`", fi.fullName, fi.relModelInfo.name)
 					goto end
 				}
 			}

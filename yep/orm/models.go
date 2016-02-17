@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +30,8 @@ const (
 
 var (
 	modelCache = &_modelCache{
-		cache:     make(map[string]*modelInfo),
-		cacheByFN: make(map[string]*modelInfo),
+		cache:       make(map[string]*modelInfo),
+		cacheByName: make(map[string]*modelInfo),
 	}
 	supportTag = map[string]int{
 		"-":            1,
@@ -58,10 +59,10 @@ var (
 // model info collection
 type _modelCache struct {
 	sync.RWMutex
-	orders    []string
-	cache     map[string]*modelInfo
-	cacheByFN map[string]*modelInfo
-	done      bool
+	orders      []string
+	cache       map[string]*modelInfo
+	cacheByName map[string]*modelInfo
+	done        bool
 }
 
 // get all model info
@@ -89,8 +90,8 @@ func (mc *_modelCache) get(table string) (mi *modelInfo, ok bool) {
 }
 
 // get model info by field name
-func (mc *_modelCache) getByFN(name string) (mi *modelInfo, ok bool) {
-	mi, ok = mc.cacheByFN[name]
+func (mc *_modelCache) getByName(name string) (mi *modelInfo, ok bool) {
+	mi, ok = mc.cacheByName[name]
 	return
 }
 
@@ -98,7 +99,7 @@ func (mc *_modelCache) getByFN(name string) (mi *modelInfo, ok bool) {
 func (mc *_modelCache) set(table string, mi *modelInfo) *modelInfo {
 	mii := mc.cache[table]
 	mc.cache[table] = mi
-	mc.cacheByFN[mi.fullName] = mi
+	mc.cacheByName[mi.name] = mi
 	if mii == nil {
 		mc.orders = append(mc.orders, table)
 	}
@@ -109,7 +110,7 @@ func (mc *_modelCache) set(table string, mi *modelInfo) *modelInfo {
 func (mc *_modelCache) clean() {
 	mc.orders = make([]string, 0)
 	mc.cache = make(map[string]*modelInfo)
-	mc.cacheByFN = make(map[string]*modelInfo)
+	mc.cacheByName = make(map[string]*modelInfo)
 	mc.done = false
 }
 

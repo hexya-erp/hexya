@@ -84,7 +84,7 @@ func (d *dbBase) collectValues(mi *modelInfo, ind reflect.Value, cols []string, 
 		if fi, _ = mi.fields.GetByAny(column); fi != nil {
 			column = fi.column
 		} else {
-			panic(fmt.Errorf("wrong db field/column name `%s` for model `%s`", column, mi.fullName))
+			panic(fmt.Errorf("wrong db field/column name `%s` for model `%s`", column, mi.name))
 		}
 		if fi.dbcol == false || fi.auto && skipAuto {
 			continue
@@ -343,7 +343,8 @@ func (d *dbBase) Read(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Lo
 	}
 	elm := reflect.New(mi.addrField.Elem().Type())
 	mind := reflect.Indirect(elm)
-	d.setColsValues(mi, &mind, mi.fields.dbcols, refs, tz)
+	dCols := getColumns(mi, mind)
+	d.setColsValues(mi, &mind, dCols, refs, tz)
 	ind.Set(mind)
 	return nil
 }
@@ -351,7 +352,8 @@ func (d *dbBase) Read(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Lo
 // execute insert sql dbQuerier with given struct reflect.Value.
 func (d *dbBase) Insert(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Location) (int64, error) {
 	names := make([]string, 0, len(mi.fields.dbcols)-1)
-	values, err := d.collectValues(mi, ind, mi.fields.dbcols, true, true, &names, tz)
+	cols := getColumns(mi, ind)
+	values, err := d.collectValues(mi, ind, cols, true, true, &names, tz)
 	if err != nil {
 		return 0, err
 	}
@@ -713,33 +715,16 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 	val := reflect.ValueOf(container)
 	ind := reflect.Indirect(val)
 
-	errTyp := true
 	one := true
 	isPtr := true
 
 	if val.Kind() == reflect.Ptr {
-		fn := ""
 		if ind.Kind() == reflect.Slice {
 			one = false
 			typ := ind.Type().Elem()
-			switch typ.Kind() {
-			case reflect.Ptr:
-				fn = getFullName(typ.Elem())
-			case reflect.Struct:
+			if typ.Kind() == reflect.Struct {
 				isPtr = false
-				fn = getFullName(typ)
 			}
-		} else {
-			fn = getFullName(ind.Type())
-		}
-		errTyp = fn != mi.fullName
-	}
-
-	if errTyp {
-		if one {
-			panic(fmt.Errorf("wrong object type `%s` for rows scan, need *%s", val.Type(), mi.fullName))
-		} else {
-			panic(fmt.Errorf("wrong object type `%s` for rows scan, need *[]*%s or *[]%s", val.Type(), mi.fullName, mi.fullName))
 		}
 	}
 
@@ -776,7 +761,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 			}
 		}
 	} else {
-		tCols = mi.fields.dbcols
+		tCols = getColumns(mi, ind)
 	}
 
 	colsNum := len(tCols)
@@ -862,7 +847,8 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 							if last.Kind() != reflect.Invalid {
 								field = reflect.Indirect(last.FieldByName(fi.name))
 								if field.IsValid() {
-									d.setColsValues(mmi, &field, mmi.fields.dbcols, trefs[:len(mmi.fields.dbcols)], tz)
+									mCols := getColumns(mmi, field)
+									d.setColsValues(mmi, &field, mCols, trefs[:len(mmi.fields.dbcols)], tz)
 									for _, fi := range mmi.fields.fieldsReverse {
 										if fi.inModel && fi.reverseFieldInfo.mi == lastm {
 											if fi.reverseFieldInfo != nil {

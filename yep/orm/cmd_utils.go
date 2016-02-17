@@ -129,7 +129,7 @@ func getDbCreateSQL(al *alias) (sqls []string, tableIndexes map[string][]dbIndex
 
 	for _, mi := range modelCache.allOrdered() {
 		sql := fmt.Sprintf("-- %s\n", strings.Repeat("-", 50))
-		sql += fmt.Sprintf("--  Table Structure for `%s`\n", mi.fullName)
+		sql += fmt.Sprintf("--  Table Structure for `%s`\n", mi.name)
 		sql += fmt.Sprintf("-- %s\n", strings.Repeat("-", 50))
 
 		sql += fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s%s%s (\n", Q, mi.table, Q)
