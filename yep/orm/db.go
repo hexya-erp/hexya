@@ -246,13 +246,17 @@ func (d *dbBase) collectFieldValue(mi *modelInfo, fi *fieldInfo, ind reflect.Val
 	return value, nil
 }
 
-// create insert sql preparation statement object.
-func (d *dbBase) PrepareInsert(q dbQuerier, mi *modelInfo) (stmtQuerier, string, error) {
+// create insert sql preparation statement object from the given struct as interface.
+func (d *dbBase) PrepareInsert(q dbQuerier, mi *modelInfo, md interface{}) (stmtQuerier, string, error) {
 	Q := d.ins.TableQuote()
+	val := reflect.ValueOf(md)
+	ind := reflect.Indirect(val)
 
-	dbcols := make([]string, 0, len(mi.fields.dbcols))
-	marks := make([]string, 0, len(mi.fields.dbcols))
-	for _, fi := range mi.fields.fieldsDB {
+	indCols := getColumns(mi, ind)
+	dbcols := make([]string, 0, len(indCols))
+	marks := make([]string, 0, len(indCols))
+	for _, col := range indCols {
+		fi := mi.fields.GetByColumn(col)
 		if fi.auto == false {
 			dbcols = append(dbcols, fi.column)
 			marks = append(marks, "?")
@@ -274,7 +278,8 @@ func (d *dbBase) PrepareInsert(q dbQuerier, mi *modelInfo) (stmtQuerier, string,
 
 // insert struct with prepared statement and given struct reflect value.
 func (d *dbBase) InsertStmt(stmt stmtQuerier, mi *modelInfo, ind reflect.Value, tz *time.Location) (int64, error) {
-	values, err := d.collectValues(mi, ind, mi.fields.dbcols, true, true, nil, tz)
+	cols := getColumns(mi, ind)
+	values, err := d.collectValues(mi, ind, cols, true, true, nil, tz)
 	if err != nil {
 		return 0, err
 	}
@@ -467,13 +472,11 @@ func (d *dbBase) Update(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.
 
 	var setNames []string
 
-	// if specify cols length is zero, then commit all columns.
+	// if specify cols length is zero, then commit the columns corresponding to ind fields
 	if len(cols) == 0 {
-		cols = mi.fields.dbcols
-		setNames = make([]string, 0, len(mi.fields.dbcols)-1)
-	} else {
-		setNames = make([]string, 0, len(cols))
+		cols = getColumns(mi, ind)
 	}
+	setNames = make([]string, 0, len(cols))
 
 	setValues, err := d.collectValues(mi, ind, cols, true, false, &setNames, tz)
 	if err != nil {

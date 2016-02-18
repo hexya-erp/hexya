@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -186,11 +187,11 @@ type QuerySeter interface {
 	// return a insert queryer.
 	// it can be used in times.
 	// example:
-	// 	i,err := sq.PrepareInsert()
+	// 	i,err := sq.PrepareInsert(new(User))
 	// 	num, err = i.Insert(&user1) // user table will add one record user1 at once
 	//	num, err = i.Insert(&user2) // user table will add one record user2 at once
 	//	err = i.Close() //don't forget call Close
-	PrepareInsert() (Inserter, error)
+	PrepareInsert(md interface{}) (Inserter, error)
 	// query all data and map to containers.
 	// cols means the columns when querying.
 	// for example:
@@ -394,7 +395,7 @@ type dbBaser interface {
 	OperatorSQL(string) string
 	GenerateOperatorSQL(*modelInfo, *fieldInfo, string, []interface{}, *time.Location) (string, []interface{})
 	GenerateOperatorLeftCol(*fieldInfo, string, *string)
-	PrepareInsert(dbQuerier, *modelInfo) (stmtQuerier, string, error)
+	PrepareInsert(dbQuerier, *modelInfo, interface{}) (stmtQuerier, string, error)
 	ReadValues(dbQuerier, *querySet, *modelInfo, *Condition, []string, interface{}, *time.Location) (int64, error)
 	RowsTo(dbQuerier, *querySet, *modelInfo, *Condition, interface{}, string, string, *time.Location) (int64, error)
 	MaxLimit() uint64

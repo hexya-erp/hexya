@@ -69,11 +69,11 @@ func (o *insertSet) Close() error {
 }
 
 // create new insert queryer.
-func newInsertSet(orm *orm, mi *modelInfo) (Inserter, error) {
+func newInsertSet(orm *orm, mi *modelInfo, md interface{}) (Inserter, error) {
 	bi := new(insertSet)
 	bi.orm = orm
 	bi.mi = mi
-	st, query, err := orm.alias.DbBaser.PrepareInsert(orm.db, mi)
+	st, query, err := orm.alias.DbBaser.PrepareInsert(orm.db, mi, md)
 	if err != nil {
 		return nil, err
 	}

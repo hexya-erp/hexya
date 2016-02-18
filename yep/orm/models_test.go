@@ -353,6 +353,11 @@ type GroupPermissions struct {
 	Permission *Permission `orm:"rel(fk)"`
 }
 
+type UserExtension struct {
+	Email2    string `orm:"size(100)"`
+	IsPremium bool
+}
+
 type ProfileExtension struct {
 	City    string
 	Country string

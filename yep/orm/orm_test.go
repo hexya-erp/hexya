@@ -189,7 +189,10 @@ func TestSyncDb(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
-	err := AddLayerToModel("Profile", new(ProfileExtension))
+	err := AddLayerToModel("User", new(UserExtension))
+	throwFail(t, err)
+
+	err = AddLayerToModel("Profile", new(ProfileExtension))
 	throwFail(t, err)
 
 	err = RunSyncdb("default", true, Debug)
@@ -211,7 +214,10 @@ func TestRegisterModels(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
-	err := AddLayerToModel("Profile", new(ProfileExtension))
+	err := AddLayerToModel("User", new(UserExtension))
+	throwFail(t, err)
+
+	err = AddLayerToModel("Profile", new(ProfileExtension))
 	throwFail(t, err)
 
 	BootStrap()
@@ -1475,7 +1481,7 @@ func TestPkManyRelated(t *testing.T) {
 
 func TestPrepareInsert(t *testing.T) {
 	qs := dORM.QueryTable("user")
-	i, err := qs.PrepareInsert()
+	i, err := qs.PrepareInsert(new(User))
 	throwFailNow(t, err)
 
 	var user User

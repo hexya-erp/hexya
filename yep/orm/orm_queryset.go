@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -177,10 +178,10 @@ func (o *querySet) Delete() (int64, error) {
 // return a insert queryer.
 // it can be used in times.
 // example:
-// 	i,err := sq.PrepareInsert()
+// 	i,err := sq.PrepareInsert(new(User))
 // 	i.Add(&user1{},&user2{})
-func (o *querySet) PrepareInsert() (Inserter, error) {
-	return newInsertSet(o.orm, o.mi)
+func (o *querySet) PrepareInsert(md interface{}) (Inserter, error) {
+	return newInsertSet(o.orm, o.mi, md)
 }
 
 // query all data and map to containers.
