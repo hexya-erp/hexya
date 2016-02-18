@@ -39,6 +39,7 @@ type BaseResPartner struct {
 type ResPartner struct {
 	BaseResPartner
 }
+
 //
 func main() {
 	//orm.Debug = true
