@@ -28,7 +28,6 @@ type modelInfo struct {
 	table     string
 	fields    *fields
 	manual    bool
-	addrField reflect.Value
 	uniques   []string
 	isThrough bool
 }
@@ -41,8 +40,6 @@ func newModelInfo(val reflect.Value) (info *modelInfo) {
 
 	ind := reflect.Indirect(val)
 	typ := ind.Type()
-
-	info.addrField = val
 
 	info.name = typ.Name()
 	err := addFieldsToModel(info, val)

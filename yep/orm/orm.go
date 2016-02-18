@@ -15,7 +15,7 @@
 
 /*
 TODO ORM Package doc
- */
+*/
 package orm
 
 import (

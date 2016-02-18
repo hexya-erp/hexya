@@ -346,7 +346,15 @@ func (d *dbBase) Read(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Lo
 		}
 		return err
 	}
-	elm := reflect.New(mi.addrField.Elem().Type())
+
+	indType := ind.Type()
+	if indType.Kind() == reflect.Slice {
+		indType = indType.Elem()
+	}
+	if indType.Kind() == reflect.Ptr {
+		indType = indType.Elem()
+	}
+	elm := reflect.New(indType)
 	mind := reflect.Indirect(elm)
 	dCols := getColumns(mi, mind)
 	d.setColsValues(mi, &mind, dCols, refs, tz)
@@ -717,6 +725,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 
 	val := reflect.ValueOf(container)
 	ind := reflect.Indirect(val)
+	indType := ind.Type()
 
 	one := true
 	isPtr := true
@@ -724,9 +733,12 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 	if val.Kind() == reflect.Ptr {
 		if ind.Kind() == reflect.Slice {
 			one = false
-			typ := ind.Type().Elem()
-			if typ.Kind() == reflect.Struct {
+			indType = indType.Elem()
+			if indType.Kind() == reflect.Struct {
 				isPtr = false
+			}
+			if indType.Kind() == reflect.Ptr {
+				indType = indType.Elem()
 			}
 		}
 	}
@@ -820,7 +832,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 				return 0, err
 			}
 
-			elm := reflect.New(mi.addrField.Elem().Type())
+			elm := reflect.New(indType)
 			mind := reflect.Indirect(elm)
 
 			cacheV := make(map[string]*reflect.Value)
@@ -1338,7 +1350,8 @@ setValue:
 	case fieldType&IsRelField > 0:
 		if value != nil {
 			fieldType = fi.relModelInfo.fields.pk.fieldType
-			mf := reflect.New(fi.relModelInfo.addrField.Elem().Type())
+			mfType := field.Type().Elem()
+			mf := reflect.New(mfType)
 			field.Set(mf)
 			f := mf.Elem().FieldByName(fi.relModelInfo.fields.pk.name)
 			field = f

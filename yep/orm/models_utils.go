@@ -116,11 +116,11 @@ func getColumns(mi *modelInfo, ind reflect.Value) []string {
 	if ind.Kind() == reflect.Slice {
 		typ = ind.Type().Elem()
 	}
-	if typ.Kind() == reflect.Ptr{
+	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 	}
 	cols := make([]string, 0)
-	for i := 0 ; i< typ.NumField(); i++ {
+	for i := 0; i < typ.NumField(); i++ {
 		name := typ.Field(i).Name
 		fi := mi.fields.GetByName(name)
 		if fi != nil && fi.dbcol {
