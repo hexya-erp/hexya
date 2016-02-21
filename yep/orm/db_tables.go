@@ -1,4 +1,5 @@
-// Copyright 2014 beego Author. All Rights Reserved.
+// Original work Copyright 2014 beego Author. All Rights Reserved.
+// Modified work Copyright 2016 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,21 +17,24 @@ package orm
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 )
 
 // table info struct.
 type dbTable struct {
-	id    int
-	index string
-	name  string
-	names []string
-	sel   bool
-	inner bool
-	mi    *modelInfo
-	fi    *fieldInfo
-	jtl   *dbTable
+	id      int
+	index   string
+	name    string
+	names   []string
+	sel     bool
+	inner   bool
+	mi      *modelInfo
+	fi      *fieldInfo
+	jtl     *dbTable
+	ind     reflect.Value
+	columns []string
 }
 
 // tables collection struct, contains some tables.
@@ -38,22 +42,37 @@ type dbTables struct {
 	tablesM map[string]*dbTable
 	tables  []*dbTable
 	mi      *modelInfo
+	ind     reflect.Value
 	base    dbBaser
 	skipEnd bool
 }
 
 // set table info to collection.
 // if not exist, create new.
-func (t *dbTables) set(names []string, mi *modelInfo, fi *fieldInfo, inner bool) *dbTable {
+func (t *dbTables) set(names []string, mi *modelInfo, ind reflect.Value, fi *fieldInfo, inner bool) *dbTable {
 	name := strings.Join(names, ExprSep)
 	if j, ok := t.tablesM[name]; ok {
 		j.name = name
 		j.mi = mi
+		j.ind = ind
+		j.columns = getColumns(mi, ind)
 		j.fi = fi
 		j.inner = inner
 	} else {
 		i := len(t.tables) + 1
-		jt := &dbTable{i, fmt.Sprintf("T%d", i), name, names, false, inner, mi, fi, nil}
+		jt := &dbTable{
+			id:      i,
+			index:   fmt.Sprintf("T%d", i),
+			name:    name,
+			names:   names,
+			sel:     false,
+			inner:   inner,
+			mi:      mi,
+			fi:      fi,
+			jtl:     nil,
+			ind:     ind,
+			columns: getColumns(mi, ind),
+		}
 		t.tablesM[name] = jt
 		t.tables = append(t.tables, jt)
 	}
@@ -61,11 +80,23 @@ func (t *dbTables) set(names []string, mi *modelInfo, fi *fieldInfo, inner bool)
 }
 
 // add table info to collection.
-func (t *dbTables) add(names []string, mi *modelInfo, fi *fieldInfo, inner bool) (*dbTable, bool) {
+func (t *dbTables) add(names []string, mi *modelInfo, ind reflect.Value, fi *fieldInfo, inner bool) (*dbTable, bool) {
 	name := strings.Join(names, ExprSep)
 	if _, ok := t.tablesM[name]; ok == false {
 		i := len(t.tables) + 1
-		jt := &dbTable{i, fmt.Sprintf("T%d", i), name, names, false, inner, mi, fi, nil}
+		jt := &dbTable{
+			id:      i,
+			index:   fmt.Sprintf("T%d", i),
+			name:    name,
+			names:   names,
+			sel:     false,
+			inner:   inner,
+			mi:      mi,
+			fi:      fi,
+			jtl:     nil,
+			ind:     ind,
+			columns: getColumns(mi, ind),
+		}
 		t.tablesM[name] = jt
 		t.tables = append(t.tables, jt)
 		return jt, true
@@ -122,7 +153,7 @@ func (t *dbTables) parseRelated(rels []string, depth int) {
 	for i, s := range related {
 		var (
 			exs    = strings.Split(s, ExprSep)
-			names  = make([]string, 0, len(exs))
+			names  = make([]string, 0)
 			mmi    = t.mi
 			cancel = true
 			jtl    *dbTable
@@ -134,12 +165,35 @@ func (t *dbTables) parseRelated(rels []string, depth int) {
 			if fi, ok := mmi.fields.GetByAny(ex); ok && fi.rel && fi.fieldType != RelManyToMany {
 				names = append(names, fi.name)
 				mmi = fi.relModelInfo
+				var (
+					tInd      reflect.Value
+					fieldType reflect.Type
+				)
+				if jtl != nil {
+					tInd = jtl.ind
+				} else {
+					tInd = t.ind
+				}
+				if tInd.Kind() != reflect.Invalid {
+					tt := tInd.Type()
+					if tt.Kind() == reflect.Ptr {
+						tt = tt.Elem()
+					}
+					ft, _ := tt.FieldByName(fi.name)
+					fieldType = ft.Type
+				}
 
 				if fi.null || t.skipEnd {
 					inner = false
 				}
 
-				jt := t.set(names, mmi, fi, inner)
+				var mind reflect.Value
+				if fieldType != nil {
+					mind = reflect.Indirect(reflect.New(fieldType))
+				} else{
+					mind = reflect.ValueOf(nil)
+				}
+				jt := t.set(names, mmi, mind, fi, inner)
 				jt.jtl = jtl
 
 				if fi.reverse {
@@ -271,7 +325,7 @@ loopFor:
 						goto loopEnd
 					}
 
-					jt, _ := t.add(names, mmi, fi, inner)
+					jt, _ := t.add(names, mmi, reflect.ValueOf(nil), fi, inner) // TODO: Check ind=<nil>
 					jt.jtl = jtl
 					jtl = jt
 				}
@@ -467,10 +521,15 @@ func (t *dbTables) getLimitSQL(mi *modelInfo, offset int64, limit int64) (limits
 }
 
 // crete new tables collection.
-func newDbTables(mi *modelInfo, base dbBaser) *dbTables {
+func newDbTables(mi *modelInfo, base dbBaser, md interface{}) *dbTables {
 	tables := &dbTables{}
 	tables.tablesM = make(map[string]*dbTable)
 	tables.mi = mi
+
+	val := reflect.ValueOf(md)
+	ind := reflect.Indirect(val)
+	tables.ind = ind
+
 	tables.base = base
 	return tables
 }

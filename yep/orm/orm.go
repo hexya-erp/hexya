@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -70,7 +71,7 @@ func (o *orm) getMiInd(md interface{}, needPtr bool) (mi *modelInfo, ind reflect
 	if needPtr && val.Kind() != reflect.Ptr {
 		panic(fmt.Errorf("<Ormer> cannot use non-ptr model struct `%s`", getName(typ)))
 	}
-	name := getName(typ)
+	name := strings.SplitN(getName(typ), "_", 2)[0]
 	if mi, ok := modelCache.getByName(name); ok {
 		return mi, ind
 	}
@@ -373,7 +374,8 @@ func (o *orm) QueryTable(ptrStructOrTableName interface{}) (qs QuerySeter) {
 			qs = newQuerySet(o, mi)
 		}
 	} else {
-		name = getName(indirectType(reflect.TypeOf(ptrStructOrTableName)))
+		typ := indirectType(reflect.TypeOf(ptrStructOrTableName))
+		name := strings.SplitN(getName(typ), "_", 2)[0]
 		if mi, ok := modelCache.getByName(name); ok {
 			qs = newQuerySet(o, mi)
 		}

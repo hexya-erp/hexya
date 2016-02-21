@@ -111,7 +111,13 @@ func getColumnName(ft int, addrField reflect.Value, sf reflect.StructField, col 
 }
 
 // getColumns returns the db columns present in the given indirect type.
+// If the indirect is Zero value, then return all the table columns
 func getColumns(mi *modelInfo, ind reflect.Value) []string {
+	cols := make([]string, 0)
+	if ind.Kind() == reflect.Invalid {
+		return mi.fields.dbcols
+	}
+
 	typ := ind.Type()
 	if ind.Kind() == reflect.Slice {
 		typ = ind.Type().Elem()
@@ -119,7 +125,6 @@ func getColumns(mi *modelInfo, ind reflect.Value) []string {
 	if typ.Kind() == reflect.Ptr {
 		typ = typ.Elem()
 	}
-	cols := make([]string, 0)
 	for i := 0; i < typ.NumField(); i++ {
 		name := typ.Field(i).Name
 		fi := mi.fields.GetByName(name)

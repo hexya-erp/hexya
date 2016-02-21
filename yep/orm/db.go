@@ -323,8 +323,9 @@ func (d *dbBase) Read(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Lo
 	Q := d.ins.TableQuote()
 
 	sep := fmt.Sprintf("%s, %s", Q, Q)
-	sels := strings.Join(mi.fields.dbcols, sep)
-	colsNum := len(mi.fields.dbcols)
+	dbCols := getColumns(mi, ind)
+	sels := strings.Join(dbCols, sep)
+	colsNum := len(dbCols)
 
 	sep = fmt.Sprintf("%s = ? AND %s", Q, Q)
 	wheres := strings.Join(whereCols, sep)
@@ -564,7 +565,7 @@ func (d *dbBase) UpdateBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Con
 		panic(fmt.Errorf("update params cannot empty"))
 	}
 
-	tables := newDbTables(mi, d.ins)
+	tables := newDbTables(mi, d.ins, nil)
 	if qs != nil {
 		tables.parseRelated(qs.related, qs.relDepth)
 	}
@@ -651,7 +652,7 @@ func (d *dbBase) deleteRels(q dbQuerier, mi *modelInfo, args []interface{}, tz *
 
 // delete table-related records.
 func (d *dbBase) DeleteBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condition, tz *time.Location) (int64, error) {
-	tables := newDbTables(mi, d.ins)
+	tables := newDbTables(mi, d.ins, nil)
 	tables.skipEnd = true
 
 	if qs != nil {
@@ -783,7 +784,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 	sep := fmt.Sprintf("%s, T0.%s", Q, Q)
 	sels := fmt.Sprintf("T0.%s%s%s", Q, strings.Join(tCols, sep), Q)
 
-	tables := newDbTables(mi, d.ins)
+	tables := newDbTables(mi, d.ins, reflect.New(indType).Interface())
 	tables.parseRelated(qs.related, qs.relDepth)
 
 	where, args := tables.getCondSQL(cond, false, tz)
@@ -794,9 +795,9 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 
 	for _, tbl := range tables.tables {
 		if tbl.sel {
-			colsNum += len(tbl.mi.fields.dbcols)
+			colsNum += len(tbl.columns)
 			sep := fmt.Sprintf("%s, %s.%s", Q, tbl.index, Q)
-			sels += fmt.Sprintf(", %s.%s%s%s", tbl.index, Q, strings.Join(tbl.mi.fields.dbcols, sep), Q)
+			sels += fmt.Sprintf(", %s.%s%s%s", tbl.index, Q, strings.Join(tbl.columns, sep), Q)
 		}
 	}
 
@@ -848,6 +849,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 					last := mind
 					names := ""
 					mmi := mi
+					var mCols []string
 					// loop cascade models
 					for _, name := range tbl.names {
 						names += name
@@ -862,8 +864,8 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 							if last.Kind() != reflect.Invalid {
 								field = reflect.Indirect(last.FieldByName(fi.name))
 								if field.IsValid() {
-									mCols := getColumns(mmi, field)
-									d.setColsValues(mmi, &field, mCols, trefs[:len(mmi.fields.dbcols)], tz)
+									mCols = getColumns(mmi, field)
+									d.setColsValues(mmi, &field, mCols, trefs[:len(mCols)], tz)
 									for _, fi := range mmi.fields.fieldsReverse {
 										if fi.inModel && fi.reverseFieldInfo.mi == lastm {
 											if fi.reverseFieldInfo != nil {
@@ -881,7 +883,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 							cacheM[names] = mmi
 						}
 					}
-					trefs = trefs[len(mmi.fields.dbcols):]
+					trefs = trefs[len(mCols):]
 				}
 			}
 
@@ -925,7 +927,7 @@ func (d *dbBase) ReadBatch(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condi
 
 // excute count sql and return count result int64.
 func (d *dbBase) Count(q dbQuerier, qs *querySet, mi *modelInfo, cond *Condition, tz *time.Location) (cnt int64, err error) {
-	tables := newDbTables(mi, d.ins)
+	tables := newDbTables(mi, d.ins, nil)
 	tables.parseRelated(qs.related, qs.relDepth)
 
 	where, args := tables.getCondSQL(cond, false, tz)
@@ -1404,7 +1406,7 @@ func (d *dbBase) ReadValues(q dbQuerier, qs *querySet, mi *modelInfo, cond *Cond
 		panic(fmt.Errorf("unsupport read values type `%T`", container))
 	}
 
-	tables := newDbTables(mi, d.ins)
+	tables := newDbTables(mi, d.ins, nil)
 
 	var (
 		cols  []string
