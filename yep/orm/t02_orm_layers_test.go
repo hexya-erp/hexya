@@ -62,6 +62,10 @@ type User_Partial struct {
 	Email2    string
 	IsPremium bool
 	Profile   *Profile_Partial
+	Created   time.Time
+	Updated   time.Time
+	Extra     JSONField
+	UserName  string
 }
 
 type Profile_Partial struct {
@@ -293,4 +297,29 @@ func TestM2MPartial(t *testing.T) {
 	throwFail(t, err)
 	throwFail(t, AssertIs(num, 3))
 	throwFail(t, AssertIs(len(user_jane.Posts[0].Tags), 3))
+}
+
+func TestMulti(t *testing.T) {
+	// Insert multi
+	user1 := &User_Partial{
+		UserName: "User 1",
+		Email: "user1@example.com",
+	}
+	user2 := &User_Partial{
+		UserName: "User 2",
+		Email:  "user2@example.com",
+		Email2: "userthesecond@example.net",
+	}
+	user3 := &User_Partial{
+		UserName: "User 3",
+		Email:     "user3@example.com",
+		IsPremium: true,
+	}
+	_, err = dORM.InsertMulti(3, []*User_Partial{user1, user2, user3})
+	throwFail(t, err)
+
+	// Update
+	num, err := dORM.QueryTable(user1).Filter("Email__contains", "user").Update(Params{"status": 14})
+	throwFail(t, err)
+	throwFail(t, AssertIs(num, 3))
 }

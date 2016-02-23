@@ -365,8 +365,8 @@ func (d *dbBase) Read(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Lo
 
 // execute insert sql dbQuerier with given struct reflect.Value.
 func (d *dbBase) Insert(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Location) (int64, error) {
-	names := make([]string, 0, len(mi.fields.dbcols)-1)
 	cols := getColumns(mi, ind)
+	names := make([]string, 0, len(cols)-1)
 	values, err := d.collectValues(mi, ind, cols, true, true, &names, tz)
 	if err != nil {
 		return 0, err
@@ -397,8 +397,9 @@ func (d *dbBase) InsertMulti(q dbQuerier, mi *modelInfo, sind reflect.Value, bul
 		// 	return cnt, ErrArgs
 		// }
 
+		cols := getColumns(mi, sind)
 		if i == 1 {
-			vus, err := d.collectValues(mi, ind, mi.fields.dbcols, true, true, &names, tz)
+			vus, err := d.collectValues(mi, ind, cols, true, true, &names, tz)
 			if err != nil {
 				return cnt, err
 			}
@@ -406,8 +407,7 @@ func (d *dbBase) InsertMulti(q dbQuerier, mi *modelInfo, sind reflect.Value, bul
 			nums += copy(values, vus)
 
 		} else {
-
-			vus, err := d.collectValues(mi, ind, mi.fields.dbcols, true, true, nil, tz)
+			vus, err := d.collectValues(mi, ind, cols, true, true, nil, tz)
 			if err != nil {
 				return cnt, err
 			}
