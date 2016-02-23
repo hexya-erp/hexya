@@ -353,12 +353,12 @@ type GroupPermissions struct {
 	Permission *Permission `orm:"rel(fk)"`
 }
 
-type UserExtension struct {
+type User_Extension struct {
 	Email2    string `orm:"size(100)"`
 	IsPremium bool
 }
 
-type ProfileExtension struct {
+type Profile_Extension struct {
 	City    string
 	Country string
 }

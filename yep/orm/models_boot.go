@@ -80,7 +80,7 @@ func registerModel(prefix string, model interface{}) {
 	modelCache.set(table, info)
 }
 
-func AddLayerToModel(modelName string, modelExtension interface{}) error {
+func RegisterModelExtension(modelExtension interface{}) error {
 	var err error
 
 	val := reflect.ValueOf(modelExtension)
@@ -88,12 +88,12 @@ func AddLayerToModel(modelName string, modelExtension interface{}) error {
 	typ := ind.Type()
 
 	if val.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("<orm.AddLayerToModel> cannot use non-ptr model struct `%s`", getName(typ)))
+		panic(fmt.Errorf("<orm.RegisterExtension> cannot use non-ptr model struct `%s`", getName(typ)))
 	}
 
-	info, ok := modelCache.getByName(modelName)
+	info, ok := modelCache.getByName(getName(typ))
 	if !ok {
-		fmt.Printf("<orm.AddLayerToModel> model `%s` must be registered before adding a layer\n", modelName)
+		fmt.Printf("<orm.RegisterExtension> model `%s` must be registered before adding a layer\n", getName(typ))
 		os.Exit(2)
 	}
 

@@ -55,6 +55,22 @@ type Profile_Partial struct {
 	Country string
 }
 
+type User_PartialWithPosts struct {
+	ID        int
+	Email     string
+	Email2    string
+	IsPremium bool
+	Profile   *Profile_PartialWithBestPost
+	Posts     []*Post
+}
+
+type Profile_PartialWithBestPost struct {
+	ID       int64
+	Age      int16
+	Country  string
+	BestPost *Post
+}
+
 var (
 	userJohnID int64
 	userJaneID int64
@@ -62,8 +78,6 @@ var (
 )
 
 func TestFullUser(t *testing.T) {
-	// Full user struct
-
 	// Insert full users
 	user1 := User_Full{
 		UserName: "John Smith",
@@ -196,4 +210,47 @@ func TestRelPartial(t *testing.T) {
 	throwFail(t, AssertIs(user2.Email, "jsmith2@example.com"))
 	throwFail(t, AssertIs(user2.Profile.Age, 24))
 	throwFail(t, AssertIs(user2.Profile.Country, "UK"))
+
+	// Test One2many
+	post1 := Post{
+		User:    &user_jane,
+		Title:   "Title of post1",
+		Content: "Content of post1",
+	}
+	dORM.Insert(&post1)
+	post2 := Post{
+		User:    &user_jane,
+		Title:   "Title of post2",
+		Content: "Content of post2",
+	}
+	dORM.Insert(&post2)
+	// Loadrelated with query set on full user
+	var user_full User_Full
+	err = dORM.QueryTable(new(User_Full)).Filter("UserName", "Jane Smith").One(&user_full)
+	throwFail(t, err)
+	num, err = dORM.LoadRelated(&user_full, "Posts")
+	throwFail(t, err)
+	throwFail(t, AssertIs(num, 2))
+	throwFail(t, AssertIs(len(user_full.Posts), 2))
+	throwFail(t, AssertIs(user_full.Posts[0].Title, "Title of post1"))
+
+	// Loadrelated with query set on partial user
+	var user_partial User_PartialWithPosts
+	err = dORM.QueryTable(new(User_Full)).Filter("UserName", "Jane Smith").One(&user_partial)
+	throwFail(t, err)
+	num, err = dORM.LoadRelated(&user_partial, "Posts")
+	throwFail(t, err)
+	throwFail(t, AssertIs(num, 2))
+	throwFail(t, AssertIs(len(user_partial.Posts), 2))
+	throwFail(t, AssertIs(user_partial.Posts[0].Title, "Title of post1"))
+
+	// Extra related tests
+	user_jane.Profile.BestPost = &post1
+	dORM.Update(user_jane.Profile)
+
+	var user3 User_PartialWithPosts
+	err = dORM.QueryTable("User").Filter("UserName", "Jane Smith").RelatedSel().One(&user3)
+	throwFail(t, err)
+	throwFail(t, AssertIs(user3.Profile.Country, "UK"))
+	throwFail(t, AssertIs(user3.Profile.BestPost.ID, post1.ID))
 }

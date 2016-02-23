@@ -189,10 +189,10 @@ func TestSyncDb(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
-	err := AddLayerToModel("User", new(UserExtension))
+	err := RegisterModelExtension(new(User_Extension))
 	throwFail(t, err)
 
-	err = AddLayerToModel("Profile", new(ProfileExtension))
+	err = RegisterModelExtension(new(Profile_Extension))
 	throwFail(t, err)
 
 	err = RunSyncdb("default", true, Debug)
@@ -214,10 +214,10 @@ func TestRegisterModels(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
-	err := AddLayerToModel("User", new(UserExtension))
+	err := RegisterModelExtension(new(User_Extension))
 	throwFail(t, err)
 
-	err = AddLayerToModel("Profile", new(ProfileExtension))
+	err = RegisterModelExtension(new(Profile_Extension))
 	throwFail(t, err)
 
 	BootStrap()

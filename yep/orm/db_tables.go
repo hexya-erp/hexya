@@ -193,6 +193,12 @@ func (t *dbTables) parseRelated(rels []string, depth int) {
 				} else{
 					mind = reflect.ValueOf(nil)
 				}
+
+				if mind.Kind() == reflect.Invalid && t.ind.Kind() != reflect.Invalid {
+					// Do not register the table if we don't have a field for it, but we had an indirect at the beginning
+					continue
+				}
+
 				jt := t.set(names, mmi, mind, fi, inner)
 				jt.jtl = jtl
 

@@ -23,9 +23,10 @@ import (
 	"time"
 )
 
-// get reflect.Type name with package path.
+// getName returns Model name from reflectType (splitting on _)
 func getName(typ reflect.Type) string {
-	return typ.Name()
+	name := strings.SplitN(typ.Name(), "_", 2)[0]
+	return name
 }
 
 // get table name. method, or field name. auto snaked.
