@@ -31,7 +31,7 @@ func registerModel(prefix string, model interface{}) {
 	typ := ind.Type()
 
 	if val.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("<orm.RegisterModel> cannot use non-ptr model struct `%s`", getName(typ)))
+		panic(fmt.Errorf("<orm.RegisterModel> cannot use non-ptr model struct `%s`", getModelName(typ)))
 	}
 
 	table := getTableName(val)
@@ -40,7 +40,7 @@ func registerModel(prefix string, model interface{}) {
 		table = prefix + table
 	}
 
-	name := getName(typ)
+	name := getModelName(typ)
 	if _, ok := modelCache.getByName(name); ok {
 		fmt.Printf("<orm.RegisterModel> model `%s` repeat register, must be unique\n", name)
 		os.Exit(2)
@@ -88,12 +88,12 @@ func RegisterModelExtension(modelExtension interface{}) error {
 	typ := ind.Type()
 
 	if val.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("<orm.RegisterExtension> cannot use non-ptr model struct `%s`", getName(typ)))
+		panic(fmt.Errorf("<orm.RegisterExtension> cannot use non-ptr model struct `%s`", getModelName(typ)))
 	}
 
-	info, ok := modelCache.getByName(getName(typ))
+	info, ok := modelCache.getByName(getModelName(typ))
 	if !ok {
-		fmt.Printf("<orm.RegisterExtension> model `%s` must be registered before adding a layer\n", getName(typ))
+		fmt.Printf("<orm.RegisterExtension> model `%s` must be registered before adding a layer\n", getModelName(typ))
 		os.Exit(2)
 	}
 
@@ -133,7 +133,7 @@ func bootStrap() {
 					elm = elm.Elem()
 				}
 
-				name := getName(elm)
+				name := getModelName(elm)
 				mii, ok := modelCache.getByName(name)
 				if ok == false || mii.pkg != elm.PkgPath() {
 					err = fmt.Errorf("can not found rel in field `%s`, `%s` may be miss register", fi.fullName, elm.String())

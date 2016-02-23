@@ -41,6 +41,21 @@ type User_Full struct {
 	IsPremium    bool
 }
 
+type Tag_Full struct {
+	ID          int
+	Name        string
+	Description string
+	BestPost    *Post
+	Posts       []*Post
+}
+
+type Tag_Partial struct {
+	ID          int
+	Name        string
+	Description string
+	Posts       []*Post
+}
+
 type User_Partial struct {
 	ID        int
 	Email     string
@@ -253,4 +268,29 @@ func TestRelPartial(t *testing.T) {
 	throwFail(t, err)
 	throwFail(t, AssertIs(user3.Profile.Country, "UK"))
 	throwFail(t, AssertIs(user3.Profile.BestPost.ID, post1.ID))
+}
+
+func TestM2MPartial(t *testing.T) {
+	// Get Jane's posts
+	user_jane := User{ID: int(userJaneID)}
+	err = dORM.Read(&user_jane)
+	throwFail(t, err)
+	_, err = dORM.LoadRelated(&user_jane, "Posts")
+	throwFail(t, err)
+
+	// Add first 3 tags to Jane's first post
+	var tags []*Tag_Partial
+	_, err = dORM.QueryTable("Tag").Limit(3).All(&tags)
+	throwFail(t, err)
+	tags[0].Description = "Tag0 description"
+	_, err = dORM.Update(tags[0])
+	throwFail(t, err)
+	post1Tags := dORM.QueryM2M(user_jane.Posts[0], "Tags")
+	post1Tags.Add(tags)
+
+	// Get Tags to check
+	num, err := dORM.LoadRelated(user_jane.Posts[0], "Tags")
+	throwFail(t, err)
+	throwFail(t, AssertIs(num, 3))
+	throwFail(t, AssertIs(len(user_jane.Posts[0].Tags), 3))
 }

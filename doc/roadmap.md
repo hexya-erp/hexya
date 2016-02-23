@@ -3,7 +3,7 @@ YEP Roadmap
 
 ORM
 ---
-- [ ] Modify Beego ORM to enable layered models
+- [X] Modify Beego ORM to enable layered models
 - [ ] Add meta support to ORM models/fields
 - [ ] Add methods to ORM models
 - [ ] Add computed fields to ORM:

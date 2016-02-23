@@ -68,12 +68,12 @@ func (o *orm) getMiInd(md interface{}, needPtr bool) (mi *modelInfo, ind reflect
 	ind = reflect.Indirect(val)
 	typ := ind.Type()
 	if needPtr && val.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("<Ormer> cannot use non-ptr model struct `%s`", getName(typ)))
+		panic(fmt.Errorf("<Ormer> cannot use non-ptr model struct `%s`", getModelName(typ)))
 	}
-	if mi, ok := modelCache.getByName(getName(typ)); ok {
+	if mi, ok := modelCache.getByName(getModelName(typ)); ok {
 		return mi, ind
 	}
-	panic(fmt.Errorf("<Ormer> table: `%s` not found, maybe not RegisterModel", getName(typ)))
+	panic(fmt.Errorf("<Ormer> table: `%s` not found, maybe not RegisterModel", getModelName(typ)))
 }
 
 // get field info from model info by given field name
@@ -373,7 +373,8 @@ func (o *orm) QueryTable(ptrStructOrTableName interface{}) (qs QuerySeter) {
 		}
 	} else {
 		typ := indirectType(reflect.TypeOf(ptrStructOrTableName))
-		if mi, ok := modelCache.getByName(getName(typ)); ok {
+		name = getModelName(typ)
+		if mi, ok := modelCache.getByName(name); ok {
 			qs = newQuerySet(o, mi)
 		}
 	}

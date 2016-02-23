@@ -24,7 +24,7 @@ import (
 )
 
 // getName returns Model name from reflectType (splitting on _)
-func getName(typ reflect.Type) string {
+func getModelName(typ reflect.Type) string {
 	name := strings.SplitN(typ.Name(), "_", 2)[0]
 	return name
 }

@@ -195,6 +195,9 @@ func TestSyncDb(t *testing.T) {
 	err = RegisterModelExtension(new(Profile_Extension))
 	throwFail(t, err)
 
+	err = RegisterModelExtension(new(Tag_Extension))
+	throwFail(t, err)
+
 	err = RunSyncdb("default", true, Debug)
 	throwFail(t, err)
 
@@ -220,6 +223,9 @@ func TestRegisterModels(t *testing.T) {
 	err = RegisterModelExtension(new(Profile_Extension))
 	throwFail(t, err)
 
+	err = RegisterModelExtension(new(Tag_Extension))
+	throwFail(t, err)
+
 	BootStrap()
 
 	dORM = NewOrm()
@@ -229,7 +235,7 @@ func TestRegisterModels(t *testing.T) {
 func TestModelSyntax(t *testing.T) {
 	user := &User{}
 	ind := reflect.ValueOf(user).Elem()
-	fn := getName(ind.Type())
+	fn := getModelName(ind.Type())
 	mi, ok := modelCache.getByName(fn)
 	throwFail(t, AssertIs(ok, true))
 

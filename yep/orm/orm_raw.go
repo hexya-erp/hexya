@@ -286,7 +286,7 @@ func (o *rawSet) QueryRow(containers ...interface{}) error {
 			}
 
 			structMode = true
-			fn := getName(typ)
+			fn := getModelName(typ)
 			if mi, ok := modelCache.getByName(fn); ok {
 				sMi = mi
 			}
@@ -416,7 +416,7 @@ func (o *rawSet) QueryRows(containers ...interface{}) (int64, error) {
 			}
 
 			structMode = true
-			fn := getName(typ)
+			fn := getModelName(typ)
 			if mi, ok := modelCache.getByName(fn); ok {
 				sMi = mi
 			}

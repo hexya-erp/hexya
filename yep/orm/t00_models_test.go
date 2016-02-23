@@ -363,6 +363,10 @@ type Profile_Extension struct {
 	Country string
 }
 
+type Tag_Extension struct {
+	Description string
+}
+
 var DBARGS = struct {
 	Driver string
 	Source string
