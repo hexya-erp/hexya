@@ -213,7 +213,11 @@ func getFieldType(val reflect.Value) (ft int, err error) {
 	return
 }
 
-// parse struct tag string
+/*
+parseStructTag parses the given structField tag string and fills:
+- attrs if the individual tag is boolean
+- tags if the individual tag has a string value
+ */
 func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string) {
 	attr := make(map[string]bool)
 	tag := make(map[string]string)

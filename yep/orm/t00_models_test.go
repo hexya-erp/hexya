@@ -226,7 +226,7 @@ type UserBig struct {
 
 type User struct {
 	ID           int    `orm:"column(id)"`
-	UserName     string `orm:"size(30);unique"`
+	UserName     string `orm:"size(30);unique;string(Name);help(The user's username)"`
 	Email        string `orm:"size(100)"`
 	Password     string `orm:"size(100)"`
 	Status       int16  `orm:"column(Status)"`

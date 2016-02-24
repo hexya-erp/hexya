@@ -24,6 +24,14 @@ import (
 
 var errSkipField = errors.New("skip field")
 
+/*
+FieldMetaData is the public description of the field including all its meta data
+*/
+type FieldMetaData struct {
+	String string
+	Help   string
+}
+
 // field info collection
 type fields struct {
 	pk            *fieldInfo
@@ -135,6 +143,8 @@ type fieldInfo struct {
 	decimals            int
 	isFielder           bool
 	onDelete            string
+	infoString          string
+	description         string
 }
 
 // new field info
@@ -176,6 +186,14 @@ func newFieldInfo(mi *modelInfo, field reflect.Value, sf reflect.StructField) (f
 	if v, ok := tags["default"]; ok {
 		initial.Set(v)
 	}
+
+	infoString := tags["string"]
+	if infoString != "" {
+		fi.infoString = infoString
+	} else {
+		fi.infoString = sf.Name
+	}
+	fi.description = tags["help"]
 
 checkType:
 	switch f := addrField.Interface().(type) {
