@@ -190,7 +190,7 @@ func (t *dbTables) parseRelated(rels []string, depth int) {
 				var mind reflect.Value
 				if fieldType != nil {
 					mind = reflect.Indirect(reflect.New(fieldType))
-				} else{
+				} else {
 					mind = reflect.ValueOf(nil)
 				}
 

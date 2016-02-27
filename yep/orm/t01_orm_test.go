@@ -189,14 +189,9 @@ func TestSyncDb(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
-	err := RegisterModelExtension(new(User_Extension))
-	throwFail(t, err)
-
-	err = RegisterModelExtension(new(Profile_Extension))
-	throwFail(t, err)
-
-	err = RegisterModelExtension(new(Tag_Extension))
-	throwFail(t, err)
+	RegisterModelExtension(new(User_Extension))
+	RegisterModelExtension(new(Profile_Extension))
+	RegisterModelExtension(new(Tag_Extension))
 
 	err = RunSyncdb("default", true, Debug)
 	throwFail(t, err)
@@ -217,14 +212,9 @@ func TestRegisterModels(t *testing.T) {
 	RegisterModel(new(Permission))
 	RegisterModel(new(GroupPermissions))
 
-	err := RegisterModelExtension(new(User_Extension))
-	throwFail(t, err)
-
-	err = RegisterModelExtension(new(Profile_Extension))
-	throwFail(t, err)
-
-	err = RegisterModelExtension(new(Tag_Extension))
-	throwFail(t, err)
+	RegisterModelExtension(new(User_Extension))
+	RegisterModelExtension(new(Profile_Extension))
+	RegisterModelExtension(new(Tag_Extension))
 
 	BootStrap()
 

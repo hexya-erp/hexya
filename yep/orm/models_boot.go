@@ -80,7 +80,7 @@ func registerModel(prefix string, model interface{}) {
 	modelCache.set(table, info)
 }
 
-func RegisterModelExtension(modelExtension interface{}) error {
+func registerModelExtension(modelExtension interface{}) {
 	var err error
 
 	val := reflect.ValueOf(modelExtension)
@@ -97,14 +97,12 @@ func RegisterModelExtension(modelExtension interface{}) error {
 		os.Exit(2)
 	}
 
-	err = addFieldsToModel(info, val)
+	err = info.addFields(val)
 
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(2)
 	}
-
-	return nil
 }
 
 // boostrap models
@@ -330,6 +328,16 @@ func RegisterModelWithPrefix(prefix string, models ...interface{}) {
 
 	for _, model := range models {
 		registerModel(prefix, model)
+	}
+}
+
+func RegisterModelExtension(modelExtensions ...interface{}) {
+	if modelCache.done {
+		panic(fmt.Errorf("RegisterModelExtension must be run before BootStrap"))
+	}
+
+	for _, modelExtension := range modelExtensions {
+		registerModelExtension(modelExtension)
 	}
 }
 

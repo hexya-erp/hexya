@@ -42,7 +42,7 @@ func newModelInfo(val reflect.Value) (info *modelInfo) {
 	typ := ind.Type()
 
 	info.name = typ.Name()
-	err := addFieldsToModel(info, val)
+	err := info.addFields(val)
 
 	if err != nil {
 		fmt.Println(err)
@@ -52,8 +52,8 @@ func newModelInfo(val reflect.Value) (info *modelInfo) {
 	return info
 }
 
-// addFieldsToModel adds the fields of val to given model info
-func addFieldsToModel(info *modelInfo, val reflect.Value) error {
+// addFields adds the fields of val to the modelInfo
+func (info *modelInfo) addFields(val reflect.Value) error {
 	var (
 		err error
 		fi  *fieldInfo

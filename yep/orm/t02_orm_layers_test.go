@@ -303,15 +303,15 @@ func TestMulti(t *testing.T) {
 	// Insert multi
 	user1 := &User_Partial{
 		UserName: "User 1",
-		Email: "user1@example.com",
+		Email:    "user1@example.com",
 	}
 	user2 := &User_Partial{
 		UserName: "User 2",
-		Email:  "user2@example.com",
-		Email2: "userthesecond@example.net",
+		Email:    "user2@example.com",
+		Email2:   "userthesecond@example.net",
 	}
 	user3 := &User_Partial{
-		UserName: "User 3",
+		UserName:  "User 3",
 		Email:     "user3@example.com",
 		IsPremium: true,
 	}
