@@ -29,6 +29,9 @@ type modelInfo struct {
 	fields    *fields
 	manual    bool
 	uniques   []string
+	tIndexes  [][]string
+	tUniques  [][]string
+	tEngine   string
 	isThrough bool
 }
 
@@ -42,6 +45,10 @@ func newModelInfo(val reflect.Value) (info *modelInfo) {
 	typ := ind.Type()
 
 	info.name = typ.Name()
+	info.tEngine = getTableEngine(val)
+	info.tIndexes = getTableIndex(val)
+	info.tUniques = getTableUnique(val)
+
 	err := info.addFields(val)
 
 	if err != nil {

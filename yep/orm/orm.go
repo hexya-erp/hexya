@@ -14,7 +14,7 @@
 // limitations under the License.
 
 /*
-TODO ORM Package doc
+YEP ORM is a layered ORM the models of which can be declared in one package and extended by other packages.
 */
 package orm
 

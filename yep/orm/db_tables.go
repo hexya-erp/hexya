@@ -331,7 +331,7 @@ loopFor:
 						goto loopEnd
 					}
 
-					jt, _ := t.add(names, mmi, reflect.ValueOf(nil), fi, inner) // TODO: Check ind=<nil>
+					jt, _ := t.add(names, mmi, reflect.ValueOf(nil), fi, inner)
 					jt.jtl = jtl
 					jtl = jt
 				}

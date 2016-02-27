@@ -182,35 +182,29 @@ func getDbCreateSQL(al *alias) (sqls []string, tableIndexes map[string][]dbIndex
 			columns = append(columns, column)
 		}
 
-		//TODO: Check this
-		//if mi.model != nil {
-		//	allnames := getTableUnique(mi.addrField)
-		//	if !mi.manual && len(mi.uniques) > 0 {
-		//		allnames = append(allnames, mi.uniques)
-		//	}
-		//	for _, names := range allnames {
-		//		cols := make([]string, 0, len(names))
-		//		for _, name := range names {
-		//			if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
-		//				cols = append(cols, fi.column)
-		//			} else {
-		//				panic(fmt.Errorf("cannot found column `%s` when parse UNIQUE in `%s.TableUnique`", name, mi.fullName))
-		//			}
-		//		}
-		//		column := fmt.Sprintf("    UNIQUE (%s%s%s)", Q, strings.Join(cols, sep), Q)
-		//		columns = append(columns, column)
-		//	}
-		//}
+		allnames := mi.tUniques
+		if !mi.manual && len(mi.uniques) > 0 {
+			allnames = append(allnames, mi.uniques)
+		}
+		for _, names := range allnames {
+			cols := make([]string, 0, len(names))
+			for _, name := range names {
+				if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
+					cols = append(cols, fi.column)
+				} else {
+					panic(fmt.Errorf("cannot found column `%s` when parse UNIQUE in `%s.TableUnique`", name, mi.name))
+				}
+			}
+			column := fmt.Sprintf("    UNIQUE (%s%s%s)", Q, strings.Join(cols, sep), Q)
+			columns = append(columns, column)
+		}
 
 		sql += strings.Join(columns, ",\n")
 		sql += "\n)"
 
 		if al.Driver == DRMySQL {
 			var engine string
-			//TODO: Check this
-			//if mi.model != nil {
-			//	engine = getTableEngine(mi.addrField)
-			//}
+			engine = mi.tEngine
 			if engine == "" {
 				engine = al.Engine
 			}
@@ -220,20 +214,17 @@ func getDbCreateSQL(al *alias) (sqls []string, tableIndexes map[string][]dbIndex
 		sql += ";"
 		sqls = append(sqls, sql)
 
-		//TODO: Check this
-		//if mi.model != nil {
-		//	for _, names := range getTableIndex(mi.addrField) {
-		//		cols := make([]string, 0, len(names))
-		//		for _, name := range names {
-		//			if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
-		//				cols = append(cols, fi.column)
-		//			} else {
-		//				panic(fmt.Errorf("cannot found column `%s` when parse INDEX in `%s.TableIndex`", name, mi.fullName))
-		//			}
-		//		}
-		//		sqlIndexes = append(sqlIndexes, cols)
-		//	}
-		//}
+		for _, names := range mi.tIndexes {
+			cols := make([]string, 0, len(names))
+			for _, name := range names {
+				if fi, ok := mi.fields.GetByAny(name); ok && fi.dbcol {
+					cols = append(cols, fi.column)
+				} else {
+					panic(fmt.Errorf("cannot found column `%s` when parse INDEX in `%s.TableIndex`", name, mi.name))
+				}
+			}
+			sqlIndexes = append(sqlIndexes, cols)
+		}
 
 		for _, names := range sqlIndexes {
 			name := mi.table + "_" + strings.Join(names, "_")
