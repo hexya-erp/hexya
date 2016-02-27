@@ -3,3 +3,16 @@ go:
  - 1.5.1
  - release
  - tip
+
+addons:
+  postgresql: "9.4"
+
+services:
+  - postgresql
+
+before_script:
+  - psql -c 'create database yep_test;' -U postgres
+
+env:
+- ORM_DRIVER=postgres
+- ORM_SOURCE="dbname=yep_test sslmode=disable user=postgres"
