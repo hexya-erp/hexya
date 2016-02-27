@@ -14,5 +14,4 @@ before_script:
   - psql -c 'create database yep_test;' -U postgres
 
 env:
-- ORM_DRIVER=postgres
-- ORM_SOURCE="dbname=yep_test sslmode=disable user=postgres"
+- ORM_DRIVER=postgres ORM_SOURCE="dbname=yep_test sslmode=disable user=postgres"
