@@ -4,7 +4,8 @@ YEP Roadmap
 ORM
 ---
 - [X] Modify Beego ORM to enable layered models
-- [ ] Add meta support to ORM models/fields
+- [X] Add meta support to ORM models/fields
+- [X] Add high level RecordSet API
 - [ ] Add methods to ORM models
 - [ ] Add computed fields to ORM:
     - [ ] Fields computed by ERP after retrieval of computation vars

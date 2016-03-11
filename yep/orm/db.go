@@ -119,106 +119,110 @@ func (d *dbBase) collectFieldValue(mi *modelInfo, fi *fieldInfo, ind reflect.Val
 			f := field.Addr().Interface().(Fielder)
 			value = f.RawValue()
 		} else {
-			switch fi.fieldType {
-			case TypeBooleanField:
-				if nb, ok := field.Interface().(sql.NullBool); ok {
-					value = nil
-					if nb.Valid {
-						value = nb.Bool
-					}
-				} else if field.Kind() == reflect.Ptr {
-					if field.IsNil() {
+			// We check if field is nil because we can have automatic fields to
+			// update that are not in the given indirect
+			if field.Kind() != reflect.Invalid {
+				switch fi.fieldType {
+				case TypeBooleanField:
+					if nb, ok := field.Interface().(sql.NullBool); ok {
 						value = nil
-					} else {
-						value = field.Elem().Bool()
-					}
-				} else {
-					value = field.Bool()
-				}
-			case TypeCharField, TypeTextField:
-				if ns, ok := field.Interface().(sql.NullString); ok {
-					value = nil
-					if ns.Valid {
-						value = ns.String
-					}
-				} else if field.Kind() == reflect.Ptr {
-					if field.IsNil() {
-						value = nil
-					} else {
-						value = field.Elem().String()
-					}
-				} else {
-					value = field.String()
-				}
-			case TypeFloatField, TypeDecimalField:
-				if nf, ok := field.Interface().(sql.NullFloat64); ok {
-					value = nil
-					if nf.Valid {
-						value = nf.Float64
-					}
-				} else if field.Kind() == reflect.Ptr {
-					if field.IsNil() {
-						value = nil
-					} else {
-						value = field.Elem().Float()
-					}
-				} else {
-					vu := field.Interface()
-					if _, ok := vu.(float32); ok {
-						value, _ = StrTo(ToStr(vu)).Float64()
-					} else {
-						value = field.Float()
-					}
-				}
-			case TypeDateField, TypeDateTimeField:
-				value = field.Interface()
-				if t, ok := value.(time.Time); ok {
-					d.ins.TimeToDB(&t, tz)
-					if t.IsZero() {
-						value = nil
-					} else {
-						value = t
-					}
-				}
-			default:
-				switch {
-				case fi.fieldType&IsPostiveIntegerField > 0:
-					if field.Kind() == reflect.Ptr {
-						if field.IsNil() {
-							value = nil
-						} else {
-							value = field.Elem().Uint()
-						}
-					} else {
-						value = field.Uint()
-					}
-				case fi.fieldType&IsIntegerField > 0:
-					if ni, ok := field.Interface().(sql.NullInt64); ok {
-						value = nil
-						if ni.Valid {
-							value = ni.Int64
+						if nb.Valid {
+							value = nb.Bool
 						}
 					} else if field.Kind() == reflect.Ptr {
 						if field.IsNil() {
 							value = nil
 						} else {
-							value = field.Elem().Int()
+							value = field.Elem().Bool()
 						}
 					} else {
-						value = field.Int()
+						value = field.Bool()
 					}
-				case fi.fieldType&IsRelField > 0:
-					if field.IsNil() {
+				case TypeCharField, TypeTextField:
+					if ns, ok := field.Interface().(sql.NullString); ok {
 						value = nil
-					} else {
-						if _, vu, ok := getExistPk(fi.relModelInfo, reflect.Indirect(field)); ok {
-							value = vu
-						} else {
+						if ns.Valid {
+							value = ns.String
+						}
+					} else if field.Kind() == reflect.Ptr {
+						if field.IsNil() {
 							value = nil
+						} else {
+							value = field.Elem().String()
+						}
+					} else {
+						value = field.String()
+					}
+				case TypeFloatField, TypeDecimalField:
+					if nf, ok := field.Interface().(sql.NullFloat64); ok {
+						value = nil
+						if nf.Valid {
+							value = nf.Float64
+						}
+					} else if field.Kind() == reflect.Ptr {
+						if field.IsNil() {
+							value = nil
+						} else {
+							value = field.Elem().Float()
+						}
+					} else {
+						vu := field.Interface()
+						if _, ok := vu.(float32); ok {
+							value, _ = StrTo(ToStr(vu)).Float64()
+						} else {
+							value = field.Float()
 						}
 					}
-					if fi.null == false && value == nil {
-						return nil, fmt.Errorf("field `%s` cannot be NULL", fi.fullName)
+				case TypeDateField, TypeDateTimeField:
+					value = field.Interface()
+					if t, ok := value.(time.Time); ok {
+						d.ins.TimeToDB(&t, tz)
+						if t.IsZero() {
+							value = nil
+						} else {
+							value = t
+						}
+					}
+				default:
+					switch {
+					case fi.fieldType&IsPostiveIntegerField > 0:
+						if field.Kind() == reflect.Ptr {
+							if field.IsNil() {
+								value = nil
+							} else {
+								value = field.Elem().Uint()
+							}
+						} else {
+							value = field.Uint()
+						}
+					case fi.fieldType&IsIntegerField > 0:
+						if ni, ok := field.Interface().(sql.NullInt64); ok {
+							value = nil
+							if ni.Valid {
+								value = ni.Int64
+							}
+						} else if field.Kind() == reflect.Ptr {
+							if field.IsNil() {
+								value = nil
+							} else {
+								value = field.Elem().Int()
+							}
+						} else {
+							value = field.Int()
+						}
+					case fi.fieldType&IsRelField > 0:
+						if field.IsNil() {
+							value = nil
+						} else {
+							if _, vu, ok := getExistPk(fi.relModelInfo, reflect.Indirect(field)); ok {
+								value = vu
+							} else {
+								value = nil
+							}
+						}
+						if fi.null == false && value == nil {
+							return nil, fmt.Errorf("field `%s` cannot be NULL", fi.fullName)
+						}
 					}
 				}
 			}
@@ -234,11 +238,13 @@ func (d *dbBase) collectFieldValue(mi *modelInfo, fi *fieldInfo, ind reflect.Val
 				tnow := time.Now()
 				d.ins.TimeToDB(&tnow, tz)
 				value = tnow
-				if fi.isFielder {
-					f := field.Addr().Interface().(Fielder)
-					f.SetRaw(tnow.In(DefaultTimeLoc))
-				} else {
-					field.Set(reflect.ValueOf(tnow.In(DefaultTimeLoc)))
+				if field.Kind() != reflect.Invalid {
+					if fi.isFielder {
+						f := field.Addr().Interface().(Fielder)
+						f.SetRaw(tnow.In(DefaultTimeLoc))
+					} else {
+						field.Set(reflect.ValueOf(tnow.In(DefaultTimeLoc)))
+					}
 				}
 			}
 		}
@@ -366,6 +372,7 @@ func (d *dbBase) Read(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Lo
 // execute insert sql dbQuerier with given struct reflect.Value.
 func (d *dbBase) Insert(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.Location) (int64, error) {
 	cols := getColumns(mi, ind)
+	cols = addAutoColums(mi, cols)
 	names := make([]string, 0, len(cols)-1)
 	values, err := d.collectValues(mi, ind, cols, true, true, &names, tz)
 	if err != nil {
@@ -398,6 +405,7 @@ func (d *dbBase) InsertMulti(q dbQuerier, mi *modelInfo, sind reflect.Value, bul
 		// }
 
 		cols := getColumns(mi, sind)
+		cols = addAutoColums(mi, cols)
 		if i == 1 {
 			vus, err := d.collectValues(mi, ind, cols, true, true, &names, tz)
 			if err != nil {
@@ -485,6 +493,8 @@ func (d *dbBase) Update(q dbQuerier, mi *modelInfo, ind reflect.Value, tz *time.
 	if len(cols) == 0 {
 		cols = getColumns(mi, ind)
 	}
+	cols = addAutoColums(mi, cols)
+
 	setNames = make([]string, 0, len(cols))
 
 	setValues, err := d.collectValues(mi, ind, cols, true, false, &setNames, tz)

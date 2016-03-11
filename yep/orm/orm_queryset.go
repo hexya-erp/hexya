@@ -253,6 +253,11 @@ func (o *querySet) RowsToStruct(ptrStruct interface{}, keyCol, valueCol string) 
 	panic(ErrNotImplement)
 }
 
+// returns the name of the underlying modelInfo
+func (o *querySet) ModelName() string {
+	return o.mi.name
+}
+
 // create new QuerySeter.
 func newQuerySet(orm *orm, mi *modelInfo) QuerySeter {
 	o := new(querySet)

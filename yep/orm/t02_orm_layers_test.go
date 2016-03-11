@@ -322,4 +322,14 @@ func TestMulti(t *testing.T) {
 	num, err := dORM.QueryTable(user1).Filter("Email__contains", "user").Update(Params{"status": 14})
 	throwFail(t, err)
 	throwFail(t, AssertIs(num, 3))
+
+	// Query
+	var users []*User_Partial
+	num, err = dORM.QueryTable("user").Filter("Email__contains", "user").OrderBy("UserName").All(&users)
+	throwFail(t, err)
+	throwFail(t, AssertIs(num, 3))
+	throwFail(t, AssertIs(users[0].Email, "user1@example.com"))
+	throwFail(t, AssertIs(users[1].Email, "user2@example.com"))
+	throwFail(t, AssertIs(users[1].Email2, "userthesecond@example.net"))
+	throwFail(t, AssertIs(users[2].Email, "user3@example.com"))
 }

@@ -30,7 +30,8 @@ func getModelName(typ reflect.Type) string {
 }
 
 // get table name. method, or field name. auto snaked.
-func getTableName(val reflect.Value) string {
+// If name is specified then snaked name is used instead.
+func getTableName(val reflect.Value, name ...string) string {
 	ind := reflect.Indirect(val)
 	fun := val.MethodByName("TableName")
 	if fun.IsValid() {
@@ -42,7 +43,13 @@ func getTableName(val reflect.Value) string {
 			}
 		}
 	}
-	return snakeString(ind.Type().Name())
+	var modelName string
+	if len(name) > 0 {
+		modelName = name[0]
+	} else {
+		modelName = ind.Type().Name()
+	}
+	return snakeString(modelName)
 }
 
 // get table engine, mysiam or innodb.
@@ -112,7 +119,7 @@ func getColumnName(ft int, addrField reflect.Value, sf reflect.StructField, col 
 }
 
 // getColumns returns the db columns present in the given indirect type.
-// If the indirect is Zero value, then return all the table columns
+// If the indirect is Zero value, then return all the table columns.
 func getColumns(mi *modelInfo, ind reflect.Value) []string {
 	cols := make([]string, 0)
 	if ind.Kind() == reflect.Invalid {
@@ -135,6 +142,25 @@ func getColumns(mi *modelInfo, ind reflect.Value) []string {
 	}
 	return cols
 }
+
+// addAutoColumns adds the automatic columns of the given modelInfo
+// to the given cols and return the result.
+func addAutoColums(mi *modelInfo, cols []string) []string {
+
+autoColFor:
+	// Add autoCols to the result even if they are not part of the given indirect
+	for _, autoCol := range mi.fields.autoCols {
+		for _, col := range cols {
+			if col == autoCol {
+				continue autoColFor
+			}
+		}
+		cols = append(cols, autoCol)
+	}
+	return cols
+}
+
+
 
 // return field type as type constant from reflect.Value
 func getFieldType(val reflect.Value) (ft int, err error) {

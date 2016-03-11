@@ -25,7 +25,7 @@ import (
 
 // register models.
 // prefix means table name prefix.
-func registerModel(prefix string, model interface{}) {
+func registerModel(name, prefix string, model interface{}) {
 	val := reflect.ValueOf(model)
 	ind := reflect.Indirect(val)
 	typ := ind.Type()
@@ -34,13 +34,12 @@ func registerModel(prefix string, model interface{}) {
 		panic(fmt.Errorf("<orm.RegisterModel> cannot use non-ptr model struct `%s`", getModelName(typ)))
 	}
 
-	table := getTableName(val)
+	table := getTableName(val, name)
 
 	if prefix != "" {
 		table = prefix + table
 	}
 
-	name := getModelName(typ)
 	if _, ok := modelCache.getByName(name); ok {
 		fmt.Printf("<orm.RegisterModel> model `%s` repeat register, must be unique\n", name)
 		os.Exit(2)
@@ -51,7 +50,7 @@ func registerModel(prefix string, model interface{}) {
 		os.Exit(2)
 	}
 
-	info := newModelInfo(val)
+	info := newModelInfo(name, val)
 	if info.fields.pk == nil {
 	outFor:
 		for _, fi := range info.fields.fieldsDB {
@@ -327,8 +326,20 @@ func RegisterModelWithPrefix(prefix string, models ...interface{}) {
 	}
 
 	for _, model := range models {
-		registerModel(prefix, model)
+		val := reflect.ValueOf(model)
+		ind := reflect.Indirect(val)
+		typ := ind.Type()
+		name := getModelName(typ)
+		registerModel(name, prefix, model)
 	}
+}
+
+// RegisterModelWithName registers a model with a different name than model.type
+func RegisterModelWithName(name string, model interface{}) {
+	if modelCache.done {
+		panic(fmt.Errorf("RegisterModel must be run before BootStrap"))
+	}
+	registerModel(name, "", model)
 }
 
 func RegisterModelExtension(modelExtensions ...interface{}) {

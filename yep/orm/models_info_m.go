@@ -36,15 +36,12 @@ type modelInfo struct {
 }
 
 // new model info
-func newModelInfo(val reflect.Value) (info *modelInfo) {
+func newModelInfo(name string, val reflect.Value) (info *modelInfo) {
 
 	info = &modelInfo{}
 	info.fields = newFields()
 
-	ind := reflect.Indirect(val)
-	typ := ind.Type()
-
-	info.name = typ.Name()
+	info.name = name
 	info.tEngine = getTableEngine(val)
 	info.tIndexes = getTableIndex(val)
 	info.tUniques = getTableUnique(val)

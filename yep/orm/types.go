@@ -245,6 +245,8 @@ type QuerySeter interface {
 	// 	Found int
 	// }
 	RowsToStruct(ptrStruct interface{}, keyCol, valueCol string) (int64, error)
+	// returns the name of the underlying modelInfo
+	ModelName() string
 }
 
 // QueryM2Mer model to model query struct
