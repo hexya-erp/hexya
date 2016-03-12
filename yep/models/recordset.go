@@ -81,15 +81,20 @@ type RecordSet interface {
 	// query all data and map to []interface.
 	// it's designed for one column record set, auto change to []value, not [][column]value.
 	ValuesFlat(result *orm.ParamsList, expr string) int64
+	// Call the given method by name with the given arguments
+	Call(methName string, args ...interface{}) interface{}
+	// Super is called from inside a method to call its parent, passing itself as fnctPtr
+	Super(args ...interface{}) interface{}
 }
 
 /*
 recordStruct implements RecordSet
 */
 type recordStruct struct {
-	qs    orm.QuerySeter
-	env   Environment
-	idMap map[int64]bool
+	qs        orm.QuerySeter
+	env       Environment
+	idMap     map[int64]bool
+	callStack []*methodLayer
 }
 
 func (rs recordStruct) String() string {
@@ -142,8 +147,7 @@ func (rs recordStruct) Create(data interface{}) RecordSet {
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` Create error: %s", rs, err))
 	}
-	newRs := newRecordStruct(rs.env, rs.ModelName(), map[int64]bool{id: true})
-	return newRs
+	return copyRecordStruct(rs).withIdMap(map[int64]bool{id: true})
 }
 
 /*
@@ -160,7 +164,7 @@ func (rs recordStruct) Search() RecordSet {
 	for _, idStruct := range recIds {
 		idMap[idStruct.ID] = true
 	}
-	return newRecordStruct(rs.env, rs.ModelName(), idMap)
+	return copyRecordStruct(rs).withIdMap(idMap)
 }
 
 /*
@@ -206,7 +210,7 @@ func (rs recordStruct) Unlink() int64 {
 Filter returns a new RecordSet with the given additional filter condition.
 */
 func (rs recordStruct) Filter(cond string, data ...interface{}) RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName(), rs.idMap)
+	newRs := copyRecordStruct(rs)
 	newRs.qs = newRs.qs.Filter(cond, data...)
 	return newRs
 }
@@ -215,7 +219,7 @@ func (rs recordStruct) Filter(cond string, data ...interface{}) RecordSet {
 Exclude returns a new RecordSet with the given additional NOT filter condition.
 */
 func (rs recordStruct) Exclude(cond string, data ...interface{}) RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName(), rs.idMap)
+	newRs := copyRecordStruct(rs)
 	newRs.qs = newRs.qs.Exclude(cond, data...)
 	return newRs
 }
@@ -224,7 +228,7 @@ func (rs recordStruct) Exclude(cond string, data ...interface{}) RecordSet {
 SetCond returns a new RecordSet with the given additional condition
 */
 func (rs recordStruct) SetCond(cond *orm.Condition) RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName(), rs.idMap)
+	newRs := copyRecordStruct(rs)
 	newRs.qs = newRs.qs.SetCond(cond)
 	return newRs
 }
@@ -233,7 +237,7 @@ func (rs recordStruct) SetCond(cond *orm.Condition) RecordSet {
 Limit returns a new RecordSet with the given limit as additional condition
 */
 func (rs recordStruct) Limit(limit interface{}, args ...interface{}) RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName(), rs.idMap)
+	newRs := copyRecordStruct(rs)
 	newRs.qs = newRs.qs.Limit(limit, args...)
 	return newRs
 }
@@ -242,7 +246,7 @@ func (rs recordStruct) Limit(limit interface{}, args ...interface{}) RecordSet {
 Offset returns a new RecordSet with the given offset as additional condition
 */
 func (rs recordStruct) Offset(offset interface{}) RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName(), rs.idMap)
+	newRs := copyRecordStruct(rs)
 	newRs.qs = newRs.qs.Offset(offset)
 	return newRs
 }
@@ -251,7 +255,7 @@ func (rs recordStruct) Offset(offset interface{}) RecordSet {
 OrderBy returns a new RecordSet with the given order as additional condition
 */
 func (rs recordStruct) OrderBy(exprs ...string) RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName(), rs.idMap)
+	newRs := copyRecordStruct(rs)
 	newRs.qs = newRs.qs.OrderBy(exprs...)
 	return newRs
 }
@@ -260,7 +264,7 @@ func (rs recordStruct) OrderBy(exprs ...string) RecordSet {
 RelatedSel returns a new RecordSet that includes related models (table join) in its search
 */
 func (rs recordStruct) RelatedSel(params ...interface{}) RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName(), rs.idMap)
+	newRs := copyRecordStruct(rs)
 	newRs.qs = newRs.qs.RelatedSel(params...)
 	return newRs
 }
@@ -338,22 +342,100 @@ func (rs recordStruct) ValuesFlat(result *orm.ParamsList, expr string) int64 {
 	return num
 }
 
+/*
+Call calls the given method name methName with the given arguments and return the
+result as interface{}.
+*/
+func (rs recordStruct) Call(methName string, args ...interface{}) interface{} {
+	methInfo, ok := methodsCache.get(method{modelName: rs.ModelName(), name: methName})
+	if !ok {
+		panic(fmt.Errorf("Unknown method `%s` in model `%s`", methName, rs.ModelName()))
+	}
+	methLayer := methInfo.topLayer
+
+	rsCopy := copyRecordStruct(rs)
+	rsCopy.callStack = append([]*methodLayer{methLayer}, rsCopy.callStack...)
+	return rsCopy.call(methLayer, args...)
+}
+
+/*
+call is a wrapper around reflect.Value.Call() to use with interface{} type.
+*/
+func (rs recordStruct) call(methLayer *methodLayer, args ...interface{}) interface{} {
+	fnVal := methLayer.funcValue
+	fnTyp := fnVal.Type()
+
+	rsVal := reflect.ValueOf(rs)
+	inVals := []reflect.Value{rsVal}
+	for i := 1; i < fnTyp.NumIn(); i++ {
+		if i > len(args) {
+			panic(fmt.Errorf("Not enough argument when Calling `%s`", fnVal))
+		}
+		argTyp := reflect.TypeOf(args[i-1])
+		if argTyp != fnTyp.In(i) {
+			panic(fmt.Errorf("Wrong argument type for argument %d: %s instead of %s", i, argTyp.Name(), fnTyp.Name()))
+		}
+		inVals = append(inVals, reflect.ValueOf(args[i-1]))
+	}
+	retVal := fnVal.Call(inVals)
+	if len(retVal) == 0 {
+		return nil
+	}
+	return retVal[0].Interface()
+}
+
+/*
+Super calls the next method Layer after the given funcPtr.
+This method is meant to be used inside a method layer function to call its parent,
+passing itself as funcPtr.
+*/
+func (rs recordStruct) Super(args ...interface{}) interface{} {
+	if len(rs.callStack) == 0 {
+		panic(fmt.Errorf("Internal error: empty call stack !"))
+	}
+	methLayer := rs.callStack[0]
+	methInfo := methLayer.methInfo
+	methLayer = methInfo.getNextLayer(methLayer)
+
+	rsCopy := copyRecordStruct(rs)
+	rsCopy.callStack[0] = methLayer
+	return rsCopy.call(methLayer, args...)
+}
+
 var _ RecordSet = recordStruct{}
 
 /*
-newRecordStruct returns a new recordStruct with the given parameters
+withIdMap returns a copy of rs filtered on the given idMap (overwriting current queryset).
 */
-func newRecordStruct(env Environment, ptrStructOrTableName interface{}, idMap map[int64]bool) recordStruct {
+func (rs recordStruct) withIdMap(idMap map[int64]bool) recordStruct {
+	newRs := copyRecordStruct(rs)
+	newRs.idMap = idMap
+	newRs.qs = rs.env.Cr().QueryTable(rs.ModelName()).Filter("id__in", ids(idMap))
+	return newRs
+}
+
+/*
+newRecordStruct returns a new empty recordStruct.
+*/
+func newRecordStruct(env Environment, ptrStructOrTableName interface{}) recordStruct {
 	qs := env.Cr().QueryTable(ptrStructOrTableName)
-	if len(idMap) > 0 {
-		qs = qs.Filter("id__in", ids(idMap))
-	}
 	rs := recordStruct{
 		qs:    qs,
 		env:   NewEnvironment(env.Cr(), env.Uid(), env.Context()),
-		idMap: idMap,
+		idMap: make(map[int64]bool),
 	}
 	return rs
+}
+
+func copyRecordStruct(rs recordStruct) recordStruct {
+	newRs := newRecordStruct(rs.env, rs.ModelName())
+	newRs.qs = rs.qs
+	for k, v := range rs.idMap {
+		newRs.idMap[k] = v
+	}
+	newRs.callStack = make([]*methodLayer, len(rs.callStack))
+	copy(newRs.callStack, rs.callStack)
+	return newRs
 }
 
 /*
@@ -361,7 +443,7 @@ NewRecordSet returns a new empty Recordset on the model given by ptrStructOrTabl
 given Environment.
 */
 func NewRecordSet(env Environment, ptrStructOrTableName interface{}) RecordSet {
-	return newRecordStruct(env, ptrStructOrTableName, make(map[int64]bool))
+	return newRecordStruct(env, ptrStructOrTableName)
 }
 
 /*

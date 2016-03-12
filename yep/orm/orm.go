@@ -127,7 +127,7 @@ func (o *orm) setPk(mi *modelInfo, ind reflect.Value, id int64) {
 	if mi.fields.pk.auto {
 		// We only update ind if it holds the pk
 		if ind.FieldByName(mi.fields.pk.name).Kind() != reflect.Invalid {
-			if mi.fields.pk.fieldType & IsPostiveIntegerField > 0 {
+			if mi.fields.pk.fieldType&IsPostiveIntegerField > 0 {
 				ind.FieldByName(mi.fields.pk.name).SetUint(uint64(id))
 			} else {
 				ind.FieldByName(mi.fields.pk.name).SetInt(id)

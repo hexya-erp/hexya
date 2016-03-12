@@ -20,6 +20,7 @@
 package models
 
 import (
+	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
 	"testing"
 )
@@ -34,6 +35,31 @@ func TestSyncDb(t *testing.T) {
 	CreateModel("Tag")
 	ExtendModel(new(Tag), new(Tag_Extension))
 
+	PrintName := func(rs RecordSet) {
+		type User_Simple struct {
+			UserName string
+		}
+		var users []*User_Simple
+		rs.ReadAll(&users)
+		for _, u := range users {
+			fmt.Printf("UserName: %s\n", u.UserName)
+		}
+	}
+	CreateMethod("User", "PrintUserName", &PrintName)
+
+	PrintEmail := func(rs RecordSet) {
+		rs.Super()
+		type User_Email struct {
+			Email string
+		}
+		var users []*User_Email
+		rs.ReadAll(&users)
+		for _, u := range users {
+			fmt.Printf("- Email: %s\n", u.Email)
+		}
+	}
+	ExtendMethod("User", "PrintUserName", &PrintEmail)
+
 	err := orm.RunSyncdb("default", true, orm.Debug)
 	throwFail(t, err)
 
@@ -46,10 +72,10 @@ type User struct {
 	Password     string `orm:"size(100)"`
 	Status       int16  `orm:"column(Status)"`
 	IsStaff      bool
-	IsActive     bool      `orm:"default(true)"`
-	Profile      *Profile  `orm:"null;rel(one);on_delete(set_null)"`
-	Posts        []*Post   `orm:"reverse(many)" json:"-"`
-	ShouldSkip   string    `orm:"-"`
+	IsActive     bool     `orm:"default(true)"`
+	Profile      *Profile `orm:"null;rel(one);on_delete(set_null)"`
+	Posts        []*Post  `orm:"reverse(many)" json:"-"`
+	ShouldSkip   string   `orm:"-"`
 	Nums         int
 	unexport     bool `orm:"-"`
 	unexportBool bool
@@ -90,10 +116,10 @@ type Profile_PartialWithBestPost struct {
 }
 
 type Post struct {
-	User    *User     `orm:"rel(fk)"`
-	Title   string    `orm:"size(60)"`
-	Content string    `orm:"type(text)"`
-	Tags    []*Tag    `orm:"rel(m2m)"`
+	User    *User  `orm:"rel(fk)"`
+	Title   string `orm:"size(60)"`
+	Content string `orm:"type(text)"`
+	Tags    []*Tag `orm:"rel(m2m)"`
 }
 
 func (u *Post) TableIndex() [][]string {

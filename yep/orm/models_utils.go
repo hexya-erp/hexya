@@ -160,8 +160,6 @@ autoColFor:
 	return cols
 }
 
-
-
 // return field type as type constant from reflect.Value
 func getFieldType(val reflect.Value) (ft int, err error) {
 	switch val.Type() {
