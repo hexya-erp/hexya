@@ -21,7 +21,7 @@ import (
 )
 
 var methodsCache = &_methodsCache{
-	cache: make(map[method]*methodInfo),
+	cache:       make(map[method]*methodInfo),
 	cacheByFunc: make(map[reflect.Value]*methodLayer),
 }
 
@@ -121,49 +121,31 @@ func newMethodInfo(ref method, val reflect.Value) *methodInfo {
 }
 
 /*
-CreateMethod creates a new method on given model name and adds the
-given fnctPtr a first layer for this method. This function must have a RecordSet as
+DeclareMethod creates a new method (or override it if it exists) on given model
+name and adds the given fnct as layer for this method. This function must have a RecordSet as
 first argument.
 */
-func CreateMethod(modelName, name string, fnctPtr interface{}) {
+func DeclareMethod(modelName, name string, fnct interface{}) {
 	if methodsCache.done {
 		panic(fmt.Errorf("CreateMethod must be run before BootStrap"))
 	}
 
-	val := reflect.ValueOf(fnctPtr)
-	ind := reflect.Indirect(val)
-	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Func {
-		panic(fmt.Errorf("CreateMethod: `fnctPtr` must be a pointer to a function"))
+	val := reflect.ValueOf(fnct)
+	if val.Kind() != reflect.Func {
+		panic(fmt.Errorf("CreateMethod: `fnct` must be a function"))
 	}
 	ref := method{
 		modelName: modelName,
 		name:      name,
 	}
-	methodsCache.set(ref, newMethodInfo(ref, ind))
-}
-
-/*
-ExtendMethod adds a methodLayer on the top of the given method.
-modelName and name identify the method to modify and fnctPtr is a pointer
-to the function to add. This function must have the same signature
-as the one used to create the method.
-*/
-func ExtendMethod(modelName, name string, fnctPtr interface{}) {
-	ref := method{
-		modelName: modelName,
-		name:      name,
+	methInfo, exists := methodsCache.get(ref)
+	if exists {
+		if methInfo.methodType != val.Type() {
+			panic(fmt.Errorf("Function signature does not match. Received: %s, Expected: %s",
+				methInfo.methodType, val.Type()))
+		}
+		methInfo.addMethodLayer(val)
+	} else {
+		methodsCache.set(ref, newMethodInfo(ref, val))
 	}
-	methInfo, ok := methodsCache.get(ref)
-	if !ok {
-		panic(fmt.Errorf("Unknwon method %+v", ref))
-	}
-	val := reflect.ValueOf(fnctPtr)
-	ind := reflect.Indirect(val)
-	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Func {
-		panic(fmt.Errorf("ExtendMethod: `fnctPtr` must be a pointer to a function"))
-	}
-	if methInfo.methodType != ind.Type() {
-		panic(fmt.Errorf("Function signature does not match. Received: %s, Expected: %s", methInfo.methodType, ind.Type()))
-	}
-	methInfo.addMethodLayer(ind)
 }

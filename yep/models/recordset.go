@@ -396,6 +396,10 @@ func (rs recordStruct) Super(args ...interface{}) interface{} {
 	methLayer := rs.callStack[0]
 	methInfo := methLayer.methInfo
 	methLayer = methInfo.getNextLayer(methLayer)
+	if methLayer == nil {
+		// No parent
+		return nil
+	}
 
 	rsCopy := copyRecordStruct(rs)
 	rsCopy.callStack[0] = methLayer

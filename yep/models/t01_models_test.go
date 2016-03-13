@@ -35,30 +35,31 @@ func TestSyncDb(t *testing.T) {
 	CreateModel("Tag")
 	ExtendModel(new(Tag), new(Tag_Extension))
 
-	PrintName := func(rs RecordSet) {
+	DeclareMethod("User", "PrefixedUser", func(rs RecordSet, prefix string) []string {
+		var res []string
 		type User_Simple struct {
 			UserName string
 		}
 		var users []*User_Simple
 		rs.ReadAll(&users)
 		for _, u := range users {
-			fmt.Printf("UserName: %s\n", u.UserName)
+			res = append(res, fmt.Sprintf("%s: %s", prefix, u.UserName))
 		}
-	}
-	CreateMethod("User", "PrintUserName", &PrintName)
+		return res
+	})
 
-	PrintEmail := func(rs RecordSet) {
-		rs.Super()
+	DeclareMethod("User", "PrefixedUser", func(rs RecordSet, prefix string) []string {
+		res := rs.Super(prefix).([]string)
 		type User_Email struct {
 			Email string
 		}
 		var users []*User_Email
 		rs.ReadAll(&users)
-		for _, u := range users {
-			fmt.Printf("- Email: %s\n", u.Email)
+		for i, u := range users {
+			res[i] = fmt.Sprintf("%s <%s>", res[i], u.Email)
 		}
-	}
-	ExtendMethod("User", "PrintUserName", &PrintEmail)
+		return res
+	})
 
 	err := orm.RunSyncdb("default", true, orm.Debug)
 	throwFail(t, err)

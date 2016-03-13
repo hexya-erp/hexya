@@ -14,10 +14,19 @@
 
 package models
 
-import "testing"
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
 
 func TestMethods(t *testing.T) {
-	env = NewEnvironment(dORM, 1)
-	users := env.Pool("User")
-	users.Call("PrintUserName")
+	Convey("Testing simple methods", t, func() {
+		env = NewEnvironment(dORM, 1)
+		Convey("Getting all users and calling `PrefixedUser`", func() {
+			users := env.Pool("User")
+			res := users.Call("PrefixedUser", "Prefix")
+			So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith <jane.smith@example.com>")
+		})
+	})
 }
