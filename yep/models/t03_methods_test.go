@@ -26,7 +26,7 @@ func TestMethods(t *testing.T) {
 		Convey("Getting all users and calling `PrefixedUser`", func() {
 			users := env.Pool("User")
 			res := users.Call("PrefixedUser", "Prefix")
-			So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith <jane.smith@example.com>")
+			So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 		})
 	})
 }

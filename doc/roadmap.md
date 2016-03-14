@@ -6,13 +6,14 @@ ORM
 - [X] Modify Beego ORM to enable layered models
 - [X] Add meta support to ORM models/fields
 - [X] Add high level RecordSet API
-- [ ] Add methods to ORM models
+- [X] Add methods to ORM models
 - [ ] Add computed fields to ORM:
     - [ ] Fields computed by ERP after retrieval of computation vars
     - [ ] Fields computed by ERP and stored in DB column
     - [ ] Fields computed by DB by SQL function when reading DB
 - [ ] Add CRUD permissions to models and fields
 - [ ] Add i18n and l10n support to ORM models
+- [ ] Add cache to RecordSets
 
 Server
 ------

@@ -25,6 +25,42 @@ import (
 	"testing"
 )
 
+func PrefixUser(rs RecordSet, prefix string) []string {
+	var res []string
+	type User_Simple struct {
+		UserName string
+	}
+	var users []*User_Simple
+	rs.ReadAll(&users)
+	for _, u := range users {
+		res = append(res, fmt.Sprintf("%s: %s", prefix, u.UserName))
+	}
+	return res
+}
+
+func PrefixUserEmailExtension(rs RecordSet, prefix string) []string {
+
+	res := rs.Super(prefix).([]string)
+	type User_Email struct {
+		Email string
+	}
+	var users []*User_Email
+	rs.ReadAll(&users)
+	for i, u := range users {
+		res[i] = fmt.Sprintf("%s %s", res[i], rs.Call("DecorateEmail", u.Email))
+	}
+	return res
+}
+
+func DecorateEmail(rs RecordSet, email string) string {
+	return fmt.Sprintf("<%s>", email)
+}
+
+func DecorateEmailExtension(rs RecordSet, email string) string {
+	res := rs.Super(email).(string)
+	return fmt.Sprintf("[%s]", res)
+}
+
 func TestSyncDb(t *testing.T) {
 	CreateModel("User")
 	ExtendModel(new(User), new(User_Extension))
@@ -35,31 +71,10 @@ func TestSyncDb(t *testing.T) {
 	CreateModel("Tag")
 	ExtendModel(new(Tag), new(Tag_Extension))
 
-	DeclareMethod("User", "PrefixedUser", func(rs RecordSet, prefix string) []string {
-		var res []string
-		type User_Simple struct {
-			UserName string
-		}
-		var users []*User_Simple
-		rs.ReadAll(&users)
-		for _, u := range users {
-			res = append(res, fmt.Sprintf("%s: %s", prefix, u.UserName))
-		}
-		return res
-	})
-
-	DeclareMethod("User", "PrefixedUser", func(rs RecordSet, prefix string) []string {
-		res := rs.Super(prefix).([]string)
-		type User_Email struct {
-			Email string
-		}
-		var users []*User_Email
-		rs.ReadAll(&users)
-		for i, u := range users {
-			res[i] = fmt.Sprintf("%s <%s>", res[i], u.Email)
-		}
-		return res
-	})
+	DeclareMethod("User", "PrefixedUser", PrefixUser)
+	DeclareMethod("User", "PrefixedUser", PrefixUserEmailExtension)
+	DeclareMethod("User", "DecorateEmail", DecorateEmail)
+	DeclareMethod("User", "DecorateEmail", DecorateEmailExtension)
 
 	err := orm.RunSyncdb("default", true, orm.Debug)
 	throwFail(t, err)
