@@ -30,3 +30,15 @@ func TestMethods(t *testing.T) {
 		})
 	})
 }
+
+func TestComputedNonStoredFields(t *testing.T) {
+	Convey("Testing non stored computed fields", t, func() {
+		env = NewEnvironment(dORM, 1)
+		Convey("Getting user Jane and checking DisplayName", func() {
+			var userJane User
+			users := env.Pool("User")
+			users.Filter("Email", "jane.smith@example.com").ReadOne(&userJane)
+			So(userJane.DisplayName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+		})
+	})
+}

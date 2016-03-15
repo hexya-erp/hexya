@@ -288,7 +288,7 @@ It panics in case of error
 func (rs recordStruct) ReadAll(container interface{}, cols ...string) int64 {
 	num, err := rs.qs.All(container, cols...)
 	if err != nil {
-		panic(fmt.Errorf("recordSet `%s` All() error: %s", rs, err))
+		panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
 	}
 	return num
 }
@@ -300,8 +300,9 @@ it panics if the RecordSet does not contain exactly one row.
 func (rs recordStruct) ReadOne(container interface{}, cols ...string) {
 	err := rs.qs.One(container, cols...)
 	if err != nil {
-		panic(fmt.Errorf("recordSet `%s` One() error: %s", rs, err))
+		panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
 	}
+	rs.computeFields(container)
 }
 
 /*
@@ -416,6 +417,34 @@ func (rs recordStruct) withIdMap(idMap map[int64]bool) recordStruct {
 	newRs.idMap = idMap
 	newRs.qs = rs.env.Cr().QueryTable(rs.ModelName()).Filter("id__in", ids(idMap))
 	return newRs
+}
+
+/*
+computeFields sets the value of the computed fields of structPtr.
+*/
+func (rs recordStruct) computeFields(structPtr interface{}) {
+	val := reflect.ValueOf(structPtr)
+	ind := reflect.Indirect(val)
+
+	fInfos, _ := fieldsCache.getComputedFields(rs.ModelName())
+	params := make(orm.Params)
+	for _, fInfo := range fInfos {
+		sf := ind.FieldByName(fInfo.name)
+		if !sf.IsValid() {
+			// Computed field is not present in structPtr
+			continue
+		}
+		if _, exists := params[fInfo.name]; exists {
+			// We already have the value we need in params
+			continue
+		}
+		newParams := rs.Call(fInfo.compute, rs).(orm.Params)
+		for k, v := range newParams {
+			params[k] = v
+		}
+		structField := ind.FieldByName(fInfo.name)
+		structField.Set(reflect.ValueOf(params[fInfo.name]))
+	}
 }
 
 /*

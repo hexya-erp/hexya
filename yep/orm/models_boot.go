@@ -79,7 +79,7 @@ func registerModel(name, prefix string, model interface{}) {
 	modelCache.set(table, info)
 }
 
-func registerModelExtension(modelExtension interface{}) {
+func registerModelExtension(name string, modelExtension interface{}) {
 	var err error
 
 	val := reflect.ValueOf(modelExtension)
@@ -90,9 +90,9 @@ func registerModelExtension(modelExtension interface{}) {
 		panic(fmt.Errorf("<orm.RegisterExtension> cannot use non-ptr model struct `%s`", getModelName(typ)))
 	}
 
-	info, ok := modelCache.getByName(getModelName(typ))
+	info, ok := modelCache.getByName(name)
 	if !ok {
-		fmt.Printf("<orm.RegisterExtension> model `%s` must be registered before adding a layer\n", getModelName(typ))
+		fmt.Printf("<orm.RegisterExtension> model `%s` must be registered before adding a layer\n", name)
 		os.Exit(2)
 	}
 
@@ -342,13 +342,13 @@ func RegisterModelWithName(name string, model interface{}) {
 	registerModel(name, "", model)
 }
 
-func RegisterModelExtension(modelExtensions ...interface{}) {
+func RegisterModelExtension(name string, modelExtensions ...interface{}) {
 	if modelCache.done {
 		panic(fmt.Errorf("RegisterModelExtension must be run before BootStrap"))
 	}
 
 	for _, modelExtension := range modelExtensions {
-		registerModelExtension(modelExtension)
+		registerModelExtension(name, modelExtension)
 	}
 }
 

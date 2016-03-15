@@ -47,13 +47,19 @@ func CreateModel(name string, options ...Option) {
 	for _, o := range options {
 		opts |= o
 	}
+	var model interface{}
 	if opts&TRANSIENT_MODEL > 0 {
-		orm.RegisterModelWithName(name, new(BaseTransientModel))
+		model = new(BaseTransientModel)
 	} else {
-		orm.RegisterModelWithName(name, new(BaseModel))
+		model = new(BaseModel)
 	}
+	orm.RegisterModelWithName(name, model)
+	registerModelFields(name, model)
 }
 
-func ExtendModel(models ...interface{}) {
-	orm.RegisterModelExtension(models...)
+func ExtendModel(name string, models ...interface{}) {
+	orm.RegisterModelExtension(name, models...)
+	for _, model := range models {
+		registerModelFields(name, model)
+	}
 }

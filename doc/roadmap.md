@@ -8,7 +8,7 @@ ORM
 - [X] Add high level RecordSet API
 - [X] Add methods to ORM models
 - [ ] Add computed fields to ORM:
-    - [ ] Fields computed by ERP after retrieval of computation vars
+    - [X] Fields computed by ERP after retrieval of computation vars
     - [ ] Fields computed by ERP and stored in DB column
     - [ ] Fields computed by DB by SQL function when reading DB
 - [ ] Add CRUD permissions to models and fields

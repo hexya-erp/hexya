@@ -53,8 +53,6 @@ var (
 		"decimals":     2,
 		"on_delete":    2,
 		"type":         2,
-		"string":       2,
-		"help":         2,
 	}
 )
 

@@ -147,8 +147,6 @@ type fieldInfo struct {
 	decimals            int
 	isFielder           bool
 	onDelete            string
-	infoString          string
-	description         string
 }
 
 // new field info
@@ -190,14 +188,6 @@ func newFieldInfo(mi *modelInfo, field reflect.Value, sf reflect.StructField) (f
 	if v, ok := tags["default"]; ok {
 		initial.Set(v)
 	}
-
-	infoString := tags["string"]
-	if infoString != "" {
-		fi.infoString = infoString
-	} else {
-		fi.infoString = sf.Name
-	}
-	fi.description = tags["help"]
 
 checkType:
 	switch f := addrField.Interface().(type) {

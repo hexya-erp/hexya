@@ -61,20 +61,27 @@ func DecorateEmailExtension(rs RecordSet, email string) string {
 	return fmt.Sprintf("[%s]", res)
 }
 
+func computeDisplayName(rs RecordSet) orm.Params {
+	res := make(orm.Params)
+	res["DisplayName"] = rs.Call("PrefixedUser", "User").([]string)[0]
+	return res
+}
+
 func TestSyncDb(t *testing.T) {
 	CreateModel("User")
-	ExtendModel(new(User), new(User_Extension))
+	ExtendModel("User", new(User), new(User_Extension))
 	CreateModel("Profile")
-	ExtendModel(new(Profile), new(Profile_Extension))
+	ExtendModel("Profile", new(Profile), new(Profile_Extension))
 	CreateModel("Post")
-	ExtendModel(new(Post))
+	ExtendModel("Post", new(Post))
 	CreateModel("Tag")
-	ExtendModel(new(Tag), new(Tag_Extension))
+	ExtendModel("Tag", new(Tag), new(Tag_Extension))
 
 	DeclareMethod("User", "PrefixedUser", PrefixUser)
 	DeclareMethod("User", "PrefixedUser", PrefixUserEmailExtension)
 	DeclareMethod("User", "DecorateEmail", DecorateEmail)
 	DeclareMethod("User", "DecorateEmail", DecorateEmailExtension)
+	DeclareMethod("User", "computeDisplayName", computeDisplayName)
 
 	err := orm.RunSyncdb("default", true, orm.Debug)
 	throwFail(t, err)
@@ -83,8 +90,9 @@ func TestSyncDb(t *testing.T) {
 }
 
 type User struct {
-	UserName     string `orm:"size(30);unique;string(Name);help(The user's username)"`
-	Email        string `orm:"size(100)"`
+	UserName     string `orm:"size(30);unique" yep:"string(Name);help(The user's username)"`
+	DisplayName  string `orm:"-" yep:"compute(computeDisplayName)"`
+	Email        string `orm:"size(100)" yep:"help(The user's email address)"`
 	Password     string `orm:"size(100)"`
 	Status       int16  `orm:"column(Status)"`
 	IsStaff      bool
