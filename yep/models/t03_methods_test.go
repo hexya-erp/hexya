@@ -20,6 +20,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+type User_WithDisplayName struct {
+	ID          int64
+	UserName    string
+	Email       string
+	Profile     *Profile_WithID
+	DisplayName string
+}
+
 func TestMethods(t *testing.T) {
 	Convey("Testing simple methods", t, func() {
 		env = NewEnvironment(dORM, 1)
@@ -34,11 +42,52 @@ func TestMethods(t *testing.T) {
 func TestComputedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored computed fields", t, func() {
 		env = NewEnvironment(dORM, 1)
-		Convey("Getting user Jane and checking DisplayName", func() {
-			var userJane User
+		Convey("Getting one user (Jane) and checking DisplayName", func() {
+			var userJane User_WithDisplayName
 			users := env.Pool("User")
 			users.Filter("Email", "jane.smith@example.com").ReadOne(&userJane)
 			So(userJane.DisplayName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+		})
+		Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
+			var users []*User_WithDisplayName
+			env.Pool("User").OrderBy("UserName").ReadAll(&users)
+			So(users[0].DisplayName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+			So(users[1].DisplayName, ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+		})
+	})
+}
+
+func TestComputedStoredFields(t *testing.T) {
+	Convey("Testing stored computed fields", t, func() {
+		env = NewEnvironment(dORM, 1)
+		type Profile_Simple struct {
+			ID    int64
+			Age   int16
+			Money float64
+		}
+		type User_Simple struct {
+			UserName string
+			Profile  *Profile_Simple
+			Age      int16
+		}
+		Convey("Checking that user Jane has no age since no profile", func() {
+			var userJane User_Simple
+			env.Pool("User").Filter("Email", "jane.smith@example.com").ReadOne(&userJane)
+			So(userJane.Age, ShouldEqual, 0)
+		})
+		Convey("Adding a Profile to Jane, writing to DB and checking Jane's age", func() {
+			var userJane User_Simple
+			janeRs := env.Pool("User").Filter("Email", "jane.smith@example.com")
+			janeRs.ReadOne(&userJane)
+			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
+			userJane.Profile = &Profile_Simple{
+				Age:   24,
+				Money: 1500,
+			}
+			env.Pool("Profile").Create(userJane.Profile)
+			janeRs.Write(&userJane)
+			env.Pool("User").Filter("Email", "jane.smith@example.com").ReadOne(&userJane)
+			So(userJane.Age, ShouldEqual, 24)
 		})
 	})
 }

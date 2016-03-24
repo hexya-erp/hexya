@@ -20,6 +20,7 @@
 package models
 
 import (
+	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
 	"time"
 )
@@ -62,4 +63,24 @@ func ExtendModel(name string, models ...interface{}) {
 	for _, model := range models {
 		registerModelFields(name, model)
 	}
+}
+
+/*
+BootStrap freezes model, fields and method caches and syncs the database structure
+with the declared data.
+*/
+func BootStrap() {
+	err := orm.RunSyncdb("default", true, orm.Debug)
+	if err != nil {
+		panic(fmt.Errorf("Unable to sync database: %s", err))
+	}
+	methodsCache.Lock()
+	defer methodsCache.Unlock()
+	methodsCache.done = true
+
+	fieldsCache.Lock()
+	defer fieldsCache.Unlock()
+	processDepends()
+
+	fieldsCache.done = true
 }

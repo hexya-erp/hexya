@@ -16,7 +16,9 @@ package models
 
 import (
 	"fmt"
+	"github.com/npiganeau/yep/yep/orm"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -24,6 +26,7 @@ var fieldsCache = &_fieldsCache{
 	cache:                make(map[field]*fieldInfo),
 	computedFields:       make(map[string][]*fieldInfo),
 	computedStoredFields: make(map[string][]*fieldInfo),
+	dependencyMap:        make(map[field][]computeData),
 }
 
 /*
@@ -32,6 +35,19 @@ field is the key to find a field in the fieldsCache
 type field struct {
 	modelName string
 	name      string
+}
+
+/*
+computeData holds data to recompute another field.
+- modelName is the name of the model to recompute
+- compute is the name of the function to call on modelName
+- path is the search string that will be used to find records to update.
+The path should take an ID as argument (e.g. path = "Profile__BestPost").
+*/
+type computeData struct {
+	modelName string
+	compute   string
+	path      string
 }
 
 /*
@@ -45,6 +61,7 @@ type fieldInfo struct {
 	computed    bool
 	stored      bool
 	compute     string
+	depends     []string
 }
 
 // fieldsCache is the fieldInfo collection
@@ -53,6 +70,7 @@ type _fieldsCache struct {
 	cache                map[field]*fieldInfo
 	computedFields       map[string][]*fieldInfo
 	computedStoredFields map[string][]*fieldInfo
+	dependencyMap        map[field][]computeData
 	done                 bool
 }
 
@@ -83,6 +101,14 @@ func (fc *_fieldsCache) getComputedStoredFields(modelName string) (fil []*fieldI
 }
 
 /*
+getDependentFields return the fields that must be recomputed when ref is modified.
+*/
+func (fc *_fieldsCache) getDependentFields(ref field) (target []computeData, ok bool) {
+	target, ok = fc.dependencyMap[ref]
+	return
+}
+
+/*
 set adds the given fieldInfo to the fieldsCache.
 */
 func (fc *_fieldsCache) set(ref field, fInfo *fieldInfo) {
@@ -94,6 +120,15 @@ func (fc *_fieldsCache) set(ref field, fInfo *fieldInfo) {
 			fc.computedFields[fInfo.modelName] = append(fc.computedFields[fInfo.modelName], fInfo)
 		}
 	}
+}
+
+/*
+setDependency adds a dependency in the dependencyMap.
+target field depends on ref field, i.e. when ref field is modified,
+target field must be recomputed.
+*/
+func (fc *_fieldsCache) setDependency(ref field, target computeData) {
+	fc.dependencyMap[ref] = append(fc.dependencyMap[ref], target)
 }
 
 /*
@@ -124,16 +159,58 @@ func registerModelFields(name string, structPtr interface{}) {
 			desc = sf.Name
 		}
 		computeName, computed := tags["compute"]
-		_, stored := attrs["stored"]
+		_, stored := attrs["store"]
+		depends := strings.Split(tags["depends"], defaultDependsTagDelim)
 		fInfo := fieldInfo{
 			name:        sf.Name,
 			modelName:   name,
 			compute:     computeName,
 			computed:    computed,
 			stored:      stored,
+			depends:     depends,
 			description: desc,
 			help:        tags["help"],
 		}
 		fieldsCache.set(field{name: fInfo.name, modelName: fInfo.modelName}, &fInfo)
 	}
+}
+
+/*
+processDepends populates the dependsMap of the fieldsCache from the depends strings of
+each fieldInfo instance.
+*/
+func processDepends() {
+	for targetField, fInfo := range fieldsCache.cache {
+		var (
+			refName string
+		)
+		for _, depString := range fInfo.depends {
+			if depString != "" {
+				tokens := strings.Split(depString, orm.ExprSep)
+				refName = tokens[len(tokens)-1]
+				refModelName := getRelatedModelName(targetField.modelName, depString)
+				refField := field{
+					modelName: refModelName,
+					name:      refName,
+				}
+				path := strings.Join(tokens[:len(tokens)-1], orm.ExprSep)
+				targetComputeData := computeData{
+					modelName: fInfo.modelName,
+					compute:   fInfo.compute,
+					path:      path,
+				}
+				fieldsCache.setDependency(refField, targetComputeData)
+			}
+		}
+	}
+}
+
+/*
+getRelatedModelName returns the model name of the field given by path calculated from the origin model.
+path is a query string as used in RecordSet.Filter()
+*/
+func getRelatedModelName(origin, path string) string {
+	qs := orm.NewOrm().QueryTable(origin)
+	modelName, _ := qs.TargetModelField(path)
+	return modelName
 }

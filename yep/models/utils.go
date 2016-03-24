@@ -14,11 +14,16 @@
 
 package models
 
-import "strings"
+import (
+	"fmt"
+	"reflect"
+	"strings"
+)
 
 const (
-	defaultStructTagName  = "yep"
-	defaultStructTagDelim = ";"
+	defaultStructTagName   = "yep"
+	defaultStructTagDelim  = ";"
+	defaultDependsTagDelim = ","
 )
 
 var (
@@ -27,6 +32,7 @@ var (
 		"string":  2,
 		"help":    2,
 		"compute": 2,
+		"depends": 2,
 	}
 )
 
@@ -52,4 +58,35 @@ func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string
 	}
 	*attrs = attr
 	*tags = tag
+}
+
+/*
+structToMap returns the fields and values of the given struct pointer in a map.
+*/
+func structToMap(structPtr interface{}) map[string]interface{} {
+	val := reflect.ValueOf(structPtr)
+	ind := reflect.Indirect(val)
+	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
+		panic(fmt.Errorf("structPtr must be a pointer to a struct"))
+	}
+	res := make(map[string]interface{})
+	for i := 0; i < ind.NumField(); i++ {
+		fieldName := ind.Type().Field(i).Name
+		fieldValue := ind.Field(i)
+		var resVal interface{}
+		if fieldValue.Kind() == reflect.Ptr {
+			relInd := reflect.Indirect(fieldValue)
+			if relInd.Kind() != reflect.Struct {
+				continue
+			}
+			if !relInd.FieldByName("ID").IsValid() {
+				continue
+			}
+			resVal = relInd.FieldByName("ID").Interface()
+		} else {
+			resVal = ind.Field(i).Interface()
+		}
+		res[fieldName] = resVal
+	}
+	return res
 }

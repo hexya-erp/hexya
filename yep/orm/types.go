@@ -247,6 +247,9 @@ type QuerySeter interface {
 	RowsToStruct(ptrStruct interface{}, keyCol, valueCol string) (int64, error)
 	// returns the name of the underlying modelInfo
 	ModelName() string
+	// returns the model name and field name of the target path
+	// path must be in the form "ModelA__ModelB__Field".
+	TargetModelField(path string) (string, string)
 }
 
 // QueryM2Mer model to model query struct

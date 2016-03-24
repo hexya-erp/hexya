@@ -17,77 +17,127 @@ package models
 import (
 	"github.com/npiganeau/yep/yep/orm"
 	"testing"
-	"time"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var env Environment
 
+type Profile_WithID struct {
+	ID    int64
+	Age   int16
+	Money float64
+}
+
+type User_WithID struct {
+	ID       int64
+	UserName string
+	Email    string
+	Profile  *Profile_WithID
+}
+
 func TestCreateRecordSet(t *testing.T) {
-	env = NewEnvironment(dORM, 1)
-	userJohn := User{
-		UserName: "John Smith",
-		Email:    "jsmith@example.com",
-	}
-	userJane := User{
-		UserName: "Jane Smith",
-		Email:    "jane.smith@example.com",
-	}
-	users := env.Pool("User").Create(&userJohn)
-	throwFail(t, AssertIs(users.Ids(), []int64{1}))
-	users2 := env.Pool("User").Create(&userJane)
-	throwFail(t, AssertIs(users2.Ids(), []int64{2}))
+	Convey("Test record creation", t, func() {
+		env = NewEnvironment(dORM, 1)
+		Convey("Creating simple user John with no relations and checking ID", func() {
+			userJohn := User_WithID{
+				UserName: "John Smith",
+				Email:    "jsmith@example.com",
+			}
+			users := env.Pool("User").Create(&userJohn)
+			So(users.Ids(), ShouldContain, 1)
+			So(userJohn.ID, ShouldEqual, 1)
+		})
+		Convey("Creating user Jane with related Profile", func() {
+			userJane := User_WithID{
+				UserName: "Jane Smith",
+				Email:    "jane.smith@example.com",
+				Profile: &Profile_WithID{
+					Age:   24,
+					Money: 12345,
+				},
+			}
+			profile := env.Pool("Profile").Create(userJane.Profile)
+			So(profile.Ids(), ShouldContain, 1)
+			So(userJane.Profile.ID, ShouldEqual, 1)
+			users2 := env.Pool("User").Create(&userJane)
+			So(users2.Ids(), ShouldContain, 2)
+			So(userJane.Profile.ID, ShouldEqual, 1)
+		})
+	})
 }
 
 func TestSearchRecordSet(t *testing.T) {
-	users := env.Pool(new(User)).Filter("UserName", "Jane Smith").Search()
-	throwFail(t, AssertIs(len(users.Ids()), 1))
-	var userJane User
-	users.ReadOne(&userJane)
-	throwFail(t, AssertIs(userJane.UserName, "Jane Smith"))
-	throwFail(t, AssertIs(userJane.Email, "jane.smith@example.com"))
+	Convey("Testing search through RecorSets", t, func() {
+		Convey("Searching User Jane and getting struct through ReadOne", func() {
+			users := env.Pool(new(User)).Filter("UserName", "Jane Smith").Search()
+			So(len(users.Ids()), ShouldEqual, 1)
+			var userJane User_WithID
+			users.RelatedSel(1).ReadOne(&userJane)
+			So(userJane.UserName, ShouldEqual, "Jane Smith")
+			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
+		})
 
-	usersAll := env.Pool(new(User)).Search()
-	var userStructs []*User_PartialWithPosts
-	num := usersAll.ReadAll(&userStructs)
-	throwFail(t, AssertIs(num, 2))
-	throwFail(t, AssertIs(userStructs[0].Email, "jsmith@example.com"))
-	throwFail(t, AssertIs(userStructs[1].Email, "jane.smith@example.com"))
+		Convey("Testing search all users and getting struct slice", func() {
+			usersAll := env.Pool(new(User)).Search()
+			var userStructs []*User_PartialWithPosts
+			num := usersAll.ReadAll(&userStructs)
+			So(num, ShouldEqual, 2)
+			So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
+			So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+		})
+	})
+
 }
 
 func TestUpdateRecordSet(t *testing.T) {
-	// Update multi
-	users := env.Pool(new(User)).Filter("UserName", "Jane Smith").Search()
-	throwFail(t, AssertIs(len(users.Ids()), 1))
-	num := users.Write(orm.Params{"UserName": "Jane A. Smith"})
-	throwFail(t, AssertIs(num, 1))
-	var userJane User
-	users.ReadOne(&userJane)
-	throwFail(t, AssertIs(userJane.UserName, "Jane A. Smith"))
-	throwFail(t, AssertIs(userJane.Email, "jane.smith@example.com"))
-
-	// Update single (from different RecordSet
-	type User_WithID struct {
-		ID         int64
-		UserName   string
-		Email      string
-		CreateDate time.Time //FIXME: Shouldn't be necessary. To be fixed by computed fields
-	}
-	var userJohn User_WithID
-	env.Pool("User").Filter("UserName", "John Smith").ReadOne(&userJohn)
-	userJohn.Email = "jsmith2@example.com"
-	users.Write(&userJohn)
-	var userJane2 User_WithID
-	users.ReadOne(&userJane2)
-	throwFail(t, AssertIs(userJane2.UserName, "Jane A. Smith"))
-	throwFail(t, AssertIs(userJane2.Email, "jane.smith@example.com"))
-	var userJohn2 User
-	env.Pool("User").Filter("UserName", "John Smith").ReadOne(&userJohn2)
-	throwFail(t, AssertIs(userJohn2.UserName, "John Smith"))
-	throwFail(t, AssertIs(userJohn2.Email, "jsmith2@example.com"))
+	Convey("Testing updates through RecordSets", t, func() {
+		Convey("Simple update with params to user Jane", func() {
+			rsJane := env.Pool(new(User)).Filter("UserName", "Jane Smith").Search()
+			So(rsJane.Ids(), ShouldContain, 2)
+			So(len(rsJane.Ids()), ShouldEqual, 1)
+			num := rsJane.Write(orm.Params{"UserName": "Jane A. Smith"})
+			So(num, ShouldEqual, 1)
+			var userJane User_WithID
+			rsJane.ReadOne(&userJane)
+			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
+			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
+		})
+		Convey("Simple update with struct", func() {
+			rsJane := env.Pool(new(User)).Filter("UserName", "Jane A. Smith").Search()
+			var userJohn User_WithID
+			rsJohn := env.Pool("User").Filter("UserName", "John Smith")
+			rsJohn.ReadOne(&userJohn)
+			userJohn.Email = "jsmith2@example.com"
+			rsJohn.Write(&userJohn)
+			var userJane2 User_WithID
+			rsJane.ReadOne(&userJane2)
+			So(userJane2.UserName, ShouldEqual, "Jane A. Smith")
+			So(userJane2.Email, ShouldEqual, "jane.smith@example.com")
+			var userJohn2 User_WithID
+			env.Pool("User").Filter("UserName", "John Smith").ReadOne(&userJohn2)
+			So(userJohn2.UserName, ShouldEqual, "John Smith")
+			So(userJohn2.Email, ShouldEqual, "jsmith2@example.com")
+		})
+	})
 }
 
 func TestDeleteRecordSet(t *testing.T) {
-	users := env.Pool("User").Filter("UserName", "John Smith")
-	num := users.Unlink()
-	throwFail(t, AssertIs(num, 1))
+	Convey("Delete user John Smith", t, func() {
+		users := env.Pool("User").Filter("UserName", "John Smith")
+		num := users.Unlink()
+		Convey("Number of deleted record should be 1", func() {
+			So(num, ShouldEqual, 1)
+		})
+	})
+	Convey("Creating a user Will Smith instead", t, func() {
+		userWill := User{
+			UserName: "Will Smith",
+			Email:    "will.smith@example.com",
+		}
+		users := env.Pool("User").Create(&userWill)
+		Convey("Created user ids should be [3] ", func() {
+			So(users.Ids(), ShouldContain, 3)
+		})
+	})
 }

@@ -9,7 +9,7 @@ ORM
 - [X] Add methods to ORM models
 - [ ] Add computed fields to ORM:
     - [X] Fields computed by ERP after retrieval of computation vars
-    - [ ] Fields computed by ERP and stored in DB column
+    - [X] Fields computed by ERP and stored in DB column
     - [ ] Fields computed by DB by SQL function when reading DB
 - [ ] Add CRUD permissions to models and fields
 - [ ] Add i18n and l10n support to ORM models

@@ -41,7 +41,11 @@ type RecordSet interface {
 	// data can be either a ptrStruct, a slice of ptrStruct or an orm.Params map.
 	Create(interface{}) RecordSet
 	// query the database with the current filter and returns a new recordset with the queries ids
+	// Does nothing if RecordSet already has Ids in cache.
 	Search() RecordSet
+	// query the database with the current filter and returns a new recordset with the queries ids
+	// Overwrite existing Ids if any
+	ForceSearch() RecordSet
 	// updates the database with the given data and returns the number of updated rows.
 	// data can be either
 	// - a ptrStruct for a single update. In this case, the RecordSet is discarded and the pk of
@@ -85,6 +89,8 @@ type RecordSet interface {
 	Call(methName string, args ...interface{}) interface{}
 	// Super is called from inside a method to call its parent, passing itself as fnctPtr
 	Super(args ...interface{}) interface{}
+	// Returns a slice of RecordSet singleton that constitute this RecordSet
+	Records() []RecordSet
 }
 
 /*
@@ -152,17 +158,25 @@ func (rs recordStruct) Create(data interface{}) RecordSet {
 
 /*
 Search query the database with the current filter and returns a new recordset with the queries ids.
-It panics in case of error
+Does nothing in case RecordSet already has Ids. It panics in case of error
 */
 func (rs recordStruct) Search() RecordSet {
-	var recIds []*IdStruct
-	num, err := rs.qs.All(&recIds)
-	if err != nil {
-		panic(fmt.Errorf("recordSet `%s` Search error: %s", rs, err))
+	if len(rs.Ids()) == 0 {
+		return rs.ForceSearch()
 	}
+	return copyRecordStruct(rs)
+}
+
+/*
+Search query the database with the current filter and returns a new recordset with the queries ids.
+Overwrite RecordSet Ids if any. It panics in case of error
+*/
+func (rs recordStruct) ForceSearch() RecordSet {
+	var Ids orm.ParamsList
+	num := rs.ValuesFlat(&Ids, "ID")
 	idMap := make(map[int64]bool, num)
-	for _, idStruct := range recIds {
-		idMap[idStruct.ID] = true
+	for _, id := range Ids {
+		idMap[id.(int64)] = true
 	}
 	return copyRecordStruct(rs).withIdMap(idMap)
 }
@@ -183,7 +197,9 @@ func (rs recordStruct) Write(data interface{}) int64 {
 			panic(fmt.Errorf("Data type mismatch: received `%s` object(s) to write `%s` record set",
 				getModelName(indType), rs))
 		}
-		num, err = rs.env.Cr().Update(data)
+		params := structToMap(data)
+		delete(params, "ID")
+		num, err = rs.qs.Update(orm.Params(params))
 	} else if indType == reflect.TypeOf(orm.Params{}) {
 		num, err = rs.qs.Update(data.(orm.Params))
 	} else {
@@ -192,6 +208,7 @@ func (rs recordStruct) Write(data interface{}) int64 {
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` Write error: %s", rs, err))
 	}
+	rs.updateRelatedFields(data)
 	return num
 }
 
@@ -286,11 +303,26 @@ All query all data pointed by the RecordSet and map to containers.
 It panics in case of error
 */
 func (rs recordStruct) ReadAll(container interface{}, cols ...string) int64 {
-	num, err := rs.qs.All(container, cols...)
+	num, err := rs.qs.OrderBy("ID").All(container, cols...)
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
 	}
-	return num
+	val := reflect.ValueOf(container)
+	ind := reflect.Indirect(val)
+	if ind.Kind() == reflect.Slice {
+		contSlice := make([]interface{}, ind.Len())
+		for i := 0; i < ind.Len(); i++ {
+			csIndex := reflect.ValueOf(contSlice).Index(i)
+			csIndex.Set(ind.Index(i))
+		}
+		rs = rs.Search().(recordStruct)
+		for i, item := range rs.Records() {
+			item.(recordStruct).computeFields(contSlice[i])
+		}
+		return num
+	}
+	rs.computeFields(container)
+	return 1
 }
 
 /*
@@ -407,6 +439,18 @@ func (rs recordStruct) Super(args ...interface{}) interface{} {
 	return rsCopy.call(methLayer, args...)
 }
 
+/*
+Records returns the slice of RecordSet singletons that constitute this RecordSet
+*/
+func (rs recordStruct) Records() []RecordSet {
+	rs = rs.Search().(recordStruct)
+	res := make([]RecordSet, len(rs.Ids()))
+	for i, id := range rs.Ids() {
+		res[i] = rs.withIdMap(map[int64]bool{id: true})
+	}
+	return res
+}
+
 var _ RecordSet = recordStruct{}
 
 /*
@@ -415,7 +459,11 @@ withIdMap returns a copy of rs filtered on the given idMap (overwriting current 
 func (rs recordStruct) withIdMap(idMap map[int64]bool) recordStruct {
 	newRs := copyRecordStruct(rs)
 	newRs.idMap = idMap
-	newRs.qs = rs.env.Cr().QueryTable(rs.ModelName()).Filter("id__in", ids(idMap))
+	newRs.qs = rs.env.Cr().QueryTable(rs.ModelName())
+	if len(idMap) > 0 {
+		domStr := fmt.Sprintf("id%sin", orm.ExprSep)
+		newRs.qs = newRs.qs.Filter(domStr, ids(idMap))
+	}
 	return newRs
 }
 
@@ -438,12 +486,67 @@ func (rs recordStruct) computeFields(structPtr interface{}) {
 			// We already have the value we need in params
 			continue
 		}
-		newParams := rs.Call(fInfo.compute, rs).(orm.Params)
+		newParams := rs.Call(fInfo.compute).(orm.Params)
 		for k, v := range newParams {
 			params[k] = v
 		}
 		structField := ind.FieldByName(fInfo.name)
 		structField.Set(reflect.ValueOf(params[fInfo.name]))
+	}
+}
+
+/*
+updateRelatedFields updates all dependent fields of rs that are included in structPtrOrParams.
+*/
+func (rs recordStruct) updateRelatedFields(structPtrOrParams interface{}) {
+	// First get list of fields that have been passed through structPtrOrParams
+	var fieldNames []string
+	if params, ok := structPtrOrParams.(orm.Params); ok {
+		fieldNames = make([]string, len(params))
+		i := 0
+		for k, _ := range params {
+			fieldNames[i] = k
+			i++
+		}
+	} else {
+		val := reflect.ValueOf(structPtrOrParams)
+		typ := reflect.Indirect(val).Type()
+		fieldNames = make([]string, typ.NumField())
+		for i := 0; i < typ.NumField(); i++ {
+			fieldNames[i] = typ.Field(i).Name
+		}
+	}
+	// Then get all fields to update
+	var toUpdate []computeData
+	for _, fieldName := range fieldNames {
+		refField := field{modelName: rs.ModelName(), name: fieldName}
+		targetFields, ok := fieldsCache.getDependentFields(refField)
+		if !ok {
+			continue
+		}
+		toUpdate = append(toUpdate, targetFields...)
+	}
+	// Compute all that must be computed and store the values
+	computed := make(map[string]bool)
+	rs = rs.Search().(recordStruct)
+	for _, cData := range toUpdate {
+		methUID := fmt.Sprintf("%s.%s", cData.modelName, cData.compute)
+		if _, ok := computed[methUID]; ok {
+			continue
+		}
+		recs := NewRecordSet(rs.env, cData.modelName)
+		if cData.path != "" {
+			domainString := fmt.Sprintf("%s%s%s", cData.path, orm.ExprSep, "in")
+			recs.Filter(domainString, rs.Ids())
+		} else {
+			recs = rs
+		}
+		for _, rec := range recs.Records() {
+			vals := rec.Call(cData.compute)
+			if len(vals.(orm.Params)) > 0 {
+				rec.Write(vals)
+			}
+		}
 	}
 }
 

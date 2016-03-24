@@ -67,6 +67,24 @@ func computeDisplayName(rs RecordSet) orm.Params {
 	return res
 }
 
+func computeAge(rs RecordSet) orm.Params {
+	res := make(orm.Params)
+	type Profile_Simple struct {
+		ID  int64
+		Age int16
+	}
+	type User_Simple struct {
+		ID      int64
+		Profile *Profile_Simple
+	}
+	user := new(User_Simple)
+	rs.RelatedSel("Profile").ReadOne(user)
+	if user.Profile != nil {
+		res["Age"] = user.Profile.Age
+	}
+	return res
+}
+
 func TestSyncDb(t *testing.T) {
 	CreateModel("User")
 	ExtendModel("User", new(User), new(User_Extension))
@@ -82,9 +100,9 @@ func TestSyncDb(t *testing.T) {
 	DeclareMethod("User", "DecorateEmail", DecorateEmail)
 	DeclareMethod("User", "DecorateEmail", DecorateEmailExtension)
 	DeclareMethod("User", "computeDisplayName", computeDisplayName)
+	DeclareMethod("User", "computeAge", computeAge)
 
-	err := orm.RunSyncdb("default", true, orm.Debug)
-	throwFail(t, err)
+	BootStrap()
 
 	dORM = orm.NewOrm()
 }
@@ -98,6 +116,7 @@ type User struct {
 	IsStaff      bool
 	IsActive     bool     `orm:"default(true)"`
 	Profile      *Profile `orm:"null;rel(one);on_delete(set_null)"`
+	Age          int16    `yep:"compute(computeAge);store;depends(Profile__Age,Profile)"`
 	Posts        []*Post  `orm:"reverse(many)" json:"-"`
 	ShouldSkip   string   `orm:"-"`
 	Nums         int
@@ -119,6 +138,7 @@ func (u *User) TableUnique() [][]string {
 }
 
 type User_PartialWithPosts struct {
+	ID        int64
 	Email     string
 	Email2    string
 	IsPremium bool
@@ -134,6 +154,7 @@ type Profile struct {
 }
 
 type Profile_PartialWithBestPost struct {
+	ID       int64
 	Age      int16
 	Country  string
 	BestPost *Post

@@ -17,6 +17,7 @@ package orm
 
 import (
 	"fmt"
+	"strings"
 )
 
 type colValue struct {
@@ -256,6 +257,20 @@ func (o *querySet) RowsToStruct(ptrStruct interface{}, keyCol, valueCol string) 
 // returns the name of the underlying modelInfo
 func (o *querySet) ModelName() string {
 	return o.mi.name
+}
+
+/*
+TargetModelField returns the model name and field name of the target path string.
+path must be in the form "ModelA__ModelB__Field".
+*/
+func (o *querySet) TargetModelField(path string) (string, string) {
+	tables := newDbTables(o.mi, o.orm.alias.DbBaser, nil)
+	tables.parseRelated(o.related, o.relDepth)
+	_, _, info, success := tables.parseExprs(o.mi, strings.Split(path, ExprSep))
+	if !success {
+		panic(fmt.Errorf("<QuerySet.TargetModelField>Parse error in expr"))
+	}
+	return info.mi.name, info.name
 }
 
 // create new QuerySeter.
