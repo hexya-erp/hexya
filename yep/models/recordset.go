@@ -99,14 +99,13 @@ recordStruct implements RecordSet
 type recordStruct struct {
 	qs        orm.QuerySeter
 	env       Environment
-	idMap     map[int64]bool
+	ids       []int64
 	callStack []*methodLayer
 }
 
 func (rs recordStruct) String() string {
-	idsStr := make([]string, len(rs.idMap))
-	i := 0
-	for id, _ := range rs.idMap {
+	idsStr := make([]string, len(rs.ids))
+	for i, id := range rs.ids {
 		idsStr[i] = strconv.Itoa(int(id))
 		i++
 	}
@@ -132,7 +131,7 @@ func (rs recordStruct) ModelName() string {
 Ids return the ids of the RecordSet
 */
 func (rs recordStruct) Ids() []int64 {
-	return ids(rs.idMap)
+	return rs.ids
 }
 
 /*
@@ -153,7 +152,7 @@ func (rs recordStruct) Create(data interface{}) RecordSet {
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` Create error: %s", rs, err))
 	}
-	return copyRecordStruct(rs).withIdMap(map[int64]bool{id: true})
+	return copyRecordStruct(rs).withIds([]int64{id})
 }
 
 /*
@@ -172,13 +171,13 @@ Search query the database with the current filter and returns a new recordset wi
 Overwrite RecordSet Ids if any. It panics in case of error
 */
 func (rs recordStruct) ForceSearch() RecordSet {
-	var Ids orm.ParamsList
-	num := rs.ValuesFlat(&Ids, "ID")
-	idMap := make(map[int64]bool, num)
-	for _, id := range Ids {
-		idMap[id.(int64)] = true
+	var idParams orm.ParamsList
+	num := rs.ValuesFlat(&idParams, "ID")
+	ids := make([]int64, num)
+	for i := 0; i < int(num); i++ {
+		ids[i] = idParams[i].(int64)
 	}
-	return copyRecordStruct(rs).withIdMap(idMap)
+	return copyRecordStruct(rs).withIds(ids)
 }
 
 /*
@@ -446,7 +445,7 @@ func (rs recordStruct) Records() []RecordSet {
 	rs = rs.Search().(recordStruct)
 	res := make([]RecordSet, len(rs.Ids()))
 	for i, id := range rs.Ids() {
-		res[i] = rs.withIdMap(map[int64]bool{id: true})
+		res[i] = rs.withIds([]int64{id})
 	}
 	return res
 }
@@ -454,15 +453,15 @@ func (rs recordStruct) Records() []RecordSet {
 var _ RecordSet = recordStruct{}
 
 /*
-withIdMap returns a copy of rs filtered on the given idMap (overwriting current queryset).
+withIdMap returns a copy of rs filtered on the given ids slice (overwriting current queryset).
 */
-func (rs recordStruct) withIdMap(idMap map[int64]bool) recordStruct {
+func (rs recordStruct) withIds(ids []int64) recordStruct {
 	newRs := copyRecordStruct(rs)
-	newRs.idMap = idMap
+	newRs.ids = ids
 	newRs.qs = rs.env.Cr().QueryTable(rs.ModelName())
-	if len(idMap) > 0 {
+	if len(ids) > 0 {
 		domStr := fmt.Sprintf("id%sin", orm.ExprSep)
-		newRs.qs = newRs.qs.Filter(domStr, ids(idMap))
+		newRs.qs = newRs.qs.Filter(domStr, ids)
 	}
 	return newRs
 }
@@ -556,9 +555,9 @@ newRecordStruct returns a new empty recordStruct.
 func newRecordStruct(env Environment, ptrStructOrTableName interface{}) recordStruct {
 	qs := env.Cr().QueryTable(ptrStructOrTableName)
 	rs := recordStruct{
-		qs:    qs,
-		env:   NewEnvironment(env.Cr(), env.Uid(), env.Context()),
-		idMap: make(map[int64]bool),
+		qs:  qs,
+		env: NewEnvironment(env.Cr(), env.Uid(), env.Context()),
+		ids: make([]int64, 0),
 	}
 	return rs
 }
@@ -566,9 +565,8 @@ func newRecordStruct(env Environment, ptrStructOrTableName interface{}) recordSt
 func copyRecordStruct(rs recordStruct) recordStruct {
 	newRs := newRecordStruct(rs.env, rs.ModelName())
 	newRs.qs = rs.qs
-	for k, v := range rs.idMap {
-		newRs.idMap[k] = v
-	}
+	newRs.ids = make([]int64, len(rs.ids))
+	copy(newRs.ids, rs.ids)
 	newRs.callStack = make([]*methodLayer, len(rs.callStack))
 	copy(newRs.callStack, rs.callStack)
 	return newRs
@@ -588,17 +586,4 @@ getName returns Model name from reflectType (splitting on _)
 func getModelName(typ reflect.Type) string {
 	name := strings.SplitN(typ.Name(), "_", 2)[0]
 	return name
-}
-
-/*
-ids returns the ids of the given idMap
-*/
-func ids(idMap map[int64]bool) []int64 {
-	keys := make([]int64, len(idMap))
-	i := 0
-	for k := range idMap {
-		keys[i] = k
-		i++
-	}
-	return keys
 }
