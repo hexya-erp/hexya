@@ -44,7 +44,7 @@ func TestCreateRecordSet(t *testing.T) {
 				UserName: "John Smith",
 				Email:    "jsmith@example.com",
 			}
-			users := env.Pool("User").Create(&userJohn)
+			users := env.Create(&userJohn)
 			So(users.Ids(), ShouldContain, 1)
 			So(userJohn.ID, ShouldEqual, 1)
 		})
@@ -53,14 +53,14 @@ func TestCreateRecordSet(t *testing.T) {
 				UserName: "Jane Smith",
 				Email:    "jane.smith@example.com",
 				Profile: &Profile_WithID{
-					Age:   24,
+					Age:   23,
 					Money: 12345,
 				},
 			}
-			profile := env.Pool("Profile").Create(userJane.Profile)
+			profile := env.Create(userJane.Profile)
 			So(profile.Ids(), ShouldContain, 1)
 			So(userJane.Profile.ID, ShouldEqual, 1)
-			users2 := env.Pool("User").Create(&userJane)
+			users2 := env.Create(&userJane)
 			So(users2.Ids(), ShouldContain, 2)
 			So(userJane.Profile.ID, ShouldEqual, 1)
 		})
@@ -109,7 +109,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			rsJohn := env.Pool("User").Filter("UserName", "John Smith")
 			rsJohn.ReadOne(&userJohn)
 			userJohn.Email = "jsmith2@example.com"
-			rsJohn.Write(&userJohn)
+			env.Sync(&userJohn)
 			var userJane2 User_WithID
 			rsJane.ReadOne(&userJane2)
 			So(userJane2.UserName, ShouldEqual, "Jane A. Smith")
@@ -131,11 +131,11 @@ func TestDeleteRecordSet(t *testing.T) {
 		})
 	})
 	Convey("Creating a user Will Smith instead", t, func() {
-		userWill := User{
+		userWill := User_WithID{
 			UserName: "Will Smith",
 			Email:    "will.smith@example.com",
 		}
-		users := env.Pool("User").Create(&userWill)
+		users := env.Create(&userWill)
 		Convey("Created user ids should be [3] ", func() {
 			So(users.Ids(), ShouldContain, 3)
 		})

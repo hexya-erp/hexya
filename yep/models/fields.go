@@ -142,10 +142,9 @@ func registerModelFields(name string, structPtr interface{}) {
 
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
-	typ := ind.Type()
 
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		panic(fmt.Errorf("<models.registerModelFields> cannot use non-ptr model struct `%s`", getModelName(typ)))
+		panic(fmt.Errorf("<models.registerModelFields> cannot use non-ptr model struct `%s`", getModelName(structPtr)))
 	}
 
 	for i := 0; i < ind.NumField(); i++ {

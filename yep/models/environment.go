@@ -14,25 +14,16 @@
 
 package models
 
-import "github.com/npiganeau/yep/yep/orm"
+import (
+	"fmt"
+	"github.com/npiganeau/yep/yep/orm"
+)
 
 /*
 Context is a map of objects that is passed along from function to function
 during a transaction.
 */
 type Context map[string]interface{}
-
-/*
-Environment holds the context data for a transaction.
-*/
-type Environment interface {
-	Cr() orm.Ormer
-	Uid() int64
-	Context() Context
-	WithContext(ctx Context, replace ...bool) Environment
-	Sudo(...int64) Environment
-	Pool(interface{}) RecordSet
-}
 
 /*
 envStruct implements Environment. It is immutable.
@@ -91,6 +82,39 @@ func (env envStruct) Sudo(userId ...int64) Environment {
 		uid = 1
 	}
 	return NewEnvironment(env.cr, uid, env.context)
+}
+
+/*
+Create creates a new record in database from the given data and returns a recordSet
+Data must be a struct pointer.
+*/
+func (env envStruct) Create(data interface{}) RecordSet {
+	if err := checkStructPtr(data); err != nil {
+		panic(fmt.Errorf("Create error: %s", err))
+	}
+	_, err := env.cr.Insert(data)
+	if err != nil {
+		panic(fmt.Errorf("Create error: %s", err))
+	}
+	rs := newRecordStructFromData(env, data)
+	rs.updateStoredFields(data)
+	rs.computeFields(data)
+	return rs
+}
+
+/*
+Sync writes the given data to database.
+data must be a struct pointer that has been originally populated by RecordSet.ReadOne()
+or RecordSet.ReadAll().
+*/
+func (env envStruct) Sync(data interface{}, cols ...string) int64 {
+	if err := checkStructPtr(data); err != nil {
+		panic(fmt.Errorf("<Environment.Sync>: %s", err))
+	}
+	rs := newRecordStructFromData(env, data)
+	params := structToMap(data)
+	num := rs.Write(params)
+	return num
 }
 
 /*

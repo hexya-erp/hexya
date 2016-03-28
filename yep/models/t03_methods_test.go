@@ -66,28 +66,44 @@ func TestComputedStoredFields(t *testing.T) {
 			Money float64
 		}
 		type User_Simple struct {
+			ID       int64
 			UserName string
 			Profile  *Profile_Simple
 			Age      int16
 		}
-		Convey("Checking that user Jane has no age since no profile", func() {
+		Convey("Checking that user Jane is 23", func() {
 			var userJane User_Simple
 			env.Pool("User").Filter("Email", "jane.smith@example.com").ReadOne(&userJane)
-			So(userJane.Age, ShouldEqual, 0)
+			So(userJane.Age, ShouldEqual, 23)
 		})
-		Convey("Adding a Profile to Jane, writing to DB and checking Jane's age", func() {
+		Convey("Checking that user Will has no age since no profile", func() {
+			var userWill User_Simple
+			env.Pool("User").Filter("Email", "will.smith@example.com").ReadOne(&userWill)
+			So(userWill.Age, ShouldEqual, 0)
+		})
+		Convey("It's Jane's birthday, change her age, commit and check", func() {
 			var userJane User_Simple
 			janeRs := env.Pool("User").Filter("Email", "jane.smith@example.com")
 			janeRs.ReadOne(&userJane)
 			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
-			userJane.Profile = &Profile_Simple{
-				Age:   24,
-				Money: 1500,
-			}
-			env.Pool("Profile").Create(userJane.Profile)
-			janeRs.Write(&userJane)
+			userJane.Profile.Age = 24
+			env.Sync(userJane.Profile)
 			env.Pool("User").Filter("Email", "jane.smith@example.com").ReadOne(&userJane)
 			So(userJane.Age, ShouldEqual, 24)
+		})
+		Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
+			var userWill User_Simple
+			willRs := env.Pool("User").Filter("Email", "will.smith@example.com")
+			willRs.ReadOne(&userWill)
+			So(userWill.UserName, ShouldEqual, "Will Smith")
+			userWill.Profile = &Profile_Simple{
+				Age:   34,
+				Money: 5100,
+			}
+			env.Create(userWill.Profile)
+			env.Sync(&userWill)
+			env.Pool("User").Filter("Email", "will.smith@example.com").ReadOne(&userWill)
+			So(userWill.Age, ShouldEqual, 34)
 		})
 	})
 }

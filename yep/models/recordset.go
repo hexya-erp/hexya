@@ -22,77 +22,6 @@ import (
 	"strings"
 )
 
-type IdStruct struct {
-	ID int64
-}
-
-/*
-RecordSet is both a set of database records and an entrypoint to the models API for CRUD operations.
-RecordSet are immutable.
-*/
-type RecordSet interface {
-	// returns the Environment of the RecordSet
-	Env() Environment
-	// returns the model name of the RecordSet
-	ModelName() string
-	// returns the ids of this RecordSet
-	Ids() []int64
-	// creates a record in database from the given data and returns the corresponding recordset.
-	// data can be either a ptrStruct, a slice of ptrStruct or an orm.Params map.
-	Create(interface{}) RecordSet
-	// query the database with the current filter and returns a new recordset with the queries ids
-	// Does nothing if RecordSet already has Ids in cache.
-	Search() RecordSet
-	// query the database with the current filter and returns a new recordset with the queries ids
-	// Overwrite existing Ids if any
-	ForceSearch() RecordSet
-	// updates the database with the given data and returns the number of updated rows.
-	// data can be either
-	// - a ptrStruct for a single update. In this case, the RecordSet is discarded and the pk of
-	// the ptrStruct is used to determine the record to update.
-	// - an orm.Params map for multi update. In this case, the records of this RecordSet are updated.
-	Write(interface{}) int64
-	// deletes the database record of this RecordSet and returns the number of deleted rows.
-	Unlink() int64
-	// returns a new RecordSet with the given additional filter condition
-	Filter(string, ...interface{}) RecordSet
-	// returns a new RecordSet with the given additional NOT condition
-	Exclude(string, ...interface{}) RecordSet
-	// returns a new RecordSet with the given additional condition
-	SetCond(*orm.Condition) RecordSet
-	// returns a new RecordSet with the given limit as additional condition
-	Limit(limit interface{}, args ...interface{}) RecordSet
-	// returns a new RecordSet with the given offset as additional condition
-	Offset(offset interface{}) RecordSet
-	// returns a new RecordSet with the given order as additional condition
-	OrderBy(exprs ...string) RecordSet
-	// returns a new RecordSet that includes related models (table join) in its search
-	RelatedSel(params ...interface{}) RecordSet
-	// fetch from the database the number of records that match the RecordSet conditions
-	SearchCount() int64
-	// query all data pointed by the RecordSet and map to containers.
-	ReadAll(container interface{}, cols ...string) int64
-	// query the RecordSet row and map to containers.
-	// returns error if the RecordSet does not contain exactly one row.
-	ReadOne(container interface{}, cols ...string)
-	// query all data of the RecordSet and map to []map[string]interface.
-	// expres means condition expression.
-	// it converts data to []map[column]value.
-	Values(results *[]orm.Params, exprs ...string) int64
-	// query all data of the RecordSet and map to [][]interface
-	// it converts data to [][column_index]value
-	ValuesList(results *[]orm.ParamsList, exprs ...string) int64
-	// query all data and map to []interface.
-	// it's designed for one column record set, auto change to []value, not [][column]value.
-	ValuesFlat(result *orm.ParamsList, expr string) int64
-	// Call the given method by name with the given arguments
-	Call(methName string, args ...interface{}) interface{}
-	// Super is called from inside a method to call its parent, passing itself as fnctPtr
-	Super(args ...interface{}) interface{}
-	// Returns a slice of RecordSet singleton that constitute this RecordSet
-	Records() []RecordSet
-}
-
 /*
 recordStruct implements RecordSet
 */
@@ -135,27 +64,6 @@ func (rs recordStruct) Ids() []int64 {
 }
 
 /*
-Create creates a new record in database from the given data and returns the corresponding RecordSet
-Data can be either a struct pointer or an orm.Params map.
-*/
-func (rs recordStruct) Create(data interface{}) RecordSet {
-	val := reflect.ValueOf(data)
-	ind := reflect.Indirect(val)
-	if ind.Kind() != reflect.Struct {
-		panic(orm.ErrNotImplement)
-	}
-	if getModelName(ind.Type()) != rs.ModelName() {
-		panic(fmt.Errorf("Data type mismatch: received `%s` object to create `%s` record set",
-			getModelName(ind.Type()), rs))
-	}
-	id, err := rs.env.Cr().Insert(data)
-	if err != nil {
-		panic(fmt.Errorf("recordSet `%s` Create error: %s", rs, err))
-	}
-	return copyRecordStruct(rs).withIds([]int64{id})
-}
-
-/*
 Search query the database with the current filter and returns a new recordset with the queries ids.
 Does nothing in case RecordSet already has Ids. It panics in case of error
 */
@@ -182,32 +90,14 @@ func (rs recordStruct) ForceSearch() RecordSet {
 
 /*
 Write updates the database with the given data and returns the number of updated rows.
-data can be either a ptrStruct (single update) or an orm.Params map (multi-update).
 It panics in case of error.
 */
-func (rs recordStruct) Write(data interface{}) int64 {
-	val := reflect.ValueOf(data)
-	ind := reflect.Indirect(val)
-	indType := ind.Type()
-	var num int64
-	var err error
-	if ind.Kind() == reflect.Struct {
-		if getModelName(indType) != rs.ModelName() {
-			panic(fmt.Errorf("Data type mismatch: received `%s` object(s) to write `%s` record set",
-				getModelName(indType), rs))
-		}
-		params := structToMap(data)
-		delete(params, "ID")
-		num, err = rs.qs.Update(orm.Params(params))
-	} else if indType == reflect.TypeOf(orm.Params{}) {
-		num, err = rs.qs.Update(data.(orm.Params))
-	} else {
-		panic(fmt.Errorf("Wrong data type for writing `%s`", data))
-	}
+func (rs recordStruct) Write(data orm.Params) int64 {
+	num, err := rs.qs.Update(data)
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` Write error: %s", rs, err))
 	}
-	rs.updateRelatedFields(data)
+	rs.updateStoredFields(data)
 	return num
 }
 
@@ -302,6 +192,9 @@ All query all data pointed by the RecordSet and map to containers.
 It panics in case of error
 */
 func (rs recordStruct) ReadAll(container interface{}, cols ...string) int64 {
+	if err := checkStructPtr(container, true); err != nil {
+		panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
+	}
 	num, err := rs.qs.OrderBy("ID").All(container, cols...)
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
@@ -329,8 +222,10 @@ One query the RecordSet row and map to containers.
 it panics if the RecordSet does not contain exactly one row.
 */
 func (rs recordStruct) ReadOne(container interface{}, cols ...string) {
-	err := rs.qs.One(container, cols...)
-	if err != nil {
+	if err := checkStructPtr(container); err != nil {
+		panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
+	}
+	if err := rs.qs.One(container, cols...); err != nil {
 		panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
 	}
 	rs.computeFields(container)
@@ -467,7 +362,7 @@ func (rs recordStruct) withIds(ids []int64) recordStruct {
 }
 
 /*
-computeFields sets the value of the computed fields of structPtr.
+computeFields sets the value of the computed (non stored) fields of structPtr.
 */
 func (rs recordStruct) computeFields(structPtr interface{}) {
 	val := reflect.ValueOf(structPtr)
@@ -495,9 +390,9 @@ func (rs recordStruct) computeFields(structPtr interface{}) {
 }
 
 /*
-updateRelatedFields updates all dependent fields of rs that are included in structPtrOrParams.
+updateStoredFields updates all dependent fields of rs that are included in structPtrOrParams.
 */
-func (rs recordStruct) updateRelatedFields(structPtrOrParams interface{}) {
+func (rs recordStruct) updateStoredFields(structPtrOrParams interface{}) {
 	// First get list of fields that have been passed through structPtrOrParams
 	var fieldNames []string
 	if params, ok := structPtrOrParams.(orm.Params); ok {
@@ -543,7 +438,7 @@ func (rs recordStruct) updateRelatedFields(structPtrOrParams interface{}) {
 		for _, rec := range recs.Records() {
 			vals := rec.Call(cData.compute)
 			if len(vals.(orm.Params)) > 0 {
-				rec.Write(vals)
+				rec.Write(vals.(orm.Params))
 			}
 		}
 	}
@@ -553,13 +448,28 @@ func (rs recordStruct) updateRelatedFields(structPtrOrParams interface{}) {
 newRecordStruct returns a new empty recordStruct.
 */
 func newRecordStruct(env Environment, ptrStructOrTableName interface{}) recordStruct {
-	qs := env.Cr().QueryTable(ptrStructOrTableName)
+	modelName := getModelName(ptrStructOrTableName)
+	qs := env.Cr().QueryTable(modelName)
 	rs := recordStruct{
 		qs:  qs,
 		env: NewEnvironment(env.Cr(), env.Uid(), env.Context()),
 		ids: make([]int64, 0),
 	}
 	return rs
+}
+
+/*
+newRecordStructFromData returns a recordStruct pointing to data.
+*/
+func newRecordStructFromData(env Environment, data interface{}) recordStruct {
+	rs := newRecordStruct(env, data)
+	if err := checkStructPtr(data); err != nil {
+		panic(fmt.Errorf("newRecordStructFromData: %s", err))
+	}
+	val := reflect.ValueOf(data)
+	ind := reflect.Indirect(val)
+	id := ind.FieldByName("ID").Int()
+	return rs.withIds([]int64{id})
 }
 
 func copyRecordStruct(rs recordStruct) recordStruct {
@@ -578,12 +488,4 @@ given Environment.
 */
 func NewRecordSet(env Environment, ptrStructOrTableName interface{}) RecordSet {
 	return newRecordStruct(env, ptrStructOrTableName)
-}
-
-/*
-getName returns Model name from reflectType (splitting on _)
-*/
-func getModelName(typ reflect.Type) string {
-	name := strings.SplitN(typ.Name(), "_", 2)[0]
-	return name
 }

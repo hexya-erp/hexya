@@ -61,6 +61,62 @@ func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string
 }
 
 /*
+checkStructPtr checks that the given data is a struct ptr valid for receiving data from
+the database through the RecordSet API.
+It returns an error if it not the case.
+*/
+func checkStructPtr(data interface{}, allowSlice ...bool) error {
+	val := reflect.ValueOf(data)
+	ind := reflect.Indirect(val)
+	indType := ind.Type()
+	sliceAllowed := false
+	if len(allowSlice) > 0 {
+		sliceAllowed = allowSlice[0]
+	}
+	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
+		if ind.Kind() != reflect.Slice || !sliceAllowed {
+			return fmt.Errorf("Argument must be a struct pointer")
+		} else {
+			indType = ind.Type().Elem()
+			if indType.Kind() == reflect.Ptr {
+				indType = indType.Elem()
+			}
+			if indType.Kind() != reflect.Struct {
+				return fmt.Errorf("Argument must be a slice of structs or slice of struct pointers")
+			}
+		}
+	}
+
+	if _, ok := indType.FieldByName("ID"); !ok {
+		return fmt.Errorf("Struct must have an ID field")
+	}
+	if f, _ := indType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
+		return fmt.Errorf("Struct ID field must be of type `int64`")
+	}
+	return nil
+}
+
+/*
+getModelName returns the model name corresponding to the given container
+*/
+func getModelName(container interface{}) string {
+	val := reflect.ValueOf(container)
+	ind := reflect.Indirect(val)
+	indType := ind.Type()
+	if indType.Kind() == reflect.String {
+		return container.(string)
+	}
+	if indType.Kind() == reflect.Slice {
+		indType = indType.Elem()
+	}
+	if indType.Kind() == reflect.Ptr {
+		indType = indType.Elem()
+	}
+	name := strings.SplitN(indType.Name(), "_", 2)[0]
+	return name
+}
+
+/*
 structToMap returns the fields and values of the given struct pointer in a map.
 */
 func structToMap(structPtr interface{}) map[string]interface{} {

@@ -27,11 +27,15 @@ import (
 
 type Option int
 
+func ComputeWriteDate(rs RecordSet) orm.Params {
+	return orm.Params{"WriteDate": time.Now()}
+}
+
 type BaseModel struct {
 	ID         int64     `orm:"column(id)"`
 	CreateDate time.Time `orm:"auto_now_add"`
 	CreateUid  int64
-	WriteDate  time.Time `orm:"auto_now"`
+	WriteDate  time.Time `yep:"compute(ComputeWriteDate),store,depends(ID)" orm:"null"`
 	WriteUid   int64
 }
 
@@ -56,6 +60,7 @@ func CreateModel(name string, options ...Option) {
 	}
 	orm.RegisterModelWithName(name, model)
 	registerModelFields(name, model)
+	DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
 }
 
 func ExtendModel(name string, models ...interface{}) {

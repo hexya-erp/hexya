@@ -72,7 +72,7 @@ func (f *fields) Add(fi *fieldInfo) (added bool) {
 	if fi.reverse {
 		f.fieldsReverse = append(f.fieldsReverse, fi)
 	}
-	if fi.autoNow || fi.autoNowAdd || fi.auto {
+	if fi.autoNowAdd || fi.auto {
 		f.autoCols = append(f.autoCols, fi.column)
 	}
 	return true

@@ -28,6 +28,7 @@ import (
 func PrefixUser(rs RecordSet, prefix string) []string {
 	var res []string
 	type User_Simple struct {
+		ID       int64
 		UserName string
 	}
 	var users []*User_Simple
@@ -42,6 +43,7 @@ func PrefixUserEmailExtension(rs RecordSet, prefix string) []string {
 
 	res := rs.Super(prefix).([]string)
 	type User_Email struct {
+		ID    int64
 		Email string
 	}
 	var users []*User_Email
