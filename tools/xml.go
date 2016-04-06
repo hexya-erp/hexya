@@ -23,7 +23,7 @@ import (
 
 type basicXML struct {
 	XMLName xml.Name
-	Data    string  `xml:",innerxml"`
+	Data    string `xml:",innerxml"`
 }
 
 /*
