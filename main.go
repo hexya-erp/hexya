@@ -20,7 +20,7 @@ package main
 
 import (
 	_ "github.com/npiganeau/yep/config"
-	"github.com/npiganeau/yep/server"
+	"github.com/npiganeau/yep/yep/server"
 )
 
 func main() {

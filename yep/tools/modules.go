@@ -24,7 +24,7 @@ import (
 func ListStaticFiles(subDir string, modules []string) []string {
 	var res []string
 	for _, module := range modules {
-		dirName := fmt.Sprintf("server/static/%s/%s", module, subDir)
+		dirName := fmt.Sprintf("yep/server/static/%s/%s", module, subDir)
 		fileInfos, _ := ioutil.ReadDir(dirName)
 		for _, fi := range fileInfos {
 			if !fi.IsDir() {

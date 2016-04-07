@@ -59,8 +59,27 @@ func RPC(c *gin.Context, code int, obj interface{}) {
 	c.JSON(code, resp)
 }
 
+/*
+BindParams binds the RPC parameters to the given data object.
+*/
+func BindRPCParams(c *gin.Context, data interface{}) {
+	var req RequestRPC
+	if err := c.BindJSON(&req); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	c.Set("id", req.ID)
+	if err := json.Unmarshal(req.Params, data); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+}
+
 var yepServer *Server
 
+/*
+GetServer return the http server instance
+*/
 func GetServer() *Server {
 	return yepServer
 }
@@ -70,5 +89,5 @@ func init() {
 	store := sessions.NewCookieStore([]byte(">r&5#5T/sG-jnf=EW8$(WQX'-m2R6Gk*^qqr`CxEtG'wQ[/'G@`NYn^on?b!4G`9"),
 		[]byte("!WY9Q|}09!4Ke=@w0HS|]$u,p1f^k(5T"))
 	yepServer.Use(sessions.Sessions("yep-session", store))
-	yepServer.LoadHTMLGlob("server/templates/**/*.html")
+	yepServer.LoadHTMLGlob("yep/server/templates/**/*.html")
 }
