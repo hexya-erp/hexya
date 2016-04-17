@@ -17,30 +17,9 @@ package models
 import (
 	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
-	"time"
 )
 
 type Option int
-
-func ComputeWriteDate(rs RecordSet) orm.Params {
-	return orm.Params{"WriteDate": time.Now()}
-}
-
-type BaseModel struct {
-	ID         int64     `orm:"column(id)"`
-	CreateDate time.Time `orm:"auto_now_add"`
-	CreateUid  int64
-	WriteDate  time.Time `yep:"compute(ComputeWriteDate),store,depends(ID)" orm:"null"`
-	WriteUid   int64
-}
-
-type BaseTransientModel struct {
-	ID int64 `orm:"column(id)"`
-}
-
-const (
-	TRANSIENT_MODEL Option = 1 << iota
-)
 
 func CreateModel(name string, options ...Option) {
 	var opts Option
@@ -56,6 +35,8 @@ func CreateModel(name string, options ...Option) {
 	orm.RegisterModelWithName(name, model)
 	registerModelFields(name, model)
 	DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
+	DeclareMethod(name, "Read", ReadModel)
+	DeclareMethod(name, "NameGet", NameGet)
 }
 
 func ExtendModel(name string, models ...interface{}) {
@@ -69,8 +50,8 @@ func ExtendModel(name string, models ...interface{}) {
 BootStrap freezes model, fields and method caches and syncs the database structure
 with the declared data.
 */
-func BootStrap() {
-	err := orm.RunSyncdb("default", true, orm.Debug)
+func BootStrap(force bool) {
+	err := orm.RunSyncdb("default", force, orm.Debug)
 	if err != nil {
 		panic(fmt.Errorf("Unable to sync database: %s", err))
 	}

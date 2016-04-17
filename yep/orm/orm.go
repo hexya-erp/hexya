@@ -48,10 +48,10 @@ var (
 	ErrNotImplement  = errors.New("have not implement")
 )
 
-// Params stores the Params
+// Params is a map of orm field=>values (map[string]interface{})
 type Params map[string]interface{}
 
-// ParamsList stores paramslist
+// ParamsList is a list of orm parameters ([]interface{})
 type ParamsList []interface{}
 
 type orm struct {

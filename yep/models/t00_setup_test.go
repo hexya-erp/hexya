@@ -15,17 +15,9 @@
 package models
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
-	"io/ioutil"
 	"os"
-	"path/filepath"
-	"reflect"
-	"runtime"
-	"strings"
-	"testing"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
@@ -45,109 +37,6 @@ func (a argAny) Get(i int, args ...interface{}) (r interface{}) {
 	return
 }
 
-func ValuesCompare(is bool, a interface{}, args ...interface{}) (ok bool, err error) {
-	if len(args) == 0 {
-		return false, fmt.Errorf("miss args")
-	}
-	b := args[0]
-	arg := argAny(args)
-
-	switch v := a.(type) {
-	case reflect.Kind:
-		ok = reflect.ValueOf(b).Kind() == v
-	case time.Time:
-		if v2, vo := b.(time.Time); vo {
-			if arg.Get(1) != nil {
-				format := orm.ToStr(arg.Get(1))
-				a = v.Format(format)
-				b = v2.Format(format)
-				ok = a == b
-			} else {
-				err = fmt.Errorf("compare datetime miss format")
-				goto wrongArg
-			}
-		}
-	default:
-		ok = orm.ToStr(a) == orm.ToStr(b)
-	}
-	ok = is && ok || !is && !ok
-	if !ok {
-		if is {
-			err = fmt.Errorf("expected: `%v`, get `%v`", b, a)
-		} else {
-			err = fmt.Errorf("expected: `%v`, get `%v`", b, a)
-		}
-	}
-
-wrongArg:
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func AssertIs(a interface{}, args ...interface{}) error {
-	if ok, err := ValuesCompare(true, a, args...); ok == false {
-		return err
-	}
-	return nil
-}
-
-func AssertNot(a interface{}, args ...interface{}) error {
-	if ok, err := ValuesCompare(false, a, args...); ok == false {
-		return err
-	}
-	return nil
-}
-
-func getCaller(skip int) string {
-	pc, file, line, _ := runtime.Caller(skip)
-	fun := runtime.FuncForPC(pc)
-	_, fn := filepath.Split(file)
-	data, err := ioutil.ReadFile(file)
-	var codes []string
-	if err == nil {
-		lines := bytes.Split(data, []byte{'\n'})
-		n := 10
-		for i := 0; i < n; i++ {
-			o := line - n
-			if o < 0 {
-				continue
-			}
-			cur := o + i + 1
-			flag := "  "
-			if cur == line {
-				flag = ">>"
-			}
-			code := fmt.Sprintf(" %s %5d:   %s", flag, cur, strings.Replace(string(lines[o+i]), "\t", "    ", -1))
-			if code != "" {
-				codes = append(codes, code)
-			}
-		}
-	}
-	funName := fun.Name()
-	if i := strings.LastIndex(funName, "."); i > -1 {
-		funName = funName[i+1:]
-	}
-	return fmt.Sprintf("%s:%d: \n%s", fn, line, strings.Join(codes, "\n"))
-}
-
-func throwFail(t *testing.T, err error, args ...interface{}) {
-	if err != nil {
-		con := fmt.Sprintf("\t\nError: %s\n%s\n", err.Error(), getCaller(2))
-		if len(args) > 0 {
-			parts := make([]string, 0, len(args))
-			for _, arg := range args {
-				parts = append(parts, fmt.Sprintf("%v", arg))
-			}
-			con += " " + strings.Join(parts, ", ")
-		}
-		t.Error(con)
-		t.Fail()
-	}
-}
-
 var DBARGS = struct {
 	Driver string
 	Source string
@@ -157,13 +46,6 @@ var DBARGS = struct {
 	os.Getenv("ORM_SOURCE"),
 	os.Getenv("ORM_DEBUG"),
 }
-
-var (
-	IsMysql    = DBARGS.Driver == "mysql"
-	IsSqlite   = DBARGS.Driver == "sqlite3"
-	IsPostgres = DBARGS.Driver == "postgres"
-	IsTidb     = DBARGS.Driver == "tidb"
-)
 
 var (
 	dORM orm.Ormer
@@ -220,5 +102,4 @@ go test -v github.com/npiganeau/yep/yep/orm
 	}
 
 	orm.RegisterDataBase("default", DBARGS.Driver, DBARGS.Source, 20)
-
 }

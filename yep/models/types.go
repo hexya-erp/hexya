@@ -14,7 +14,11 @@
 
 package models
 
-import "github.com/npiganeau/yep/yep/orm"
+import (
+	"fmt"
+	"github.com/npiganeau/yep/yep/orm"
+	"reflect"
+)
 
 /*
 Environment holds the context data for a transaction.
@@ -35,6 +39,7 @@ RecordSet is both a set of database records and an entrypoint to the models API 
 RecordSet are immutable.
 */
 type RecordSet interface {
+	fmt.Stringer
 	// returns the Environment of the RecordSet
 	Env() Environment
 	// returns the model name of the RecordSet
@@ -86,6 +91,10 @@ type RecordSet interface {
 	Call(methName string, args ...interface{}) interface{}
 	// Super is called from inside a method to call its parent, passing itself as fnctPtr
 	Super(args ...interface{}) interface{}
+	// MethodType returns the type of the method given by methName
+	MethodType(methName string) reflect.Type
 	// Returns a slice of RecordSet singleton that constitute this RecordSet
 	Records() []RecordSet
+	// Panics if RecordSet is not a singleton.
+	EnsureOne()
 }

@@ -271,7 +271,8 @@ func (t *dbTables) getJoinSQL() (join string) {
 }
 
 // parse orm model struct field tag expression.
-func (t *dbTables) parseExprs(mi *modelInfo, exprs []string) (index, name string, info *fieldInfo, success bool) {
+// ie. parses a "field1__field2" tag given as exprs tokens [field1 field2]
+func (t *dbTables) parseExprs(mi *modelInfo, exprs []string, namesParam ...[]string) (index, name string, info *fieldInfo, success bool) {
 	var (
 		jtl *dbTable
 		fi  *fieldInfo
@@ -296,32 +297,37 @@ loopFor:
 		}
 
 		if i == 0 {
+			// Read the first field
 			fi, ok = mmi.fields.GetByAny(ex)
 		}
 
 		_ = okN
 
 		if ok {
-
+			// We have found the field of the first token
 			isRel := fi.rel || fi.reverse
 
 			names = append(names, fi.name)
 
 			switch {
 			case fi.rel:
+				// If the field is a related field, then move to the relModelInfo
 				mmi = fi.relModelInfo
 				if fi.fieldType == RelManyToMany {
 					mmi = fi.relThroughModelInfo
 				}
 			case fi.reverse:
+				// If the field is a reverse field, then move to the reverseFieldInfo
 				mmi = fi.reverseFieldInfo.mi
 			}
 
 			if i < num {
+				// Read the next field (unless we're at the end of the tokens)
 				fiN, okN = mmi.fields.GetByAny(exprs[i+1])
 			}
 
 			if isRel && (fi.mi.isThrough == false || num != i) {
+				// This is a related field and it's not the last token
 				if fi.null || t.skipEnd {
 					inner = false
 				}
@@ -353,9 +359,15 @@ loopFor:
 			info = fi
 
 			if jtl == nil {
-				name = fi.name
+				name = fi.column
 			} else {
-				name = jtl.name + ExprSep + fi.name
+				if jtl.fi.column != fi.column {
+					name = jtl.fi.column + ExprSep + fi.column
+				} else {
+					// We have a rel/reverse field column
+					// We add ExprSep for further processing by calling func.
+					name = jtl.fi.column + ExprSep
+				}
 			}
 
 			switch {
@@ -366,7 +378,7 @@ loopFor:
 				case RelOneToOne, RelForeignKey:
 					index = jtl.index
 					info = fi.reverseFieldInfo.mi.fields.pk
-					name = info.name
+					name = info.column
 				}
 			}
 

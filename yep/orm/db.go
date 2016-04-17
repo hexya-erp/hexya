@@ -1066,6 +1066,13 @@ func (d *dbBase) convertValueFromDB(fi *fieldInfo, val interface{}, tz *time.Loc
 
 setValue:
 	switch {
+	case fi.isFielder:
+		fd := reflect.New(fi.sf.Type).Interface().(Fielder)
+
+		fd.SetRaw(ToStr(val))
+		if fd != nil {
+			value = fd
+		}
 	case fieldType == TypeBooleanField:
 		if str == nil {
 			switch v := val.(type) {
@@ -1373,7 +1380,13 @@ setValue:
 
 	if isNative == false {
 		fd := field.Addr().Interface().(Fielder)
-		err := fd.SetRaw(value)
+		var err error
+		if fVal, ok := value.(Fielder); ok {
+			// value is already a fielder
+			err = fd.SetRaw(fVal.RawValue())
+		} else {
+			err = fd.SetRaw(value)
+		}
 		if err != nil {
 			err = fmt.Errorf("converted value `%v` set to Fielder `%s` failed, err: %s", value, fi.fullName, err)
 			return nil, err
@@ -1442,7 +1455,7 @@ func (d *dbBase) ReadValues(q dbQuerier, qs *querySet, mi *modelInfo, cond *Cond
 		cols = make([]string, 0, len(mi.fields.dbcols))
 		infos = make([]*fieldInfo, 0, len(exprs))
 		for _, fi := range mi.fields.fieldsDB {
-			cols = append(cols, fmt.Sprintf("T0.%s%s%s %s%s%s", Q, fi.column, Q, Q, fi.name, Q))
+			cols = append(cols, fmt.Sprintf("T0.%s%s%s %s%s%s", Q, fi.column, Q, Q, fi.column, Q))
 			infos = append(infos, fi)
 		}
 	}

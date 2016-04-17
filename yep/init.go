@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package yep
 
-// Import here all yep addons you need in your application
 import (
-	_ "github.com/npiganeau/yep-addons/web"
+	_ "github.com/lib/pq"
+	"github.com/npiganeau/yep/config"
+	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/orm"
+	_ "github.com/npiganeau/yep/yep/server"
 )
 
-const (
-	DB_DRIVER = "postgres"
-	DB_SOURCE = "dbname=yep sslmode=disable password=yep user=yep"
-)
+func init() {
+	orm.Debug = true
+	orm.RegisterDataBase("default", config.DB_DRIVER, config.DB_SOURCE, 20)
+	models.BootStrap(false)
+}

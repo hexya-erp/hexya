@@ -12,14 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
-
-// Import here all yep addons you need in your application
-import (
-	_ "github.com/npiganeau/yep-addons/web"
-)
-
-const (
-	DB_DRIVER = "postgres"
-	DB_SOURCE = "dbname=yep sslmode=disable password=yep user=yep"
-)
+package tools

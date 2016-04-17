@@ -118,7 +118,7 @@ func (env envStruct) Sync(data interface{}, cols ...string) int64 {
 }
 
 /*
-NewEnvironment returns a new environment with the given parameters.
+NewEnvironment returns a new Environment with the given parameters.
 */
 func NewEnvironment(cr orm.Ormer, uid int64, context ...Context) Environment {
 	var ctx Context
@@ -131,6 +131,14 @@ func NewEnvironment(cr orm.Ormer, uid int64, context ...Context) Environment {
 		context: ctx,
 	}
 	return env
+}
+
+/*
+NewCursorEnvironment returns a new Environment with a new database cursor.
+*/
+func NewCursorEnvironment(uid int64, context ...Context) Environment {
+	cr := orm.NewOrm()
+	return NewEnvironment(cr, uid, context...)
 }
 
 /*

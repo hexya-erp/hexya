@@ -20,6 +20,7 @@ package main
 
 import (
 	_ "github.com/npiganeau/yep/config"
+	_ "github.com/npiganeau/yep/yep"
 	"github.com/npiganeau/yep/yep/server"
 )
 

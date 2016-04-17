@@ -996,17 +996,17 @@ func TestValues(t *testing.T) {
 	throwFail(t, err)
 	throwFail(t, AssertIs(num, 3))
 	if num == 3 {
-		throwFail(t, AssertIs(maps[0]["UserName"], "slene"))
-		throwFail(t, AssertIs(maps[2]["Profile"], nil))
+		throwFail(t, AssertIs(maps[0]["user_name"], "slene"))
+		throwFail(t, AssertIs(maps[2]["profile_id"], nil))
 	}
 
 	num, err = qs.OrderBy("Id").Values(&maps, "UserName", "Profile__Age")
 	throwFail(t, err)
 	throwFail(t, AssertIs(num, 3))
 	if num == 3 {
-		throwFail(t, AssertIs(maps[0]["UserName"], "slene"))
-		throwFail(t, AssertIs(maps[0]["Profile__Age"], 28))
-		throwFail(t, AssertIs(maps[2]["Profile__Age"], nil))
+		throwFail(t, AssertIs(maps[0]["user_name"], "slene"))
+		throwFail(t, AssertIs(maps[0]["profile_id__age"], 28))
+		throwFail(t, AssertIs(maps[2]["profile_id__age"], nil))
 	}
 
 	num, err = qs.Filter("UserName", "slene").Values(&maps)

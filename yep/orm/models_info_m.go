@@ -69,6 +69,9 @@ func (info *modelInfo) addFields(val reflect.Value) error {
 	for i := 0; i < ind.NumField(); i++ {
 		field := ind.Field(i)
 		sf = ind.Type().Field(i)
+		if !field.IsValid() {
+			panic(fmt.Errorf("Field %s badly defined. Did you forget a 'rel' or 'reverse' tag ?", sf.Name))
+		}
 		if sf.PkgPath != "" {
 			continue
 		}

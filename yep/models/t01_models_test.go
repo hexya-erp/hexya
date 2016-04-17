@@ -99,7 +99,7 @@ func TestSyncDb(t *testing.T) {
 	DeclareMethod("User", "computeDisplayName", computeDisplayName)
 	DeclareMethod("User", "computeAge", computeAge)
 
-	BootStrap()
+	BootStrap(true)
 
 	dORM = orm.NewOrm()
 }

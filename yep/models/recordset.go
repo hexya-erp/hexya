@@ -294,13 +294,14 @@ func (rs recordStruct) call(methLayer *methodLayer, args ...interface{}) interfa
 
 	rsVal := reflect.ValueOf(rs)
 	inVals := []reflect.Value{rsVal}
+	methName := fmt.Sprintf("%s.%s()", methLayer.methInfo.ref.modelName, methLayer.methInfo.ref.name)
 	for i := 1; i < fnTyp.NumIn(); i++ {
 		if i > len(args) {
-			panic(fmt.Errorf("Not enough argument when Calling `%s`", fnVal))
+			panic(fmt.Errorf("Not enough argument when Calling `%s`", methName))
 		}
 		argTyp := reflect.TypeOf(args[i-1])
 		if argTyp != fnTyp.In(i) {
-			panic(fmt.Errorf("Wrong argument type for argument %d: %s instead of %s", i, argTyp.Name(), fnTyp.Name()))
+			panic(fmt.Errorf("%s : wrong argument type for argument %d: `%s` instead of `%s`", methName, i, argTyp, fnTyp.In(i)))
 		}
 		inVals = append(inVals, reflect.ValueOf(args[i-1]))
 	}
@@ -334,6 +335,17 @@ func (rs recordStruct) Super(args ...interface{}) interface{} {
 }
 
 /*
+MethodType returns the type of the method given by methName
+*/
+func (rs recordStruct) MethodType(methName string) reflect.Type {
+	methInfo, ok := methodsCache.get(method{modelName: rs.ModelName(), name: methName})
+	if !ok {
+		panic(fmt.Errorf("Unknown method `%s` in model `%s`", methName, rs.ModelName()))
+	}
+	return methInfo.methodType
+}
+
+/*
 Records returns the slice of RecordSet singletons that constitute this RecordSet
 */
 func (rs recordStruct) Records() []RecordSet {
@@ -343,6 +355,15 @@ func (rs recordStruct) Records() []RecordSet {
 		res[i] = rs.withIds([]int64{id})
 	}
 	return res
+}
+
+/*
+EnsureOne panics if rs is not a singleton
+*/
+func (rs recordStruct) EnsureOne() {
+	if len(rs.Ids()) != 1 {
+		panic(fmt.Errorf("Expected singleton, got : %s", rs))
+	}
 }
 
 var _ RecordSet = recordStruct{}

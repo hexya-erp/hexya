@@ -13,10 +13,13 @@ ORM
     - [ ] Fields computed by DB by SQL function when reading DB
 - [ ] Add CRUD permissions to models and fields
 - [ ] Add i18n and l10n support to ORM models
+- [ ] Add database foreign keys to related fields
 - [ ] Add cache to RecordSets
+- [ ] Add support for schema modification (ALTER TABLE)
 
 Server
 ------
+- [ ] Create controllers for using Odoo web client with YEP Server
 - [ ] Create a JSON-RPC server with same protocol as Odoo.
 - [ ] Adapt to JSON-RPC over Websocket to speed up client-server
 communications
