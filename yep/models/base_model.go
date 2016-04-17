@@ -15,10 +15,10 @@
 package models
 
 import (
+	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
 	"strings"
 	"time"
-	"fmt"
 )
 
 const (
@@ -37,12 +37,30 @@ type BaseTransientModel struct {
 	ID int64 `orm:"column(id)"`
 }
 
+func declareBaseMethods(name string) {
+	DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
+	DeclareMethod(name, "Create", Create)
+	DeclareMethod(name, "Read", ReadModel)
+	DeclareMethod(name, "NameGet", NameGet)
+}
+
+/*
+ComputeWriteDate updates the WriteDate field with the current datetime.
+*/
 func ComputeWriteDate(rs RecordSet) orm.Params {
 	return orm.Params{"WriteDate": time.Now()}
 }
 
 /*
-ReadModel is the base implementation of the 'read' method.
+Create is the base implementation of the 'Create' method which creates
+a record in the database from the given structPtr
+*/
+func Create(rs RecordSet, structPtr interface{}) RecordSet {
+	return rs.Env().Create(structPtr)
+}
+
+/*
+ReadModel is the base implementation of the 'Read' method.
 It reads the database and returns a list of maps[string]interface{}
 of the given
 */
@@ -73,7 +91,7 @@ func ReadModel(rs RecordSet, fields *[]string) []orm.Params {
 }
 
 /*
-NameGet is the base implementation fo the 'name_get' method who retrieves the
+NameGet is the base implementation fo the 'NameGet' method which retrieves the
 human readable name of an object.
 */
 func NameGet(rs RecordSet) string {

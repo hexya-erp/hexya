@@ -48,7 +48,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(users.Ids(), ShouldContain, 1)
 			So(userJohn.ID, ShouldEqual, 1)
 		})
-		Convey("Creating user Jane with related Profile", func() {
+		Convey("Creating user Jane with related Profile using Call('Create')", func() {
 			userJane := User_WithID{
 				UserName: "Jane Smith",
 				Email:    "jane.smith@example.com",
@@ -57,10 +57,12 @@ func TestCreateRecordSet(t *testing.T) {
 					Money: 12345,
 				},
 			}
-			profile := env.Create(userJane.Profile)
+			rsProfile := NewRecordSet(env, "Profile")
+			profile := rsProfile.Call("Create", userJane.Profile).(RecordSet)
 			So(profile.Ids(), ShouldContain, 1)
 			So(userJane.Profile.ID, ShouldEqual, 1)
-			users2 := env.Create(&userJane)
+			rsUsers := NewRecordSet(env, "User")
+			users2 := rsUsers.Call("Create", &userJane).(RecordSet)
 			So(users2.Ids(), ShouldContain, 2)
 			So(userJane.Profile.ID, ShouldEqual, 1)
 		})

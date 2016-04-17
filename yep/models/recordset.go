@@ -299,10 +299,6 @@ func (rs recordStruct) call(methLayer *methodLayer, args ...interface{}) interfa
 		if i > len(args) {
 			panic(fmt.Errorf("Not enough argument when Calling `%s`", methName))
 		}
-		argTyp := reflect.TypeOf(args[i-1])
-		if argTyp != fnTyp.In(i) {
-			panic(fmt.Errorf("%s : wrong argument type for argument %d: `%s` instead of `%s`", methName, i, argTyp, fnTyp.In(i)))
-		}
 		inVals = append(inVals, reflect.ValueOf(args[i-1]))
 	}
 	retVal := fnVal.Call(inVals)

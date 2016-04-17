@@ -22,4 +22,5 @@ import (
 const (
 	DB_DRIVER = "postgres"
 	DB_SOURCE = "dbname=yep sslmode=disable password=yep user=yep"
+	DB_FORCE  = true
 )

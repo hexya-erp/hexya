@@ -50,13 +50,14 @@ type fields struct {
 
 // add field info
 func (f *fields) Add(fi *fieldInfo) (added bool) {
-	if f.fields[fi.name] == nil && f.columns[fi.column] == nil {
-		f.columns[fi.column] = fi
-		f.fields[fi.name] = fi
-		f.fieldsLow[strings.ToLower(fi.name)] = fi
-	} else {
+	if f.fields[fi.name] != nil || f.columns[fi.column] != nil && fi.pk {
+		// Never override PK
 		return
 	}
+	f.columns[fi.column] = fi
+	f.fields[fi.name] = fi
+	f.fieldsLow[strings.ToLower(fi.name)] = fi
+
 	if _, ok := f.fieldsByType[fi.fieldType]; ok == false {
 		f.fieldsByType[fi.fieldType] = make([]*fieldInfo, 0)
 	}

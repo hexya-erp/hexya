@@ -34,9 +34,7 @@ func CreateModel(name string, options ...Option) {
 	}
 	orm.RegisterModelWithName(name, model)
 	registerModelFields(name, model)
-	DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
-	DeclareMethod(name, "Read", ReadModel)
-	DeclareMethod(name, "NameGet", NameGet)
+	declareBaseMethods(name)
 }
 
 func ExtendModel(name string, models ...interface{}) {

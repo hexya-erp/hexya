@@ -14,13 +14,29 @@
 
 package server
 
-var Modules []string
+type Module struct {
+	Name     string
+	PostInit func()
+}
+
+var Modules []*Module
 
 /*
 RegisterModules registers the given module in the server
 This function should be called in the init() function of
 all YEP Addons.
 */
-func RegisterModule(moduleName string) {
-	Modules = append(Modules, moduleName)
+func RegisterModule(mod *Module) {
+	Modules = append(Modules, mod)
+}
+
+/*
+RunPostInit runs successively all PostInit() func of all modules.
+PostInit() functions are used for actions that need to be done after
+bootstrapping the models.
+*/
+func RunPostInit() {
+	for _, module := range Modules {
+		module.PostInit()
+	}
 }

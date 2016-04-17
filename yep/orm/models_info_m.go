@@ -85,14 +85,10 @@ func (info *modelInfo) addFields(val reflect.Value) error {
 			break
 		}
 
-		added := info.fields.Add(fi)
-		if added == false {
-			err = fmt.Errorf("duplicate column name: %s", fi.column)
-			break
-		}
+		info.fields.Add(fi)
 
 		if fi.pk {
-			if info.fields.pk != nil {
+			if info.fields.pk != nil && info.fields.pk != fi {
 				err = fmt.Errorf("one model must have one pk field only")
 				break
 			} else {
