@@ -124,7 +124,7 @@ type User struct {
 func (u *User) TableIndex() [][]string {
 	return [][]string{
 		{"Id", "UserName"},
-		{"Id", "Created"},
+		{"Id", "Email"},
 	}
 }
 
@@ -166,7 +166,7 @@ type Post struct {
 
 func (u *Post) TableIndex() [][]string {
 	return [][]string{
-		{"Id", "Created"},
+		{"Id", "Title"},
 	}
 }
 

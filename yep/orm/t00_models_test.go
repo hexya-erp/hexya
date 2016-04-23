@@ -446,4 +446,6 @@ go test -v github.com/npiganeau/yep/yep/orm
 		alias.Engine = "INNODB"
 	}
 
+	// Wait for model tests to finish and cool down
+	time.Sleep(2 * time.Second)
 }

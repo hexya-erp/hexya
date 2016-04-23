@@ -96,6 +96,9 @@ func registerModelExtension(name string, modelExtension interface{}) {
 		os.Exit(2)
 	}
 
+	info.tIndexes = append(info.tIndexes, getTableIndex(val)...)
+	info.tUniques = append(info.tUniques, getTableUnique(val)...)
+
 	err = info.addFields(val)
 
 	if err != nil {
