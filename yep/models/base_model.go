@@ -16,9 +16,11 @@ package models
 
 import (
 	"fmt"
-	"github.com/npiganeau/yep/yep/orm"
 	"strings"
 	"time"
+
+	"github.com/npiganeau/yep/yep/ir"
+	"github.com/npiganeau/yep/yep/orm"
 )
 
 const (
@@ -42,6 +44,7 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "Create", Create)
 	DeclareMethod(name, "Read", ReadModel)
 	DeclareMethod(name, "NameGet", NameGet)
+	DeclareMethod(name, "FieldsViewGet", FieldsViewGet)
 }
 
 /*
@@ -64,12 +67,12 @@ ReadModel is the base implementation of the 'Read' method.
 It reads the database and returns a list of maps[string]interface{}
 of the given
 */
-func ReadModel(rs RecordSet, fields *[]string) []orm.Params {
+func ReadModel(rs RecordSet, fields []string) []orm.Params {
 	var res []orm.Params
 	// Add id field to the list
 	fList := []string{"id"}
 	if fields != nil {
-		fList = append(fList, *fields...)
+		fList = append(fList, fields...)
 	}
 	// Get the values
 	rs.Values(&res, fList...)
@@ -83,7 +86,7 @@ func ReadModel(rs RecordSet, fields *[]string) []orm.Params {
 				relModelName := getRelatedModelName(rs.ModelName(), fmt.Sprintf("%s%sid", path, orm.ExprSep))
 				relRS := NewRecordSet(rs.Env(), relModelName).Filter("id", id).Search()
 				delete(line, k)
-				line[path] = []interface{}{id, relRS.Call("NameGet").(string)}
+				line[path] = [2]interface{}{id, relRS.Call("NameGet").(string)}
 			}
 		}
 	}
@@ -91,7 +94,7 @@ func ReadModel(rs RecordSet, fields *[]string) []orm.Params {
 }
 
 /*
-NameGet is the base implementation fo the 'NameGet' method which retrieves the
+NameGet is the base implementation of the 'NameGet' method which retrieves the
 human readable name of an object.
 */
 func NameGet(rs RecordSet) string {
@@ -102,4 +105,41 @@ func NameGet(rs RecordSet) string {
 		return rs.String()
 	}
 	return idParams[0].(string)
+}
+
+// Args struct for the FieldsViewGet function
+type FieldsViewGetParams struct {
+	ViewID   string `json:"view_id"`
+	ViewType string `json:"view_type"`
+	Toolbar  bool   `json:"toolbar"`
+}
+
+// Return type string for the FieldsViewGet function
+type FieldsViewData struct {
+	Name        string                  `json:"name"`
+	Arch        string                  `json:"arch"`
+	ViewID      string                  `json:"view_id"`
+	Model       string                  `json:"model"`
+	Type        ir.ViewType             `json:"type"`
+	Fields      map[string]ir.FieldInfo `json:"fields"`
+	Toolbar     ir.Toolbar              `json:"toolbar"`
+	FieldParent string                  `json:"field_parent"`
+}
+
+/*
+FieldsViewGet is the base implementation of the 'FieldsViewGet' method which
+gets the detailed composition of the requested view like fields, model,
+view architecture.
+*/
+func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
+	view := ir.ViewsRegistry.GetViewById(args.ViewID)
+	res := FieldsViewData{
+		Name:   view.Name,
+		Arch:   view.Arch,
+		ViewID: args.ViewID,
+		Model:  view.Model,
+		Type:   view.Type,
+		Fields: view.Fields,
+	}
+	return &res
 }

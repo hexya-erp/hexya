@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
+	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 )
 
@@ -26,8 +27,8 @@ Environment holds the context data for a transaction.
 type Environment interface {
 	Cr() orm.Ormer
 	Uid() int64
-	Context() Context
-	WithContext(ctx Context, replace ...bool) Environment
+	Context() tools.Context
+	WithContext(ctx tools.Context, replace ...bool) Environment
 	Sudo(...int64) Environment
 	Pool(interface{}) RecordSet
 	Create(interface{}) RecordSet

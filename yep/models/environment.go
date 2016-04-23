@@ -17,13 +17,8 @@ package models
 import (
 	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
+	"github.com/npiganeau/yep/yep/tools"
 )
-
-/*
-Context is a map of objects that is passed along from function to function
-during a transaction.
-*/
-type Context map[string]interface{}
 
 /*
 envStruct implements Environment. It is immutable.
@@ -31,7 +26,7 @@ envStruct implements Environment. It is immutable.
 type envStruct struct {
 	cr      orm.Ormer
 	uid     int64
-	context Context
+	context tools.Context
 }
 
 /*
@@ -51,7 +46,7 @@ func (env envStruct) Uid() int64 {
 /*
 Context returns the Context of the Environment
 */
-func (env envStruct) Context() Context {
+func (env envStruct) Context() tools.Context {
 	return env.context
 }
 
@@ -60,7 +55,7 @@ WithContext returns a new Environment with its context updated by ctx.
 If replace is true, then the context is replaced by the given ctx instead of
 being updated.
 */
-func (env envStruct) WithContext(ctx Context, replace ...bool) Environment {
+func (env envStruct) WithContext(ctx tools.Context, replace ...bool) Environment {
 	if len(replace) > 0 && replace[0] {
 		return NewEnvironment(env.cr, env.uid, ctx)
 	}
@@ -120,8 +115,8 @@ func (env envStruct) Sync(data interface{}, cols ...string) int64 {
 /*
 NewEnvironment returns a new Environment with the given parameters.
 */
-func NewEnvironment(cr orm.Ormer, uid int64, context ...Context) Environment {
-	var ctx Context
+func NewEnvironment(cr orm.Ormer, uid int64, context ...tools.Context) Environment {
+	var ctx tools.Context
 	if len(context) > 0 {
 		ctx = context[0]
 	}
@@ -136,7 +131,7 @@ func NewEnvironment(cr orm.Ormer, uid int64, context ...Context) Environment {
 /*
 NewCursorEnvironment returns a new Environment with a new database cursor.
 */
-func NewCursorEnvironment(uid int64, context ...Context) Environment {
+func NewCursorEnvironment(uid int64, context ...tools.Context) Environment {
 	cr := orm.NewOrm()
 	return NewEnvironment(cr, uid, context...)
 }

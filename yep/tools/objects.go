@@ -14,7 +14,12 @@
 
 package tools
 
-import "strings"
+import (
+	"encoding/json"
+	"reflect"
+	"strings"
+	"fmt"
+)
 
 /*
 ConvertModelName converts an Odoo dotted style model name (e.g. res.partner) into
@@ -40,4 +45,38 @@ func ConvertMethodName(val string) string {
 		res += strings.Title(token)
 	}
 	return res
+}
+
+/*
+GetStructFieldByJSONTag returns a pointer value of the struct field of the given structValue
+with the given JSON tag. If several are found, it returns the first one. If none are
+found it returns the zero value. If structType is not a Type of Kind struct, then it panics.
+*/
+func GetStructFieldByJSONTag(structValue reflect.Value, tag string) (sf reflect.Value) {
+	for i := 0; i < structValue.NumField(); i++ {
+		sField := structValue.Field(i)
+		sfTag := structValue.Type().Field(i).Tag.Get("json")
+		if sfTag == tag {
+			sf = sField.Addr()
+			return
+		}
+	}
+	return
+}
+
+/*
+UnmarshalJSONValue unmarshals the given data as a Value of type []byte into
+the dst Value. dst must be a pointer Value
+ */
+func UnmarshalJSONValue(data, dst reflect.Value) error {
+	if dst.Type().Kind() != reflect.Ptr{
+		panic(fmt.Errorf("<UnmarshalJSONValue>dst must be a pointer value"))
+	}
+	umArgs := []reflect.Value{data, reflect.New(dst.Type().Elem())}
+	res := reflect.ValueOf(json.Unmarshal).Call(umArgs)[0]
+	if res.Interface() != nil {
+		return res.Interface().(error)
+	}
+	dst.Elem().Set(umArgs[1].Elem())
+	return nil
 }

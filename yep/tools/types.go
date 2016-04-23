@@ -13,3 +13,9 @@
 // limitations under the License.
 
 package tools
+
+/*
+Context is a map of objects that is passed along from function to function
+during a transaction.
+*/
+type Context map[string]interface{}
