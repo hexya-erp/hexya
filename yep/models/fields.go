@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"github.com/npiganeau/yep/yep/orm"
+	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 	"strings"
 	"sync"
@@ -62,6 +63,8 @@ type fieldInfo struct {
 	stored      bool
 	compute     string
 	depends     []string
+	html        bool
+	fieldType   tools.FieldType
 }
 
 // fieldsCache is the fieldInfo collection
@@ -159,7 +162,11 @@ func registerModelFields(name string, structPtr interface{}) {
 		}
 		computeName, computed := tags["compute"]
 		_, stored := attrs["store"]
-		depends := strings.Split(tags["depends"], defaultDependsTagDelim)
+		var depends []string
+		if depTag, ok := tags["depends"]; ok {
+			depends = strings.Split(depTag, defaultDependsTagDelim)
+		}
+		_, html := attrs["html"]
 		fInfo := fieldInfo{
 			name:        sf.Name,
 			modelName:   name,
@@ -169,8 +176,11 @@ func registerModelFields(name string, structPtr interface{}) {
 			depends:     depends,
 			description: desc,
 			help:        tags["help"],
+			html:        html,
 		}
-		fieldsCache.set(field{name: fInfo.name, modelName: fInfo.modelName}, &fInfo)
+		ref := field{name: fInfo.name, modelName: fInfo.modelName}
+		fieldsCache.set(ref, &fInfo)
+		fInfo.fieldType = getFieldType(ref)
 	}
 }
 

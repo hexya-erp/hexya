@@ -16,6 +16,8 @@ package models
 
 import (
 	"fmt"
+	"github.com/npiganeau/yep/yep/orm"
+	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 	"strings"
 )
@@ -29,6 +31,7 @@ const (
 var (
 	supportedTag = map[string]int{
 		"store":   1,
+		"html":    1,
 		"string":  2,
 		"help":    2,
 		"compute": 2,
@@ -145,4 +148,47 @@ func structToMap(structPtr interface{}) map[string]interface{} {
 		res[fieldName] = resVal
 	}
 	return res
+}
+
+/*
+getFieldType returns the FieldType of the given ref field
+*/
+func getFieldType(ref field) tools.FieldType {
+	fi := orm.FieldsGet(ref.modelName, []string{ref.name})[ref.name]
+	fc, _ := fieldsCache.get(ref)
+	switch fi.FieldType {
+	case orm.TypeBooleanField:
+		return tools.BOOLEAN
+	case orm.TypeCharField:
+		return tools.CHAR
+	case orm.TypeTextField:
+		if fc.html {
+			return tools.HTML
+		} else {
+			return tools.TEXT
+		}
+	case orm.TypeDateField:
+		return tools.DATE
+	case orm.TypeDateTimeField:
+		return tools.DATETIME
+	case orm.TypeFloatField:
+		return tools.FLOAT
+	case orm.TypeDecimalField:
+		return tools.FLOAT
+	case orm.RelForeignKey:
+		return tools.MANY2ONE
+	case orm.RelOneToOne:
+		return tools.ONE2ONE
+	case orm.RelReverseOne:
+		return tools.ONE2MANY
+	case orm.RelManyToMany:
+		return tools.MANY2MANY
+	case orm.RelReverseMany:
+		return tools.NO_TYPE
+	}
+	switch {
+	case fi.FieldType&orm.IsIntegerField > 0:
+		return tools.INTEGER
+	}
+	return tools.NO_TYPE
 }

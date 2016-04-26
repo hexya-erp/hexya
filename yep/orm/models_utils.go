@@ -260,3 +260,48 @@ func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string
 	*attrs = attr
 	*tags = tag
 }
+
+// Exported field information struct
+type FieldInfo struct {
+	FieldType int
+	Column    string
+	Null      bool
+	Rel       bool
+	Reverse   bool
+	Digits    int
+	Decimals  int
+	Unique    bool
+	Size      int
+}
+
+// FieldsGet returns the definition of fields if given, or all fields of
+// the model otherwise.
+func FieldsGet(modelName string, fields ...[]string) map[string]*FieldInfo {
+	res := make(map[string]*FieldInfo)
+	fieldsMap := make(map[string]bool)
+	if len(fields) > 0 {
+		for _, f := range fields[0] {
+			fieldsMap[f] = true
+		}
+	}
+	mi, ok := modelCache.getByName(modelName)
+	if !ok {
+		panic(fmt.Errorf("unknown model %s", modelName))
+	}
+	for k, v := range mi.fields.fields {
+		if fieldsMap[k] == true || len(fieldsMap) == 0 {
+			res[k] = &FieldInfo{
+				FieldType: v.fieldType,
+				Column:    v.column,
+				Null:      v.null,
+				Rel:       v.rel,
+				Reverse:   v.reverse,
+				Digits:    v.digits,
+				Decimals:  v.decimals,
+				Unique:    v.unique,
+				Size:      v.size,
+			}
+		}
+	}
+	return res
+}

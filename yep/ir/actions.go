@@ -97,7 +97,7 @@ func NewActionsCollection() *ActionsCollection {
 
 // AddAction adds the given action to our ActionsCollection
 func (ar *ActionsCollection) AddAction(a *BaseAction) {
-	// Add View to Views if needed
+	// Add View to Views if not already present
 	var present bool
 	for _, view := range a.Views {
 		if len(view) > 0 && len(a.View) > 0 {
@@ -108,12 +108,21 @@ func (ar *ActionsCollection) AddAction(a *BaseAction) {
 		}
 	}
 	if !present && len(a.View) > 0 && a.View[0] != "" {
+		vType := ViewsRegistry.GetViewById(a.View[0]).Type
+		if vType == VIEW_TYPE_TREE {
+			vType = VIEW_TYPE_LIST
+		}
 		newRef := ViewRef{
-			a.ID,
-			string(ViewsRegistry.GetViewById(a.View[0]).Type),
+			a.View[0],
+			string(vType),
 		}
 		a.Views = append(a.Views, newRef)
 	}
+	// Set a few default values
+	if a.Target == "" {
+		a.Target = "current"
+	}
+	a.AutoSearch = !a.ManualSearch
 	ar.Lock()
 	defer ar.Unlock()
 	ar.actions[a.ID] = a
@@ -137,14 +146,15 @@ type BaseAction struct {
 	SrcModel   string     `json:"src_model"`
 	Usage      string     `json:"usage"`
 	//Flags interface{}`json:"flags"`
-	Views       []ViewRef `json:"views"`
-	View        ViewRef   `json:"view_id"`
-	AutoRefresh bool      `json:"auto_refresh"`
-	ViewMode    string    `json:"view_mode"`
-	ViewIds     []string  `json:"view_ids"`
-	Multi       bool      `json:"multi"`
-	Target      string    `json:"target"`
-	AutoSearch  bool      `json:"auto_search"`
+	Views        []ViewRef `json:"views"`
+	View         ViewRef   `json:"view_id"`
+	AutoRefresh  bool      `json:"auto_refresh"`
+	ManualSearch bool      `json:"-"`
+	ViewMode     string    `json:"view_mode"`
+	ViewIds      []string  `json:"view_ids"`
+	Multi        bool      `json:"multi"`
+	Target       string    `json:"target"`
+	AutoSearch   bool      `json:"auto_search"`
 	//SearchView  string         `json:"search_view"`
 	Filter bool  `json:"filter"`
 	Limit  int64 `json:"limit"`

@@ -16,16 +16,16 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
-	"fmt"
 )
 
 /*
-ConvertModelName converts an Odoo dotted style model name (e.g. res.partner) into
+ConvertDotName converts an Odoo dotted style model name (e.g. res.partner) into
 a YEP Pascal cased style (e.g. ResPartner).
 */
-func ConvertModelName(val string) string {
+func ConvertDotName(val string) string {
 	var res string
 	tokens := strings.Split(val, ".")
 	for _, token := range tokens {
@@ -35,10 +35,10 @@ func ConvertModelName(val string) string {
 }
 
 /*
-ConvertMethodName converts an Odoo snake style method name (e.g. search_read) into
+ConvertUnderscoreName converts an Odoo snake style method name (e.g. search_read) into
 a YEP Pascal cased style (e.g. SearchRead).
 */
-func ConvertMethodName(val string) string {
+func ConvertUnderscoreName(val string) string {
 	var res string
 	tokens := strings.Split(val, "_")
 	for _, token := range tokens {
@@ -67,9 +67,9 @@ func GetStructFieldByJSONTag(structValue reflect.Value, tag string) (sf reflect.
 /*
 UnmarshalJSONValue unmarshals the given data as a Value of type []byte into
 the dst Value. dst must be a pointer Value
- */
+*/
 func UnmarshalJSONValue(data, dst reflect.Value) error {
-	if dst.Type().Kind() != reflect.Ptr{
+	if dst.Type().Kind() != reflect.Ptr {
 		panic(fmt.Errorf("<UnmarshalJSONValue>dst must be a pointer value"))
 	}
 	umArgs := []reflect.Value{data, reflect.New(dst.Type().Elem())}

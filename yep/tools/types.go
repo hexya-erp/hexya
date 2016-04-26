@@ -19,3 +19,24 @@ Context is a map of objects that is passed along from function to function
 during a transaction.
 */
 type Context map[string]interface{}
+
+type FieldType string
+
+const (
+	NO_TYPE   FieldType = ""
+	BINARY    FieldType = "binary"
+	BOOLEAN   FieldType = "boolean"
+	CHAR      FieldType = "char"
+	DATE      FieldType = "date"
+	DATETIME  FieldType = "datetime"
+	FLOAT     FieldType = "float"
+	HTML      FieldType = "html"
+	INTEGER   FieldType = "integer"
+	MANY2MANY FieldType = "many2many"
+	MANY2ONE  FieldType = "many2one"
+	ONE2MANY  FieldType = "one2many"
+	ONE2ONE   FieldType = "one2one"
+	REFERENCE FieldType = "reference"
+	SELECTION FieldType = "selection"
+	TEXT      FieldType = "text"
+)

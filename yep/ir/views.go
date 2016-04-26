@@ -16,16 +16,20 @@ package ir
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
-	"github.com/npiganeau/yep/yep/orm"
 	"strings"
 	"sync"
+
+	"github.com/beevik/etree"
+	"github.com/npiganeau/yep/yep/orm"
 )
 
 type ViewType string
 
 const (
 	VIEW_TYPE_TREE     ViewType = "tree"
+	VIEW_TYPE_LIST     ViewType = "list"
 	VIEW_TYPE_FORM     ViewType = "form"
 	VIEW_TYPE_GRAPH    ViewType = "graph"
 	VIEW_TYPE_CALENDAR ViewType = "calendar"
@@ -113,6 +117,7 @@ func (vc *ViewsCollection) AddView(v *View) {
 	vc.Lock()
 	defer vc.Unlock()
 	vc.views[v.ID] = v
+	v.Compute()
 }
 
 // GetViewById returns the View with the given id
@@ -131,18 +136,33 @@ type View struct {
 	InheritChildrenIDs []*View  `json:"inherit_children_ids"`
 	FieldParent        string   `json:"field_parent"`
 	Mode               ViewMode `json:"mode"`
-	Fields             map[string]FieldInfo
+	Fields             []string
 	//GroupsID []*Group
 }
 
-// FieldInfo holds information about a field that is sent to the client
-type FieldInfo struct {
-	modelName   string
-	name        string
-	description string
-	help        string
-	computed    bool
-	stored      bool
-	compute     string
-	depends     []string
+// Represents a <field> node in a XML view arch
+type FieldNode struct {
+	XMLName xml.Name `xml:"field"`
+	Name    string   `xml:"name,attr"`
+}
+
+/*
+Compute makes the necessary updates to a view definition. In particular:
+- sets the type of the view from the arch root.
+- populates the fields map from the views arch.
+*/
+func (v *View) Compute() {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(v.Arch); err != nil {
+		panic(fmt.Errorf("unable to read view %s: %s", v.ID, err))
+	}
+
+	// Set view type
+	v.Type = ViewType(doc.ChildElements()[0].Tag)
+
+	// Populate fields map
+	fieldElems := doc.FindElements("//field")
+	for _, f := range fieldElems {
+		v.Fields = append(v.Fields, f.SelectAttr("name").Value)
+	}
 }
