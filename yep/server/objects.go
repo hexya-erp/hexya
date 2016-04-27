@@ -47,7 +47,7 @@ func Execute(uid int64, params CallParams) interface{} {
 	}
 	env := models.NewCursorEnvironment(uid, ctx)
 
-	model := tools.ConvertDotName(params.Model)
+	model := tools.ConvertModelName(params.Model)
 	rs := models.NewRecordSet(env, model)
 
 	// Try to parse the first argument of Args as id or ids.
@@ -74,7 +74,7 @@ func Execute(uid int64, params CallParams) interface{} {
 		parms = parms[1:]
 	}
 
-	methodName := tools.ConvertUnderscoreName(params.Method)
+	methodName := tools.ConvertMethodName(params.Method)
 
 	// Parse Args and KWArgs using the following logic:
 	// - If 2nd argument of the function is a struct, then:
@@ -148,8 +148,8 @@ func GetFieldValue(uid, id int64, model, field string) interface{} {
 	if uid == 0 {
 		panic(fmt.Errorf("User must be logged in to retrieve field."))
 	}
-	model = tools.ConvertDotName(model)
-	field = tools.ConvertUnderscoreName(field)
+	model = tools.ConvertModelName(model)
+	field = models.GetFieldName(model, field)
 	env := models.NewCursorEnvironment(uid)
 	rs := models.NewRecordSet(env, model).Filter("ID", id).Search()
 	var res orm.ParamsList
@@ -182,10 +182,10 @@ func SearchRead(uid int64, params SearchParams) *SearchReadResult {
 	if uid == 0 {
 		panic(fmt.Errorf("User must be logged in to search database."))
 	}
-	model := tools.ConvertDotName(params.Model)
+	model := tools.ConvertModelName(params.Model)
 	var fields []string
 	for _, f := range params.Fields {
-		fields = append(fields, tools.ConvertUnderscoreName(f))
+		fields = append(fields, models.GetFieldName(model, f))
 	}
 	env := models.NewCursorEnvironment(uid)
 	// TODO Add support for domain & filtering

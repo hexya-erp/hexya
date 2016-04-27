@@ -20,6 +20,7 @@ ORM
 Server
 ------
 - [ ] Create controllers for using Odoo web client with YEP Server
+- [ ] Unified logging system
 - [ ] Create a JSON-RPC server with same protocol as Odoo.
 - [ ] Adapt to JSON-RPC over Websocket to speed up client-server
 communications

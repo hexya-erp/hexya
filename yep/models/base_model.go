@@ -48,7 +48,9 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "NameGet", NameGet)
 	DeclareMethod(name, "FieldsViewGet", FieldsViewGet)
 	DeclareMethod(name, "FieldsGet", FieldsGet)
+	DeclareMethod(name, "ProcessView", ProcessView)
 	DeclareMethod(name, "AddModifiers", AddModifiers)
+	DeclareMethod(name, "UpdateFieldNames", UpdateFieldNames)
 }
 
 /*
@@ -158,8 +160,12 @@ func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 	if view == nil {
 		panic(fmt.Errorf("View `%s` not found in registry", args.ViewID))
 	}
-	fInfos := rs.Call("FieldsGet", FieldsGetArgs{AllFields: view.Fields}).(map[string]*FieldInfo)
-	arch := rs.Call("AddModifiers", view.Arch, fInfos).(string)
+	cols := make([]string, len(view.Fields))
+	for i, f := range view.Fields{
+		cols[i] = GetFieldColumn(rs.ModelName(), f)
+	}
+	fInfos := rs.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
+	arch := rs.Call("ProcessView", view.Arch, fInfos).(string)
 	res := FieldsViewData{
 		Name:   view.Name,
 		Arch:   arch,
@@ -171,14 +177,31 @@ func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 	return &res
 }
 
+
 /*
-AddModifiers adds the modifiers attribute to xml fields tags and returns the new xml string.
+Process view makes all the necessary modifications to the view
+arch and returns the new xml string.
 */
-func AddModifiers(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) string {
+func ProcessView(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) string {
+	// Load arch as etree
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(arch); err != nil {
-		panic(fmt.Errorf("<AddModifiers>%s", err))
+		panic(fmt.Errorf("<ProcessView>%s", err))
 	}
+	// Apply changes
+	rs.Call("UpdateFieldNames", doc)
+	// Dump xml to string and return
+	res, err := doc.WriteToString()
+	if err != nil {
+		panic(fmt.Errorf("<ProcessView>Unable to render XML: %s", err))
+	}
+	return res
+}
+
+/*
+AddModifiers adds the modifiers attribute nodes to given xml doc.
+*/
+func AddModifiers(rs RecordSet, doc *etree.Document, fieldInfos map[string]*FieldInfo) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
 		var mods []string
@@ -188,11 +211,19 @@ func AddModifiers(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) s
 		modStr := fmt.Sprintf("{%s}", strings.Join(mods, ","))
 		fieldTag.CreateAttr("modifiers", modStr)
 	}
-	res, err := doc.WriteToString()
-	if err != nil {
-		panic(fmt.Errorf("<AddModifiers>Unable to render XML: %s", err))
+}
+
+/*
+UpdateFieldNames changes the field names in the view to the column names.
+If a field name is already column names then it does nothing.
+ */
+func UpdateFieldNames(rs RecordSet, doc *etree.Document) {
+	for _, fieldTag := range doc.FindElements("//field") {
+		fieldName := fieldTag.SelectAttr("name").Value
+		colName := GetFieldColumn(rs.ModelName(), fieldName)
+		fieldTag.RemoveAttr("name")
+		fieldTag.CreateAttr("name", colName)
 	}
-	return res
 }
 
 // Args for the FieldsGet function
@@ -204,7 +235,7 @@ type FieldsGetArgs struct {
 /*
 FieldsGet returns the definition of each field.
 The _inherits'd fields are included. The string, help,
-and selection (if present) attributes are translated.
+and selection (if present) attributes are translated. (TODO)
 */
 func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 	res := make(map[string]*FieldInfo)
@@ -213,12 +244,13 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 		ormFields := orm.FieldsGet(rs.ModelName())
 		for fi, v := range ormFields {
 			if v.FieldType != orm.RelReverseMany {
+				// We don't want ReverseMany as it points to the link table
 				fields = append(fields, fi)
 			}
 		}
 	}
 	for _, f := range fields {
-		key := field{modelName: rs.ModelName(), name: tools.ConvertUnderscoreName(f)}
+		key := fieldRef{modelName: rs.ModelName(), name: f}
 		fInfo, ok := fieldsCache.get(key)
 		if !ok {
 			panic(fmt.Errorf("Unknown field: %+v", key))

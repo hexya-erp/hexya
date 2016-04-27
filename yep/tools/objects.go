@@ -22,10 +22,10 @@ import (
 )
 
 /*
-ConvertDotName converts an Odoo dotted style model name (e.g. res.partner) into
+ConvertModelName converts an Odoo dotted style model name (e.g. res.partner) into
 a YEP Pascal cased style (e.g. ResPartner).
 */
-func ConvertDotName(val string) string {
+func ConvertModelName(val string) string {
 	var res string
 	tokens := strings.Split(val, ".")
 	for _, token := range tokens {
@@ -35,10 +35,10 @@ func ConvertDotName(val string) string {
 }
 
 /*
-ConvertUnderscoreName converts an Odoo snake style method name (e.g. search_read) into
+ConvertMethodName converts an Odoo snake style method name (e.g. search_read) into
 a YEP Pascal cased style (e.g. SearchRead).
 */
-func ConvertUnderscoreName(val string) string {
+func ConvertMethodName(val string) string {
 	var res string
 	tokens := strings.Split(val, "_")
 	for _, token := range tokens {

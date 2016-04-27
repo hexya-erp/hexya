@@ -16,26 +16,38 @@ package models
 
 import (
 	"fmt"
-	"github.com/npiganeau/yep/yep/orm"
-	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/npiganeau/yep/yep/orm"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 var fieldsCache = &_fieldsCache{
-	cache:                make(map[field]*fieldInfo),
+	cache:                make(map[fieldRef]*fieldInfo),
+	cacheByColumn:        make(map[fieldRef]*fieldInfo),
 	computedFields:       make(map[string][]*fieldInfo),
 	computedStoredFields: make(map[string][]*fieldInfo),
-	dependencyMap:        make(map[field][]computeData),
+	dependencyMap:        make(map[fieldRef][]computeData),
 }
 
 /*
 field is the key to find a field in the fieldsCache
 */
-type field struct {
+type fieldRef struct {
 	modelName string
 	name      string
+}
+
+// ConvertToName converts the given field ref to a fieldRef
+// of type [modelName, fieldName].
+func (fr *fieldRef) ConvertToName() {
+	fi, ok := fieldsCache.get(*fr)
+	if !ok {
+		panic(fmt.Errorf("unknown fieldRef `%s`", *fr))
+	}
+	fr.name = fi.name
 }
 
 /*
@@ -57,6 +69,7 @@ fieldInfo holds the meta information about a field
 type fieldInfo struct {
 	modelName   string
 	name        string
+	column      string
 	description string
 	help        string
 	computed    bool
@@ -70,18 +83,24 @@ type fieldInfo struct {
 // fieldsCache is the fieldInfo collection
 type _fieldsCache struct {
 	sync.RWMutex
-	cache                map[field]*fieldInfo
+	cache                map[fieldRef]*fieldInfo
+	cacheByColumn        map[fieldRef]*fieldInfo
 	computedFields       map[string][]*fieldInfo
 	computedStoredFields map[string][]*fieldInfo
-	dependencyMap        map[field][]computeData
+	dependencyMap        map[fieldRef][]computeData
 	done                 bool
 }
 
 /*
-get returns the fieldInfo of the given method.
+get returns the fieldInfo of the given field.
+field can be of type [modelName, column] or [modelName, fieldName].
 */
-func (fc *_fieldsCache) get(ref field) (fi *fieldInfo, ok bool) {
+func (fc *_fieldsCache) get(ref fieldRef) (fi *fieldInfo, ok bool) {
 	fi, ok = fc.cache[ref]
+	if !ok {
+		fi, ok = fc.cacheByColumn[ref]
+	}
+	fmt.Println()
 	return
 }
 
@@ -106,16 +125,19 @@ func (fc *_fieldsCache) getComputedStoredFields(modelName string) (fil []*fieldI
 /*
 getDependentFields return the fields that must be recomputed when ref is modified.
 */
-func (fc *_fieldsCache) getDependentFields(ref field) (target []computeData, ok bool) {
+func (fc *_fieldsCache) getDependentFields(ref fieldRef) (target []computeData, ok bool) {
 	target, ok = fc.dependencyMap[ref]
 	return
 }
 
 /*
 set adds the given fieldInfo to the fieldsCache.
+ref must be of type [modelName, fieldName]
 */
-func (fc *_fieldsCache) set(ref field, fInfo *fieldInfo) {
+func (fc *_fieldsCache) set(ref fieldRef, fInfo *fieldInfo) {
 	fc.cache[ref] = fInfo
+	colRef := fieldRef{modelName: ref.modelName, name: fInfo.column}
+	fc.cacheByColumn[colRef] = fInfo
 	if fInfo.computed {
 		if fInfo.stored {
 			fc.computedStoredFields[fInfo.modelName] = append(fc.computedStoredFields[fInfo.modelName], fInfo)
@@ -130,7 +152,7 @@ setDependency adds a dependency in the dependencyMap.
 target field depends on ref field, i.e. when ref field is modified,
 target field must be recomputed.
 */
-func (fc *_fieldsCache) setDependency(ref field, target computeData) {
+func (fc *_fieldsCache) setDependency(ref fieldRef, target computeData) {
 	fc.dependencyMap[ref] = append(fc.dependencyMap[ref], target)
 }
 
@@ -167,8 +189,10 @@ func registerModelFields(name string, structPtr interface{}) {
 			depends = strings.Split(depTag, defaultDependsTagDelim)
 		}
 		_, html := attrs["html"]
+		ref := fieldRef{name: sf.Name, modelName: name}
 		fInfo := fieldInfo{
 			name:        sf.Name,
+			column:      orm.FieldGet(ref.modelName, ref.name).Column,
 			modelName:   name,
 			compute:     computeName,
 			computed:    computed,
@@ -178,7 +202,6 @@ func registerModelFields(name string, structPtr interface{}) {
 			help:        tags["help"],
 			html:        html,
 		}
-		ref := field{name: fInfo.name, modelName: fInfo.modelName}
 		fieldsCache.set(ref, &fInfo)
 		fInfo.fieldType = getFieldType(ref)
 	}
@@ -198,7 +221,7 @@ func processDepends() {
 				tokens := strings.Split(depString, orm.ExprSep)
 				refName = tokens[len(tokens)-1]
 				refModelName := getRelatedModelName(targetField.modelName, depString)
-				refField := field{
+				refField := fieldRef{
 					modelName: refModelName,
 					name:      refName,
 				}

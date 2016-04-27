@@ -153,8 +153,8 @@ func structToMap(structPtr interface{}) map[string]interface{} {
 /*
 getFieldType returns the FieldType of the given ref field
 */
-func getFieldType(ref field) tools.FieldType {
-	fi := orm.FieldsGet(ref.modelName, []string{ref.name})[ref.name]
+func getFieldType(ref fieldRef) tools.FieldType {
+	fi := orm.FieldGet(ref.modelName, ref.name)
 	fc, _ := fieldsCache.get(ref)
 	switch fi.FieldType {
 	case orm.TypeBooleanField:
@@ -191,4 +191,21 @@ func getFieldType(ref field) tools.FieldType {
 		return tools.INTEGER
 	}
 	return tools.NO_TYPE
+}
+
+// GetFieldColumn returns the column name of the given field of the
+// given model.
+// If name is already a column name return it anyway.
+func GetFieldColumn(model, name string) string {
+	fi := orm.FieldGet(model, name)
+	return fi.Column
+}
+
+// ConvertFieldName returns the field name of the given model with
+// the given column. If column is already a field name, returns it
+// anyway.
+func GetFieldName(model, column string) string {
+	ref := fieldRef{modelName: model, name: column}
+	ref.ConvertToName()
+	return ref.name
 }

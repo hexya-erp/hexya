@@ -430,7 +430,7 @@ func (rs recordStruct) updateStoredFields(structPtrOrParams interface{}) {
 	// Then get all fields to update
 	var toUpdate []computeData
 	for _, fieldName := range fieldNames {
-		refField := field{modelName: rs.ModelName(), name: fieldName}
+		refField := fieldRef{modelName: rs.ModelName(), name: fieldName}
 		targetFields, ok := fieldsCache.getDependentFields(refField)
 		if !ok {
 			continue

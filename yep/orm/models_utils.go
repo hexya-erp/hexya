@@ -276,19 +276,26 @@ type FieldInfo struct {
 
 // FieldsGet returns the definition of fields if given, or all fields of
 // the model otherwise.
+// Fields can be either field names or column names
+// Returned map keys are column names.
 func FieldsGet(modelName string, fields ...[]string) map[string]*FieldInfo {
 	res := make(map[string]*FieldInfo)
+	mi, ok := modelCache.getByName(modelName)
+	if !ok {
+		panic(fmt.Errorf("unknown model `%s`", modelName))
+	}
+
 	fieldsMap := make(map[string]bool)
 	if len(fields) > 0 {
 		for _, f := range fields[0] {
-			fieldsMap[f] = true
+			fi, ok := mi.fields.GetByAny(f)
+			if !ok {
+				panic(fmt.Errorf("unknown field `%s`", f))
+			}
+			fieldsMap[fi.column] = true
 		}
 	}
-	mi, ok := modelCache.getByName(modelName)
-	if !ok {
-		panic(fmt.Errorf("unknown model %s", modelName))
-	}
-	for k, v := range mi.fields.fields {
+	for k, v := range mi.fields.columns {
 		if fieldsMap[k] == true || len(fieldsMap) == 0 {
 			res[k] = &FieldInfo{
 				FieldType: v.fieldType,
@@ -304,4 +311,19 @@ func FieldsGet(modelName string, fields ...[]string) map[string]*FieldInfo {
 		}
 	}
 	return res
+}
+
+// FieldGet returns the definition of the given field of the
+// given model.
+// Field can be specified either by name or column name
+func FieldGet(modelName, field string) *FieldInfo {
+	mi, ok := modelCache.getByName(modelName)
+	if !ok {
+		panic(fmt.Errorf("unknown model `%s`", modelName))
+	}
+	fi, ok := mi.fields.GetByAny(field)
+	if !ok {
+		panic(fmt.Errorf("unknown field `%s`", field))
+	}
+	return FieldsGet(modelName, []string{fi.column})[fi.column]
 }
