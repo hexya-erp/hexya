@@ -89,9 +89,9 @@ func init() {
 	store := sessions.NewCookieStore([]byte(">r&5#5T/sG-jnf=EW8$(WQX'-m2R6Gk*^qqr`CxEtG'wQ[/'G@`NYn^on?b!4G`9"),
 		[]byte("!WY9Q|}09!4Ke=@w0HS|]$u,p1f^k(5T"))
 	yepServer.Use(sessions.Sessions("yep-session", store))
+	cleanModuleSymlinks()
 }
 
 func PostInit() {
 	yepServer.LoadHTMLGlob("yep/server/templates/**/*.html")
-
 }

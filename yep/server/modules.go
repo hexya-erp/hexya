@@ -21,6 +21,8 @@ import (
 	"runtime"
 )
 
+var symlinkDirs = []string{"static", "templates", "data"}
+
 type Module struct {
 	Name     string
 	PostInit func()
@@ -59,14 +61,23 @@ func createModuleSymlinks(mod *Module) {
 	if !ok {
 		panic(fmt.Errorf("Unable to find caller"))
 	}
-	modulePathTmpl := path.Dir(fileName) + "/%s"
-	serverPathTmpl := "yep/server/%s/%s"
-	dirs := []string{"static", "templates", "data"}
-	for _, dir := range dirs {
-		srcPath := fmt.Sprintf(modulePathTmpl, dir)
-		dstPath := fmt.Sprintf(serverPathTmpl, dir, mod.Name)
+	for _, dir := range symlinkDirs {
+		srcPath := fmt.Sprintf(path.Dir(fileName)+"/%s", dir)
+		dstPath := fmt.Sprintf("yep/server/%s/%s", dir, mod.Name)
 		if _, err := os.Stat(srcPath); err == nil {
 			os.Symlink(srcPath, dstPath)
 		}
+	}
+}
+
+/*
+cleanModuleSymlinks removes all symlinks in the server symlink directories.
+Note that this function actually removes and recreates the symlink directories.
+*/
+func cleanModuleSymlinks() {
+	for _, dir := range symlinkDirs {
+		dirPath := fmt.Sprintf("yep/server/%s", dir)
+		os.RemoveAll(dirPath)
+		os.Mkdir(dirPath, 0775)
 	}
 }
