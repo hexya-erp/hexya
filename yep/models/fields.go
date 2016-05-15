@@ -100,7 +100,6 @@ func (fc *_fieldsCache) get(ref fieldRef) (fi *fieldInfo, ok bool) {
 	if !ok {
 		fi, ok = fc.cacheByColumn[ref]
 	}
-	fmt.Println()
 	return
 }
 

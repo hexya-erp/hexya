@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/orm"
@@ -30,11 +31,12 @@ const (
 )
 
 type BaseModel struct {
-	ID         int64     `orm:"column(id)"`
-	CreateDate time.Time `orm:"auto_now_add"`
-	CreateUid  int64
-	WriteDate  time.Time `yep:"compute(ComputeWriteDate),store,depends(ID)" orm:"null"`
-	WriteUid   int64
+	ID          int64     `orm:"column(id)"`
+	CreateDate  time.Time `orm:"auto_now_add"`
+	CreateUid   int64
+	WriteDate   time.Time `yep:"compute(ComputeWriteDate),store,depends(ID)" orm:"null"`
+	WriteUid    int64
+	DisplayName string `yep:"compute(NameGet)"`
 }
 
 type BaseTransientModel struct {
@@ -51,6 +53,7 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "ProcessView", ProcessView)
 	DeclareMethod(name, "AddModifiers", AddModifiers)
 	DeclareMethod(name, "UpdateFieldNames", UpdateFieldNames)
+	DeclareMethod(name, "SearchRead", SearchRead)
 }
 
 /*
@@ -161,7 +164,7 @@ func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 		panic(fmt.Errorf("View `%s` not found in registry", args.ViewID))
 	}
 	cols := make([]string, len(view.Fields))
-	for i, f := range view.Fields{
+	for i, f := range view.Fields {
 		cols[i] = GetFieldColumn(rs.ModelName(), f)
 	}
 	fInfos := rs.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
@@ -177,7 +180,6 @@ func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 	return &res
 }
 
-
 /*
 Process view makes all the necessary modifications to the view
 arch and returns the new xml string.
@@ -190,6 +192,7 @@ func ProcessView(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) st
 	}
 	// Apply changes
 	rs.Call("UpdateFieldNames", doc)
+	rs.Call("AddModifiers", doc, fieldInfos)
 	// Dump xml to string and return
 	res, err := doc.WriteToString()
 	if err != nil {
@@ -216,7 +219,7 @@ func AddModifiers(rs RecordSet, doc *etree.Document, fieldInfos map[string]*Fiel
 /*
 UpdateFieldNames changes the field names in the view to the column names.
 If a field name is already column names then it does nothing.
- */
+*/
 func UpdateFieldNames(rs RecordSet, doc *etree.Document) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
@@ -266,4 +269,41 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 		}
 	}
 	return res
+}
+
+type SearchParams struct {
+	Context tools.Context   `json:"context"`
+	Domain  json.RawMessage `json:"domain"`
+	Fields  []string        `json:"fields"`
+	Limit   int             `json:"limit"`
+	Model   string          `json:"model"`
+	Offset  int             `json:"offset"`
+	Sort    string          `json:"sort"`
+}
+
+type SearchReadResult struct {
+	Records []orm.Params `json:"records"`
+	Length  int64        `json:"length"`
+}
+
+/*
+SearchRead retrieves database records according to the filters defined in params.
+*/
+func SearchRead(rs RecordSet, params SearchParams) *SearchReadResult {
+	var fields []string
+	for _, f := range params.Fields {
+		fields = append(fields, GetFieldName(rs.ModelName(), f))
+	}
+	// TODO Add support for domain & filtering
+	limit := 80
+	if params.Limit != 0 {
+		limit = params.Limit
+	}
+	rs = rs.Limit(limit).Search()
+	records := rs.Call("Read", fields).([]orm.Params)
+	length := rs.SearchCount()
+	return &SearchReadResult{
+		Records: records,
+		Length:  length,
+	}
 }

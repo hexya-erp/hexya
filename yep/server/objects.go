@@ -90,22 +90,28 @@ func Execute(uid int64, params CallParams) interface{} {
 			// 2nd argument is a struct,
 			argStructValue := reflect.New(fnSecondArgType).Elem()
 			for i := 0; i < fnSecondArgType.NumField(); i++ {
-				// We parse parmss into the struct
+				// We parse parms into the struct
 				if len(parms) <= i {
 					// We have less arguments than the size of the struct
 					break
 				}
 				argsValue := reflect.ValueOf(parms[i])
-				if err := tools.UnmarshalJSONValue(argsValue, argStructValue.Field(i)); err != nil {
-					panic(fmt.Errorf("<Execute>Unable to unmarshal arg %s: %s", parms[i], err))
+				fieldPtrValue := reflect.New(argStructValue.Type().Field(i).Type)
+				if err := tools.UnmarshalJSONValue(argsValue, fieldPtrValue); err != nil {
+					// We deliberately continue here to have default value if there is an error
+					// This is to manage cases where the given data type is inconsistent (such
+					// false instead of [] or object{}).
+					continue
 				}
+				argStructValue.Field(i).Set(fieldPtrValue.Elem())
 			}
 			for k, v := range params.KWArgs {
 				// We parse params.KWArgs into the struct
 				field := tools.GetStructFieldByJSONTag(argStructValue, k)
 				if field.IsValid() {
 					if err := tools.UnmarshalJSONValue(reflect.ValueOf(v), field); err != nil {
-						panic(fmt.Errorf("<Execute>Unable to unmarshal kwarg %s: %s", v, err))
+						// Same remark as above
+						continue
 					}
 				}
 			}
@@ -120,7 +126,8 @@ func Execute(uid int64, params CallParams) interface{} {
 				argsValue := reflect.ValueOf(parms[i-1])
 				resValue := reflect.New(rs.MethodType(methodName).In(i))
 				if err := tools.UnmarshalJSONValue(argsValue, resValue); err != nil {
-					panic(fmt.Errorf("<Execute>Unable to unmarshal arg %s: %s", parms[i-1], err))
+					// Same remark as above
+					continue
 				}
 				fnArgs[i-1] = resValue.Elem().Interface()
 			}
@@ -160,44 +167,15 @@ func GetFieldValue(uid, id int64, model, field string) interface{} {
 	return res[0]
 }
 
-type SearchParams struct {
-	Context tools.Context `json:"context"`
-	Domain  string        `json:"domain"`
-	Fields  []string      `json:"fields"`
-	Limit   int           `json:"limit"`
-	Model   string        `json:"model"`
-	Offset  int           `json:"offset"`
-	Sort    string        `json:"sort"`
-}
-
-type SearchReadResult struct {
-	Records []orm.Params `json:"records"`
-	Length  int64        `json:"length"`
-}
-
 /*
 SearchRead retrieves database records according to the filters defined in params.
 */
-func SearchRead(uid int64, params SearchParams) *SearchReadResult {
+func SearchRead(uid int64, params models.SearchParams) *models.SearchReadResult {
 	if uid == 0 {
 		panic(fmt.Errorf("User must be logged in to search database."))
 	}
 	model := tools.ConvertModelName(params.Model)
-	var fields []string
-	for _, f := range params.Fields {
-		fields = append(fields, models.GetFieldName(model, f))
-	}
 	env := models.NewCursorEnvironment(uid)
-	// TODO Add support for domain & filtering
-	limit := 80
-	if params.Limit != 0 {
-		limit = params.Limit
-	}
-	rs := models.NewRecordSet(env, model).Limit(limit).Search()
-	records := rs.Call("Read", fields).([]orm.Params)
-	length := rs.SearchCount()
-	return &SearchReadResult{
-		Records: records,
-		Length:  length,
-	}
+	rs := models.NewRecordSet(env, model)
+	return rs.Call("SearchRead", params).(*models.SearchReadResult)
 }

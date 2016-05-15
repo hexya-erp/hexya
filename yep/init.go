@@ -17,15 +17,16 @@ package yep
 import (
 	_ "github.com/lib/pq"
 	"github.com/npiganeau/yep/config"
+	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/orm"
 	"github.com/npiganeau/yep/yep/server"
-	_ "github.com/npiganeau/yep/yep/server"
 )
 
 func init() {
-	orm.Debug = true
+	orm.Debug = config.ORM_DEBUG
 	orm.RegisterDataBase("default", config.DB_DRIVER, config.DB_SOURCE, 20)
 	models.BootStrap(config.DB_FORCE)
+	ir.BootStrap()
 	server.RunPostInit()
 }

@@ -21,7 +21,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/orm"
 )
 
@@ -40,11 +39,11 @@ const (
 	VIEW_TYPE_QWEB     ViewType = "qweb"
 )
 
-type ViewMode string
+type ViewInheritanceMode string
 
 const (
-	VIEW_MODE_PRIMARY   ViewMode = "primary"
-	VIEW_MODE_EXTENSION ViewMode = "extension"
+	VIEW_PRIMARY   ViewInheritanceMode = "primary"
+	VIEW_EXTENSION ViewInheritanceMode = "extension"
 )
 
 var ViewsRegistry *ViewsCollection
@@ -100,14 +99,16 @@ var _ orm.Fielder = new(ViewRef)
 
 type ViewsCollection struct {
 	sync.RWMutex
-	views map[string]*View
+	views        map[string]*View
+	orderedViews map[string][]*View
 }
 
 // NewViewCollection returns a pointer to a new
 // ViewsCollection instance
 func NewViewsCollection() *ViewsCollection {
 	res := ViewsCollection{
-		views: make(map[string]*View),
+		views:        make(map[string]*View),
+		orderedViews: make(map[string][]*View),
 	}
 	return &res
 }
@@ -115,9 +116,17 @@ func NewViewsCollection() *ViewsCollection {
 // AddView adds the given view to our ViewsCollection
 func (vc *ViewsCollection) AddView(v *View) {
 	vc.Lock()
+	var index int8
+	for i, view := range vc.orderedViews[v.Model] {
+		index = int8(i)
+		if view.Priority >= v.Priority {
+			break
+		}
+	}
 	defer vc.Unlock()
 	vc.views[v.ID] = v
-	v.Compute()
+	endElems := vc.orderedViews[v.Model][index:]
+	vc.orderedViews[v.Model] = append(append(vc.orderedViews[v.Model][:index], v), endElems...)
 }
 
 // GetViewById returns the View with the given id
@@ -125,17 +134,29 @@ func (vc *ViewsCollection) GetViewById(id string) *View {
 	return vc.views[id]
 }
 
+/*
+GetFirstViewForModel returns the first view of type viewType for the given model
+*/
+func (vc *ViewsCollection) GetFirstViewForModel(model string, viewType ViewType) *View {
+	for _, view := range vc.orderedViews[model] {
+		if view.Type == viewType {
+			return view
+		}
+	}
+	panic(fmt.Errorf("Unable to find view of type `%s` for model `%s`", viewType, model))
+}
+
 type View struct {
-	ID                 string   `json:"id"`
-	Name               string   `json:"name"`
-	Model              string   `json:"model"`
-	Type               ViewType `json:"type"`
-	Priority           uint8    `json:"priority"`
-	Arch               string   `json:"arch"`
-	InheritID          *View    `json:"inherit_id"`
-	InheritChildrenIDs []*View  `json:"inherit_children_ids"`
-	FieldParent        string   `json:"field_parent"`
-	Mode               ViewMode `json:"mode"`
+	ID                 string              `json:"id"`
+	Name               string              `json:"name"`
+	Model              string              `json:"model"`
+	Type               ViewType            `json:"type"`
+	Priority           uint8               `json:"priority"`
+	Arch               string              `json:"arch"`
+	InheritID          *View               `json:"inherit_id"`
+	InheritChildrenIDs []*View             `json:"inherit_children_ids"`
+	FieldParent        string              `json:"field_parent"`
+	InheritanceMode    ViewInheritanceMode `json:"mode"`
 	Fields             []string
 	//GroupsID []*Group
 }
@@ -144,25 +165,4 @@ type View struct {
 type FieldNode struct {
 	XMLName xml.Name `xml:"field"`
 	Name    string   `xml:"name,attr"`
-}
-
-/*
-Compute makes the necessary updates to a view definition. In particular:
-- sets the type of the view from the arch root.
-- populates the fields map from the views arch.
-*/
-func (v *View) Compute() {
-	doc := etree.NewDocument()
-	if err := doc.ReadFromString(v.Arch); err != nil {
-		panic(fmt.Errorf("unable to read view %s: %s", v.ID, err))
-	}
-
-	// Set view type
-	v.Type = ViewType(doc.ChildElements()[0].Tag)
-
-	// Populate fields map
-	fieldElems := doc.FindElements("//field")
-	for _, f := range fieldElems {
-		v.Fields = append(v.Fields, f.SelectAttr("name").Value)
-	}
 }
