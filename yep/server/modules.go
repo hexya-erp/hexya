@@ -14,6 +14,13 @@
 
 package server
 
+import (
+	"fmt"
+	"os"
+	"path"
+	"runtime"
+)
+
 type Module struct {
 	Name     string
 	PostInit func()
@@ -27,6 +34,7 @@ This function should be called in the init() function of
 all YEP Addons.
 */
 func RegisterModule(mod *Module) {
+	createModuleSymlinks(mod)
 	Modules = append(Modules, mod)
 }
 
@@ -36,7 +44,29 @@ PostInit() functions are used for actions that need to be done after
 bootstrapping the models.
 */
 func RunPostInit() {
+	PostInit()
 	for _, module := range Modules {
 		module.PostInit()
+	}
+}
+
+/*
+createModuleSymlinks create the symlinks of the given module in the
+server directory.
+*/
+func createModuleSymlinks(mod *Module) {
+	_, fileName, _, ok := runtime.Caller(2)
+	if !ok {
+		panic(fmt.Errorf("Unable to find caller"))
+	}
+	modulePathTmpl := path.Dir(fileName) + "/%s"
+	serverPathTmpl := "yep/server/%s/%s"
+	dirs := []string{"static", "templates", "data"}
+	for _, dir := range dirs {
+		srcPath := fmt.Sprintf(modulePathTmpl, dir)
+		dstPath := fmt.Sprintf(serverPathTmpl, dir, mod.Name)
+		if _, err := os.Stat(srcPath); err == nil {
+			os.Symlink(srcPath, dstPath)
+		}
 	}
 }
