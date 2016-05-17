@@ -20,12 +20,13 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-type User_WithDisplayName struct {
-	ID          int64
-	UserName    string
-	Email       string
-	Profile     *Profile_WithID
-	DisplayName string
+type User_WithDecoratedName struct {
+	ID            int64
+	UserName      string
+	Email         string
+	Profile       *Profile_WithID
+	DecoratedName string
+	DisplayName   string
 }
 
 func TestMethods(t *testing.T) {
@@ -43,16 +44,16 @@ func TestComputedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored computed fields", t, func() {
 		env = NewEnvironment(dORM, 1)
 		Convey("Getting one user (Jane) and checking DisplayName", func() {
-			var userJane User_WithDisplayName
+			var userJane User_WithDecoratedName
 			users := env.Pool("User")
 			users.Filter("Email", "jane.smith@example.com").ReadOne(&userJane)
-			So(userJane.DisplayName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+			So(userJane.DecoratedName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 		})
 		Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-			var users []*User_WithDisplayName
+			var users []*User_WithDecoratedName
 			env.Pool("User").OrderBy("UserName").ReadAll(&users)
-			So(users[0].DisplayName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
-			So(users[1].DisplayName, ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+			So(users[0].DecoratedName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+			So(users[1].DecoratedName, ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
 		})
 	})
 }

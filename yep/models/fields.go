@@ -174,6 +174,7 @@ func registerModelFields(name string, structPtr interface{}) {
 	for i := 0; i < ind.NumField(); i++ {
 		sf := ind.Type().Field(i)
 		if sf.PkgPath != "" {
+			// Skip private fields
 			continue
 		}
 		parseStructTag(sf.Tag.Get(defaultStructTagName), &attrs, &tags)
@@ -191,7 +192,7 @@ func registerModelFields(name string, structPtr interface{}) {
 		ref := fieldRef{name: sf.Name, modelName: name}
 		fInfo := fieldInfo{
 			name:        sf.Name,
-			column:      orm.FieldGet(ref.modelName, ref.name).Column,
+			column:      GetFieldColumn(ref.modelName, ref.name),
 			modelName:   name,
 			compute:     computeName,
 			computed:    computed,

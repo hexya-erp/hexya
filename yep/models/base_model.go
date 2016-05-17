@@ -36,7 +36,7 @@ type BaseModel struct {
 	CreateUid   int64
 	WriteDate   time.Time `yep:"compute(ComputeWriteDate),store,depends(ID)" orm:"null"`
 	WriteUid    int64
-	DisplayName string `yep:"compute(NameGet)"`
+	DisplayName string `orm:"-" yep:"compute(ComputeNameGet)"`
 }
 
 type BaseTransientModel struct {
@@ -45,6 +45,7 @@ type BaseTransientModel struct {
 
 func declareBaseMethods(name string) {
 	DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
+	DeclareMethod(name, "ComputeNameGet", ComputeNameGet)
 	DeclareMethod(name, "Create", Create)
 	DeclareMethod(name, "Read", ReadModel)
 	DeclareMethod(name, "Write", Write)
@@ -63,6 +64,13 @@ ComputeWriteDate updates the WriteDate field with the current datetime.
 */
 func ComputeWriteDate(rs RecordSet) orm.Params {
 	return orm.Params{"WriteDate": time.Now()}
+}
+
+/*
+ComputeNameGet updates the DisplayName field with the result of NameGet.
+*/
+func ComputeNameGet(rs RecordSet) orm.Params {
+	return orm.Params{"DisplayName": rs.Call("NameGet").(string)}
 }
 
 /*
@@ -127,6 +135,11 @@ human readable name of an object.
 func NameGet(rs RecordSet) string {
 	rs.EnsureOne()
 	var idParams orm.ParamsList
+	ref := fieldRef{modelName: rs.ModelName(), name: "name"}
+	_, exists := fieldsCache.get(ref)
+	if !exists {
+		return rs.String()
+	}
 	num := rs.ValuesFlat(&idParams, "name")
 	if num == 0 {
 		return rs.String()

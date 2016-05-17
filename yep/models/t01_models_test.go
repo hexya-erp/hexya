@@ -58,9 +58,9 @@ func DecorateEmailExtension(rs RecordSet, email string) string {
 	return fmt.Sprintf("[%s]", res)
 }
 
-func computeDisplayName(rs RecordSet) orm.Params {
+func computeDecoratedName(rs RecordSet) orm.Params {
 	res := make(orm.Params)
-	res["DisplayName"] = rs.Call("PrefixedUser", "User").([]string)[0]
+	res["DecoratedName"] = rs.Call("PrefixedUser", "User").([]string)[0]
 	return res
 }
 
@@ -96,7 +96,7 @@ func TestSyncDb(t *testing.T) {
 	DeclareMethod("User", "PrefixedUser", PrefixUserEmailExtension)
 	DeclareMethod("User", "DecorateEmail", DecorateEmail)
 	DeclareMethod("User", "DecorateEmail", DecorateEmailExtension)
-	DeclareMethod("User", "computeDisplayName", computeDisplayName)
+	DeclareMethod("User", "computeDecoratedName", computeDecoratedName)
 	DeclareMethod("User", "computeAge", computeAge)
 
 	BootStrap(true)
@@ -105,20 +105,20 @@ func TestSyncDb(t *testing.T) {
 }
 
 type User struct {
-	UserName     string `orm:"size(30);unique" yep:"string(Name);help(The user's username)"`
-	DisplayName  string `orm:"-" yep:"compute(computeDisplayName)"`
-	Email        string `orm:"size(100)" yep:"help(The user's email address)"`
-	Password     string `orm:"size(100)"`
-	Status       int16  `orm:"column(Status)"`
-	IsStaff      bool
-	IsActive     bool     `orm:"default(true)"`
-	Profile      *Profile `orm:"null;rel(one);on_delete(set_null)"`
-	Age          int16    `yep:"compute(computeAge);store;depends(Profile__Age,Profile)"`
-	Posts        []*Post  `orm:"reverse(many)" json:"-"`
-	ShouldSkip   string   `orm:"-"`
-	Nums         int
-	unexport     bool `orm:"-"`
-	unexportBool bool
+	UserName      string `orm:"size(30);unique" yep:"string(Name);help(The user's username)"`
+	DecoratedName string `orm:"-" yep:"compute(computeDecoratedName)"`
+	Email         string `orm:"size(100)" yep:"help(The user's email address)"`
+	Password      string `orm:"size(100)"`
+	Status        int16  `orm:"column(Status)"`
+	IsStaff       bool
+	IsActive      bool     `orm:"default(true)"`
+	Profile       *Profile `orm:"null;rel(one);on_delete(set_null)"`
+	Age           int16    `yep:"compute(computeAge);store;depends(Profile__Age,Profile)"`
+	Posts         []*Post  `orm:"reverse(many)" json:"-"`
+	ShouldSkip    string   `orm:"-"`
+	Nums          int
+	unexport      bool `orm:"-"`
+	unexportBool  bool
 }
 
 func (u *User) TableIndex() [][]string {

@@ -98,7 +98,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			rsJane := env.Pool(new(User)).Filter("UserName", "Jane Smith").Search()
 			So(rsJane.Ids(), ShouldContain, 2)
 			So(len(rsJane.Ids()), ShouldEqual, 1)
-			num := rsJane.Write(orm.Params{"UserName": "Jane A. Smith"})
+			num := rsJane.Call("Write", orm.Params{"UserName": "Jane A. Smith"})
 			So(num, ShouldEqual, 1)
 			var userJane User_WithID
 			rsJane.ReadOne(&userJane)

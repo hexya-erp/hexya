@@ -313,17 +313,17 @@ func FieldsGet(modelName string, fields ...[]string) map[string]*FieldInfo {
 	return res
 }
 
-// FieldGet returns the definition of the given field of the
-// given model.
+// FieldGet returns the definition of the given field of the given model.
 // Field can be specified either by name or column name
-func FieldGet(modelName, field string) *FieldInfo {
+// Panics if the model is unknown and returns an error if the field is unknown
+func FieldGet(modelName, field string) (*FieldInfo, error) {
 	mi, ok := modelCache.getByName(modelName)
 	if !ok {
 		panic(fmt.Errorf("unknown model `%s`", modelName))
 	}
 	fi, ok := mi.fields.GetByAny(field)
 	if !ok {
-		panic(fmt.Errorf("unknown field `%s`", field))
+		return nil, fmt.Errorf("unknown field `%s` in model `%s`", field, modelName)
 	}
-	return FieldsGet(modelName, []string{fi.column})[fi.column]
+	return FieldsGet(modelName, []string{fi.column})[fi.column], nil
 }

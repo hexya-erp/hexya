@@ -357,6 +357,7 @@ func (rs recordStruct) Records() []RecordSet {
 EnsureOne panics if rs is not a singleton
 */
 func (rs recordStruct) EnsureOne() {
+	rs = rs.Search().(recordStruct)
 	if len(rs.Ids()) != 1 {
 		panic(fmt.Errorf("Expected singleton, got : %s", rs))
 	}
