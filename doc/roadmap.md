@@ -20,6 +20,8 @@ ORM
 Server
 ------
 - [ ] Create controllers for using Odoo web client with YEP Server
+- [ ] Automate routing and include for `static` dir in modules
+- [ ] Recover from orm methods' panics
 - [ ] Unified logging system
 - [ ] Create a JSON-RPC server with same protocol as Odoo.
 
@@ -30,3 +32,6 @@ Client
 Modules
 -------
 - [X] Make module registering create necessary symlinks
+- [X] Add support for internal resources data files
+- [ ] Add support for data & demo XML files
+- [ ] Add support for CSV data files

@@ -21,9 +21,9 @@ package ir
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/beevik/etree"
-	"strings"
 )
 
 /*

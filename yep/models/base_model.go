@@ -161,7 +161,7 @@ view architecture.
 func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 	view := ir.ViewsRegistry.GetViewById(args.ViewID)
 	if view == nil {
-		panic(fmt.Errorf("View `%s` not found in registry", args.ViewID))
+		view = ir.ViewsRegistry.GetFirstViewForModel(rs.ModelName(), ir.ViewType(args.ViewType))
 	}
 	cols := make([]string, len(view.Fields))
 	for i, f := range view.Fields {
@@ -275,7 +275,7 @@ type SearchParams struct {
 	Context tools.Context   `json:"context"`
 	Domain  json.RawMessage `json:"domain"`
 	Fields  []string        `json:"fields"`
-	Limit   int             `json:"limit"`
+	Limit   interface{}     `json:"limit"`
 	Model   string          `json:"model"`
 	Offset  int             `json:"offset"`
 	Sort    string          `json:"sort"`
@@ -295,9 +295,14 @@ func SearchRead(rs RecordSet, params SearchParams) *SearchReadResult {
 		fields = append(fields, GetFieldName(rs.ModelName(), f))
 	}
 	// TODO Add support for domain & filtering
-	limit := 80
-	if params.Limit != 0 {
-		limit = params.Limit
+	var limit int
+	switch params.Limit.(type) {
+	case bool:
+		limit = -1
+	case int:
+		limit = params.Limit.(int)
+	default:
+		limit = 80
 	}
 	rs = rs.Limit(limit).Search()
 	records := rs.Call("Read", fields).([]orm.Params)

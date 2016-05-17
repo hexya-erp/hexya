@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/orm"
 )
 
@@ -147,4 +148,41 @@ type Toolbar struct {
 	Print  []*BaseAction `json:"print"`
 	Action []*BaseAction `json:"action"`
 	Relate []*BaseAction `json:"relate"`
+}
+
+/*
+LoadActionFromEtree reads the action given etree.Element, creates or updates the action
+and adds it to the action registry if it not already.
+*/
+func LoadActionFromEtree(element *etree.Element) {
+	// We populate an actionHash from XML data fields
+	actionHash := make(map[string]interface{})
+	actionHash["id"] = element.SelectAttrValue("id", "NO_ID")
+	for _, fieldNode := range element.FindElements("field") {
+		name := fieldNode.SelectAttrValue("name", "NO_NAME")
+		ref := fieldNode.SelectAttrValue("ref", "")
+		if ref != "" && (name == "view_id" || name == "search_view_id") {
+			actionHash[name] = MakeViewRef(ref)
+		} else if len(fieldNode.ChildElements()) > 0 {
+			fieldType := fieldNode.SelectAttrValue("type", "text")
+			switch fieldType {
+			case "html":
+				nodeDoc := etree.NewDocument()
+				nodeDoc.SetRoot(fieldNode.ChildElements()[0].Copy())
+				value, _ := nodeDoc.WriteToString()
+				actionHash[name] = value
+			default:
+				panic(fmt.Errorf("Unknown field type `%s` in view `%s`", fieldType, actionHash["id"]))
+			}
+		} else {
+			actionHash[name] = fieldNode.Text()
+		}
+	}
+	// We marshal viewHash in JSON and then unmarshal into a View struct
+	bytes, _ := json.Marshal(actionHash)
+	var act BaseAction
+	if err := json.Unmarshal(bytes, &act); err != nil {
+		panic(fmt.Errorf("Unable to unmarshal action: %s", err))
+	}
+	ActionsRegistry.AddAction(&act)
 }

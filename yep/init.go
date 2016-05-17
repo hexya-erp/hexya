@@ -27,6 +27,7 @@ func init() {
 	orm.Debug = config.ORM_DEBUG
 	orm.RegisterDataBase("default", config.DB_DRIVER, config.DB_SOURCE, 20)
 	models.BootStrap(config.DB_FORCE)
+	server.LoadInternalResources()
 	ir.BootStrap()
-	server.RunPostInit()
+	server.PostInit()
 }

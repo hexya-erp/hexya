@@ -16,12 +16,18 @@ package ir
 
 import (
 	"sort"
+	"strconv"
+	"sync"
+	
+	"github.com/beevik/etree"
 )
 
 var MenusRegistry *MenuCollection
 
 type MenuCollection struct {
-	Menus []*UiMenu
+	sync.RWMutex
+	Menus    []*UiMenu
+	menusMap map[string]*UiMenu
 }
 
 func (mr *MenuCollection) Len() int {
@@ -37,7 +43,7 @@ func (mr *MenuCollection) Less(i, j int) bool {
 /*
 AddMenu adds a menu to the menu registry
 */
-func (mr *MenuCollection) AddMenu(m *UiMenu) {
+func (mc *MenuCollection) AddMenu(m *UiMenu) {
 	if m.Action != nil {
 		m.HasAction = true
 	}
@@ -49,19 +55,68 @@ func (mr *MenuCollection) AddMenu(m *UiMenu) {
 		targetCollection = m.Parent.Children
 		m.Parent.HasChildren = true
 	} else {
-		targetCollection = mr
+		targetCollection = mc
 	}
+	m.ParentCollection = targetCollection
 	targetCollection.Menus = append(targetCollection.Menus, m)
 	sort.Sort(targetCollection)
+
+	// We add the menu to the top parent menu map
+	topParent := m
+	for topParent.Parent != nil {
+		topParent = topParent.Parent
+	}
+	mc.Lock()
+	defer mc.Unlock()
+	topParent.ParentCollection.menusMap[m.ID] = m
+}
+
+// GetMenuById returns the Menu with the given id
+func (mc *MenuCollection) GetMenuById(id string) *UiMenu {
+	return mc.menusMap[id]
+}
+
+// NewMenuCollection returns a pointer to a new
+// MenuCollection instance
+func NewMenuCollection() *MenuCollection {
+	res := MenuCollection{
+		menusMap: make(map[string]*UiMenu),
+	}
+	return &res
 }
 
 type UiMenu struct {
-	ID          string
-	Name        string
-	Parent      *UiMenu
-	Children    *MenuCollection
-	Sequence    uint8
-	Action      *BaseAction
-	HasChildren bool
-	HasAction   bool
+	ID               string
+	Name             string
+	Parent           *UiMenu
+	ParentCollection *MenuCollection
+	Children         *MenuCollection
+	Sequence         uint8
+	Action           *BaseAction
+	HasChildren      bool
+	HasAction        bool
+}
+
+/*
+LoadMenuFromEtree reads the menu given etree.Element, creates or updates the menu
+and adds it to the menu registry if it not already.
+*/
+func LoadMenuFromEtree(element *etree.Element) {
+	menu := new(UiMenu)
+	menu.ID = element.SelectAttrValue("id", "NO_ID")
+	actionID := element.SelectAttrValue("action", "")
+	defaultName := "No name"
+	if actionID != "" {
+		menu.Action = ActionsRegistry.GetActionById(actionID)
+		defaultName = menu.Action.Name
+	}
+	menu.Name = element.SelectAttrValue("name", defaultName)
+	parentID := element.SelectAttrValue("parent", "")
+	if parentID != "" {
+		menu.Parent = MenusRegistry.GetMenuById(parentID)
+	}
+	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
+	menu.Sequence = uint8(seq)
+
+	MenusRegistry.AddMenu(menu)
 }

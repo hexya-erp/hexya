@@ -16,11 +16,11 @@ package ir
 
 import (
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"strings"
 	"sync"
 
+	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/orm"
 )
 
@@ -125,7 +125,8 @@ func (vc *ViewsCollection) AddView(v *View) {
 	}
 	defer vc.Unlock()
 	vc.views[v.ID] = v
-	endElems := vc.orderedViews[v.Model][index:]
+	endElems := make([]*View, len(vc.orderedViews[v.Model][index:]))
+	copy(endElems, vc.orderedViews[v.Model][index:])
 	vc.orderedViews[v.Model] = append(append(vc.orderedViews[v.Model][:index], v), endElems...)
 }
 
@@ -161,8 +162,36 @@ type View struct {
 	//GroupsID []*Group
 }
 
-// Represents a <field> node in a XML view arch
-type FieldNode struct {
-	XMLName xml.Name `xml:"field"`
-	Name    string   `xml:"name,attr"`
+/*
+LoadViewFromEtree reads the view given etree.Element, creates or updates the view
+and adds it to the view registry if it not already.
+*/
+func LoadViewFromEtree(element *etree.Element) {
+	// We populate a viewHash from XML data fields
+	viewHash := make(map[string]interface{})
+	viewHash["id"] = element.SelectAttrValue("id", "NO_ID")
+	for _, fieldNode := range element.FindElements("field") {
+		name := fieldNode.SelectAttrValue("name", "NO_NAME")
+		if len(fieldNode.ChildElements()) > 0 {
+			fieldType := fieldNode.SelectAttrValue("type", "text")
+			switch fieldType {
+			case "xml":
+				nodeDoc := etree.NewDocument()
+				nodeDoc.SetRoot(fieldNode.ChildElements()[0].Copy())
+				value, _ := nodeDoc.WriteToString()
+				viewHash[name] = value
+			default:
+				panic(fmt.Errorf("Unknown field type `%s` in view `%s`", fieldType, viewHash["id"]))
+			}
+		} else {
+			viewHash[name] = fieldNode.Text()
+		}
+	}
+	// We marshal viewHash in JSON and then unmarshal into a View struct
+	bytes, _ := json.Marshal(viewHash)
+	var view View
+	if err := json.Unmarshal(bytes, &view); err != nil {
+		panic(fmt.Errorf("Unable to unmarshal view: %s", err))
+	}
+	ViewsRegistry.AddView(&view)
 }

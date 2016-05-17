@@ -18,10 +18,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
+
+	"github.com/beevik/etree"
+	"github.com/npiganeau/yep/yep/ir"
 )
 
-var symlinkDirs = []string{"static", "templates", "data"}
+var symlinkDirs = []string{"static", "templates", "data", "views"}
 
 type Module struct {
 	Name     string
@@ -38,18 +42,6 @@ all YEP Addons.
 func RegisterModule(mod *Module) {
 	createModuleSymlinks(mod)
 	Modules = append(Modules, mod)
-}
-
-/*
-RunPostInit runs successively all PostInit() func of all modules.
-PostInit() functions are used for actions that need to be done after
-bootstrapping the models.
-*/
-func RunPostInit() {
-	PostInit()
-	for _, module := range Modules {
-		module.PostInit()
-	}
 }
 
 /*
@@ -80,4 +72,75 @@ func cleanModuleSymlinks() {
 		os.RemoveAll(dirPath)
 		os.Mkdir(dirPath, 0775)
 	}
+}
+
+/*
+LoadInternalResources loads all data in the 'views' directory, that are
+- views,
+- actions,
+- menu items,
+*/
+func LoadInternalResources() {
+	for _, mod := range Modules {
+		dataDir := fmt.Sprintf("yep/server/views/%s", mod.Name)
+		if _, err := os.Stat(dataDir); err != nil {
+			// No data dir in this module
+			continue
+		}
+		loadData(dataDir)
+	}
+}
+
+/*
+loadData loads the data defined in the given data directory.
+*/
+func loadData(dataDir string) {
+	dataFiles, err := filepath.Glob(dataDir + "/*")
+	if err != nil {
+		panic(fmt.Errorf("Unable to scan directory `%s` for data files", dataDir))
+	}
+	for _, dataFile := range dataFiles {
+		if path.Ext(dataFile) == ".xml" {
+			loadXMLDataFile(dataFile)
+		} else if path.Ext(dataFile) != ".csv" {
+			loadCSVDataFile(dataFile)
+		}
+	}
+}
+
+/*
+loadXMLDataFile loads the data from an XML data file into memory.
+*/
+func loadXMLDataFile(fileName string) {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromFile(fileName); err != nil {
+		panic(fmt.Errorf("Error loading XML data file `%s`: %s", fileName, err))
+	}
+	//var noupdate bool
+	for _, dataTag := range doc.FindElements("yep/data") {
+		//noupdateStr := dataTag.SelectAttrValue("noupdate", "false")
+		//if strings.ToLower(noupdateStr) == "true" {
+		//	noupdate = true
+		//}
+		for _, object := range dataTag.ChildElements() {
+			switch object.Tag {
+			case "view":
+				ir.LoadViewFromEtree(object)
+			case "action":
+				ir.LoadActionFromEtree(object)
+			case "menuitem":
+				ir.LoadMenuFromEtree(object)
+			case "record":
+			default:
+				panic(fmt.Errorf("Unknown tag `%s`", object.Tag))
+			}
+		}
+	}
+}
+
+/*
+loadCSVDataFile loads the data from a CSV data file into memory.
+*/
+func loadCSVDataFile(fileName string) {
+	// TODO
 }
