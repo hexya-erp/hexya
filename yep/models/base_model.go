@@ -47,6 +47,8 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
 	DeclareMethod(name, "Create", Create)
 	DeclareMethod(name, "Read", ReadModel)
+	DeclareMethod(name, "Write", Write)
+	DeclareMethod(name, "Unlink", Unlink)
 	DeclareMethod(name, "NameGet", NameGet)
 	DeclareMethod(name, "FieldsViewGet", FieldsViewGet)
 	DeclareMethod(name, "FieldsGet", FieldsGet)
@@ -100,6 +102,22 @@ func ReadModel(rs RecordSet, fields []string) []orm.Params {
 		}
 	}
 	return res
+}
+
+/*
+Write is the base implementation of the 'Write' method which updates
+records in the database with the given params.
+*/
+func Write(rs RecordSet, data orm.Params) int64 {
+	return rs.Write(data)
+}
+
+/*
+Unlink is the base implementation of the 'Unlink' method which deletes
+records in the database.
+*/
+func Unlink(rs RecordSet) int64 {
+	return rs.Unlink()
 }
 
 /*

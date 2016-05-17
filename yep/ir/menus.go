@@ -18,7 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
-	
+
 	"github.com/beevik/etree"
 )
 

@@ -108,7 +108,7 @@ func (env envStruct) Sync(data interface{}, cols ...string) int64 {
 	}
 	rs := newRecordStructFromData(env, data)
 	params := structToMap(data)
-	num := rs.Write(params)
+	num := rs.Call("Write", params).(int64)
 	return num
 }
 
