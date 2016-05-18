@@ -92,13 +92,13 @@ func (rs recordStruct) ForceSearch() RecordSet {
 Write updates the database with the given data and returns the number of updated rows.
 It panics in case of error.
 */
-func (rs recordStruct) Write(data orm.Params) int64 {
-	num, err := rs.qs.Update(data)
+func (rs recordStruct) Write(data orm.Params) bool {
+	_, err := rs.qs.Update(data)
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` Write error: %s", rs, err))
 	}
 	rs.updateStoredFields(data)
-	return num
+	return true
 }
 
 /*

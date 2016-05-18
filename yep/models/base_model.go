@@ -116,7 +116,7 @@ func ReadModel(rs RecordSet, fields []string) []orm.Params {
 Write is the base implementation of the 'Write' method which updates
 records in the database with the given params.
 */
-func Write(rs RecordSet, data orm.Params) int64 {
+func Write(rs RecordSet, data orm.Params) bool {
 	return rs.Write(data)
 }
 
@@ -303,24 +303,17 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 }
 
 type SearchParams struct {
-	Context tools.Context   `json:"context"`
 	Domain  json.RawMessage `json:"domain"`
 	Fields  []string        `json:"fields"`
-	Limit   interface{}     `json:"limit"`
-	Model   string          `json:"model"`
 	Offset  int             `json:"offset"`
-	Sort    string          `json:"sort"`
-}
-
-type SearchReadResult struct {
-	Records []orm.Params `json:"records"`
-	Length  int64        `json:"length"`
+	Limit   interface{}     `json:"limit"`
+	Order    string         `json:"order"`
 }
 
 /*
 SearchRead retrieves database records according to the filters defined in params.
 */
-func SearchRead(rs RecordSet, params SearchParams) *SearchReadResult {
+func SearchRead(rs RecordSet, params SearchParams) []orm.Params {
 	var fields []string
 	for _, f := range params.Fields {
 		fields = append(fields, GetFieldName(rs.ModelName(), f))
@@ -336,10 +329,5 @@ func SearchRead(rs RecordSet, params SearchParams) *SearchReadResult {
 		limit = 80
 	}
 	rs = rs.Limit(limit).Search()
-	records := rs.Call("Read", fields).([]orm.Params)
-	length := rs.SearchCount()
-	return &SearchReadResult{
-		Records: records,
-		Length:  length,
-	}
+	return rs.Call("Read", fields).([]orm.Params)
 }

@@ -167,15 +167,43 @@ func GetFieldValue(uid, id int64, model, field string) interface{} {
 	return res[0]
 }
 
+type SearchReadParams struct {
+	Context tools.Context   `json:"context"`
+	Domain  json.RawMessage `json:"domain"`
+	Fields  []string        `json:"fields"`
+	Limit   interface{}     `json:"limit"`
+	Model   string          `json:"model"`
+	Offset  int             `json:"offset"`
+	Sort    string          `json:"sort"`
+}
+
+type SearchReadResult struct {
+	Records []orm.Params `json:"records"`
+	Length  int64        `json:"length"`
+}
+
 /*
 SearchRead retrieves database records according to the filters defined in params.
 */
-func SearchRead(uid int64, params models.SearchParams) *models.SearchReadResult {
+func SearchRead(uid int64, params SearchReadParams) *SearchReadResult {
 	if uid == 0 {
 		panic(fmt.Errorf("User must be logged in to search database."))
 	}
 	model := tools.ConvertModelName(params.Model)
 	env := models.NewCursorEnvironment(uid)
 	rs := models.NewRecordSet(env, model)
-	return rs.Call("SearchRead", params).(*models.SearchReadResult)
+	srp := models.SearchParams{
+		Domain: params.Domain,
+		Fields: params.Fields,
+		Offset: params.Offset,
+		Limit:  params.Limit,
+		Order:  params.Sort,
+	}
+	records := rs.Call("SearchRead", srp).([]orm.Params)
+	length := rs.SearchCount()
+	return &SearchReadResult{
+		Records: records,
+		Length:  length,
+	}
+
 }

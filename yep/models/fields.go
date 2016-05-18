@@ -149,7 +149,7 @@ ref must be of type [modelName, fieldName]
 */
 func (fc *_fieldsCache) set(ref fieldRef, fInfo *fieldInfo) {
 	fc.cache[ref] = fInfo
-	colRef := fieldRef{modelName: ref.modelName, name: fInfo.column}
+	colRef := fieldRef{modelName: ref.modelName, name: fInfo.json}
 	fc.cacheByJSON[colRef] = fInfo
 	if fInfo.computed {
 		if fInfo.stored {
@@ -205,7 +205,7 @@ func registerModelFields(name string, structPtr interface{}) {
 		_, html := attrs["html"]
 		ref := fieldRef{name: sf.Name, modelName: name}
 		col := GetFieldColumn(ref.modelName, ref.name)
-		json, ok := tags["depends"]
+		json, ok := tags["json"]
 		if !ok {
 			if col != "" {
 				json = col

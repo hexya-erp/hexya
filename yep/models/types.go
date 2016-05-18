@@ -53,8 +53,8 @@ type RecordSet interface {
 	// query the database with the current filter and returns a new recordset with the queries ids
 	// Overwrite existing Ids if any
 	ForceSearch() RecordSet
-	// updates the database with the given data and returns the number of updated rows.
-	Write(orm.Params) int64
+	// updates the database with the given data and returns true.
+	Write(orm.Params) bool
 	// deletes the database record of this RecordSet and returns the number of deleted rows.
 	Unlink() int64
 	// returns a new RecordSet with the given additional filter condition
