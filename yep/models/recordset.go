@@ -237,22 +237,13 @@ exprs means condition expression.
 it converts data to []map[column]value.
 */
 func (rs recordStruct) Values(results *[]orm.Params, exprs ...string) int64 {
-	num, err := rs.qs.Values(results, exprs...)
+	dbFields := FilteredOnDBFields(rs.ModelName(), exprs)
+	num, err := rs.qs.Values(results, dbFields...)
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` Values() error: %s", rs, err))
 	}
-	return num
-
-}
-
-/*
-ValuesList query all data of the RecordSet and map to [][]interface
-it converts data to [][column_index]value
-*/
-func (rs recordStruct) ValuesList(results *[]orm.ParamsList, exprs ...string) int64 {
-	num, err := rs.qs.ValuesList(results, exprs...)
-	if err != nil {
-		panic(fmt.Errorf("recordSet `%s` ValuesList() error: %s", rs, err))
+	for i, rec := range rs.Records() {
+		rec.(recordStruct).computeFieldValues(&(*results)[i], exprs...)
 	}
 	return num
 }
@@ -262,11 +253,23 @@ ValuesFlat query all data and map to []interface.
 it's designed for one column record set, auto change to []value, not [][column]value.
 */
 func (rs recordStruct) ValuesFlat(result *orm.ParamsList, expr string) int64 {
-	num, err := rs.qs.ValuesFlat(result, expr)
-	if err != nil {
-		panic(fmt.Errorf("recordSet `%s` ValuesFlat() error: %s", rs, err))
+	if GetFieldColumn(rs.ModelName(), expr) != "" {
+		// expr is a stored field
+		num, err := rs.qs.ValuesFlat(result, expr)
+		if err != nil {
+			panic(fmt.Errorf("recordSet `%s` ValuesFlat() error: %s", rs, err))
+		}
+		return num
+	} else {
+		// expr is a computed field
+		*result = make(orm.ParamsList, int(rs.SearchCount()))
+		for i, rec := range rs.Records() {
+			params := make(orm.Params)
+			rec.(recordStruct).computeFieldValues(&params, expr)
+			(*result)[i] = params[GetFieldJSON(rs.ModelName(), expr)]
+		}
+		return 0
 	}
-	return num
 }
 
 /*
@@ -404,6 +407,26 @@ func (rs recordStruct) computeFields(structPtr interface{}) {
 		}
 		structField := ind.FieldByName(fInfo.name)
 		structField.Set(reflect.ValueOf(params[fInfo.name]))
+	}
+}
+
+/*
+computeFieldValues updates the given params with the given computed (non stored) fields
+or all the computed fields of the model if not given.
+*/
+func (rs recordStruct) computeFieldValues(params *orm.Params, fields ...string) {
+	fInfos, _ := fieldsCache.getComputedFields(rs.ModelName(), fields...)
+	for _, fInfo := range fInfos {
+		if _, exists := (*params)[fInfo.name]; exists {
+			// We already have the value we need in params
+			// probably because it was computed with another field
+			continue
+		}
+		newParams := rs.Call(fInfo.compute).(orm.Params)
+		for k, v := range newParams {
+			key := GetFieldJSON(rs.ModelName(), k)
+			(*params)[key] = v
+		}
 	}
 }
 

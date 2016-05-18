@@ -36,6 +36,7 @@ var (
 		"help":    2,
 		"compute": 2,
 		"depends": 2,
+		"json":    2,
 	}
 )
 
@@ -208,11 +209,37 @@ func GetFieldColumn(model, name string) string {
 	return fi.Column
 }
 
-// ConvertFieldName returns the field name of the given model with
+// GetFieldName returns the field name of the given model with
 // the given column. If column is already a field name, returns it
 // anyway.
 func GetFieldName(model, column string) string {
 	ref := fieldRef{modelName: model, name: column}
 	ref.ConvertToName()
 	return ref.name
+}
+
+// GetFieldJSON returns the json field name of the given model with
+// the given name. If name is already a json field name, returns it
+// anyway.
+func GetFieldJSON(model, name string) string {
+	ref := fieldRef{modelName: model, name: name}
+	fInfo, ok := fieldsCache.get(ref)
+	if !ok {
+		panic(fmt.Errorf("Unknown field `%s` in model`%s`", name, model))
+	}
+	return fInfo.json
+}
+
+/*
+FilteredOnDBFields returns the given list of fields for the given model
+without the non-stored fields.
+*/
+func FilteredOnDBFields(model string, fields []string) []string {
+	var res []string
+	for _, field := range fields {
+		if GetFieldColumn(model, field) != "" {
+			res = append(res, field)
+		}
+	}
+	return res
 }

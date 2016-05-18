@@ -82,9 +82,6 @@ type RecordSet interface {
 	// expres means condition expression.
 	// it converts data to []map[column]value.
 	Values(results *[]orm.Params, exprs ...string) int64
-	// query all data of the RecordSet and map to [][]interface
-	// it converts data to [][column_index]value
-	ValuesList(results *[]orm.ParamsList, exprs ...string) int64
 	// query all data and map to []interface.
 	// it's designed for one column record set, auto change to []value, not [][column]value.
 	ValuesFlat(result *orm.ParamsList, expr string) int64

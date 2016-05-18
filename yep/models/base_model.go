@@ -34,7 +34,7 @@ type BaseModel struct {
 	ID          int64     `orm:"column(id)"`
 	CreateDate  time.Time `orm:"auto_now_add"`
 	CreateUid   int64
-	WriteDate   time.Time `yep:"compute(ComputeWriteDate),store,depends(ID)" orm:"null"`
+	WriteDate   time.Time `yep:"compute(ComputeWriteDate);store;depends(ID)" orm:"null"`
 	WriteUid    int64
 	DisplayName string `orm:"-" yep:"compute(ComputeNameGet)"`
 }

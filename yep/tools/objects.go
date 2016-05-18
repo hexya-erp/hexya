@@ -48,6 +48,26 @@ func ConvertMethodName(val string) string {
 }
 
 /*
+SnakeCaseString returns the snake_case version of val.
+ */
+func SnakeCaseString(val string) string {
+	data := make([]byte, 0, len(val)*2)
+	j := false
+	num := len(val)
+	for i := 0; i < num; i++ {
+		d := val[i]
+		if i > 0 && d >= 'A' && d <= 'Z' && j {
+			data = append(data, '_')
+		}
+		if d != '_' {
+			j = true
+		}
+		data = append(data, d)
+	}
+	return strings.ToLower(string(data[:]))
+}
+
+/*
 GetStructFieldByJSONTag returns a pointer value of the struct field of the given structValue
 with the given JSON tag. If several are found, it returns the first one. If none are
 found it returns the zero value. If structType is not a Type of Kind struct, then it panics.

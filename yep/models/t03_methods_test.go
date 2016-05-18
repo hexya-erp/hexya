@@ -17,6 +17,7 @@ package models
 import (
 	"testing"
 
+	"github.com/npiganeau/yep/yep/orm"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -54,6 +55,18 @@ func TestComputedNonStoredFields(t *testing.T) {
 			env.Pool("User").OrderBy("UserName").ReadAll(&users)
 			So(users[0].DecoratedName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 			So(users[1].DecoratedName, ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+		})
+		Convey("Getting all users (Jane & Will) by values and checking DecoratedName", func() {
+			var params []orm.Params
+			env.Pool("User").OrderBy("UserName").Values(&params)
+			So(params[0]["decorated_name"], ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+			So(params[1]["decorated_name"], ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+		})
+		Convey("Getting all users (Jane & Will) by flat values and checking DecoratedName", func() {
+			var params orm.ParamsList
+			env.Pool("User").OrderBy("UserName").ValuesFlat(&params, "DecoratedName")
+			So(params[0], ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+			So(params[1], ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
 		})
 	})
 }

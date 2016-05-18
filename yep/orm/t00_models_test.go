@@ -447,5 +447,5 @@ go test -v github.com/npiganeau/yep/yep/orm
 	}
 
 	// Wait for model tests to finish and cool down
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 }

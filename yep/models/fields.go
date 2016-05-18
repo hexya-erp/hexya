@@ -26,7 +26,7 @@ import (
 
 var fieldsCache = &_fieldsCache{
 	cache:                make(map[fieldRef]*fieldInfo),
-	cacheByColumn:        make(map[fieldRef]*fieldInfo),
+	cacheByJSON:          make(map[fieldRef]*fieldInfo),
 	computedFields:       make(map[string][]*fieldInfo),
 	computedStoredFields: make(map[string][]*fieldInfo),
 	dependencyMap:        make(map[fieldRef][]computeData),
@@ -70,6 +70,7 @@ type fieldInfo struct {
 	modelName   string
 	name        string
 	column      string
+	json        string
 	description string
 	help        string
 	computed    bool
@@ -84,7 +85,7 @@ type fieldInfo struct {
 type _fieldsCache struct {
 	sync.RWMutex
 	cache                map[fieldRef]*fieldInfo
-	cacheByColumn        map[fieldRef]*fieldInfo
+	cacheByJSON          map[fieldRef]*fieldInfo
 	computedFields       map[string][]*fieldInfo
 	computedStoredFields map[string][]*fieldInfo
 	dependencyMap        map[fieldRef][]computeData
@@ -93,12 +94,12 @@ type _fieldsCache struct {
 
 /*
 get returns the fieldInfo of the given field.
-field can be of type [modelName, column] or [modelName, fieldName].
+field can be of type [modelName, json_name] or [modelName, fieldName].
 */
 func (fc *_fieldsCache) get(ref fieldRef) (fi *fieldInfo, ok bool) {
 	fi, ok = fc.cache[ref]
 	if !ok {
-		fi, ok = fc.cacheByColumn[ref]
+		fi, ok = fc.cacheByJSON[ref]
 	}
 	return
 }
@@ -106,9 +107,22 @@ func (fc *_fieldsCache) get(ref fieldRef) (fi *fieldInfo, ok bool) {
 /*
 getComputedFields returns the slice of fieldInfo of the computed, but not
 stored fields of the given modelName.
+If fields are given, return only fieldInfo in the list
 */
-func (fc *_fieldsCache) getComputedFields(modelName string) (fil []*fieldInfo, ok bool) {
-	fil, ok = fc.computedFields[modelName]
+func (fc *_fieldsCache) getComputedFields(modelName string, fields ...string) (fil []*fieldInfo, ok bool) {
+	fInfos, ok := fc.computedFields[modelName]
+	if len(fields) > 0 {
+		for _, f := range fields {
+			for _, fInfo := range fInfos {
+				if fInfo.name == tools.ConvertMethodName(f) {
+					fil = append(fil, fInfo)
+					continue
+				}
+			}
+		}
+	} else {
+		fil = fInfos
+	}
 	return
 }
 
@@ -136,7 +150,7 @@ ref must be of type [modelName, fieldName]
 func (fc *_fieldsCache) set(ref fieldRef, fInfo *fieldInfo) {
 	fc.cache[ref] = fInfo
 	colRef := fieldRef{modelName: ref.modelName, name: fInfo.column}
-	fc.cacheByColumn[colRef] = fInfo
+	fc.cacheByJSON[colRef] = fInfo
 	if fInfo.computed {
 		if fInfo.stored {
 			fc.computedStoredFields[fInfo.modelName] = append(fc.computedStoredFields[fInfo.modelName], fInfo)
@@ -190,9 +204,19 @@ func registerModelFields(name string, structPtr interface{}) {
 		}
 		_, html := attrs["html"]
 		ref := fieldRef{name: sf.Name, modelName: name}
+		col := GetFieldColumn(ref.modelName, ref.name)
+		json, ok := tags["depends"]
+		if !ok {
+			if col != "" {
+				json = col
+			} else {
+				json = tools.SnakeCaseString(sf.Name)
+			}
+		}
 		fInfo := fieldInfo{
 			name:        sf.Name,
-			column:      GetFieldColumn(ref.modelName, ref.name),
+			column:      col,
+			json:        json,
 			modelName:   name,
 			compute:     computeName,
 			computed:    computed,
