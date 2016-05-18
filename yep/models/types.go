@@ -32,7 +32,7 @@ type Environment interface {
 	Sudo(...int64) Environment
 	Pool(interface{}) RecordSet
 	Create(interface{}) RecordSet
-	Sync(interface{}, ...string) int64
+	Sync(interface{}, ...string) bool
 }
 
 /*

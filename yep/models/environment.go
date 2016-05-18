@@ -102,14 +102,14 @@ Sync writes the given data to database.
 data must be a struct pointer that has been originally populated by RecordSet.ReadOne()
 or RecordSet.ReadAll().
 */
-func (env envStruct) Sync(data interface{}, cols ...string) int64 {
+func (env envStruct) Sync(data interface{}, cols ...string) bool {
 	if err := checkStructPtr(data); err != nil {
 		panic(fmt.Errorf("<Environment.Sync>: %s", err))
 	}
 	rs := newRecordStructFromData(env, data)
 	params := structToMap(data)
-	num := rs.Call("Write", params).(int64)
-	return num
+	res := rs.Call("Write", params).(bool)
+	return res
 }
 
 /*
