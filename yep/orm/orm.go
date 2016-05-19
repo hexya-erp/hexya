@@ -122,6 +122,34 @@ func (o *orm) Insert(md interface{}) (int64, error) {
 	return id, nil
 }
 
+// insert new record of modelName from given Params
+func (o *orm) InsertValues(modelName string, p Params) (int64, error) {
+	mi, ok := modelCache.getByName(modelName)
+	if !ok {
+		panic(fmt.Errorf("Unknwon model `%s`", modelName))
+	}
+	names := make([]string, len(p))
+	names = addAutoColums(mi, names)
+	values := make([]interface{}, len(names))
+	i := 0
+	for k, v := range p {
+		names[i] = k
+		values[i] = v
+		i++
+	}
+	// Add orm auto values
+	for i, n := range names {
+		fi, ok := mi.fields.GetByAny(n)
+		if ok && fi.autoNowAdd {
+			tnow := time.Now()
+			o.alias.DbBaser.TimeToDB(&tnow, o.alias.TZ)
+			values[i] = tnow
+		}
+	}
+	id, err := o.alias.DbBaser.InsertValue(o.db, mi, false, names, values)
+	return id, err
+}
+
 // set auto pk field
 func (o *orm) setPk(mi *modelInfo, ind reflect.Value, id int64) {
 	if mi.fields.pk.auto {

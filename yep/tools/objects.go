@@ -49,7 +49,7 @@ func ConvertMethodName(val string) string {
 
 /*
 SnakeCaseString returns the snake_case version of val.
- */
+*/
 func SnakeCaseString(val string) string {
 	data := make([]byte, 0, len(val)*2)
 	j := false

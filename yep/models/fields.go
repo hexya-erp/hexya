@@ -204,7 +204,7 @@ func registerModelFields(name string, structPtr interface{}) {
 		}
 		_, html := attrs["html"]
 		ref := fieldRef{name: sf.Name, modelName: name}
-		col := GetFieldColumn(ref.modelName, ref.name)
+		col := getFieldColumn(ref.modelName, ref.name)
 		json, ok := tags["json"]
 		if !ok {
 			if col != "" {

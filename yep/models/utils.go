@@ -200,7 +200,7 @@ func getFieldType(ref fieldRef) tools.FieldType {
 // GetFieldColumn returns the column name of the given field of the
 // given model.
 // If name is already a column name return it anyway.
-func GetFieldColumn(model, name string) string {
+func getFieldColumn(model, name string) string {
 	fi, err := orm.FieldGet(model, name)
 	if err != nil {
 		// Non stored fields
@@ -234,10 +234,10 @@ func GetFieldJSON(model, name string) string {
 FilteredOnDBFields returns the given list of fields for the given model
 without the non-stored fields.
 */
-func FilteredOnDBFields(model string, fields []string) []string {
+func filteredOnDBFields(model string, fields []string) []string {
 	var res []string
 	for _, field := range fields {
-		if GetFieldColumn(model, field) != "" {
+		if getFieldColumn(model, field) != "" {
 			res = append(res, field)
 		}
 	}

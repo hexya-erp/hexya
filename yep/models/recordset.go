@@ -237,7 +237,7 @@ exprs means condition expression.
 it converts data to []map[column]value.
 */
 func (rs recordStruct) Values(results *[]orm.Params, exprs ...string) int64 {
-	dbFields := FilteredOnDBFields(rs.ModelName(), exprs)
+	dbFields := filteredOnDBFields(rs.ModelName(), exprs)
 	num, err := rs.qs.Values(results, dbFields...)
 	if err != nil {
 		panic(fmt.Errorf("recordSet `%s` Values() error: %s", rs, err))
@@ -253,7 +253,7 @@ ValuesFlat query all data and map to []interface.
 it's designed for one column record set, auto change to []value, not [][column]value.
 */
 func (rs recordStruct) ValuesFlat(result *orm.ParamsList, expr string) int64 {
-	if GetFieldColumn(rs.ModelName(), expr) != "" {
+	if getFieldColumn(rs.ModelName(), expr) != "" {
 		// expr is a stored field
 		num, err := rs.qs.ValuesFlat(result, expr)
 		if err != nil {
@@ -437,10 +437,15 @@ func (rs recordStruct) updateStoredFields(structPtrOrParams interface{}) {
 	// First get list of fields that have been passed through structPtrOrParams
 	var fieldNames []string
 	if params, ok := structPtrOrParams.(orm.Params); ok {
-		fieldNames = make([]string, len(params))
+		cpsf, _ := fieldsCache.getComputedStoredFields(rs.ModelName())
+		fieldNames = make([]string, len(params) + len(cpsf))
 		i := 0
 		for k, _ := range params {
 			fieldNames[i] = k
+			i++
+		}
+		for _, v := range cpsf {
+			fieldNames[i] = v.name
 			i++
 		}
 	} else {

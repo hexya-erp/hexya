@@ -57,6 +57,8 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "AddModifiers", AddModifiers)
 	DeclareMethod(name, "UpdateFieldNames", UpdateFieldNames)
 	DeclareMethod(name, "SearchRead", SearchRead)
+	DeclareMethod(name, "DefaultGet", DefaultGet)
+	DeclareMethod(name, "Onchange", Onchange)
 }
 
 /*
@@ -75,10 +77,23 @@ func ComputeNameGet(rs RecordSet) orm.Params {
 
 /*
 Create is the base implementation of the 'Create' method which creates
-a record in the database from the given structPtr
+a record in the database from the given structPtr.
+Returns the id of the created record and the associated RecordSet.
 */
-func Create(rs RecordSet, structPtr interface{}) RecordSet {
-	return rs.Env().Create(structPtr)
+func Create(rs RecordSet, data interface{}) RecordSet {
+	if md, ok := data.(map[string]interface{}); ok {
+		params := orm.Params(md)
+		id, err := rs.Env().Cr().InsertValues(rs.ModelName(), params)
+		if err != nil {
+			panic(fmt.Errorf("Create error: %s", err))
+		}
+		rStruct := rs.Filter("id", id).Search().(recordStruct)
+		rStruct.updateStoredFields(params)
+		rStruct.computeFieldValues(&params)
+		return rStruct
+	} else {
+		return rs.Env().Create(data)
+	}
 }
 
 /*
@@ -196,7 +211,7 @@ func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 	}
 	cols := make([]string, len(view.Fields))
 	for i, f := range view.Fields {
-		cols[i] = GetFieldColumn(rs.ModelName(), f)
+		cols[i] = getFieldColumn(rs.ModelName(), f)
 	}
 	fInfos := rs.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
 	arch := rs.Call("ProcessView", view.Arch, fInfos).(string)
@@ -254,7 +269,7 @@ If a field name is already column names then it does nothing.
 func UpdateFieldNames(rs RecordSet, doc *etree.Document) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
-		colName := GetFieldColumn(rs.ModelName(), fieldName)
+		colName := getFieldColumn(rs.ModelName(), fieldName)
 		fieldTag.RemoveAttr("name")
 		fieldTag.CreateAttr("name", colName)
 	}
@@ -303,11 +318,11 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 }
 
 type SearchParams struct {
-	Domain  json.RawMessage `json:"domain"`
-	Fields  []string        `json:"fields"`
-	Offset  int             `json:"offset"`
-	Limit   interface{}     `json:"limit"`
-	Order    string         `json:"order"`
+	Domain json.RawMessage `json:"domain"`
+	Fields []string        `json:"fields"`
+	Offset int             `json:"offset"`
+	Limit  interface{}     `json:"limit"`
+	Order  string          `json:"order"`
 }
 
 /*
@@ -330,4 +345,26 @@ func SearchRead(rs RecordSet, params SearchParams) []orm.Params {
 	}
 	rs = rs.Limit(limit).Search()
 	return rs.Call("Read", fields).([]orm.Params)
+}
+
+/*
+DefaultGet returns a Params map with the default values for the model.
+*/
+func DefaultGet(rs RecordSet) orm.Params {
+	// TODO Implement DefaultGet
+	return make(orm.Params)
+}
+
+type OnchangeParams struct {
+	Values   orm.Params        `json:"values"`
+	Fields   []string          `json:"field_name"`
+	Onchange map[string]string `json:"field_onchange"`
+}
+
+/*
+Onchange returns the values that must be modified in the pseudo-record given as params.Values
+*/
+func Onchange(rs RecordSet, params OnchangeParams) orm.Params {
+	// TODO Implement Onchange
+	return make(orm.Params)
 }

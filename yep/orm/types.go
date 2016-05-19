@@ -56,6 +56,8 @@ type Ormer interface {
 	Insert(interface{}) (int64, error)
 	// insert some models to database
 	InsertMulti(bulk int, mds interface{}) (int64, error)
+	// insert new record of modelName from given Params
+	InsertValues(modelName string, p Params) (int64, error)
 	// update model to database.
 	// cols set the columns those want to update.
 	// find model by Id(pk) field and update columns specified by fields, if cols is null then update all columns

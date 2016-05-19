@@ -144,6 +144,10 @@ func Execute(uid int64, params CallParams) interface{} {
 			newRes.Set(resVal.Index(0))
 		}
 		res = newRes.Interface()
+		// Return ID if res is a RecordSet
+		if rec, ok := res.(models.RecordSet); ok {
+			res = rec.Ids()[0]
+		}
 	}
 	return res
 }
