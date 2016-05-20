@@ -269,9 +269,9 @@ If a field name is already column names then it does nothing.
 func UpdateFieldNames(rs RecordSet, doc *etree.Document) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
-		colName := getFieldColumn(rs.ModelName(), fieldName)
+		jsonName := GetFieldJSON(rs.ModelName(), fieldName)
 		fieldTag.RemoveAttr("name")
-		fieldTag.CreateAttr("name", colName)
+		fieldTag.CreateAttr("name", jsonName)
 	}
 }
 
@@ -304,7 +304,7 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 		if !ok {
 			panic(fmt.Errorf("Unknown field: %+v", key))
 		}
-		res[f] = &FieldInfo{
+		res[fInfo.json] = &FieldInfo{
 			Help:       fInfo.help,
 			Searchable: true,
 			Depends:    fInfo.depends,
