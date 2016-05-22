@@ -34,7 +34,19 @@ type CallParams struct {
 /*
 Execute executes a method on an object
 */
-func Execute(uid int64, params CallParams) interface{} {
+func Execute(uid int64, params CallParams) (res interface{}, rError error) {
+	var rs models.RecordSet
+	defer func() {
+		if r := recover(); r != nil {
+			if rs != nil {
+				rs.Env().Cr().Rollback()
+			}
+			res = nil
+			rError = fmt.Errorf("%s", r)
+			return
+		}
+		rError = rs.Env().Cr().Commit()
+	}()
 	if uid == 0 {
 		panic(fmt.Errorf("User must be logged in to call model method."))
 	}
@@ -47,8 +59,11 @@ func Execute(uid int64, params CallParams) interface{} {
 	}
 	env := models.NewCursorEnvironment(uid, ctx)
 
+	// Begin transaction
+	env.Cr().Begin()
+
 	model := tools.ConvertModelName(params.Model)
-	rs := models.NewRecordSet(env, model)
+	rs = models.NewRecordSet(env, model)
 
 	// Try to parse the first argument of Args as id or ids.
 	var single bool
@@ -134,7 +149,7 @@ func Execute(uid int64, params CallParams) interface{} {
 		}
 	}
 
-	res := rs.Call(methodName, fnArgs...)
+	res = rs.Call(methodName, fnArgs...)
 
 	resVal := reflect.ValueOf(res)
 	if single && resVal.Kind() == reflect.Slice {
@@ -149,26 +164,38 @@ func Execute(uid int64, params CallParams) interface{} {
 			res = rec.Ids()[0]
 		}
 	}
-	return res
+	return
 }
 
 /*
 GetFieldValue retrieves the given field of the given model and id.
 */
-func GetFieldValue(uid, id int64, model, field string) interface{} {
+func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError error) {
+	var rs models.RecordSet
+	defer func() {
+		if r := recover(); r != nil {
+			if rs != nil {
+				rs.Env().Cr().Rollback()
+			}
+			res = nil
+			rError = fmt.Errorf("%s", r)
+		}
+	}()
 	if uid == 0 {
 		panic(fmt.Errorf("User must be logged in to retrieve field."))
 	}
 	model = tools.ConvertModelName(model)
 	field = models.GetFieldName(model, field)
 	env := models.NewCursorEnvironment(uid)
-	rs := models.NewRecordSet(env, model).Filter("ID", id).Search()
-	var res orm.ParamsList
-	rs.ValuesFlat(&res, field)
-	if len(res) == 0 {
-		return nil
+	rs = models.NewRecordSet(env, model).Filter("ID", id).Search()
+	var parms orm.ParamsList
+	rs.ValuesFlat(&parms, field)
+	if len(parms) == 0 {
+		res = nil
+	} else {
+		res = parms[0]
 	}
-	return res[0]
+	return
 }
 
 type SearchReadParams struct {
@@ -189,13 +216,23 @@ type SearchReadResult struct {
 /*
 SearchRead retrieves database records according to the filters defined in params.
 */
-func SearchRead(uid int64, params SearchReadParams) *SearchReadResult {
+func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rError error) {
+	var rs models.RecordSet
+	defer func() {
+		if r := recover(); r != nil {
+			if rs != nil {
+				rs.Env().Cr().Rollback()
+			}
+			res = nil
+			rError = fmt.Errorf("%s", r)
+		}
+	}()
 	if uid == 0 {
 		panic(fmt.Errorf("User must be logged in to search database."))
 	}
 	model := tools.ConvertModelName(params.Model)
 	env := models.NewCursorEnvironment(uid)
-	rs := models.NewRecordSet(env, model)
+	rs = models.NewRecordSet(env, model)
 	srp := models.SearchParams{
 		Domain: params.Domain,
 		Fields: params.Fields,
@@ -205,9 +242,9 @@ func SearchRead(uid int64, params SearchReadParams) *SearchReadResult {
 	}
 	records := rs.Call("SearchRead", srp).([]orm.Params)
 	length := rs.SearchCount()
-	return &SearchReadResult{
+	res = &SearchReadResult{
 		Records: records,
 		Length:  length,
 	}
-
+	return
 }

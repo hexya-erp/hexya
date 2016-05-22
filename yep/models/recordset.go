@@ -438,7 +438,7 @@ func (rs recordStruct) updateStoredFields(structPtrOrParams interface{}) {
 	var fieldNames []string
 	if params, ok := structPtrOrParams.(orm.Params); ok {
 		cpsf, _ := fieldsCache.getComputedStoredFields(rs.ModelName())
-		fieldNames = make([]string, len(params) + len(cpsf))
+		fieldNames = make([]string, len(params)+len(cpsf))
 		i := 0
 		for k, _ := range params {
 			fieldNames[i] = k

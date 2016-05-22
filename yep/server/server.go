@@ -42,7 +42,7 @@ type ResponseRPC struct {
 /*
 RPC serializes the given struct as JSON-RPC into the response body.
 */
-func RPC(c *gin.Context, code int, obj interface{}) {
+func RPC(c *gin.Context, code int, obj interface{}, err ...error) {
 	id, ok := c.Get("id")
 	if !ok {
 		var req RequestRPC
@@ -51,6 +51,10 @@ func RPC(c *gin.Context, code int, obj interface{}) {
 			return
 		}
 		id = req.ID
+	}
+	if len(err) > 0 && err[0] != nil {
+		c.String(http.StatusInternalServerError, "%s", err[0])
+		return
 	}
 	resp := ResponseRPC{
 		JsonRPC: "2.0",
