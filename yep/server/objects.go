@@ -71,6 +71,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	var ids []float64
 	if len(params.Args) > 0 {
 		if err := json.Unmarshal(params.Args[0], &ids); err != nil {
+			// Unable to unmarshal in a list of IDs, trying with a single id
 			var id float64
 			if err := json.Unmarshal(params.Args[0], &id); err == nil {
 				rs = rs.Filter("ID", id)
@@ -152,18 +153,24 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	res = rs.Call(methodName, fnArgs...)
 
 	resVal := reflect.ValueOf(res)
-	if single && resVal.Kind() == reflect.Slice {
+	if single && idsParsed && resVal.Kind() == reflect.Slice {
 		// Return only the first element of the slice if called with only one id.
 		newRes := reflect.New(resVal.Type().Elem()).Elem()
 		if resVal.Len() > 0 {
 			newRes.Set(resVal.Index(0))
 		}
 		res = newRes.Interface()
-		// Return ID if res is a RecordSet
-		if rec, ok := res.(models.RecordSet); ok {
+	}
+
+	// Return ID(s) if res is a RecordSet
+	if rec, ok := res.(models.RecordSet); ok {
+		if len(rec.Ids()) == 1 {
 			res = rec.Ids()[0]
+		} else {
+			res = rec.Ids()
 		}
 	}
+
 	return
 }
 
@@ -199,13 +206,13 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 }
 
 type SearchReadParams struct {
-	Context tools.Context   `json:"context"`
-	Domain  json.RawMessage `json:"domain"`
-	Fields  []string        `json:"fields"`
-	Limit   interface{}     `json:"limit"`
-	Model   string          `json:"model"`
-	Offset  int             `json:"offset"`
-	Sort    string          `json:"sort"`
+	Context tools.Context `json:"context"`
+	Domain  models.Domain `json:"domain"`
+	Fields  []string      `json:"fields"`
+	Limit   interface{}   `json:"limit"`
+	Model   string        `json:"model"`
+	Offset  int           `json:"offset"`
+	Sort    string        `json:"sort"`
 }
 
 type SearchReadResult struct {

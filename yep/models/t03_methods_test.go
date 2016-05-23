@@ -30,6 +30,19 @@ type User_WithDecoratedName struct {
 	DisplayName   string
 }
 
+type Profile_Simple struct {
+	ID    int64
+	Age   int16
+	Money float64
+}
+
+type User_Simple struct {
+	ID       int64
+	UserName string
+	Profile  *Profile_Simple
+	Age      int16
+}
+
 func TestMethods(t *testing.T) {
 	Convey("Testing simple methods", t, func() {
 		env = NewEnvironment(dORM, 1)
@@ -74,17 +87,6 @@ func TestComputedNonStoredFields(t *testing.T) {
 func TestComputedStoredFields(t *testing.T) {
 	Convey("Testing stored computed fields", t, func() {
 		env = NewEnvironment(dORM, 1)
-		type Profile_Simple struct {
-			ID    int64
-			Age   int16
-			Money float64
-		}
-		type User_Simple struct {
-			ID       int64
-			UserName string
-			Profile  *Profile_Simple
-			Age      int16
-		}
 		Convey("Checking that user Jane is 23", func() {
 			var userJane User_Simple
 			env.Pool("User").Filter("Email", "jane.smith@example.com").ReadOne(&userJane)

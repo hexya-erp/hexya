@@ -57,7 +57,7 @@ func TestCreateRecordSet(t *testing.T) {
 					Money: 12345,
 				},
 			}
-			rsProfile := NewRecordSet(env, "Profile")
+			rsProfile := env.Pool("Profile")
 			profile := rsProfile.Call("Create", userJane.Profile).(RecordSet)
 			So(profile.Ids(), ShouldContain, 1)
 			So(userJane.Profile.ID, ShouldEqual, 1)

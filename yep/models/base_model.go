@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"encoding/json"
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/orm"
@@ -318,11 +317,11 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 }
 
 type SearchParams struct {
-	Domain json.RawMessage `json:"domain"`
-	Fields []string        `json:"fields"`
-	Offset int             `json:"offset"`
-	Limit  interface{}     `json:"limit"`
-	Order  string          `json:"order"`
+	Domain Domain      `json:"domain"`
+	Fields []string    `json:"fields"`
+	Offset int         `json:"offset"`
+	Limit  interface{} `json:"limit"`
+	Order  string      `json:"order"`
 }
 
 /*
@@ -333,7 +332,9 @@ func SearchRead(rs RecordSet, params SearchParams) []orm.Params {
 	for _, f := range params.Fields {
 		fields = append(fields, GetFieldName(rs.ModelName(), f))
 	}
-	// TODO Add support for domain & filtering
+	searchCond := ParseDomain(params.Domain)
+	rs = rs.SetCond(searchCond)
+	// TODO Add support for ordering & offset
 	var limit int
 	switch params.Limit.(type) {
 	case bool:

@@ -105,6 +105,7 @@ func TestSyncDb(t *testing.T) {
 }
 
 type User struct {
+	ID            int64
 	UserName      string `orm:"size(30);unique" yep:"string(Name);help(The user's username)"`
 	DecoratedName string `orm:"-" yep:"compute(computeDecoratedName)"`
 	Email         string `orm:"size(100)" yep:"help(The user's email address)"`
