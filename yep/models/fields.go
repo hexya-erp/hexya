@@ -15,40 +15,12 @@
 package models
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 	"sync"
 
-	"github.com/npiganeau/yep/yep/orm"
 	"github.com/npiganeau/yep/yep/tools"
 )
-
-var fieldsCache = &_fieldsCache{
-	cache:                make(map[fieldRef]*fieldInfo),
-	cacheByJSON:          make(map[fieldRef]*fieldInfo),
-	computedFields:       make(map[string][]*fieldInfo),
-	computedStoredFields: make(map[string][]*fieldInfo),
-	dependencyMap:        make(map[fieldRef][]computeData),
-}
-
-/*
-field is the key to find a field in the fieldsCache
-*/
-type fieldRef struct {
-	modelName string
-	name      string
-}
-
-// ConvertToName converts the given field ref to a fieldRef
-// of type [modelName, fieldName].
-func (fr *fieldRef) ConvertToName() {
-	fi, ok := fieldsCache.get(*fr)
-	if !ok {
-		panic(fmt.Errorf("unknown fieldRef `%s`", *fr))
-	}
-	fr.name = fi.name
-}
 
 /*
 computeData holds data to recompute another field.
@@ -63,43 +35,69 @@ type computeData struct {
 	path      string
 }
 
-/*
-fieldInfo holds the meta information about a field
-*/
-type fieldInfo struct {
-	modelName   string
-	name        string
-	column      string
-	json        string
-	description string
-	help        string
-	computed    bool
-	stored      bool
-	compute     string
-	depends     []string
-	html        bool
-	fieldType   tools.FieldType
-}
-
-// fieldsCache is the fieldInfo collection
-type _fieldsCache struct {
+// fieldsCollection is a collection of fieldInfo instances in a model.
+type fieldsCollection struct {
 	sync.RWMutex
-	cache                map[fieldRef]*fieldInfo
-	cacheByJSON          map[fieldRef]*fieldInfo
-	computedFields       map[string][]*fieldInfo
-	computedStoredFields map[string][]*fieldInfo
-	dependencyMap        map[fieldRef][]computeData
-	done                 bool
+	registryByName       map[string]*fieldInfo
+	registryByJSON       map[string]*fieldInfo
+	computedFields       []*fieldInfo
+	computedStoredFields []*fieldInfo
+	//dependencyMap        map[fieldRef][]computeData
+	done bool
 }
 
+// newFieldsCollection returns a pointer to a new empty fieldsCollection with
+// all maps initialized.
+func newFieldsCollection() *fieldsCollection {
+	return &fieldsCollection{
+		registryByName: make(map[string]*fieldInfo),
+		registryByJSON: make(map[string]*fieldInfo),
+		//dependencyMap:        make(map[fieldRef][]computeData),
+	}
+}
+
+// fieldInfo holds the meta information about a field
+type fieldInfo struct {
+	modelInfo    *modelInfo
+	name         string
+	json         string
+	description  string
+	help         string
+	computed     bool
+	stored       bool
+	compute      string
+	depends      []string
+	html         bool
+	relatedModel *modelInfo
+	fieldType    tools.FieldType
+}
+
+///*
+//field is the key to find a field in the fieldsCache
+//*/
+//type fieldRef struct {
+//	modelName string
+//	name      string
+//}
+//
+//// ConvertToName converts the given field ref to a fieldRef
+//// of type [modelName, fieldName].
+//func (fr *fieldRef) ConvertToName() {
+//	fi, ok := fieldsCache.get(*fr)
+//	if !ok {
+//		panic(fmt.Errorf("unknown fieldRef `%s`", *fr))
+//	}
+//	fr.name = fi.name
+//}
+
 /*
-get returns the fieldInfo of the given field.
-field can be of type [modelName, json_name] or [modelName, fieldName].
+get returns the fieldInfo of the field with the given name.
+name can be either the name of the field or its JSON name.
 */
-func (fc *_fieldsCache) get(ref fieldRef) (fi *fieldInfo, ok bool) {
-	fi, ok = fc.cache[ref]
+func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
+	fi, ok = fc.registryByName[name]
 	if !ok {
-		fi, ok = fc.cacheByJSON[ref]
+		fi, ok = fc.registryByJSON[name]
 	}
 	return
 }
@@ -109,8 +107,8 @@ getComputedFields returns the slice of fieldInfo of the computed, but not
 stored fields of the given modelName.
 If fields are given, return only fieldInfo in the list
 */
-func (fc *_fieldsCache) getComputedFields(modelName string, fields ...string) (fil []*fieldInfo, ok bool) {
-	fInfos, ok := fc.computedFields[modelName]
+func (fc *fieldsCollection) getComputedFields(fields ...string) (fil []*fieldInfo) {
+	fInfos := fc.computedFields
 	if len(fields) > 0 {
 		for _, f := range fields {
 			for _, fInfo := range fInfos {
@@ -130,143 +128,125 @@ func (fc *_fieldsCache) getComputedFields(modelName string, fields ...string) (f
 getComputedStoredFields returns the slice of fieldInfo of the computed and stored
 fields of the given modelName.
 */
-func (fc *_fieldsCache) getComputedStoredFields(modelName string) (fil []*fieldInfo, ok bool) {
-	fil, ok = fc.computedStoredFields[modelName]
+func (fc *fieldsCollection) getComputedStoredFields() (fil []*fieldInfo) {
+	fil = fc.computedStoredFields
 	return
 }
 
-/*
-getDependentFields return the fields that must be recomputed when ref is modified.
-*/
-func (fc *_fieldsCache) getDependentFields(ref fieldRef) (target []computeData, ok bool) {
-	target, ok = fc.dependencyMap[ref]
-	return
-}
+///*
+//getDependentFields return the fields that must be recomputed when ref is modified.
+//*/
+//func (fc *_fieldsCache) getDependentFields(ref fieldRef) (target []computeData, ok bool) {
+//	target, ok = fc.dependencyMap[ref]
+//	return
+//}
 
 /*
-set adds the given fieldInfo to the fieldsCache.
-ref must be of type [modelName, fieldName]
+add adds the given fieldInfo to the fieldsCollection.
 */
-func (fc *_fieldsCache) set(ref fieldRef, fInfo *fieldInfo) {
-	fc.cache[ref] = fInfo
-	colRef := fieldRef{modelName: ref.modelName, name: fInfo.json}
-	fc.cacheByJSON[colRef] = fInfo
+func (fc *fieldsCollection) add(fInfo *fieldInfo) {
+	name := fInfo.name
+	jsonName := fInfo.json
+	fc.registryByName[name] = fInfo
+	fc.registryByJSON[jsonName] = fInfo
 	if fInfo.computed {
 		if fInfo.stored {
-			fc.computedStoredFields[fInfo.modelName] = append(fc.computedStoredFields[fInfo.modelName], fInfo)
+			fc.computedStoredFields = append(fc.computedStoredFields, fInfo)
 		} else {
-			fc.computedFields[fInfo.modelName] = append(fc.computedFields[fInfo.modelName], fInfo)
+			fc.computedFields = append(fc.computedFields, fInfo)
 		}
 	}
 }
 
-/*
-setDependency adds a dependency in the dependencyMap.
-target field depends on ref field, i.e. when ref field is modified,
-target field must be recomputed.
-*/
-func (fc *_fieldsCache) setDependency(ref fieldRef, target computeData) {
-	fc.dependencyMap[ref] = append(fc.dependencyMap[ref], target)
-}
+///*
+//setDependency adds a dependency in the dependencyMap.
+//target field depends on ref field, i.e. when ref field is modified,
+//target field must be recomputed.
+//*/
+//func (fc *_fieldsCache) setDependency(ref fieldRef, target computeData) {
+//	fc.dependencyMap[ref] = append(fc.dependencyMap[ref], target)
+//}
 
-/*
-registerModelFields populates the fieldsCache with the given structPtr fields
-*/
-func registerModelFields(name string, structPtr interface{}) {
+// createFieldInfo creates and returns a new fieldInfo pointer from the given
+// StructField and modelInfo.
+func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	var (
 		attrs map[string]bool
 		tags  map[string]string
 	)
-
-	val := reflect.ValueOf(structPtr)
-	ind := reflect.Indirect(val)
-
-	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		panic(fmt.Errorf("<models.registerModelFields> cannot use non-ptr model struct `%s`", getModelName(structPtr)))
+	parseStructTag(sf.Tag.Get(defaultStructTagName), &attrs, &tags)
+	desc, ok := tags["string"]
+	if !ok {
+		desc = sf.Name
 	}
-
-	for i := 0; i < ind.NumField(); i++ {
-		sf := ind.Type().Field(i)
-		if sf.PkgPath != "" {
-			// Skip private fields
-			continue
-		}
-		parseStructTag(sf.Tag.Get(defaultStructTagName), &attrs, &tags)
-		desc, ok := tags["string"]
-		if !ok {
-			desc = sf.Name
-		}
-		computeName, computed := tags["compute"]
-		_, stored := attrs["store"]
-		var depends []string
-		if depTag, ok := tags["depends"]; ok {
-			depends = strings.Split(depTag, defaultDependsTagDelim)
-		}
-		_, html := attrs["html"]
-		ref := fieldRef{name: sf.Name, modelName: name}
-		col := getFieldColumn(ref.modelName, ref.name)
-		json, ok := tags["json"]
-		if !ok {
-			if col != "" {
-				json = col
-			} else {
-				json = tools.SnakeCaseString(sf.Name)
-			}
-		}
-		fInfo := fieldInfo{
-			name:        sf.Name,
-			column:      col,
-			json:        json,
-			modelName:   name,
-			compute:     computeName,
-			computed:    computed,
-			stored:      stored,
-			depends:     depends,
-			description: desc,
-			help:        tags["help"],
-			html:        html,
-		}
-		fieldsCache.set(ref, &fInfo)
-		fInfo.fieldType = getFieldType(ref)
+	computeName, computed := tags["compute"]
+	_, stored := attrs["store"]
+	var depends []string
+	if depTag, ok := tags["depends"]; ok {
+		depends = strings.Split(depTag, defaultDependsTagDelim)
 	}
+	_, html := attrs["html"]
+	json, ok := tags["json"]
+	if !ok {
+		json = tools.SnakeCaseString(sf.Name)
+	}
+	typStr, ok := tags["type"]
+	typ := tools.FieldType(typStr)
+	if !ok {
+		typ = getFieldType(sf.Type)
+	}
+	fInfo := fieldInfo{
+		name:        sf.Name,
+		json:        json,
+		modelInfo:   mi,
+		compute:     computeName,
+		computed:    computed,
+		stored:      stored,
+		depends:     depends,
+		description: desc,
+		help:        tags["help"],
+		html:        html,
+		fieldType:   typ,
+	}
+	return &fInfo
 }
 
-/*
-processDepends populates the dependsMap of the fieldsCache from the depends strings of
-each fieldInfo instance.
-*/
-func processDepends() {
-	for targetField, fInfo := range fieldsCache.cache {
-		var (
-			refName string
-		)
-		for _, depString := range fInfo.depends {
-			if depString != "" {
-				tokens := strings.Split(depString, orm.ExprSep)
-				refName = tokens[len(tokens)-1]
-				refModelName := getRelatedModelName(targetField.modelName, depString)
-				refField := fieldRef{
-					modelName: refModelName,
-					name:      refName,
-				}
-				path := strings.Join(tokens[:len(tokens)-1], orm.ExprSep)
-				targetComputeData := computeData{
-					modelName: fInfo.modelName,
-					compute:   fInfo.compute,
-					path:      path,
-				}
-				fieldsCache.setDependency(refField, targetComputeData)
-			}
-		}
-	}
-}
+///*
+//processDepends populates the dependsMap of the fieldsCache from the depends strings of
+//each fieldInfo instance.
+//*/
+//func processDepends() {
+//	for targetField, fInfo := range fieldsCache.cache {
+//		var (
+//			refName string
+//		)
+//		for _, depString := range fInfo.depends {
+//			if depString != "" {
+//				tokens := strings.Split(depString, orm.ExprSep)
+//				refName = tokens[len(tokens)-1]
+//				refModelName := getRelatedModelName(targetField.modelName, depString)
+//				refField := fieldRef{
+//					modelName: refModelName,
+//					name:      refName,
+//				}
+//				path := strings.Join(tokens[:len(tokens)-1], orm.ExprSep)
+//				targetComputeData := computeData{
+//					modelName: fInfo.modelName,
+//					compute:   fInfo.compute,
+//					path:      path,
+//				}
+//				fieldsCache.setDependency(refField, targetComputeData)
+//			}
+//		}
+//	}
+//}
 
-/*
-getRelatedModelName returns the model name of the field given by path calculated from the origin model.
-path is a query string as used in RecordSet.Filter()
-*/
-func getRelatedModelName(origin, path string) string {
-	qs := orm.NewOrm().QueryTable(origin)
-	modelName, _ := qs.TargetModelField(path)
-	return modelName
-}
+///*
+//getRelatedModelName returns the model name of the field given by path calculated from the origin model.
+//path is a query string as used in RecordSet.Filter()
+//*/
+//func getRelatedModelName(origin, path string) string {
+//	qs := orm.NewOrm().QueryTable(origin)
+//	modelName, _ := qs.TargetModelField(path)
+//	return modelName
+//}

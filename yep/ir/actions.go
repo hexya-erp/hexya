@@ -17,11 +17,9 @@ package ir
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/beevik/etree"
-	"github.com/npiganeau/yep/yep/orm"
 )
 
 type ActionType string
@@ -50,34 +48,34 @@ func MakeActionRef(id string) ActionRef {
 
 type ActionRef [2]string
 
-func (e *ActionRef) String() string {
-	sl := []string{e[0], e[1]}
-	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
-}
-
-func (e *ActionRef) FieldType() int {
-	return orm.TypeTextField
-}
-
-func (e *ActionRef) SetRaw(value interface{}) error {
-	switch d := value.(type) {
-	case string:
-		dTrimmed := strings.Trim(d, "[]")
-		tokens := strings.Split(dTrimmed, ",")
-		if len(tokens) > 1 {
-			*e = [2]string{tokens[0], tokens[1]}
-			return nil
-		}
-		e = nil
-		return fmt.Errorf("<ActionRef.SetRaw>Unable to parse %s", d)
-	default:
-		return fmt.Errorf("<ActionRef.SetRaw> unknown value `%v`", value)
-	}
-}
-
-func (e *ActionRef) RawValue() interface{} {
-	return e.String()
-}
+//func (e *ActionRef) String() string {
+//	sl := []string{e[0], e[1]}
+//	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
+//}
+//
+//func (e *ActionRef) FieldType() int {
+//	return orm.TypeTextField
+//}
+//
+//func (e *ActionRef) SetRaw(value interface{}) error {
+//	switch d := value.(type) {
+//	case string:
+//		dTrimmed := strings.Trim(d, "[]")
+//		tokens := strings.Split(dTrimmed, ",")
+//		if len(tokens) > 1 {
+//			*e = [2]string{tokens[0], tokens[1]}
+//			return nil
+//		}
+//		e = nil
+//		return fmt.Errorf("<ActionRef.SetRaw>Unable to parse %s", d)
+//	default:
+//		return fmt.Errorf("<ActionRef.SetRaw> unknown value `%v`", value)
+//	}
+//}
+//
+//func (e *ActionRef) RawValue() interface{} {
+//	return e.String()
+//}
 
 func (e *ActionRef) MarshalJSON() ([]byte, error) {
 	if e[0] == "" {
@@ -86,8 +84,6 @@ func (e *ActionRef) MarshalJSON() ([]byte, error) {
 	sl := []string{e[0], e[1]}
 	return json.Marshal(sl)
 }
-
-var _ orm.Fielder = new(ActionRef)
 
 type ActionsCollection struct {
 	sync.RWMutex

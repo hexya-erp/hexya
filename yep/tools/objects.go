@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 )
 
 /*
@@ -47,24 +48,22 @@ func ConvertMethodName(val string) string {
 	return res
 }
 
-/*
-SnakeCaseString returns the snake_case version of val.
-*/
-func SnakeCaseString(val string) string {
-	data := make([]byte, 0, len(val)*2)
-	j := false
-	num := len(val)
-	for i := 0; i < num; i++ {
-		d := val[i]
-		if i > 0 && d >= 'A' && d <= 'Z' && j {
-			data = append(data, '_')
+
+// SnakeCaseString convert the given string to snake case following the Golang format:
+// acronyms are converted to lower-case and preceded by an underscore.
+func SnakeCaseString(in string) string {
+	runes := []rune(in)
+	length := len(runes)
+
+	var out []rune
+	for i := 0; i < length; i++ {
+		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
+			out = append(out, '_')
 		}
-		if d != '_' {
-			j = true
-		}
-		data = append(data, d)
+		out = append(out, unicode.ToLower(runes[i]))
 	}
-	return strings.ToLower(string(data[:]))
+
+	return string(out)
 }
 
 /*

@@ -17,11 +17,9 @@ package ir
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/beevik/etree"
-	"github.com/npiganeau/yep/yep/orm"
 )
 
 type ViewType string
@@ -58,34 +56,34 @@ func MakeViewRef(id string) ViewRef {
 
 type ViewRef [2]string
 
-func (e *ViewRef) String() string {
-	sl := []string{e[0], e[1]}
-	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
-}
-
-func (e *ViewRef) FieldType() int {
-	return orm.TypeTextField
-}
-
-func (e *ViewRef) SetRaw(value interface{}) error {
-	switch d := value.(type) {
-	case string:
-		dTrimmed := strings.Trim(d, "[]")
-		tokens := strings.Split(dTrimmed, ",")
-		if len(tokens) > 1 {
-			*e = [2]string{tokens[0], tokens[1]}
-			return nil
-		}
-		e = nil
-		return fmt.Errorf("<ViewRef.SetRaw> Unable to parse %s", d)
-	default:
-		return fmt.Errorf("<ViewRef.SetRaw> unknown value `%v`", value)
-	}
-}
-
-func (e *ViewRef) RawValue() interface{} {
-	return e.String()
-}
+//func (e *ViewRef) String() string {
+//	sl := []string{e[0], e[1]}
+//	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
+//}
+//
+//func (e *ViewRef) FieldType() int {
+//	return orm.TypeTextField
+//}
+//
+//func (e *ViewRef) SetRaw(value interface{}) error {
+//	switch d := value.(type) {
+//	case string:
+//		dTrimmed := strings.Trim(d, "[]")
+//		tokens := strings.Split(dTrimmed, ",")
+//		if len(tokens) > 1 {
+//			*e = [2]string{tokens[0], tokens[1]}
+//			return nil
+//		}
+//		e = nil
+//		return fmt.Errorf("<ViewRef.SetRaw> Unable to parse %s", d)
+//	default:
+//		return fmt.Errorf("<ViewRef.SetRaw> unknown value `%v`", value)
+//	}
+//}
+//
+//func (e *ViewRef) RawValue() interface{} {
+//	return e.String()
+//}
 
 func (e *ViewRef) MarshalJSON() ([]byte, error) {
 	if e[0] == "" {
@@ -95,7 +93,7 @@ func (e *ViewRef) MarshalJSON() ([]byte, error) {
 	return json.Marshal(sl)
 }
 
-var _ orm.Fielder = new(ViewRef)
+//var _ orm.Fielder = new(ViewRef)
 
 type ViewsCollection struct {
 	sync.RWMutex

@@ -16,10 +16,10 @@ package models
 
 import (
 	"fmt"
-	"github.com/npiganeau/yep/yep/orm"
-	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 	"strings"
+
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 const (
@@ -37,6 +37,7 @@ var (
 		"compute": 2,
 		"depends": 2,
 		"json":    2,
+		"type":    2,
 	}
 )
 
@@ -66,7 +67,9 @@ func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string
 
 /*
 checkStructPtr checks that the given data is a struct ptr valid for receiving data from
-the database through the RecordSet API.
+the database through the RecordSet API. That is:
+- data must be a struct pointer or a pointer to a slice of struct (or struct pointer) if allowSlice is true
+- The struct must contain an ID field of type int64
 It returns an error if it not the case.
 */
 func checkStructPtr(data interface{}, allowSlice ...bool) error {
@@ -98,6 +101,25 @@ func checkStructPtr(data interface{}, allowSlice ...bool) error {
 		return fmt.Errorf("Struct ID field must be of type `int64`")
 	}
 	return nil
+}
+
+// getStructValue returns the struct Value of the given structPtr
+// It panics if structPtr is not a struct pointer.
+func getStructValue(structPtr interface{}) reflect.Value {
+	if err := checkStructPtr(structPtr); err != nil {
+		panic(err)
+	}
+	val := reflect.ValueOf(structPtr)
+	return reflect.Indirect(val)
+}
+
+// getStructType returns the struct Type of the given structPtr
+// It panics if structPtr is not a struct pointer.
+func getStructType(structPtr interface{}) reflect.Type {
+	if err := checkStructPtr(structPtr); err != nil {
+		panic(err)
+	}
+	return reflect.TypeOf(structPtr).Elem()
 }
 
 /*
@@ -152,94 +174,38 @@ func structToMap(structPtr interface{}) map[string]interface{} {
 }
 
 /*
-getFieldType returns the FieldType of the given ref field
+getFieldType returns the FieldType corresponding to the given reflect.Type.
 */
-func getFieldType(ref fieldRef) tools.FieldType {
-	fi, err := orm.FieldGet(ref.modelName, ref.name)
-	if err != nil {
-		return tools.NO_TYPE
-	}
-	fc, _ := fieldsCache.get(ref)
-	switch fi.FieldType {
-	case orm.TypeBooleanField:
-		return tools.BOOLEAN
-	case orm.TypeCharField:
-		return tools.CHAR
-	case orm.TypeTextField:
-		if fc.html {
-			return tools.HTML
-		} else {
-			return tools.TEXT
-		}
-	case orm.TypeDateField:
-		return tools.DATE
-	case orm.TypeDateTimeField:
-		return tools.DATETIME
-	case orm.TypeFloatField:
-		return tools.FLOAT
-	case orm.TypeDecimalField:
-		return tools.FLOAT
-	case orm.RelForeignKey:
-		return tools.MANY2ONE
-	case orm.RelOneToOne:
-		return tools.ONE2ONE
-	case orm.RelReverseOne:
-		return tools.ONE2MANY
-	case orm.RelManyToMany:
-		return tools.MANY2MANY
-	case orm.RelReverseMany:
-		return tools.NO_TYPE
-	}
+func getFieldType(typ reflect.Type) tools.FieldType {
+	k := typ.Kind()
 	switch {
-	case fi.FieldType&orm.IsIntegerField > 0:
+	case k == reflect.Bool:
+		return tools.BOOLEAN
+	case k >= reflect.Int && k <= reflect.Uint64:
 		return tools.INTEGER
-	}
-	return tools.NO_TYPE
-}
-
-// GetFieldColumn returns the column name of the given field of the
-// given model.
-// If name is already a column name return it anyway.
-func getFieldColumn(model, name string) string {
-	fi, err := orm.FieldGet(model, name)
-	if err != nil {
-		// Non stored fields
-		return ""
-	}
-	return fi.Column
-}
-
-// GetFieldName returns the field name of the given model with
-// the given column. If column is already a field name, returns it
-// anyway.
-func GetFieldName(model, column string) string {
-	ref := fieldRef{modelName: model, name: column}
-	ref.ConvertToName()
-	return ref.name
-}
-
-// GetFieldJSON returns the json field name of the given model with
-// the given name. If name is already a json field name, returns it
-// anyway.
-func GetFieldJSON(model, name string) string {
-	ref := fieldRef{modelName: model, name: name}
-	fInfo, ok := fieldsCache.get(ref)
-	if !ok {
-		panic(fmt.Errorf("Unknown field `%s` in model`%s`", name, model))
-	}
-	return fInfo.json
-}
-
-/*
-FilteredOnDBFields returns the given list of fields for the given model
-without the non-stored fields.
-*/
-func filteredOnDBFields(model string, fields []string) []string {
-	var res []string
-	for _, field := range fields {
-		if getFieldColumn(model, field) != "" {
-			res = append(res, field)
+	case k == reflect.Float32 || k == reflect.Float64:
+		return tools.FLOAT
+	case k == reflect.String:
+		return tools.CHAR
+	case k == reflect.Ptr:
+		indTyp := typ.Elem()
+		switch indTyp.Kind() {
+		case reflect.Struct:
+			return tools.MANY2ONE
+		case reflect.Slice:
+			return tools.ONE2MANY
 		}
 	}
-	return res
+	switch typ {
+	case reflect.TypeOf(DateTime{}):
+		return tools.DATETIME
+	case reflect.TypeOf(Date{}):
+		return tools.DATE
+	}
+	panic(fmt.Errorf("Unable to match field type with go Type `%s`. Please specify 'type()' in struct tag", typ))
+}
+
+// getRelatedModel returns a pointer to the modelInfo of the pointed model.
+func getRelatedModel(sf reflect.StructField) *modelInfo {
+	return nil
 }
