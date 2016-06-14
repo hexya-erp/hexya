@@ -29,34 +29,52 @@ type DomainTerm []interface{}
 
 type DomainPrefixOperator string
 
-//
-//const (
-//	PREFIX_AND DomainPrefixOperator = "&"
-//	PREFIX_OR  DomainPrefixOperator = "|"
-//	PREFIX_NOT DomainPrefixOperator = "!"
-//)
-//
-//type DomainOperator string
-//
-//const (
-//	OPERATOR_EQUALS        DomainOperator = "="
-//	OPERATOR_NOT_EQUALS    DomainOperator = "!="
-//	OPERATOR_GREATER       DomainOperator = ">"
-//	OPERATOR_GREATER_EQUAL DomainOperator = ">="
-//	OPERATOR_LOWER         DomainOperator = "<"
-//	OPERATOR_LOWER_EQUAL   DomainOperator = "<="
-//	OPERATOR_UNSET_EQUALS  DomainOperator = "=?"
-//	OPERATOR_LIKE_PATTERN  DomainOperator = "=like"
-//	OPERATOR_LIKE          DomainOperator = "like"
-//	OPERATOR_NOT_LIKE      DomainOperator = "not like"
-//	OPERATOR_ILIKE         DomainOperator = "ilike"
-//	OPERATOR_NOT_ILIKE     DomainOperator = "not ilike"
-//	OPERATOR_ILIKE_PATTERN DomainOperator = "=ilike"
-//	OPERATOR_IN            DomainOperator = "in"
-//	OPERATOR_NOT_IN        DomainOperator = "not in"
-//	OPERATOR_CHILD_OF      DomainOperator = "child_of"
-//)
-//
+const (
+	PREFIX_AND DomainPrefixOperator = "&"
+	PREFIX_OR DomainPrefixOperator = "|"
+	PREFIX_NOT DomainPrefixOperator = "!"
+)
+
+type DomainOperator string
+
+const (
+	OPERATOR_EQUALS DomainOperator = "="
+	OPERATOR_NOT_EQUALS DomainOperator = "!="
+	OPERATOR_GREATER DomainOperator = ">"
+	OPERATOR_GREATER_EQUAL DomainOperator = ">="
+	OPERATOR_LOWER DomainOperator = "<"
+	OPERATOR_LOWER_EQUAL DomainOperator = "<="
+	OPERATOR_UNSET_EQUALS DomainOperator = "=?"
+	OPERATOR_LIKE_PATTERN DomainOperator = "=like"
+	OPERATOR_LIKE DomainOperator = "like"
+	OPERATOR_NOT_LIKE DomainOperator = "not like"
+	OPERATOR_ILIKE DomainOperator = "ilike"
+	OPERATOR_NOT_ILIKE DomainOperator = "not ilike"
+	OPERATOR_ILIKE_PATTERN DomainOperator = "=ilike"
+	OPERATOR_IN DomainOperator = "in"
+	OPERATOR_NOT_IN DomainOperator = "not in"
+	OPERATOR_CHILD_OF DomainOperator = "child_of"
+)
+
+var allowedOperators = map[DomainOperator]bool{
+	OPERATOR_EQUALS:        true,
+	OPERATOR_NOT_EQUALS:    true,
+	OPERATOR_GREATER:       true,
+	OPERATOR_GREATER_EQUAL: true,
+	OPERATOR_LOWER:         true,
+	OPERATOR_LOWER_EQUAL:   true,
+	OPERATOR_UNSET_EQUALS:  true,
+	OPERATOR_LIKE_PATTERN:  true,
+	OPERATOR_LIKE:          true,
+	OPERATOR_NOT_LIKE:      true,
+	OPERATOR_ILIKE:         true,
+	OPERATOR_NOT_ILIKE:     true,
+	OPERATOR_ILIKE_PATTERN: true,
+	OPERATOR_IN:            true,
+	OPERATOR_NOT_IN:        true,
+	OPERATOR_CHILD_OF:      true,
+}
+
 ///*
 //ParseDomain gets an Odoo domain and parses it into an orm.Condition.
 //*/

@@ -134,6 +134,6 @@ func NewCursorEnvironment(uid int64, context ...tools.Context) *Environment {
 /*
 Pool returns an empty RecordSet from the given table name string or struct pointer
 */
-func (env *Environment) Pool(tableNameOrStructPtr interface{}) RecordSet {
+func (env *Environment) Pool(tableNameOrStructPtr interface{}) *RecordSet {
 	return NewRecordSet(env, tableNameOrStructPtr)
 }

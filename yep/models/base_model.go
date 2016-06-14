@@ -314,6 +314,7 @@ type SearchParams struct {
 	Limit  interface{} `json:"limit"`
 	Order  string      `json:"order"`
 }
+
 //
 ///*
 //SearchRead retrieves database records according to the filters defined in params.

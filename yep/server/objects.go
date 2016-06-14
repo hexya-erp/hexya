@@ -59,7 +59,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 
 	// Create RecordSet from Environment
 	model := tools.ConvertModelName(params.Model)
-	rs = models.NewRecordSet(env, model)
+	rs = *models.NewRecordSet(env, model)
 
 	//// Try to parse the first argument of Args as id or ids.
 	//var single bool

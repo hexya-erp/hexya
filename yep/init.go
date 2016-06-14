@@ -24,11 +24,7 @@ import (
 )
 
 func init() {
-	db, err := sqlx.Connect(config.DB_DRIVER, config.DB_SOURCE)
-	if err != nil {
-		panic(err)
-	}
-	models.DB = db
+	models.DB = sqlx.MustConnect(config.DB_DRIVER, config.DB_SOURCE)
 	models.BootStrap()
 	server.LoadInternalResources()
 	ir.BootStrap()

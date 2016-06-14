@@ -58,18 +58,19 @@ func newFieldsCollection() *fieldsCollection {
 
 // fieldInfo holds the meta information about a field
 type fieldInfo struct {
-	modelInfo    *modelInfo
-	name         string
-	json         string
-	description  string
-	help         string
-	computed     bool
-	stored       bool
-	compute      string
-	depends      []string
-	html         bool
-	relatedModel *modelInfo
-	fieldType    tools.FieldType
+	modelInfo     *modelInfo
+	name          string
+	json          string
+	description   string
+	help          string
+	computed      bool
+	stored        bool
+	compute       string
+	depends       []string
+	html          bool
+	relatedModel  *modelInfo
+	fieldType     tools.FieldType
+	groupOperator string
 }
 
 ///*
@@ -175,38 +176,51 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		tags  map[string]string
 	)
 	parseStructTag(sf.Tag.Get(defaultStructTagName), &attrs, &tags)
-	desc, ok := tags["string"]
-	if !ok {
-		desc = sf.Name
-	}
-	computeName, computed := tags["compute"]
+
 	_, stored := attrs["store"]
+	_, html := attrs["html"]
+
+	computeName, computed := tags["compute"]
+
 	var depends []string
 	if depTag, ok := tags["depends"]; ok {
 		depends = strings.Split(depTag, defaultDependsTagDelim)
 	}
-	_, html := attrs["html"]
+
+	desc, ok := tags["string"]
+	if !ok {
+		desc = sf.Name
+	}
+
 	json, ok := tags["json"]
 	if !ok {
 		json = tools.SnakeCaseString(sf.Name)
 	}
+
 	typStr, ok := tags["type"]
 	typ := tools.FieldType(typStr)
 	if !ok {
 		typ = getFieldType(sf.Type)
 	}
+
+	groupOp, ok := tags["group_operator"]
+	if !ok {
+		groupOp = "sum"
+	}
+
 	fInfo := fieldInfo{
-		name:        sf.Name,
-		json:        json,
-		modelInfo:   mi,
-		compute:     computeName,
-		computed:    computed,
-		stored:      stored,
-		depends:     depends,
-		description: desc,
-		help:        tags["help"],
-		html:        html,
-		fieldType:   typ,
+		name:          sf.Name,
+		json:          json,
+		modelInfo:     mi,
+		compute:       computeName,
+		computed:      computed,
+		stored:        stored,
+		depends:       depends,
+		description:   desc,
+		help:          tags["help"],
+		html:          html,
+		fieldType:     typ,
+		groupOperator: groupOp,
 	}
 	return &fInfo
 }

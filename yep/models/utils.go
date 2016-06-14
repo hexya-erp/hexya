@@ -30,14 +30,15 @@ const (
 
 var (
 	supportedTag = map[string]int{
-		"store":   1,
-		"html":    1,
-		"string":  2,
-		"help":    2,
-		"compute": 2,
-		"depends": 2,
-		"json":    2,
-		"type":    2,
+		"store":          1,
+		"html":           1,
+		"string":         2,
+		"help":           2,
+		"compute":        2,
+		"depends":        2,
+		"json":           2,
+		"type":           2,
+		"group_operator": 2,
 	}
 )
 

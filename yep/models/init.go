@@ -14,22 +14,14 @@
 
 package models
 
-/*
-BootStrap freezes model, fields and method caches and syncs the database structure
-with the declared data.
-*/
-func BootStrap() {
+import (
+	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/tools"
+)
 
-	//if err != nil {
-	//	panic(fmt.Errorf("Unable to sync database: %s", err))
-	//}
-	//methodsCache.Lock()
-	//defer methodsCache.Unlock()
-	//methodsCache.done = true
-	//
-	//fieldsCache.Lock()
-	//defer fieldsCache.Unlock()
-	//processDepends()
-	//
-	//fieldsCache.done = true
+func init() {
+	sqlx.NameMapper = tools.SnakeCaseString
+	// DB drivers
+	drivers = make(map[string]dbDriver)
+	registerDBDriver("postgres", new(postgresDriver))
 }

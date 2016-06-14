@@ -34,7 +34,6 @@ type modelInfo struct {
 	fields    *fieldsCollection
 }
 
-
 // CreateModel creates a new model with the given name
 // Available options are
 // - TRANSIENT_MODEL: each instance of the model will have a limited lifetime in database (used for wizards)
@@ -54,7 +53,6 @@ func CreateModel(name string, options ...Option) {
 	//registerModelFields(name, model)
 	declareBaseMethods(name)
 }
-
 
 // ExtendModel extends the model given by its name with the given struct pointers
 func ExtendModel(name string, structPtrs ...interface{}) {

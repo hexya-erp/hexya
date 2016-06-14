@@ -48,7 +48,6 @@ func ConvertMethodName(val string) string {
 	return res
 }
 
-
 // SnakeCaseString convert the given string to snake case following the Golang format:
 // acronyms are converted to lower-case and preceded by an underscore.
 func SnakeCaseString(in string) string {
