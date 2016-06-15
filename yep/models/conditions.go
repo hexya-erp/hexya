@@ -36,23 +36,22 @@ type condValue struct {
 }
 
 // sqlClause returns the sql WHERE clause for this condValue.
-// First argument is the database/sql driver name
 // If 'first' is given and true, then the sql clause is not prefixed with
 // 'AND' and panics if isOr is true.
-func (cv *condValue) sqlClause(driverName string, first ...bool) (string, SQLParams) {
+func (cv condValue) sqlClause(first ...bool) (string, SQLParams) {
 	var (
 		sql string
 		args SQLParams
 		isFirst bool
+		adapter dbAdapter = adapters[DB.DriverName()]
 	)
 	if len(first) > 0 {
 		isFirst = first[0]
-		if cv.isOr {
+	}
+	if cv.isOr {
+		if isFirst {
 			panic(fmt.Errorf("First WHERE clause cannot be OR"))
 		}
-	}
-
-	if cv.isOr {
 		sql += "OR "
 	} else if !isFirst {
 		sql += "AND "
@@ -62,7 +61,9 @@ func (cv *condValue) sqlClause(driverName string, first ...bool) (string, SQLPar
 	}
 
 	if cv.isCond {
-		sql, args = cv.cond.sqlClause(driverName)
+		subSQL, subArgs := cv.cond.sqlClause()
+		sql += fmt.Sprintf(`(%s) `, subSQL)
+		args = args.Extend(subArgs)
 	} else {
 		var field string
 		num := len(cv.exprs)
@@ -71,7 +72,7 @@ func (cv *condValue) sqlClause(driverName string, first ...bool) (string, SQLPar
 		} else {
 			field = cv.exprs[0]
 		}
-		sql = fmt.Sprintf(`%s %s`, field, drivers[driverName].operatorSQL(cv.operator))
+		sql += fmt.Sprintf(`%s %s `, field, adapter.operatorSQL(cv.operator))
 		args = cv.args
 	}
 	return sql, args
@@ -185,11 +186,21 @@ func (c Condition) clone() *Condition {
 
 // sqlClauses returns the sql string and parameters corresponding to the
 // WHERE clause of this Condition.
-// Argument is the database/sql driver name
-func (c Condition) sqlClause(driver string) (string, SQLParams) {
+func (c Condition) sqlClause() (string, SQLParams) {
 	if c.IsEmpty() {
 		return "", SQLParams{}
 	}
+	var (
+		sql string
+		args SQLParams
+	)
 
-	return "", SQLParams{}
+	first := true
+	for _, val := range c.params {
+		vSQL, vArgs := val.sqlClause(first)
+		first = false
+		sql += vSQL
+		args = args.Extend(vArgs)
+	}
+	return sql, args
 }

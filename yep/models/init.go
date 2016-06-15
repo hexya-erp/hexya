@@ -22,6 +22,6 @@ import (
 func init() {
 	sqlx.NameMapper = tools.SnakeCaseString
 	// DB drivers
-	drivers = make(map[string]dbDriver)
-	registerDBDriver("postgres", new(postgresDriver))
+	adapters = make(map[string]dbAdapter)
+	registerDBAdapter("postgres", new(postgresAdapter))
 }

@@ -20,17 +20,19 @@ import (
 )
 
 var (
-	DB      *sqlx.DB
-	drivers map[string]dbDriver
+	DB       *sqlx.DB
+	adapters map[string]dbAdapter
 )
 
-type dbDriver interface {
+type dbAdapter interface {
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
 	operatorSQL(DomainOperator) string
 }
 
-func registerDBDriver(name string, driver dbDriver) {
-	drivers[name] = driver
+// registerDBAdapter adds a adapter to the adapters registry
+// name of the adapter should match the database/sql driver name
+func registerDBAdapter(name string, adapter dbAdapter) {
+	adapters[name] = adapter
 }
 
 // DBExecute is a wrapper around sqlx.MustExec

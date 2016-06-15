@@ -18,6 +18,15 @@ import "fmt"
 
 type SQLParams []interface{}
 
+// Extend returns a new SQLParams with both params of this SQLParams and
+// of p2 SQLParams.
+func (p SQLParams) Extend(p2 SQLParams) SQLParams {
+	pi := []interface{}(p)
+	pi2 := []interface{}(p2)
+	res := append(pi, pi2...)
+	return SQLParams(res)
+}
+
 type Query struct {
 	recordSet *RecordSet
 	cond      *Condition
@@ -33,7 +42,9 @@ type Query struct {
 // sqlWhereClause returns the sql string and parameters corresponding to the
 // WHERE clause of this Query
 func (q *Query) sqlWhereClause() (string, SQLParams) {
-	return q.cond.sqlClause(q.recordSet.env.cr.DriverName())
+	sql, args := q.cond.sqlClause()
+	sql = "WHERE " + sql
+	return sql, args
 }
 
 // sqlLimitClause returns the sql string for the LIMIT and OFFSET clauses

@@ -14,28 +14,28 @@
 
 package models
 
-type postgresDriver struct{}
+type postgresAdapter struct{}
 
 var pgOperators = map[DomainOperator]string{
-	OPERATOR_EQUALS: "= ?",
-	OPERATOR_NOT_EQUALS: "!= ?",
-	OPERATOR_LIKE: "LIKE %?%",
-	OPERATOR_NOT_LIKE: "NOT LIKE %?%",
-	OPERATOR_LIKE_PATTERN: "LIKE ?",
-	OPERATOR_ILIKE: "ILIKE %?%",
-	OPERATOR_NOT_ILIKE: "NOT ILIKE %?%",
+	OPERATOR_EQUALS:        "= ?",
+	OPERATOR_NOT_EQUALS:    "!= ?",
+	OPERATOR_LIKE:          "LIKE %?%",
+	OPERATOR_NOT_LIKE:      "NOT LIKE %?%",
+	OPERATOR_LIKE_PATTERN:  "LIKE ?",
+	OPERATOR_ILIKE:         "ILIKE %?%",
+	OPERATOR_NOT_ILIKE:     "NOT ILIKE %?%",
 	OPERATOR_ILIKE_PATTERN: "ILIKE ?",
-	OPERATOR_IN: "IN (?)",
-	OPERATOR_NOT_IN: "NOT IN (?)",
-	OPERATOR_LOWER: "< ?",
-	OPERATOR_LOWER_EQUAL: "< ?",
-	OPERATOR_GREATER: "> ?",
+	OPERATOR_IN:            "IN (?)",
+	OPERATOR_NOT_IN:        "NOT IN (?)",
+	OPERATOR_LOWER:         "< ?",
+	OPERATOR_LOWER_EQUAL:   "< ?",
+	OPERATOR_GREATER:       "> ?",
 	OPERATOR_GREATER_EQUAL: ">= ?",
 	//OPERATOR_CHILD_OF: "",
 }
 
-func (d *postgresDriver) operatorSQL(do DomainOperator) string {
+func (d *postgresAdapter) operatorSQL(do DomainOperator) string {
 	return pgOperators[do]
 }
 
-var _ dbDriver = new(postgresDriver)
+var _ dbAdapter = new(postgresAdapter)

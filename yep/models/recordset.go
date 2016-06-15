@@ -499,8 +499,8 @@ func newRecordStruct(env *Environment, ptrStructOrTableName interface{}) *Record
 	//qs := env.Cr().QueryTable(modelName)
 	rs := RecordSet{
 		query: Query{},
-		env: NewEnvironment(env.Cr(), env.Uid(), env.Context()),
-		ids: make([]int64, 0),
+		env:   NewEnvironment(env.Cr(), env.Uid(), env.Context()),
+		ids:   make([]int64, 0),
 	}
 	rs.query.recordSet = &rs
 	return &rs
