@@ -2,7 +2,6 @@ language: go
 go:
  - 1.5.1
  - 1.6
- - release
  - tip
 
 addons:
@@ -10,14 +9,14 @@ addons:
 
 services:
   - postgresql
-  - mysql
-  - sqlite3
+#  - mysql
+#  - sqlite3
 
 before_script:
   - psql -c 'create database yep_test;' -U postgres
-  - mysql -e 'create database yep_test;'
+#  - mysql -e 'create database yep_test;'
 
 env:
 - ORM_DRIVER=postgres ORM_SOURCE="dbname=yep_test sslmode=disable user=postgres"
-- ORM_DRIVER=mysql ORM_SOURCE="root:@/yep_test?charset=utf8"
-- ORM_DRIVER=sqlite3 ORM_SOURCE='file:yep_test?mode=memory'
+#- ORM_DRIVER=mysql ORM_SOURCE="root:@/yep_test?charset=utf8"
+#- ORM_DRIVER=sqlite3 ORM_SOURCE='file:yep_test?mode=memory'
