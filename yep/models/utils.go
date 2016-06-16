@@ -104,6 +104,29 @@ func checkStructPtr(data interface{}, allowSlice ...bool) error {
 	return nil
 }
 
+// columnizeExpr returns an expression slice with field names changed to the DB column names
+// Computation is made relatively to the given modelInfo
+// e.g. [User Profile Name] -> [user_id profile_id name]
+func columnizeExpr(mi *modelInfo, exprs []string) []string {
+	if len(exprs) == 0 {
+		return []string{}
+	}
+	var res []string
+	fi, ok := mi.fields.get(exprs[0])
+	if !ok {
+		panic(fmt.Errorf("Badly formed expression `%+v` for model `%s`", exprs, mi.name))
+	}
+	res = append(res, fi.json)
+	if len(exprs) > 1 {
+		if fi.relatedModel != nil {
+			res = append(res, columnizeExpr(fi.relatedModel, exprs[1:])...)
+		} else {
+			panic(fmt.Errorf("Badly formed expression: `%s` is not a relation in model `%s`", exprs[0], mi.name))
+		}
+	}
+	return res
+}
+
 // getStructValue returns the struct Value of the given structPtr
 // It panics if structPtr is not a struct pointer.
 func getStructValue(structPtr interface{}) reflect.Value {

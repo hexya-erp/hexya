@@ -14,7 +14,10 @@
 
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type SQLParams []interface{}
 
@@ -42,8 +45,75 @@ type Query struct {
 // sqlWhereClause returns the sql string and parameters corresponding to the
 // WHERE clause of this Query
 func (q *Query) sqlWhereClause() (string, SQLParams) {
-	sql, args := q.cond.sqlClause()
+	sql, args := q.conditionSQLClause(q.cond)
 	sql = "WHERE " + sql
+	return sql, args
+}
+
+// sqlClauses returns the sql string and parameters corresponding to the
+// WHERE clause of this Condition.
+func (q *Query) conditionSQLClause(c *Condition) (string, SQLParams) {
+	if c.IsEmpty() {
+		return "", SQLParams{}
+	}
+	var (
+		sql string
+		args SQLParams
+	)
+
+	first := true
+	for _, val := range c.params {
+		vSQL, vArgs := q.condValueSQLClause(val, first)
+		first = false
+		sql += vSQL
+		args = args.Extend(vArgs)
+	}
+	return sql, args
+}
+
+// sqlClause returns the sql WHERE clause for this condValue.
+// If 'first' is given and true, then the sql clause is not prefixed with
+// 'AND' and panics if isOr is true.
+func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLParams) {
+	var (
+		sql string
+		args SQLParams
+		isFirst bool
+		adapter dbAdapter = adapters[DB.DriverName()]
+	)
+	if len(first) > 0 {
+		isFirst = first[0]
+	}
+	if cv.isOr {
+		if isFirst {
+			panic(fmt.Errorf("First WHERE clause cannot be OR"))
+		}
+		sql += "OR "
+	} else if !isFirst {
+		sql += "AND "
+	}
+	if cv.isNot {
+		sql += "NOT "
+	}
+
+	if cv.isCond {
+		subSQL, subArgs := q.conditionSQLClause(cv.cond)
+		sql += fmt.Sprintf(`(%s) `, subSQL)
+		args = args.Extend(subArgs)
+	} else {
+		var field string
+		//TODO use columnizeExpr
+		//exprs := columnizeExpr(q.recordSet.mi, cv.exprs)
+		exprs := cv.exprs
+		num := len(exprs)
+		if len(exprs) > 1 {
+			field = fmt.Sprintf("%s.%s", strings.Join(exprs[:num - 1], sqlSep), exprs[num - 1])
+		} else {
+			field = cv.exprs[0]
+		}
+		sql += fmt.Sprintf(`%s %s `, field, adapter.operatorSQL(cv.operator))
+		args = cv.args
+	}
 	return sql, args
 }
 

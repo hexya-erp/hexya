@@ -192,15 +192,20 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		desc = sf.Name
 	}
 
-	json, ok := tags["json"]
-	if !ok {
-		json = tools.SnakeCaseString(sf.Name)
-	}
-
 	typStr, ok := tags["type"]
 	typ := tools.FieldType(typStr)
 	if !ok {
 		typ = getFieldType(sf.Type)
+	}
+
+	json, ok := tags["json"]
+	if !ok {
+		json = tools.SnakeCaseString(sf.Name)
+		if typ == tools.MANY2ONE || typ == tools.ONE2ONE {
+			json += "_id"
+		} else if typ == tools.ONE2MANY || typ == tools.MANY2MANY {
+			json += "_ids"
+		}
 	}
 
 	groupOp, ok := tags["group_operator"]

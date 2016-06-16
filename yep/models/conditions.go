@@ -35,49 +35,6 @@ type condValue struct {
 	isCond   bool
 }
 
-// sqlClause returns the sql WHERE clause for this condValue.
-// If 'first' is given and true, then the sql clause is not prefixed with
-// 'AND' and panics if isOr is true.
-func (cv condValue) sqlClause(first ...bool) (string, SQLParams) {
-	var (
-		sql string
-		args SQLParams
-		isFirst bool
-		adapter dbAdapter = adapters[DB.DriverName()]
-	)
-	if len(first) > 0 {
-		isFirst = first[0]
-	}
-	if cv.isOr {
-		if isFirst {
-			panic(fmt.Errorf("First WHERE clause cannot be OR"))
-		}
-		sql += "OR "
-	} else if !isFirst {
-		sql += "AND "
-	}
-	if cv.isNot {
-		sql += "NOT "
-	}
-
-	if cv.isCond {
-		subSQL, subArgs := cv.cond.sqlClause()
-		sql += fmt.Sprintf(`(%s) `, subSQL)
-		args = args.Extend(subArgs)
-	} else {
-		var field string
-		num := len(cv.exprs)
-		if len(cv.exprs) > 1 {
-			field = fmt.Sprintf("%s.%s", strings.Join(cv.exprs[:num - 1], sqlSep), cv.exprs[num - 1])
-		} else {
-			field = cv.exprs[0]
-		}
-		sql += fmt.Sprintf(`%s %s `, field, adapter.operatorSQL(cv.operator))
-		args = cv.args
-	}
-	return sql, args
-}
-
 // Condition struct.
 // work for WHERE conditions.
 type Condition struct {
@@ -182,25 +139,4 @@ func (c *Condition) IsEmpty() bool {
 // clone clone a condition
 func (c Condition) clone() *Condition {
 	return &c
-}
-
-// sqlClauses returns the sql string and parameters corresponding to the
-// WHERE clause of this Condition.
-func (c Condition) sqlClause() (string, SQLParams) {
-	if c.IsEmpty() {
-		return "", SQLParams{}
-	}
-	var (
-		sql string
-		args SQLParams
-	)
-
-	first := true
-	for _, val := range c.params {
-		vSQL, vArgs := val.sqlClause(first)
-		first = false
-		sql += vSQL
-		args = args.Extend(vArgs)
-	}
-	return sql, args
 }
