@@ -23,15 +23,17 @@ import (
 )
 
 const (
-	defaultStructTagName   = "yep"
-	defaultStructTagDelim  = ";"
-	defaultDependsTagDelim = ","
+	defaultStructTagName = "yep"
+	defaultStructTagDelim = ";"
+	defaultTagDataDelim = ","
 )
 
 var (
 	supportedTag = map[string]int{
 		"store":          1,
 		"html":           1,
+		"required":       1,
+		"unique":         1,
 		"string":         2,
 		"help":           2,
 		"compute":        2,
@@ -39,6 +41,8 @@ var (
 		"json":           2,
 		"type":           2,
 		"group_operator": 2,
+		"size":           2,
+		"digits":         2,
 	}
 )
 

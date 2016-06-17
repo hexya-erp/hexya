@@ -79,7 +79,7 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 		sql string
 		args SQLParams
 		isFirst bool
-		adapter dbAdapter = adapters[DB.DriverName()]
+		adapter dbAdapter = adapters[db.DriverName()]
 	)
 	if len(first) > 0 {
 		isFirst = first[0]

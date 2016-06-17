@@ -20,12 +20,38 @@ import (
 	"github.com/npiganeau/yep/yep/tools"
 )
 
+var modelRegistry *modelCollection
+
 type Option int
 
 type modelCollection struct {
 	sync.RWMutex
+	bootstrapped        bool
 	registryByName      map[string]*modelInfo
 	registryByTableName map[string]*modelInfo
+}
+
+// get the given modelInfo by name or by table name
+func (mc *modelCollection) get(nameOrJSON string) (mi *modelInfo, ok bool) {
+	mi, ok = mc.registryByName[nameOrJSON]
+	if !ok {
+		mi, ok = mc.registryByTableName[nameOrJSON]
+	}
+	return
+}
+
+// add the given modelInfo to the modelCollection
+func (mc *modelCollection) add(mi *modelInfo) {
+	mc.registryByName[mi.name] = mi
+	mc.registryByTableName[mi.tableName] = mi
+}
+
+// newModelCollection returns a pointer to a new modelCollection
+func newModelCollection() *modelCollection {
+	return &modelCollection{
+		registryByName:      make(map[string]*modelInfo),
+		registryByTableName: make(map[string]*modelInfo),
+	}
 }
 
 type modelInfo struct {
@@ -77,4 +103,5 @@ func createModelInfo(name string, model interface{}) {
 		}
 		mi.fields.add(fi)
 	}
+	modelRegistry.add(mi)
 }

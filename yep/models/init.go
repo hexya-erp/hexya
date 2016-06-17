@@ -24,4 +24,6 @@ func init() {
 	// DB drivers
 	adapters = make(map[string]dbAdapter)
 	registerDBAdapter("postgres", new(postgresAdapter))
+	// model registry
+	modelRegistry = newModelCollection()
 }

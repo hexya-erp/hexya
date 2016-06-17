@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/npiganeau/yep/yep/tools"
+	"strconv"
 )
 
 /*
@@ -42,8 +43,8 @@ type fieldsCollection struct {
 	registryByJSON       map[string]*fieldInfo
 	computedFields       []*fieldInfo
 	computedStoredFields []*fieldInfo
+	bootstrapped         bool
 	//dependencyMap        map[fieldRef][]computeData
-	done bool
 }
 
 // newFieldsCollection returns a pointer to a new empty fieldsCollection with
@@ -65,12 +66,17 @@ type fieldInfo struct {
 	help          string
 	computed      bool
 	stored        bool
+	required      bool
+	unique        bool
 	compute       string
 	depends       []string
 	html          bool
 	relatedModel  *modelInfo
 	fieldType     tools.FieldType
 	groupOperator string
+	size          int
+	digits        tools.Digits
+	structField   reflect.StructField
 }
 
 ///*
@@ -179,12 +185,24 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 
 	_, stored := attrs["store"]
 	_, html := attrs["html"]
+	_, required := attrs["required"]
+	_, unique := attrs["unique"]
 
 	computeName, computed := tags["compute"]
+	sStr, _ := tags["size"]
+	size, _ := strconv.Atoi(sStr)
 
 	var depends []string
 	if depTag, ok := tags["depends"]; ok {
-		depends = strings.Split(depTag, defaultDependsTagDelim)
+		depends = strings.Split(depTag, defaultTagDataDelim)
+	}
+
+	var digits tools.Digits
+	if dTag, ok := tags["digits"]; ok {
+		dSlice := strings.Split(dTag, defaultTagDataDelim)
+		d0, _ := strconv.Atoi(dSlice[0])
+		d1, _ := strconv.Atoi(dSlice[1])
+		digits = tools.Digits{0: d0, 1: d1}
 	}
 
 	desc, ok := tags["string"]
@@ -220,12 +238,17 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		compute:       computeName,
 		computed:      computed,
 		stored:        stored,
+		required:      required,
+		unique:        unique,
 		depends:       depends,
 		description:   desc,
 		help:          tags["help"],
 		html:          html,
 		fieldType:     typ,
 		groupOperator: groupOp,
+		structField:   sf,
+		size:          size,
+		digits:        digits,
 	}
 	return &fInfo
 }

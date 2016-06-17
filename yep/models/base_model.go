@@ -21,12 +21,12 @@ const (
 )
 
 type BaseModel struct {
-	ID          int64     `orm:"column(id)"`
-	CreateDate  time.Time `orm:"auto_now_add"`
+	ID          int64
+	CreateDate  time.Time `yep:"type(datetime)"`
 	CreateUid   int64
-	WriteDate   time.Time `yep:"compute(ComputeWriteDate);store;depends(ID)" orm:"null"`
+	WriteDate   time.Time `yep:"type(datetime);compute(ComputeWriteDate);store;depends(ID)" orm:"null"`
 	WriteUid    int64
-	DisplayName string `orm:"-" yep:"compute(ComputeNameGet)"`
+	DisplayName string `yep:"compute(ComputeNameGet)"`
 }
 
 type BaseTransientModel struct {

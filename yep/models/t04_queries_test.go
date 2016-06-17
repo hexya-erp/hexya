@@ -15,27 +15,13 @@
 package models
 
 import (
-	"os"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var DBARGS = struct {
-	Driver string
-	Source string
-	Debug  string
-}{
-	os.Getenv("ORM_DRIVER"),
-	os.Getenv("ORM_SOURCE"),
-	os.Getenv("ORM_DEBUG"),
-}
-
 func TestConditions(t *testing.T) {
 	Convey("Testing SQL building for conditions", t, func() {
-		DB = sqlx.MustConnect(DBARGS.Driver, DBARGS.Source)
 		query := Query{
 			cond: NewCondition(),
 		}

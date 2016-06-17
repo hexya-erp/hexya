@@ -14,6 +14,11 @@
 
 package models
 
+import (
+	"fmt"
+	"github.com/npiganeau/yep/yep/tools"
+)
+
 type postgresAdapter struct{}
 
 var pgOperators = map[DomainOperator]string{
@@ -34,8 +39,61 @@ var pgOperators = map[DomainOperator]string{
 	//OPERATOR_CHILD_OF: "",
 }
 
+var pgTypes = map[tools.FieldType]string{
+	tools.BOOLEAN:   "bool",
+	tools.CHAR:      "varchar",
+	tools.TEXT:      "text",
+	tools.DATE:      "date",
+	tools.DATETIME:  "timestamp without time zone",
+	tools.INTEGER:   "integer",
+	tools.FLOAT:     "double precision",
+	tools.HTML:      "text",
+	tools.BINARY:    "bytea",
+	tools.SELECTION: "varchar",
+	//tools.REFERENCE: "varchar",
+	tools.MANY2ONE: "integer",
+	tools.ONE2ONE:  "integer",
+}
+
+// operatorSQL returns the sql string and placeholders for the given DomainOperator
 func (d *postgresAdapter) operatorSQL(do DomainOperator) string {
 	return pgOperators[do]
+}
+
+// typeSQL returns the SQL type string, including columns constraints if any
+func (d *postgresAdapter) typeSQL(fi *fieldInfo) string {
+	res, ok := pgTypes[fi.fieldType]
+	if !ok {
+		panic(fmt.Errorf("Unknown column type `%s`", fi.fieldType))
+	}
+	switch fi.fieldType {
+	case tools.CHAR:
+		if fi.size > 0 {
+			res = fmt.Sprintf("%s(%d)", res, fi.size)
+		}
+	case tools.FLOAT:
+		emptyD := tools.Digits{}
+		if fi.digits != emptyD {
+			res = fmt.Sprintf("numeric(%d, %d)", (fi.digits)[0], (fi.digits)[1])
+		}
+	}
+	if fi.required {
+		res += " NOT NULL"
+	}
+	if fi.unique || fi.fieldType == tools.ONE2ONE {
+		res += " UNIQUE"
+	}
+	return res
+}
+
+// tables returns a slice of table names of the database
+func (d *postgresAdapter) tables() []string {
+	var res []string
+	query := "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')"
+	if err := db.Select(&res, query); err != nil {
+		panic(fmt.Errorf("Unable to get list of tables from database"))
+	}
+	return res
 }
 
 var _ dbAdapter = new(postgresAdapter)

@@ -20,6 +20,12 @@ during a transaction.
 */
 type Context map[string]interface{}
 
+// Digits is a tuple of 2 ints specifying respectively:
+// - The precision: the total number of digits
+// - The scale: the number of digits to the right of the decimal point
+// (PostgresSQL definitions)
+type Digits [2]int
+
 type FieldType string
 
 const (

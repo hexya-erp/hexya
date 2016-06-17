@@ -127,7 +127,7 @@ func NewEnvironment(cr *sqlx.Tx, uid int64, context ...tools.Context) *Environme
 }
 
 func NewCursorEnvironment(uid int64, context ...tools.Context) *Environment {
-	cr := DB.MustBegin()
+	cr := db.MustBegin()
 	return NewEnvironment(cr, uid, context...)
 }
 

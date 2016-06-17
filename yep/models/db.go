@@ -20,19 +20,29 @@ import (
 )
 
 var (
-	DB       *sqlx.DB
+	db       *sqlx.DB
 	adapters map[string]dbAdapter
 )
 
 type dbAdapter interface {
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
 	operatorSQL(DomainOperator) string
+	// tables returns a slice of table names of the database
+	tables() []string
 }
 
 // registerDBAdapter adds a adapter to the adapters registry
 // name of the adapter should match the database/sql driver name
 func registerDBAdapter(name string, adapter dbAdapter) {
 	adapters[name] = adapter
+}
+
+// DBConnect is a wrapper around sqlx.MustConnect
+// It connects to a database using the given driver and
+// connection data.
+func DBConnect(driver, connData string) {
+	// TODO Add log
+	db = sqlx.MustConnect(driver, connData)
 }
 
 // DBExecute is a wrapper around sqlx.MustExec

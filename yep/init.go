@@ -15,7 +15,6 @@
 package yep
 
 import (
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/npiganeau/yep/config"
 	"github.com/npiganeau/yep/yep/ir"
@@ -24,7 +23,7 @@ import (
 )
 
 func init() {
-	models.DB = sqlx.MustConnect(config.DB_DRIVER, config.DB_SOURCE)
+	models.DBConnect(config.DB_DRIVER, config.DB_SOURCE)
 	models.BootStrap()
 	server.LoadInternalResources()
 	ir.BootStrap()
