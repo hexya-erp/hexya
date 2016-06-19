@@ -305,7 +305,7 @@ func (rs RecordSet) call(methLayer *methodLayer, args ...interface{}) interface{
 		if i > len(args) {
 			panic(fmt.Errorf("Not enough argument when Calling `%s`", methName))
 		}
-		inVals = append(inVals, reflect.ValueOf(args[i - 1]))
+		inVals = append(inVals, reflect.ValueOf(args[i-1]))
 	}
 	retVal := fnVal.Call(inVals)
 	if len(retVal) == 0 {

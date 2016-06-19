@@ -17,8 +17,8 @@ package models
 import (
 	"sync"
 
-	"github.com/npiganeau/yep/yep/tools"
 	"fmt"
+	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 )
 
@@ -125,11 +125,11 @@ func createModelInfo(name string, model interface{}) {
 		fields:    newFieldsCollection(),
 	}
 	pk := &fieldInfo{
-		name:          "ID",
-		json:          "id",
-		modelInfo:     mi,
-		required:      true,
-		fieldType:     tools.INTEGER,
+		name:      "ID",
+		json:      "id",
+		modelInfo: mi,
+		required:  true,
+		fieldType: tools.INTEGER,
 	}
 	mi.fields.add(pk)
 	mi.addFieldsFromStruct(model)

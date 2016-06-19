@@ -68,6 +68,7 @@ type fieldInfo struct {
 	stored        bool
 	required      bool
 	unique        bool
+	index         bool
 	compute       string
 	depends       []string
 	html          bool
@@ -82,8 +83,8 @@ type fieldInfo struct {
 // isStored returns true if this field is stored in database
 func (fi *fieldInfo) isStored() bool {
 	if fi.fieldType == tools.ONE2MANY ||
-	fi.fieldType == tools.MANY2MANY ||
-	fi.fieldType == tools.REV2ONE {
+		fi.fieldType == tools.MANY2MANY ||
+		fi.fieldType == tools.REV2ONE {
 		// reverse fields are not stored
 		return false
 	}
@@ -202,6 +203,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	_, html := attrs["html"]
 	_, required := attrs["required"]
 	_, unique := attrs["unique"]
+	_, index := attrs["index"]
 
 	computeName, computed := tags["compute"]
 	sStr, _ := tags["size"]
@@ -255,6 +257,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		stored:        stored,
 		required:      required,
 		unique:        unique,
+		index:         index,
 		depends:       depends,
 		description:   desc,
 		help:          tags["help"],

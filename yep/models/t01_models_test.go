@@ -125,7 +125,7 @@ type User struct {
 	ID            int64
 	UserName      string `yep:"unique;string(Name);help(The user's username)"`
 	DecoratedName string `yep:"compute(computeDecoratedName)"`
-	Email         string `yep:"size(100);help(The user's email address)"`
+	Email         string `yep:"size(100);help(The user's email address);index"`
 	Password      string
 	Status        int16 `yep:"json(status_json)"`
 	IsStaff       bool

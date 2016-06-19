@@ -17,8 +17,8 @@ package models
 import (
 	"fmt"
 
-	"github.com/npiganeau/yep/yep/tools"
 	"database/sql"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 type postgresAdapter struct{}
@@ -176,6 +176,14 @@ func (d *postgresAdapter) columns(tableName string) map[string]ColumnData {
 		res[col.ColumnName] = col
 	}
 	return res
+}
+
+// indexExists returns true if an index with the given name exists in the given table
+func (d *postgresAdapter) indexExists(table string, name string) bool {
+	query := fmt.Sprintf("SELECT COUNT(*) FROM pg_indexes WHERE tablename = '%s' AND indexname = '%s'", table, name)
+	var cnt int
+	dbGetNoTx(&cnt, query)
+	return cnt > 0
 }
 
 var _ dbAdapter = new(postgresAdapter)

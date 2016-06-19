@@ -22,7 +22,7 @@ import (
 // ExprSep define the expression separation
 const (
 	ExprSep = "."
-	sqlSep = "__"
+	sqlSep  = "__"
 )
 
 type condValue struct {

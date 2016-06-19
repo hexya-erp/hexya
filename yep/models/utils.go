@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	defaultStructTagName = "yep"
+	defaultStructTagName  = "yep"
 	defaultStructTagDelim = ";"
-	defaultTagDataDelim = ","
+	defaultTagDataDelim   = ","
 )
 
 var (
@@ -34,6 +34,7 @@ var (
 		"html":           1,
 		"required":       1,
 		"unique":         1,
+		"index":          1,
 		"string":         2,
 		"help":           2,
 		"compute":        2,

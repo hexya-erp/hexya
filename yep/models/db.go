@@ -43,6 +43,8 @@ type dbAdapter interface {
 	fieldIsNotNull(fi *fieldInfo) bool
 	// quoteTableName returns the given table name with sql quotes
 	quoteTableName(string) string
+	// indexExists returns true if an index with the given name exists in the given table
+	indexExists(table string, name string) bool
 }
 
 // registerDBAdapter adds a adapter to the adapters registry
@@ -77,5 +79,13 @@ func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
 // given query and arguments
 func DBGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) error {
 	// TODO Add SQL debug logging here
-	return cr.Get(dest, query, args)
+	return cr.Get(dest, query, args...)
+}
+
+// dbGetNoTx is a wrapper around sqlx.Get outside a transaction
+// It gets the value of a single row found by the
+// given query and arguments
+func dbGetNoTx(dest interface{}, query string, args ...interface{}) error {
+	// TODO Add SQL debug logging
+	return db.Get(dest, query, args...)
 }

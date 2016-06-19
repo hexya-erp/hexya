@@ -48,7 +48,7 @@ func createModelLinks() {
 			sfType := fi.structField.Type
 			var (
 				relatedMI *modelInfo
-				ok bool = true
+				ok        bool = true
 			)
 			switch fi.fieldType {
 			case tools.MANY2ONE:
@@ -87,6 +87,7 @@ func syncDatabase() {
 			createDBTable(mi.tableName)
 		}
 		updateDBColumns(mi)
+		updateDBIndexes(mi)
 	}
 	// Drop DB tables that are not in the models
 	for dbTable, _ := range adapter.tables() {
@@ -141,11 +142,11 @@ func updateDBColumns(mi *modelInfo) {
 			updateDBColumnDataType(fi)
 		}
 		if (dbColData.IsNullable == "NO" && !adapter.fieldIsNotNull(fi)) ||
-		(dbColData.IsNullable == "YES" && adapter.fieldIsNotNull(fi)) {
+			(dbColData.IsNullable == "YES" && adapter.fieldIsNotNull(fi)) {
 			updateDBColumnNullable(fi)
 		}
 		if dbColData.ColumnDefault.Valid &&
-		dbColData.ColumnDefault.String != adapter.fieldSQLDefault(fi) {
+			dbColData.ColumnDefault.String != adapter.fieldSQLDefault(fi) {
 			updateDBColumnDefault(fi)
 		}
 	}
@@ -222,5 +223,29 @@ func dropDBColumn(tableName, colName string) {
 		ALTER TABLE %s
 		DROP COLUMN %s
 	`, adapter.quoteTableName(tableName), colName)
+	dbExecuteNoTx(query)
+}
+
+// updateDBIndexes creates or updates indexes based on the data of
+// the given modelInfo
+func updateDBIndexes(mi *modelInfo) {
+	adapter := adapters[db.DriverName()]
+	// update column indexes
+	for colName, fi := range mi.fields.registryByJSON {
+		if !fi.index {
+			continue
+		}
+		if !adapter.indexExists(mi.tableName, fmt.Sprintf("%s_%s_index", mi.tableName, colName)) {
+			createColumnIndex(mi.tableName, colName)
+		}
+	}
+}
+
+// createIndex creates an column index for colName in the given table
+func createColumnIndex(tableName, colName string) {
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`
+		CREATE INDEX %s ON %s (%s)
+	`, fmt.Sprintf("%s_%s_index", tableName, colName), adapter.quoteTableName(tableName), colName)
 	dbExecuteNoTx(query)
 }

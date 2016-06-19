@@ -57,7 +57,7 @@ func (q *Query) conditionSQLClause(c *Condition) (string, SQLParams) {
 		return "", SQLParams{}
 	}
 	var (
-		sql string
+		sql  string
 		args SQLParams
 	)
 
@@ -76,8 +76,8 @@ func (q *Query) conditionSQLClause(c *Condition) (string, SQLParams) {
 // 'AND' and panics if isOr is true.
 func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLParams) {
 	var (
-		sql string
-		args SQLParams
+		sql     string
+		args    SQLParams
 		isFirst bool
 		adapter dbAdapter = adapters[db.DriverName()]
 	)
@@ -107,7 +107,7 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 		exprs := cv.exprs
 		num := len(exprs)
 		if len(exprs) > 1 {
-			field = fmt.Sprintf("%s.%s", strings.Join(exprs[:num - 1], sqlSep), exprs[num - 1])
+			field = fmt.Sprintf("%s.%s", strings.Join(exprs[:num-1], sqlSep), exprs[num-1])
 		} else {
 			field = cv.exprs[0]
 		}

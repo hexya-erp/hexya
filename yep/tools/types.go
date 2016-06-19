@@ -42,7 +42,7 @@ const (
 	MANY2ONE  FieldType = "many2one"
 	ONE2MANY  FieldType = "one2many"
 	ONE2ONE   FieldType = "one2one"
-	REV2ONE FieldType = "rev2one"
+	REV2ONE   FieldType = "rev2one"
 	REFERENCE FieldType = "reference"
 	SELECTION FieldType = "selection"
 	TEXT      FieldType = "text"
