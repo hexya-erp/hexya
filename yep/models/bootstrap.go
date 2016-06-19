@@ -16,8 +16,9 @@ package models
 
 import (
 	"fmt"
-	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
+
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 /*
@@ -82,21 +83,13 @@ func syncDatabase() {
 	dbTables := adapter.tables()
 	// Create or update existing tables
 	for tableName, mi := range modelRegistry.registryByTableName {
-		var tableExists bool
-		for _, dbTable := range dbTables {
-			if tableName != dbTable {
-				continue
-			}
-			tableExists = true
-			break
-		}
-		if !tableExists {
-			createDBTable(mi)
+		if _, ok := dbTables[tableName]; !ok {
+			createDBTable(mi.tableName)
 		}
 		updateDBColumns(mi)
 	}
 	// Drop DB tables that are not in the models
-	for _, dbTable := range adapter.tables() {
+	for dbTable, _ := range adapter.tables() {
 		var modelExists bool
 		for tableName, _ := range modelRegistry.registryByTableName {
 			if dbTable != tableName {
@@ -113,23 +106,121 @@ func syncDatabase() {
 
 // createDBTable creates a table in the database from the given modelInfo
 // It only creates the primary key. Call updateDBColumns to create columns.
-func createDBTable(mi *modelInfo) {
+func createDBTable(tableName string) {
+	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`
 	CREATE TABLE %s (
 		id serial NOT NULL PRIMARY KEY
 	)
-	`, mi.tableName)
-	db.MustExec(query)
+	`, adapter.quoteTableName(tableName))
+	dbExecuteNoTx(query)
+}
+
+// dropDBTable drops the given table in the database
+func dropDBTable(tableName string) {
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`DROP TABLE %s`, adapter.quoteTableName(tableName))
+	dbExecuteNoTx(query)
 }
 
 // updateDBColumns synchronizes the colums of the database with the
 // given modelInfo.
 func updateDBColumns(mi *modelInfo) {
-
+	adapter := adapters[db.DriverName()]
+	dbColumns := adapter.columns(mi.tableName)
+	// create or update columns from registry data
+	for colName, fi := range mi.fields.registryByJSON {
+		if colName == "id" || !fi.isStored() {
+			continue
+		}
+		dbColData, ok := dbColumns[colName]
+		if !ok {
+			createDBColumn(fi)
+		}
+		if dbColData.DataType != adapter.typeSQL(fi) {
+			updateDBColumnDataType(fi)
+		}
+		if (dbColData.IsNullable == "NO" && !adapter.fieldIsNotNull(fi)) ||
+		(dbColData.IsNullable == "YES" && adapter.fieldIsNotNull(fi)) {
+			updateDBColumnNullable(fi)
+		}
+		if dbColData.ColumnDefault.Valid &&
+		dbColData.ColumnDefault.String != adapter.fieldSQLDefault(fi) {
+			updateDBColumnDefault(fi)
+		}
+	}
+	// drop columns that no longer exist
+	for colName, _ := range dbColumns {
+		if _, ok := mi.fields.registryByJSON[colName]; !ok {
+			dropDBColumn(mi.tableName, colName)
+		}
+	}
 }
 
-// dropDBTable drops the given table in the database
-func dropDBTable(tableName string) {
-	query := fmt.Sprintf(`DROP TABLE %s`, tableName)
-	db.MustExec(query)
+// createDBColumn insert the column described by fieldInfo in the database
+func createDBColumn(fi *fieldInfo) {
+	if !fi.isStored() {
+		panic(fmt.Errorf("createDBColumn should not be called on non stored fields (%s)", fi.json))
+	}
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`
+		ALTER TABLE %s
+		ADD COLUMN %s %s
+	`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, adapter.columnSQLDefinition(fi))
+	dbExecuteNoTx(query)
+}
+
+// updateDBColumnDataType updates the data type in database for the given fieldInfo
+func updateDBColumnDataType(fi *fieldInfo) {
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`
+		ALTER TABLE %s
+		ALTER COLUMN %s SET DATA TYPE %s
+	`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, adapter.typeSQL(fi))
+	dbExecuteNoTx(query)
+}
+
+// updateDBColumnNullable updates the NULL/NOT NULL data in database for the given fieldInfo
+func updateDBColumnNullable(fi *fieldInfo) {
+	adapter := adapters[db.DriverName()]
+	var verb string
+	if adapter.fieldIsNotNull(fi) {
+		verb = "SET"
+	} else {
+		verb = "DROP"
+	}
+	query := fmt.Sprintf(`
+		ALTER TABLE %s
+		ALTER COLUMN %s %s NOT NULL
+	`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, verb)
+	dbExecuteNoTx(query)
+}
+
+// updateDBColumnDefault updates the default value in database for the given fieldInfo
+func updateDBColumnDefault(fi *fieldInfo) {
+	adapter := adapters[db.DriverName()]
+	defValue := adapter.fieldSQLDefault(fi)
+	var query string
+	if defValue == "" {
+		query = fmt.Sprintf(`
+			ALTER TABLE %s
+			ALTER COLUMN %s DROP DEFAULT
+		`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json)
+	} else {
+		query = fmt.Sprintf(`
+			ALTER TABLE %s
+			ALTER COLUMN %s SET DEFAULT %s
+		`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, adapter.fieldSQLDefault(fi))
+	}
+	dbExecuteNoTx(query)
+}
+
+// dropDBColumn drops the column colName from table tableName in database
+func dropDBColumn(tableName, colName string) {
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`
+		ALTER TABLE %s
+		DROP COLUMN %s
+	`, adapter.quoteTableName(tableName), colName)
+	dbExecuteNoTx(query)
 }

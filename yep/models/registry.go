@@ -18,6 +18,8 @@ import (
 	"sync"
 
 	"github.com/npiganeau/yep/yep/tools"
+	"fmt"
+	"reflect"
 )
 
 var modelRegistry *modelCollection
@@ -60,6 +62,29 @@ type modelInfo struct {
 	fields    *fieldsCollection
 }
 
+// addFieldsFromStruct adds the fields of the given struct to our
+// modelInfo
+func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
+	typ := reflect.TypeOf(structPtr)
+	if typ.Kind() != reflect.Ptr {
+		panic(fmt.Errorf("StructPtr must be a pointer to a struct"))
+	}
+	typ = typ.Elem()
+	for i := 0; i < typ.NumField(); i++ {
+		sf := typ.Field(i)
+		fi := createFieldInfo(sf, mi)
+		if fi == nil {
+			// unexported field
+			continue
+		}
+		if fi.json == "id" {
+			// do not change primary key
+			continue
+		}
+		mi.fields.add(fi)
+	}
+}
+
 // CreateModel creates a new model with the given name
 // Available options are
 // - TRANSIENT_MODEL: each instance of the model will have a limited lifetime in database (used for wizards)
@@ -82,26 +107,31 @@ func CreateModel(name string, options ...Option) {
 
 // ExtendModel extends the model given by its name with the given struct pointers
 func ExtendModel(name string, structPtrs ...interface{}) {
-
+	mi, ok := modelRegistry.get(name)
+	if !ok {
+		panic(fmt.Errorf("Unknown model `%s`", name))
+	}
+	for _, structPtr := range structPtrs {
+		mi.addFieldsFromStruct(structPtr)
+	}
 }
 
 // createModelInfo creates and populates a new modelInfo with the given name
 // by parsing the given struct pointer.
 func createModelInfo(name string, model interface{}) {
-	typ := getStructType(model)
 	mi := &modelInfo{
 		name:      name,
 		tableName: tools.SnakeCaseString(name),
 		fields:    newFieldsCollection(),
 	}
-	for i := 0; i < typ.NumField(); i++ {
-		sf := typ.Field(i)
-		fi := createFieldInfo(sf, mi)
-		if fi == nil {
-			// unexported field
-			continue
-		}
-		mi.fields.add(fi)
+	pk := &fieldInfo{
+		name:          "ID",
+		json:          "id",
+		modelInfo:     mi,
+		required:      true,
+		fieldType:     tools.INTEGER,
 	}
+	mi.fields.add(pk)
+	mi.addFieldsFromStruct(model)
 	modelRegistry.add(mi)
 }

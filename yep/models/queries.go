@@ -133,8 +133,9 @@ func (q *Query) sqlLimitOffsetClause() string {
 // deleteQuery returns the SQL query string and parameters to delete
 // the rows pointed at by this Query object.
 func (q *Query) deleteQuery() (string, SQLParams) {
+	adapter := adapters[db.DriverName()]
 	sql, args := q.sqlWhereClause()
-	delQuery := fmt.Sprintf(`DELETE FROM %s %s`, q.recordSet.mi.tableName, sql)
+	delQuery := fmt.Sprintf(`DELETE FROM %s %s`, adapter.quoteTableName(q.recordSet.mi.tableName), sql)
 	return delQuery, args
 }
 

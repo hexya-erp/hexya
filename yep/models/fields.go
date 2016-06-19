@@ -79,6 +79,21 @@ type fieldInfo struct {
 	structField   reflect.StructField
 }
 
+// isStored returns true if this field is stored in database
+func (fi *fieldInfo) isStored() bool {
+	if fi.fieldType == tools.ONE2MANY ||
+	fi.fieldType == tools.MANY2MANY ||
+	fi.fieldType == tools.REV2ONE {
+		// reverse fields are not stored
+		return false
+	}
+	if fi.computed && !fi.stored {
+		// Computed non stored fields are not stored
+		return false
+	}
+	return true
+}
+
 ///*
 //field is the key to find a field in the fieldsCache
 //*/

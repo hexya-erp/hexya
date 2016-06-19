@@ -16,7 +16,9 @@ package models
 
 import (
 	"fmt"
+
 	"github.com/npiganeau/yep/yep/tools"
+	"database/sql"
 )
 
 type postgresAdapter struct{}
@@ -55,14 +57,36 @@ var pgTypes = map[tools.FieldType]string{
 	tools.ONE2ONE:  "integer",
 }
 
+var pgDefaultValues = map[tools.FieldType]string{
+	tools.BOOLEAN:   "FALSE",
+	tools.CHAR:      "''",
+	tools.TEXT:      "''",
+	tools.DATE:      "'0001-01-01'",
+	tools.DATETIME:  "'0001-01-01 00:00:00'",
+	tools.INTEGER:   "0",
+	tools.FLOAT:     "0.0",
+	tools.HTML:      "''",
+	tools.BINARY:    "''",
+	tools.SELECTION: "''",
+	//tools.REFERENCE: "''",
+}
+
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
 func (d *postgresAdapter) operatorSQL(do DomainOperator) string {
 	return pgOperators[do]
 }
 
-// typeSQL returns the SQL type string, including columns constraints if any
+// typeSQL returns the sql type string for the given fieldInfo
 func (d *postgresAdapter) typeSQL(fi *fieldInfo) string {
-	res, ok := pgTypes[fi.fieldType]
+	typ, _ := pgTypes[fi.fieldType]
+	return typ
+}
+
+// columnSQLDefinition returns the SQL type string, including columns constraints if any
+func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
+	var res string
+	typ, ok := pgTypes[fi.fieldType]
+	res = typ
 	if !ok {
 		panic(fmt.Errorf("Unknown column type `%s`", fi.fieldType))
 	}
@@ -77,21 +101,79 @@ func (d *postgresAdapter) typeSQL(fi *fieldInfo) string {
 			res = fmt.Sprintf("numeric(%d, %d)", (fi.digits)[0], (fi.digits)[1])
 		}
 	}
-	if fi.required {
+	if d.fieldIsNotNull(fi) {
 		res += " NOT NULL"
 	}
+
+	defValue := d.fieldSQLDefault(fi)
+	if defValue != "" && !fi.required {
+		res += fmt.Sprintf(" DEFAULT %v", defValue)
+	}
+
 	if fi.unique || fi.fieldType == tools.ONE2ONE {
 		res += " UNIQUE"
 	}
 	return res
 }
 
-// tables returns a slice of table names of the database
-func (d *postgresAdapter) tables() []string {
-	var res []string
+// fieldIsNull returns true if the given fieldInfo results in a
+// NOT NULL column in database.
+func (d *postgresAdapter) fieldIsNotNull(fi *fieldInfo) bool {
+	if fi.fieldType == tools.MANY2ONE || fi.fieldType == tools.ONE2ONE {
+		if fi.required {
+			return true
+		}
+	} else {
+		return true
+	}
+	return false
+}
+
+// fieldSQLDefault returns the SQL default value of the fieldInfo
+func (d *postgresAdapter) fieldSQLDefault(fi *fieldInfo) string {
+	return pgDefaultValues[fi.fieldType]
+}
+
+// tables returns a map of table names of the database
+func (d *postgresAdapter) tables() map[string]bool {
+	var resList []string
 	query := "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')"
-	if err := db.Select(&res, query); err != nil {
-		panic(fmt.Errorf("Unable to get list of tables from database"))
+	if err := db.Select(&resList, query); err != nil {
+		panic(fmt.Errorf("Unable to get list of tables from database: %s", err))
+	}
+	res := make(map[string]bool, len(resList))
+	for _, tableName := range resList {
+		res[tableName] = true
+	}
+	return res
+}
+
+// quoteTableName returns the given table name with sql quotes
+func (d *postgresAdapter) quoteTableName(tableName string) string {
+	return fmt.Sprintf(`"%s"`, tableName)
+}
+
+type ColumnData struct {
+	ColumnName    string
+	DataType      string
+	IsNullable    string
+	ColumnDefault sql.NullString
+}
+
+// columns returns a list of ColumnData for the given tableName
+func (d *postgresAdapter) columns(tableName string) map[string]ColumnData {
+	query := fmt.Sprintf(`
+		SELECT column_name, data_type, is_nullable, column_default
+		FROM information_schema.columns
+		WHERE table_schema NOT IN ('pg_catalog', 'information_schema') AND table_name = '%s'
+	`, tableName)
+	var colData []ColumnData
+	if err := db.Select(&colData, query); err != nil {
+		panic(fmt.Errorf("Unable to get list of columns for table `%s`: %s", tableName, err))
+	}
+	res := make(map[string]ColumnData, len(colData))
+	for _, col := range colData {
+		res[col.ColumnName] = col
 	}
 	return res
 }

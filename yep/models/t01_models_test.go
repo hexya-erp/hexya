@@ -85,8 +85,8 @@ func computeAge(rs RecordSet) FieldMap {
 
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
-		CreateModel("Users")
-		ExtendModel("Users", new(Users), new(User_Extension))
+		CreateModel("User")
+		ExtendModel("User", new(User), new(User_Extension))
 		CreateModel("Profile")
 		ExtendModel("Profile", new(Profile), new(Profile_Extension))
 		CreateModel("Post")
@@ -94,15 +94,15 @@ func TestCreateDB(t *testing.T) {
 		CreateModel("Tag")
 		ExtendModel("Tag", new(Tag), new(Tag_Extension))
 
-		DeclareMethod("Users", "PrefixedUser", PrefixUser)
-		DeclareMethod("Users", "PrefixedUser", PrefixUserEmailExtension)
-		DeclareMethod("Users", "DecorateEmail", DecorateEmail)
-		DeclareMethod("Users", "DecorateEmail", DecorateEmailExtension)
-		DeclareMethod("Users", "computeDecoratedName", computeDecoratedName)
-		DeclareMethod("Users", "computeAge", computeAge)
+		DeclareMethod("User", "PrefixedUser", PrefixUser)
+		DeclareMethod("User", "PrefixedUser", PrefixUserEmailExtension)
+		DeclareMethod("User", "DecorateEmail", DecorateEmail)
+		DeclareMethod("User", "DecorateEmail", DecorateEmailExtension)
+		DeclareMethod("User", "computeDecoratedName", computeDecoratedName)
+		DeclareMethod("User", "computeAge", computeAge)
 
 		Convey("Dummy table should exist", func() {
-			So(testAdapter.tables(), ShouldContain, "shouldbedeleted")
+			So(testAdapter.tables(), ShouldContainKey, "shouldbedeleted")
 		})
 		Convey("Bootstrap should not panic", func() {
 			So(BootStrap, ShouldNotPanic)
@@ -110,18 +110,18 @@ func TestCreateDB(t *testing.T) {
 		Convey("All models should have a DB table", func() {
 			dbTables := testAdapter.tables()
 			for tableName, _ := range modelRegistry.registryByTableName {
-				So(tableName, ShouldBeIn, dbTables)
+				So(dbTables[tableName], ShouldBeTrue)
 			}
 		})
 		Convey("All DB tables should have a model", func() {
-			for _, dbTable := range testAdapter.tables() {
+			for dbTable, _ := range testAdapter.tables() {
 				So(modelRegistry.registryByTableName, ShouldContainKey, dbTable)
 			}
 		})
 	})
 }
 
-type Users struct {
+type User struct {
 	ID            int64
 	UserName      string `yep:"unique;string(Name);help(The user's username)"`
 	DecoratedName string `yep:"compute(computeDecoratedName)"`
@@ -131,26 +131,26 @@ type Users struct {
 	IsStaff       bool
 	IsActive      bool
 	Profile       *Profile `yep:"null;type(many2one)"` //;on_delete(set_null)"`
-	Age           int16    `yep:"compute(computeAge);store;depends(Profile__Age,Profile)"`
+	Age           int16    `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
 	Posts         []*Post  `yep:"type(one2many)"`
 	Nums          int
 	unexportBool  bool
 }
 
-func (u *Users) TableIndex() [][]string {
+func (u *User) TableIndex() [][]string {
 	return [][]string{
 		{"Id", "UserName"},
 		{"Id", "Email"},
 	}
 }
 
-func (u *Users) TableUnique() [][]string {
+func (u *User) TableUnique() [][]string {
 	return [][]string{
 		{"UserName", "Email"},
 	}
 }
 
-type Users_PartialWithPosts struct {
+type User_PartialWithPosts struct {
 	ID        int64
 	Email     string
 	Email2    string
@@ -162,7 +162,7 @@ type Users_PartialWithPosts struct {
 type Profile struct {
 	Age      int16
 	Money    float64
-	User     *Users
+	User     *User
 	BestPost *Post `yep:"type(one2one)"`
 }
 
@@ -174,7 +174,7 @@ type Profile_PartialWithBestPost struct {
 }
 
 type Post struct {
-	User    *Users
+	User    *User
 	Title   string
 	Content string `yep:"type(text)"`
 	Tags    []*Tag `yep:"type(many2many)"`

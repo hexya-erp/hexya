@@ -16,6 +16,7 @@ package models
 
 import (
 	"database/sql"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -27,8 +28,21 @@ var (
 type dbAdapter interface {
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
 	operatorSQL(DomainOperator) string
-	// tables returns a slice of table names of the database
-	tables() []string
+	// typeSQL returns the SQL type string, including columns constraints if any
+	typeSQL(fi *fieldInfo) string
+	// columnSQLDefinition returns the SQL type string, including columns constraints if any
+	columnSQLDefinition(fi *fieldInfo) string
+	// fieldSQLDefault returns the SQL default value of the fieldInfo
+	fieldSQLDefault(fi *fieldInfo) string
+	// tables returns a map of table names of the database
+	tables() map[string]bool
+	// columns returns a list of ColumnData for the given tableName
+	columns(tableName string) map[string]ColumnData
+	// fieldIsNull returns true if the given fieldInfo results in a
+	// NOT NULL column in database.
+	fieldIsNotNull(fi *fieldInfo) bool
+	// quoteTableName returns the given table name with sql quotes
+	quoteTableName(string) string
 }
 
 // registerDBAdapter adds a adapter to the adapters registry
@@ -50,6 +64,12 @@ func DBConnect(driver, connData string) {
 func DBExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
 	// TODO Add SQL debug logging here
 	return cr.MustExec(query, args...)
+}
+
+// dbExecuteNoTx simply executes the given query in the database without any transaction
+func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
+	// TODO Add SQL debug logging
+	return db.MustExec(query, args...)
 }
 
 // DBGet is a wrapper around sqlx.Get
