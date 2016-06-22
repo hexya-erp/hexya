@@ -140,3 +140,17 @@ func (c *Condition) IsEmpty() bool {
 func (c Condition) clone() *Condition {
 	return &c
 }
+
+// getAllExpressions returns a list of all exprs used in this condition,
+// and recursively in all subconditions.
+// Expressions are given in column name format
+func (c Condition) getAllExpressions(mi *modelInfo) [][]string {
+	var res [][]string
+	for _, cv := range c.params {
+		res = append(res, columnizeExpr(mi, cv.exprs))
+		if cv.cond != nil {
+			res = append(res, cv.cond.getAllExpressions(mi)...)
+		}
+	}
+	return res
+}

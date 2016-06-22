@@ -22,28 +22,38 @@ import (
 
 func TestConditions(t *testing.T) {
 	Convey("Testing SQL building for conditions", t, func() {
-		query := Query{
-			cond: NewCondition(),
-		}
+		env := NewEnvironment(1)
 		if DBARGS.Driver == "postgres" {
-			query.cond = query.cond.And("user_id.profile_id.name", "=", "foo")
-			sql, args := query.sqlWhereClause()
-			So(sql, ShouldEqual, "WHERE user_id__profile_id.name = ? ")
+			rs := env.Pool("User")
+			rs = rs.Filter("profile_id.best_post_id.title", "=", "foo")
+			fields := []string{"user_name", "profile_id.best_post_id.title"}
+			sql, args := rs.query.selectQuery(fields)
+			So(sql, ShouldEqual, `SELECT "user".user_name, "user__profile__post".title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
 			So(args, ShouldContain, "foo")
 
-			query.cond = query.cond.And("age", ">=", 12)
-			sql, args = query.sqlWhereClause()
-			So(sql, ShouldEqual, "WHERE user_id__profile_id.name = ? AND age >= ? ")
+			rs = env.Pool("User")
+			rs = rs.Filter("Profile.BestPost.Title", "=", "foo")
+			fields = []string{"UserName", "Profile.BestPost.Title"}
+			sql, args = rs.query.selectQuery(fields)
+			So(sql, ShouldEqual, `SELECT "user".user_name, "user__profile__post".title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
+			So(args, ShouldContain, "foo")
+
+			rs = rs.Filter("Profile.Age", ">=", 12)
+			sql, args = rs.query.sqlWhereClause()
+			So(sql, ShouldEqual, `WHERE "user__profile__post".title = ? AND "user__profile".age >= ? `)
 			So(args, ShouldContain, 12)
 			So(args, ShouldContain, "foo")
 
-			c2 := NewCondition().And("user_id.name", "like", "jane").Or("user_id.money", "<", 1234.56)
-			query.cond = query.cond.OrCond(c2)
-			sql, args = query.sqlWhereClause()
-			So(sql, ShouldEqual, "WHERE user_id__profile_id.name = ? AND age >= ? OR (user_id.name LIKE %?% OR user_id.money < ? ) ")
+			c2 := NewCondition().And("user_name", "like", "jane").Or("Profile.Money", "<", 1234.56)
+			rs = rs.SetCond(c2)
+			sql, args = rs.query.sqlWhereClause()
+			So(sql, ShouldEqual, `WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE %?% OR "user__profile".money < ? ) `)
 			So(args, ShouldContain, "jane")
 			So(args, ShouldContain, 1234.56)
-		}
-	})
 
+			sql, args = rs.query.selectQuery(fields)
+			So(sql, ShouldEqual, `SELECT "user".user_name, "user__profile__post".title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE %?% OR "user__profile".money < ? ) `)
+		}
+		env.cr.Rollback()
+	})
 }

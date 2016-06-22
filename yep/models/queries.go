@@ -101,16 +101,8 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 		sql += fmt.Sprintf(`(%s) `, subSQL)
 		args = args.Extend(subArgs)
 	} else {
-		var field string
-		//TODO use columnizeExpr
-		//exprs := columnizeExpr(q.recordSet.mi, cv.exprs)
-		exprs := cv.exprs
-		num := len(exprs)
-		if len(exprs) > 1 {
-			field = fmt.Sprintf("%s.%s", strings.Join(exprs[:num-1], sqlSep), exprs[num-1])
-		} else {
-			field = cv.exprs[0]
-		}
+		exprs := columnizeExpr(q.recordSet.mi, cv.exprs)
+		field := q.joinedFieldExpression(exprs)
 		sql += fmt.Sprintf(`%s %s `, field, adapter.operatorSQL(cv.operator))
 		args = cv.args
 	}
@@ -142,16 +134,118 @@ func (q *Query) deleteQuery() (string, SQLParams) {
 // countQuery returns the SQL query string and parameters to count
 // the rows pointed at by this Query object.
 func (q *Query) countQuery() (string, SQLParams) {
-	sql, args := q.selectQuery()
+	sql, args := q.selectQuery([]string{"id"})
 	delQuery := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) foo`, sql)
 	return delQuery, args
 }
 
 // selectQuery returns the SQL query string and parameters to retrieve
 // the rows pointed at by this Query object.
-func (q *Query) selectQuery() (string, SQLParams) {
-	sql, args := q.sqlWhereClause()
-	sql += q.sqlLimitOffsetClause()
-	delQuery := fmt.Sprintf(`SELECT * FROM %s`, sql)
-	return delQuery, args
+// fields is the list of fields to retrieve. Each field is a dot-separated
+// expression pointing at the field, either as names or columns
+// (e.g. 'User.Name' or 'user_id.name')
+func (q *Query) selectQuery(fields []string) (string, SQLParams) {
+	// Get all expressions, first given by fields
+	fieldExprs := make([][]string, len(fields))
+	for i, f := range fields {
+		fieldExprs[i] = columnizeExpr(q.recordSet.mi, strings.Split(f, ExprSep))
+	}
+	// Then given by condition
+	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.mi)...)
+	// Build up the query
+	// Fields
+	fieldsSQL := q.fieldsSQL(fieldExprs)
+	// Tables
+	tablesSQL := q.tablesSQL(fExprs)
+	// Where clause and args
+	whereSQL, args := q.sqlWhereClause()
+	whereSQL += q.sqlLimitOffsetClause()
+	selQuery := fmt.Sprintf(`SELECT %s FROM %s %s`, fieldsSQL, tablesSQL, whereSQL)
+	return selQuery, args
+}
+
+// fieldsSQL returns the SQL string for the given field expressions
+// parameter must be with the following format (column names):
+// [['user_id', 'name'] ['id'] ['profile_id', 'age']]
+func (q *Query) fieldsSQL(fieldExprs [][]string) string {
+	fStr := make([]string, len(fieldExprs))
+	for i, field := range fieldExprs {
+		fStr[i] = q.joinedFieldExpression(field)
+	}
+	return strings.Join(fStr, ", ")
+}
+
+// joinedFieldExpression joins the given expressions into a fields sql string
+// ['profile_id' 'user_id' 'name'] => "profiles__users".name
+// ['age'] => "mytable".age
+func (q *Query) joinedFieldExpression(exprs []string) string {
+	joins := q.generateTableJoins(exprs)
+	num := len(joins)
+	return fmt.Sprintf("%s.%s", joins[num-1].alias, exprs[num-1])
+}
+
+// generateTableJoins transforms a list of fields expression into a list of tableJoins
+// ['user_id' 'profile_id' 'age'] => []tableJoins{CurrentTable User Profile}
+func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
+	adapter := adapters[db.DriverName()]
+	var joins []tableJoin
+
+	// Create the tableJoin for the current table
+	currentTableName := adapter.quoteTableName(q.recordSet.mi.tableName)
+	currentTJ := tableJoin{
+		tableName: currentTableName,
+		joined:    false,
+		alias:     currentTableName,
+	}
+	joins = append(joins, currentTJ)
+
+	curMI := q.recordSet.mi
+	curTJ := &currentTJ
+	alias := curMI.tableName
+	for _, expr := range fieldExprs {
+		fi, ok := curMI.fields.get(expr)
+		if !ok {
+			panic(fmt.Errorf("Unparsable Expression: `%s`", strings.Join(fieldExprs, ExprSep)))
+		}
+		if fi.relatedModel == nil {
+			break
+		}
+		var innerJoin bool
+		if fi.required {
+			innerJoin = true
+		}
+		linkedTableName := adapter.quoteTableName(fi.relatedModel.tableName)
+		alias = fmt.Sprintf("%s%s%s", alias, sqlSep, fi.relatedModel.tableName)
+		nextTJ := tableJoin{
+			tableName:  linkedTableName,
+			joined:     true,
+			innerJoin:  innerJoin,
+			field:      "id",
+			otherTable: curTJ,
+			otherField: expr,
+			alias:      adapter.quoteTableName(alias),
+		}
+		joins = append(joins, nextTJ)
+		curMI = fi.relatedModel
+		curTJ = &nextTJ
+	}
+	return joins
+}
+
+// tablesSQL returns the SQL string for the FROM clause of our SQL query
+// including all joins if any for the given expressions.
+func (q *Query) tablesSQL(fExprs [][]string) string {
+	var res string
+	joinsMap := make(map[string]bool)
+	// Get a list of unique table joins (by alias)
+	for _, f := range fExprs {
+		tJoins := q.generateTableJoins(f)
+		for _, j := range tJoins {
+			if _, exists := joinsMap[j.alias]; !exists {
+				joinsMap[j.alias] = true
+				res += j.sqlString()
+			}
+		}
+	}
+	return res
 }

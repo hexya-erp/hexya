@@ -119,14 +119,15 @@ func columnizeExpr(mi *modelInfo, exprs []string) []string {
 	var res []string
 	fi, ok := mi.fields.get(exprs[0])
 	if !ok {
-		panic(fmt.Errorf("Badly formed expression `%+v` for model `%s`", exprs, mi.name))
+		panic(fmt.Errorf("Unknown expression `%+v` for model `%s`", exprs, mi.name))
 	}
 	res = append(res, fi.json)
 	if len(exprs) > 1 {
 		if fi.relatedModel != nil {
 			res = append(res, columnizeExpr(fi.relatedModel, exprs[1:])...)
 		} else {
-			panic(fmt.Errorf("Badly formed expression: `%s` is not a relation in model `%s`", exprs[0], mi.name))
+			fmt.Printf("fi:%+v\n", fi)
+			panic(fmt.Errorf("Unknown expression: field `%s` is not a relation in model `%s`", exprs[0], mi.name))
 		}
 	}
 	return res

@@ -101,6 +101,11 @@ func TestCreateDB(t *testing.T) {
 		DeclareMethod("User", "computeDecoratedName", computeDecoratedName)
 		DeclareMethod("User", "computeAge", computeAge)
 
+		// Creating a dummy table to check that it is correctly removed by Bootstrap
+		db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
+	})
+
+	Convey("Database creation should run fine", t, func() {
 		Convey("Dummy table should exist", func() {
 			So(testAdapter.tables(), ShouldContainKey, "shouldbedeleted")
 		})

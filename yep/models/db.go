@@ -82,6 +82,14 @@ func DBGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) err
 	return cr.Get(dest, query, args...)
 }
 
+// DBSelect is a wrapper around sqlx.Select
+// It gets the value of multiple rows found by the
+// given query and arguments
+func DBSelect(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) error {
+	// TODO Add SQL debug logging here
+	return cr.Select(dest, query, args...)
+}
+
 // dbGetNoTx is a wrapper around sqlx.Get outside a transaction
 // It gets the value of a single row found by the
 // given query and arguments

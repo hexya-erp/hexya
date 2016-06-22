@@ -30,21 +30,21 @@ type Environment struct {
 /*
 Cr return a pointer to the transaction of the Environment
 */
-func (env *Environment) Cr() *sqlx.Tx {
+func (env Environment) Cr() *sqlx.Tx {
 	return env.cr
 }
 
 /*
 Uid returns the user id of the Environment
 */
-func (env *Environment) Uid() int64 {
+func (env Environment) Uid() int64 {
 	return env.uid
 }
 
 /*
 Context returns the Context of the Environment
 */
-func (env *Environment) Context() tools.Context {
+func (env Environment) Context() tools.Context {
 	return env.context
 }
 
@@ -53,28 +53,29 @@ WithContext returns a new Environment with its context updated by ctx.
 If replace is true, then the context is replaced by the given ctx instead of
 being updated.
 */
-func (env *Environment) WithContext(ctx tools.Context, replace ...bool) *Environment {
+func (env Environment) WithContext(ctx tools.Context, replace ...bool) *Environment {
 	if len(replace) > 0 && replace[0] {
-		return NewEnvironment(env.cr, env.uid, ctx)
+		env.context = ctx
+		return &env
 	}
 	newCtx := env.context
 	for key, value := range ctx {
 		newCtx[key] = value
 	}
-	return NewEnvironment(env.cr, env.uid, newCtx)
+	env.context = newCtx
+	return &env
 }
 
 /*
 Sudo returns a new Environment with the given userId or the superuser id if not specified
 */
-func (env *Environment) Sudo(userId ...int64) *Environment {
-	var uid int64
+func (env Environment) Sudo(userId ...int64) *Environment {
 	if len(userId) > 0 {
-		uid = userId[0]
+		env.uid = userId[0]
 	} else {
-		uid = 1
+		env.uid = 1
 	}
-	return NewEnvironment(env.cr, uid, env.context)
+	return &env
 }
 
 ///*
@@ -110,30 +111,27 @@ func (env *Environment) Sudo(userId ...int64) *Environment {
 //	return res
 //}
 
-/*
-NewEnvironment returns a new Environment with the given parameters.
-*/
-func NewEnvironment(cr *sqlx.Tx, uid int64, context ...tools.Context) *Environment {
+// NewEnvironment returns a new Environment with the given parameters in a new DB transaction.
+//
+// WARNING: Callers to NewEnvironment should ensure to either commit or rollback the returned
+// Environment.Cr() after operation to release the database connection.
+func NewEnvironment(uid int64, context ...tools.Context) *Environment {
+	cr := db.MustBegin()
 	var ctx tools.Context
 	if len(context) > 0 {
 		ctx = context[0]
 	}
-	env := &Environment{
+	env := Environment{
 		cr:      cr,
 		uid:     uid,
 		context: ctx,
 	}
-	return env
-}
-
-func NewCursorEnvironment(uid int64, context ...tools.Context) *Environment {
-	cr := db.MustBegin()
-	return NewEnvironment(cr, uid, context...)
+	return &env
 }
 
 /*
-Pool returns an empty RecordSet from the given table name string or struct pointer
+Pool returns an empty RecordSet from the given table name string
 */
-func (env *Environment) Pool(tableNameOrStructPtr interface{}) *RecordSet {
-	return NewRecordSet(env, tableNameOrStructPtr)
+func (env Environment) Pool(tableName string) *RecordSet {
+	return newRecordSet(&env, tableName)
 }

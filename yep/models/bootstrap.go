@@ -51,15 +51,14 @@ func createModelLinks() {
 				ok        bool = true
 			)
 			switch fi.fieldType {
-			case tools.MANY2ONE:
+			case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE:
 				if sfType.Kind() != reflect.Ptr {
-					panic(fmt.Errorf("Many2one fields must be pointers"))
+					panic(fmt.Errorf("Many2one/One2one fields must be pointers"))
 				}
 				relatedMI, ok = modelRegistry.get(sfType.Elem().Name())
 				if !ok {
 					panic(fmt.Errorf("Unknown model `%s`", sfType.Elem().Name()))
 				}
-				fi.relatedModel = relatedMI
 			case tools.ONE2MANY, tools.MANY2MANY:
 				if sfType.Kind() != reflect.Slice {
 					panic(fmt.Errorf("One2many or Many2many fields must be slice of pointers"))

@@ -47,6 +47,60 @@ type fieldsCollection struct {
 	//dependencyMap        map[fieldRef][]computeData
 }
 
+/*
+get returns the fieldInfo of the field with the given name.
+name can be either the name of the field or its JSON name.
+*/
+func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
+	fi, ok = fc.registryByName[name]
+	if !ok {
+		fi, ok = fc.registryByJSON[name]
+	}
+	return
+}
+
+// names returns a slice with the names of all the stored fields
+func (fc *fieldsCollection) storedFieldNames() []string {
+	var res []string
+	for fName, fi := range fc.registryByName {
+		if fi.isStored() {
+			res = append(res, fName)
+		}
+	}
+	return res
+}
+
+/*
+getComputedFields returns the slice of fieldInfo of the computed, but not
+stored fields of the given modelName.
+If fields are given, return only fieldInfo in the list
+*/
+func (fc *fieldsCollection) getComputedFields(fields ...string) (fil []*fieldInfo) {
+	fInfos := fc.computedFields
+	if len(fields) > 0 {
+		for _, f := range fields {
+			for _, fInfo := range fInfos {
+				if fInfo.name == tools.ConvertMethodName(f) {
+					fil = append(fil, fInfo)
+					continue
+				}
+			}
+		}
+	} else {
+		fil = fInfos
+	}
+	return
+}
+
+/*
+getComputedStoredFields returns the slice of fieldInfo of the computed and stored
+fields of the given modelName.
+*/
+func (fc *fieldsCollection) getComputedStoredFields() (fil []*fieldInfo) {
+	fil = fc.computedStoredFields
+	return
+}
+
 // newFieldsCollection returns a pointer to a new empty fieldsCollection with
 // all maps initialized.
 func newFieldsCollection() *fieldsCollection {
@@ -54,6 +108,23 @@ func newFieldsCollection() *fieldsCollection {
 		registryByName: make(map[string]*fieldInfo),
 		registryByJSON: make(map[string]*fieldInfo),
 		//dependencyMap:        make(map[fieldRef][]computeData),
+	}
+}
+
+/*
+add adds the given fieldInfo to the fieldsCollection.
+*/
+func (fc *fieldsCollection) add(fInfo *fieldInfo) {
+	name := fInfo.name
+	jsonName := fInfo.json
+	fc.registryByName[name] = fInfo
+	fc.registryByJSON[jsonName] = fInfo
+	if fInfo.computed {
+		if fInfo.stored {
+			fc.computedStoredFields = append(fc.computedStoredFields, fInfo)
+		} else {
+			fc.computedFields = append(fc.computedFields, fInfo)
+		}
 	}
 }
 
@@ -113,49 +184,6 @@ func (fi *fieldInfo) isStored() bool {
 //	fr.name = fi.name
 //}
 
-/*
-get returns the fieldInfo of the field with the given name.
-name can be either the name of the field or its JSON name.
-*/
-func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
-	fi, ok = fc.registryByName[name]
-	if !ok {
-		fi, ok = fc.registryByJSON[name]
-	}
-	return
-}
-
-/*
-getComputedFields returns the slice of fieldInfo of the computed, but not
-stored fields of the given modelName.
-If fields are given, return only fieldInfo in the list
-*/
-func (fc *fieldsCollection) getComputedFields(fields ...string) (fil []*fieldInfo) {
-	fInfos := fc.computedFields
-	if len(fields) > 0 {
-		for _, f := range fields {
-			for _, fInfo := range fInfos {
-				if fInfo.name == tools.ConvertMethodName(f) {
-					fil = append(fil, fInfo)
-					continue
-				}
-			}
-		}
-	} else {
-		fil = fInfos
-	}
-	return
-}
-
-/*
-getComputedStoredFields returns the slice of fieldInfo of the computed and stored
-fields of the given modelName.
-*/
-func (fc *fieldsCollection) getComputedStoredFields() (fil []*fieldInfo) {
-	fil = fc.computedStoredFields
-	return
-}
-
 ///*
 //getDependentFields return the fields that must be recomputed when ref is modified.
 //*/
@@ -163,23 +191,6 @@ func (fc *fieldsCollection) getComputedStoredFields() (fil []*fieldInfo) {
 //	target, ok = fc.dependencyMap[ref]
 //	return
 //}
-
-/*
-add adds the given fieldInfo to the fieldsCollection.
-*/
-func (fc *fieldsCollection) add(fInfo *fieldInfo) {
-	name := fInfo.name
-	jsonName := fInfo.json
-	fc.registryByName[name] = fInfo
-	fc.registryByJSON[jsonName] = fInfo
-	if fInfo.computed {
-		if fInfo.stored {
-			fc.computedStoredFields = append(fc.computedStoredFields, fInfo)
-		} else {
-			fc.computedFields = append(fc.computedFields, fInfo)
-		}
-	}
-}
 
 ///*
 //setDependency adds a dependency in the dependencyMap.

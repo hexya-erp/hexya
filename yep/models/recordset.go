@@ -81,14 +81,13 @@ Overwrite RecordSet Ids if any. It panics in case of error.
 It returns a pointer to the same RecordSet.
 */
 func (rs *RecordSet) ForceSearch() *RecordSet {
-	//var idParams []interface{}
-	//num := rs.ValuesFlat(&idParams, "ID")
-	//ids := make([]int64, num)
-	//for i := 0; i < int(num); i++ {
-	//	ids[i] = idParams[i].(int64)
-	//}
-	//return copyRecordStruct(rs).withIds(ids)
-	return rs
+	var idsMap []FieldMap
+	num := rs.Values(&idsMap, "ID")
+	ids := make([]int64, num)
+	for i := 0; i < int(num); i++ {
+		ids[i] = idsMap[i]["ID"].(int64)
+	}
+	return rs.withIds(ids)
 }
 
 /*
@@ -234,22 +233,25 @@ func (rs RecordSet) ReadOne(container interface{}, cols ...string) {
 	//rs.computeFields(container)
 }
 
-///*
-//Values query all data of the RecordSet and map to []map[string]interface.
-//exprs means condition expression.
-//it converts data to []map[column]value.
-//*/
-//func (rs RecordSet) Values(results *[]FieldMap, exprs ...string) int64 {
-//	dbFields := filteredOnDBFields(rs.ModelName(), exprs)
-//	num, err := rs.query.Values(results, dbFields...)
-//	if err != nil {
-//		panic(fmt.Errorf("recordSet `%s` Values() error: %s", rs, err))
-//	}
-//	for i, rec := range rs.Records() {
-//		rec.computeFieldValues(&(*results)[i], exprs...)
-//	}
-//	return num
-//}
+// Values query all data of the RecordSet and map to []FieldMap.
+// fields are the fields to retrieve in the expression format,
+// i.e. "User.Profile.Age" or "user_id.profile_id.age".
+// If no fields are given, all columns of the RecordSet's model are retrieved.
+func (rs RecordSet) Values(results *[]FieldMap, fields ...string) int64 {
+	if len(fields) == 0 {
+		fields = rs.mi.fields.storedFieldNames()
+	}
+	sql, args := rs.query.selectQuery(fields)
+	err := DBSelect(rs.env.cr, results, sql, args)
+	if err != nil {
+		panic(fmt.Errorf("Error in select: %s", err))
+	}
+
+	//for i, rec := range rs.Records() {
+	//	rec.computeFieldValues(&(*results)[i], fields...)
+	//}
+	return int64(len(*results))
+}
 
 ///*
 //ValuesFlat query all data and map to []interface.
@@ -370,17 +372,15 @@ func (rs RecordSet) EnsureOne() {
 }
 
 /*
-withIdMap returns a copy of rs filtered on the given ids slice (overwriting current queryset).
+withIdMap returns a copy of rs filtered on the given ids slice (overwriting current query).
 */
 func (rs RecordSet) withIds(ids []int64) *RecordSet {
-	newRs := copyRecordStruct(rs)
-	newRs.ids = ids
-	//newRs.query = rs.env.Cr().QueryTable(rs.ModelName())
-	//if len(ids) > 0 {
-	//	domStr := fmt.Sprintf("id%sin", ExprSep)
-	//	newRs.query = newRs.query.Filter(domStr, ids)
-	//}
-	return newRs
+	rs.ids = ids
+	if len(ids) > 0 {
+		rs.query = Query{}
+		rs = *rs.Filter("ID", "in", ids)
+	}
+	return &rs
 }
 
 ///*
@@ -491,16 +491,19 @@ func (rs RecordSet) withIds(ids []int64) *RecordSet {
 //	}
 //}
 
-/*
-newRecordStruct returns a new empty recordStruct.
-*/
-func newRecordStruct(env *Environment, ptrStructOrTableName interface{}) *RecordSet {
-	//modelName := getModelName(ptrStructOrTableName)
-	//qs := env.Cr().QueryTable(modelName)
+// newRecordSet returns a new empty RecordSet in the given environment for the given modelName
+func newRecordSet(env *Environment, modelName string) *RecordSet {
+	mi, ok := modelRegistry.get(modelName)
+	if !ok {
+		panic(fmt.Errorf("Unknown model name `%s`", modelName))
+	}
 	rs := RecordSet{
-		query: Query{},
-		env:   NewEnvironment(env.Cr(), env.Uid(), env.Context()),
-		ids:   make([]int64, 0),
+		mi: mi,
+		query: Query{
+			cond: NewCondition(),
+		},
+		env: env,
+		ids: make([]int64, 0),
 	}
 	rs.query.recordSet = &rs
 	return &rs
@@ -521,20 +524,11 @@ func newRecordStruct(env *Environment, ptrStructOrTableName interface{}) *Record
 //}
 
 func copyRecordStruct(rs RecordSet) *RecordSet {
-	newRs := newRecordStruct(rs.env, rs.ModelName())
+	newRs := newRecordSet(rs.env, rs.ModelName())
 	newRs.query = rs.query
 	newRs.ids = make([]int64, len(rs.ids))
 	copy(newRs.ids, rs.ids)
 	newRs.callStack = make([]*methodLayer, len(rs.callStack))
 	copy(newRs.callStack, rs.callStack)
 	return newRs
-}
-
-/*
-NewRecordSet returns a new empty Recordset on the model given by ptrStructOrTableName and the
-given Environment.
-*/
-func NewRecordSet(env *Environment, ptrStructOrTableName interface{}) *RecordSet {
-	//return newRecordStruct(env, ptrStructOrTableName)
-	return new(RecordSet)
 }

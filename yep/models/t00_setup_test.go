@@ -59,6 +59,4 @@ go test -v github.com/npiganeau/yep/yep/models
 	DBConnect(DBARGS.Driver, DBARGS.Source)
 	testAdapter = adapters[db.DriverName()]
 
-	// Creating a dummy table to check that it is correctly removed by Bootstrap
-	db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
 }
