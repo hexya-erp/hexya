@@ -55,11 +55,11 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	}
 
 	// Create new Environment with new transaction
-	env := models.NewCursorEnvironment(uid, ctx)
+	env := models.NewEnvironment(uid, ctx)
 
 	// Create RecordSet from Environment
 	model := tools.ConvertModelName(params.Model)
-	rs = *models.NewRecordSet(env, model)
+	rs = *env.Pool(model)
 
 	//// Try to parse the first argument of Args as id or ids.
 	//var single bool
