@@ -28,14 +28,14 @@ func TestConditions(t *testing.T) {
 			rs = rs.Filter("profile_id.best_post_id.title", "=", "foo")
 			fields := []string{"user_name", "profile_id.best_post_id.title"}
 			sql, args := rs.query.selectQuery(fields)
-			So(sql, ShouldEqual, `SELECT "user".user_name, "user__profile__post".title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
+			So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
 			So(args, ShouldContain, "foo")
 
 			rs = env.Pool("User")
 			rs = rs.Filter("Profile.BestPost.Title", "=", "foo")
 			fields = []string{"UserName", "Profile.BestPost.Title"}
 			sql, args = rs.query.selectQuery(fields)
-			So(sql, ShouldEqual, `SELECT "user".user_name, "user__profile__post".title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
+			So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
 			So(args, ShouldContain, "foo")
 
 			rs = rs.Filter("Profile.Age", ">=", 12)
@@ -52,7 +52,7 @@ func TestConditions(t *testing.T) {
 			So(args, ShouldContain, 1234.56)
 
 			sql, args = rs.query.selectQuery(fields)
-			So(sql, ShouldEqual, `SELECT "user".user_name, "user__profile__post".title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE %?% OR "user__profile".money < ? ) `)
+			So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE %?% OR "user__profile".money < ? ) `)
 		}
 		env.cr.Rollback()
 	})

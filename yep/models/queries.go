@@ -170,7 +170,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 func (q *Query) fieldsSQL(fieldExprs [][]string) string {
 	fStr := make([]string, len(fieldExprs))
 	for i, field := range fieldExprs {
-		fStr[i] = q.joinedFieldExpression(field)
+		fStr[i] = q.joinedFieldExpression(field, true)
 	}
 	return strings.Join(fStr, ", ")
 }
@@ -178,10 +178,15 @@ func (q *Query) fieldsSQL(fieldExprs [][]string) string {
 // joinedFieldExpression joins the given expressions into a fields sql string
 // ['profile_id' 'user_id' 'name'] => "profiles__users".name
 // ['age'] => "mytable".age
-func (q *Query) joinedFieldExpression(exprs []string) string {
+// If withAlias is true, then returns fields with its alias
+func (q *Query) joinedFieldExpression(exprs []string, withAlias ...bool) string {
 	joins := q.generateTableJoins(exprs)
 	num := len(joins)
-	return fmt.Sprintf("%s.%s", joins[num-1].alias, exprs[num-1])
+	if len(withAlias) > 0 && withAlias[0] {
+		return fmt.Sprintf("%s.%s AS %s", joins[num-1].alias, exprs[num-1], strings.Join(exprs, sqlSep))
+	} else {
+		return fmt.Sprintf("%s.%s", joins[num-1].alias, exprs[num-1])
+	}
 }
 
 // generateTableJoins transforms a list of fields expression into a list of tableJoins
