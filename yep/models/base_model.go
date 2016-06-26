@@ -35,12 +35,12 @@ type BaseTransientModel struct {
 
 func declareBaseMethods(name string) {
 	//DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
-	//DeclareMethod(name, "ComputeNameGet", ComputeNameGet)
-	//DeclareMethod(name, "Create", Create)
+	DeclareMethod(name, "ComputeNameGet", ComputeNameGet)
+	DeclareMethod(name, "Create", Create)
 	//DeclareMethod(name, "Read", ReadModel)
 	//DeclareMethod(name, "Write", Write)
 	//DeclareMethod(name, "Unlink", Unlink)
-	//DeclareMethod(name, "NameGet", NameGet)
+	DeclareMethod(name, "NameGet", NameGet)
 	//DeclareMethod(name, "FieldsViewGet", FieldsViewGet)
 	//DeclareMethod(name, "FieldsGet", FieldsGet)
 	//DeclareMethod(name, "ProcessView", ProcessView)
@@ -57,35 +57,21 @@ func declareBaseMethods(name string) {
 //func ComputeWriteDate(rs RecordSet) orm.Params {
 //	return orm.Params{"WriteDate": time.Now()}
 //}
-//
-///*
-//ComputeNameGet updates the DisplayName field with the result of NameGet.
-//*/
-//func ComputeNameGet(rs RecordSet) orm.Params {
-//	return orm.Params{"DisplayName": rs.Call("NameGet").(string)}
-//}
-//
-///*
-//Create is the base implementation of the 'Create' method which creates
-//a record in the database from the given structPtr.
-//Returns the id of the created record and the associated RecordSet.
-//*/
-//func Create(rs RecordSet, data interface{}) RecordSet {
-//	if md, ok := data.(map[string]interface{}); ok {
-//		params := orm.Params(md)
-//		id, err := rs.Env().Cr().InsertValues(rs.ModelName(), params)
-//		if err != nil {
-//			panic(fmt.Errorf("Create error: %s", err))
-//		}
-//		rStruct := rs.Filter("id", id).Search().(recordStruct)
-//		rStruct.updateStoredFields(params)
-//		rStruct.computeFieldValues(&params)
-//		return rStruct
-//	} else {
-//		return rs.Env().Create(data)
-//	}
-//}
-//
+
+/*
+ComputeNameGet updates the DisplayName field with the result of NameGet.
+*/
+func ComputeNameGet(rs RecordSet) FieldMap {
+	return FieldMap{"DisplayName": rs.Call("NameGet").(string)}
+}
+
+// Create is the base implementation of the 'Create' method which creates
+// a record in the database from the given structPtr.
+// Returns a pointer to a RecordSet with the created id.
+func Create(rs RecordSet, data interface{}) *RecordSet {
+	return rs.create(data)
+}
+
 ///*
 //ReadModel is the base implementation of the 'Read' method.
 //It reads the database and returns a list of maps[string]interface{}
@@ -132,26 +118,22 @@ func declareBaseMethods(name string) {
 //func Unlink(rs RecordSet) int64 {
 //	return rs.Unlink()
 //}
-//
-///*
-//NameGet is the base implementation of the 'NameGet' method which retrieves the
-//human readable name of an object.
-//*/
-//func NameGet(rs RecordSet) string {
-//	rs.EnsureOne()
-//	var idParams orm.ParamsList
-//	ref := fieldRef{modelName: rs.ModelName(), name: "name"}
-//	_, exists := fieldsCache.get(ref)
-//	if !exists {
-//		return rs.String()
-//	}
-//	num := rs.ValuesFlat(&idParams, "name")
-//	if num == 0 {
-//		return rs.String()
-//	}
-//	return idParams[0].(string)
-//}
-//
+
+/*
+NameGet is the base implementation of the 'NameGet' method which retrieves the
+human readable name of an object.
+*/
+func NameGet(rs RecordSet) string {
+	rs.EnsureOne()
+	_, nameExists := rs.mi.fields.get("name")
+	if nameExists {
+		var fMap FieldMap
+		rs.ReadValue(&fMap, "name")
+		return fMap["name"].(string)
+	}
+	return rs.String()
+}
+
 //// Args struct for the FieldsViewGet function
 //type FieldsViewGetParams struct {
 //	ViewID   string `json:"view_id"`

@@ -74,36 +74,50 @@ func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string
 /*
 checkStructPtr checks that the given data is a struct ptr valid for receiving data from
 the database through the RecordSet API. That is:
-- data must be a struct pointer or a pointer to a slice of struct (or struct pointer) if allowSlice is true
+- data must be a struct pointer
 - The struct must contain an ID field of type int64
 It returns an error if it not the case.
 */
-func checkStructPtr(data interface{}, allowSlice ...bool) error {
+func checkStructPtr(data interface{}) error {
 	val := reflect.ValueOf(data)
 	ind := reflect.Indirect(val)
 	indType := ind.Type()
-	sliceAllowed := false
-	if len(allowSlice) > 0 {
-		sliceAllowed = allowSlice[0]
-	}
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		if ind.Kind() != reflect.Slice || !sliceAllowed {
-			return fmt.Errorf("Argument must be a struct pointer")
-		} else {
-			indType = ind.Type().Elem()
-			if indType.Kind() == reflect.Ptr {
-				indType = indType.Elem()
-			}
-			if indType.Kind() != reflect.Struct {
-				return fmt.Errorf("Argument must be a slice of structs or slice of struct pointers")
-			}
-		}
+		return fmt.Errorf("Argument must be a struct pointer")
 	}
 
 	if _, ok := indType.FieldByName("ID"); !ok {
 		return fmt.Errorf("Struct must have an ID field")
 	}
 	if f, _ := indType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
+		return fmt.Errorf("Struct ID field must be of type `int64`")
+	}
+	return nil
+}
+
+// checkStructSlicePtr checks that the given data is a pointer to a slice of
+// struct pointers valid for receiving data from the database through the RecordSet API.
+// That is:
+// - data must be a pointer to a slice of struct pointers
+// - The struct must contain an ID field of type int64
+// It returns an error if it not the case.
+func checkStructSlicePtr(data interface{}) error {
+	val := reflect.ValueOf(data)
+	ind := reflect.Indirect(val)
+	indType := ind.Type()
+	if val.Kind() != reflect.Ptr ||
+		ind.Kind() != reflect.Slice ||
+		indType.Elem().Kind() != reflect.Ptr ||
+		indType.Elem().Elem().Kind() != reflect.Struct {
+
+		return fmt.Errorf("Argument must be a pointer to a slice of struct pointers")
+	}
+	structType := indType.Elem().Elem()
+
+	if _, ok := structType.FieldByName("ID"); !ok {
+		return fmt.Errorf("Struct must have an ID field")
+	}
+	if f, _ := structType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
 		return fmt.Errorf("Struct ID field must be of type `int64`")
 	}
 	return nil
@@ -133,24 +147,24 @@ func columnizeExpr(mi *modelInfo, exprs []string) []string {
 	return res
 }
 
-// getStructValue returns the struct Value of the given structPtr
-// It panics if structPtr is not a struct pointer.
-func getStructValue(structPtr interface{}) reflect.Value {
-	if err := checkStructPtr(structPtr); err != nil {
-		panic(err)
-	}
-	val := reflect.ValueOf(structPtr)
-	return reflect.Indirect(val)
-}
-
-// getStructType returns the struct Type of the given structPtr
-// It panics if structPtr is not a struct pointer.
-func getStructType(structPtr interface{}) reflect.Type {
-	if err := checkStructPtr(structPtr); err != nil {
-		panic(err)
-	}
-	return reflect.TypeOf(structPtr).Elem()
-}
+//// getStructValue returns the struct Value of the given structPtr
+//// It panics if structPtr is not a struct pointer.
+//func getStructValue(structPtr interface{}) reflect.Value {
+//	if err := checkStructPtr(structPtr); err != nil {
+//		panic(err)
+//	}
+//	val := reflect.ValueOf(structPtr)
+//	return reflect.Indirect(val)
+//}
+//
+//// getStructType returns the struct Type of the given structPtr
+//// It panics if structPtr is not a struct pointer.
+//func getStructType(structPtr interface{}) reflect.Type {
+//	if err := checkStructPtr(structPtr); err != nil {
+//		panic(err)
+//	}
+//	return reflect.TypeOf(structPtr).Elem()
+//}
 
 /*
 getModelName returns the model name corresponding to the given container
@@ -172,33 +186,109 @@ func getModelName(container interface{}) string {
 	return name
 }
 
-/*
-structToMap returns the fields and values of the given struct pointer in a map.
-*/
-func structToMap(structPtr interface{}) map[string]interface{} {
+// structToMap returns the fields and values of the given struct pointer in a map.
+// depth determines the level down to which we get fields of related structs.
+// Set depth to 0 to only get fields of our struct
+func structToMap(structPtr interface{}, depth int, prefix ...string) FieldMap {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
 		panic(fmt.Errorf("structPtr must be a pointer to a struct"))
 	}
-	res := make(map[string]interface{})
+	res := make(FieldMap)
 	for i := 0; i < ind.NumField(); i++ {
-		fieldName := ind.Type().Field(i).Name
+		var fieldName string
+		if len(prefix) > 0 {
+			fieldName = fmt.Sprintf("%s.%s", prefix[0], ind.Type().Field(i).Name)
+		} else {
+			fieldName = ind.Type().Field(i).Name
+		}
 		fieldValue := ind.Field(i)
 		var resVal interface{}
 		if fieldValue.Kind() == reflect.Ptr {
+			// Get the related struct if not nil
 			relInd := reflect.Indirect(fieldValue)
+			switch relInd.Kind() {
+			case reflect.Struct:
+				if !relInd.FieldByName("ID").IsValid() {
+					// Skip if pointer is nil
+					continue
+				}
+				// get the ID of the related struct
+				resVal = relInd.FieldByName("ID").Interface()
+				if depth > 0 {
+					// get the related struct fields
+					relMap := structToMap(fieldValue, depth-1, fieldName)
+					for k, v := range relMap {
+						res[k] = v
+					}
+				}
+			}
 			if relInd.Kind() != reflect.Struct {
 				continue
 			}
-			if !relInd.FieldByName("ID").IsValid() {
-				continue
-			}
-			resVal = relInd.FieldByName("ID").Interface()
+
 		} else {
 			resVal = ind.Field(i).Interface()
 		}
 		res[fieldName] = resVal
+	}
+	return res
+}
+
+// mapToStruct populates the given structPtr with the values in fMap.
+// Recursively populates related structs with related keys of fMap.
+func mapToStruct(mi *modelInfo, structPtr interface{}, fMap FieldMap) {
+	fMap = nestMap(fMap)
+	val := reflect.ValueOf(structPtr)
+	ind := reflect.Indirect(val)
+	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
+		panic(fmt.Errorf("structPtr must be a pointer to a struct"))
+	}
+	for i := 0; i < ind.NumField(); i++ {
+		fVal := ind.Field(i)
+		sf := ind.Type().Field(i)
+		fi, ok := mi.fields.get(sf.Name)
+		if !ok {
+			panic(fmt.Errorf("Unregistered field `%s` in model `%s`", sf.Name, mi.name))
+		}
+		mValue, mValExists := fMap[fi.json]
+		if sf.Type.Kind() == reflect.Ptr {
+			if mValExists {
+				fm, ok := mValue.(FieldMap)
+				if !ok {
+					continue
+				}
+				mapToStruct(fi.relatedModel, fVal.Interface(), fm)
+			}
+		}
+		if mValExists {
+			convertedValue := reflect.ValueOf(mValue).Convert(fVal.Type())
+			fVal.Set(convertedValue)
+		}
+	}
+}
+
+// nestMap returns a nested FieldMap from a flat FieldMap with dotted
+// field names. nestMap is lazy and only nests the first level.
+func nestMap(fMap FieldMap) FieldMap {
+	res := make(FieldMap)
+	nested := make(map[string]FieldMap)
+	for k, v := range fMap {
+		exprs := strings.Split(k, ExprSep)
+		if len(exprs) == 1 {
+			// We are in the top map here
+			res[k] = v
+			continue
+		}
+		if _, exists := nested[exprs[0]]; !exists {
+			nested[exprs[0]] = make(FieldMap)
+		}
+		nested[exprs[0]][strings.Join(exprs[1:], ExprSep)] = v
+	}
+	// Get nested FieldMap and assign to top key
+	for k, fm := range nested {
+		res[k] = fm
 	}
 	return res
 }
@@ -235,7 +325,30 @@ func getFieldType(typ reflect.Type) tools.FieldType {
 	panic(fmt.Errorf("Unable to match field type with go Type `%s`. Please specify 'type()' in struct tag", typ))
 }
 
-// getRelatedModel returns a pointer to the modelInfo of the pointed model.
-func getRelatedModel(sf reflect.StructField) *modelInfo {
-	return nil
+// filterFields returns the fields slice with only the fields that appear in
+// the filters slice or all fields if filters is an empty slice.
+// Fields or Filters can contain field names or JSON names.
+// The result has only JSON names
+func filterFields(mi *modelInfo, fields, filters []string) []string {
+	var res []string
+	for _, field := range fields {
+		fi, ok := mi.fields.get(field)
+		if !ok {
+			panic(fmt.Errorf("Unknown field `%s` in model `%s`", field, mi.name))
+		}
+		if len(filters) == 0 {
+			res = append(res, fi.json)
+			continue
+		}
+		for _, filter := range filters {
+			fif, ok := mi.fields.get(filter)
+			if !ok {
+				panic(fmt.Errorf("Unknown field `%s` in model `%s`", filter, mi.name))
+			}
+			if fi.json == fif.json {
+				res = append(res, fi.json)
+			}
+		}
+	}
+	return res
 }

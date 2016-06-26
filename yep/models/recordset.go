@@ -63,6 +63,11 @@ func (rs RecordSet) Ids() []int64 {
 	return rs.ids
 }
 
+func (rs RecordSet) RelatedDepth(depth int) *RecordSet {
+	rs.query.relDepth = depth
+	return &rs
+}
+
 /*
 Search query the database with the current filter and fills the RecordSet with the queries ids.
 Does nothing in case RecordSet already has Ids. It panics in case of error.
@@ -82,10 +87,10 @@ It returns a pointer to the same RecordSet.
 */
 func (rs *RecordSet) ForceSearch() *RecordSet {
 	var idsMap []FieldMap
-	num := rs.Values(&idsMap, "ID")
+	num := rs.ReadValues(&idsMap, "id")
 	ids := make([]int64, num)
 	for i := 0; i < int(num); i++ {
-		ids[i] = idsMap[i]["ID"].(int64)
+		ids[i] = idsMap[i]["id"].(int64)
 	}
 	return rs.withIds(ids)
 }
@@ -108,7 +113,7 @@ Unlink deletes the database record of this RecordSet and returns the number of d
 */
 func (rs RecordSet) Unlink() int64 {
 	sql, args := rs.query.deleteQuery()
-	res := DBExecute(rs.env.cr, sql, args)
+	res := DBExecute(rs.env.cr, sql, args...)
 	num, _ := res.RowsAffected()
 	return num
 }
@@ -185,104 +190,94 @@ It panics in case of error
 func (rs RecordSet) SearchCount() int {
 	sql, args := rs.query.countQuery()
 	var res int
-	DBGet(rs.env.cr, res, sql, args)
+	DBGet(rs.env.cr, res, sql, args...)
 	return res
 }
 
-/*
-All query all data pointed by the RecordSet and map to containers.
-It panics in case of error
-*/
+// ReadAll query all data pointed by the RecordSet and map to containers.
+// If cols are given, retrieve only the given fields.
+// Returns the number of rows fetched.
+// It panics in case of error
 func (rs RecordSet) ReadAll(container interface{}, cols ...string) int64 {
-	//if err := checkStructPtr(container, true); err != nil {
-	//	panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
-	//}
-	//num, err := rs.OrderBy("ID").All(container, cols...)
-	//if err != nil {
-	//	panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
-	//}
-	//val := reflect.ValueOf(container)
-	//ind := reflect.Indirect(val)
-	//if ind.Kind() == reflect.Slice {
-	//	contSlice := make([]interface{}, ind.Len())
-	//	for i := 0; i < ind.Len(); i++ {
-	//		csIndex := reflect.ValueOf(contSlice).Index(i)
-	//		csIndex.Set(ind.Index(i))
-	//	}
-	//	rs = rs.Search()
-	//	for i, item := range rs.Records() {
-	//		item.computeFields(contSlice[i])
-	//	}
-	//	return num
-	//}
-	//rs.computeFields(container)
-	return 1
+	if err := checkStructSlicePtr(container); err != nil {
+		panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
+	}
+	typ := reflect.TypeOf(container).Elem().Elem().Elem()
+	structCtn := reflect.New(typ).Interface()
+	sfMap := structToMap(structCtn, rs.query.relDepth)
+	fields := filterFields(rs.mi, sfMap.Keys(), cols)
+
+	var fMaps []FieldMap
+	rs.ReadValues(&fMaps, fields...)
+
+	ptrVal := reflect.ValueOf(container)
+	sliceVal := ptrVal.Elem()
+	sliceVal.Set(reflect.MakeSlice(ptrVal.Type().Elem(), len(fMaps), len(fMaps)))
+
+	for i, fMap := range fMaps {
+		structPtr := reflect.New(typ).Interface()
+		mapToStruct(rs.mi, structPtr, fMap)
+		sliceVal.Index(i).Set(reflect.ValueOf(structPtr))
+	}
+	return int64(len(fMaps))
 }
 
-/*
-One query the RecordSet row and map to containers.
-it panics if the RecordSet does not contain exactly one row.
-*/
+// ReadOne query the RecordSet row and map to container.
+// If cols are given, retrieve only the given fields.
+// It panics if the RecordSet does not contain exactly one row.
 func (rs RecordSet) ReadOne(container interface{}, cols ...string) {
-	//if err := checkStructPtr(container); err != nil {
-	//	panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
-	//}
-	//if err := rs.query.One(container, cols...); err != nil {
-	//	panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
-	//}
-	//rs.computeFields(container)
+	rs.EnsureOne()
+	if err := checkStructPtr(container); err != nil {
+		panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
+	}
+	sfMap := structToMap(container, rs.query.relDepth)
+	fields := filterFields(rs.mi, sfMap.Keys(), cols)
+	dbFields := filterFields(rs.mi, rs.mi.fields.storedFieldNames(), fields)
+	var fMap FieldMap
+	rs.ReadValue(&fMap, dbFields...)
+	mapToStruct(rs.mi, container, fMap)
+}
+
+// Value query a single line of data in the database and maps the
+// result to the result FieldMap
+func (rs RecordSet) ReadValue(result *FieldMap, fields ...string) {
+	rs.EnsureOne()
+	var fieldsMap []FieldMap
+	rs.ReadValues(&fieldsMap, fields...)
+	*result = make(FieldMap)
+	*result = fieldsMap[0]
 }
 
 // Values query all data of the RecordSet and map to []FieldMap.
 // fields are the fields to retrieve in the expression format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
 // If no fields are given, all columns of the RecordSet's model are retrieved.
-func (rs RecordSet) Values(results *[]FieldMap, fields ...string) int64 {
-	if len(fields) == 0 {
-		fields = rs.mi.fields.storedFieldNames()
-	}
-	sql, args := rs.query.selectQuery(fields)
-	err := DBSelect(rs.env.cr, results, sql, args)
-	if err != nil {
-		panic(fmt.Errorf("Error in select: %s", err))
+func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
+	dbFields := filterFields(rs.mi, rs.mi.fields.storedFieldNames(), fields)
+	sql, args := rs.query.selectQuery(dbFields)
+	rows := DBQuery(rs.env.cr, sql, args...)
+	defer rows.Close()
+	for rows.Next() {
+		line := make(FieldMap)
+		err := rows.MapScan(line)
+		if err != nil {
+			panic(err)
+		}
+		*results = append(*results, line)
 	}
 
-	//for i, rec := range rs.Records() {
-	//	rec.computeFieldValues(&(*results)[i], fields...)
-	//}
+	for i, rec := range rs.Records() {
+		rec.computeFieldValues(&(*results)[i], fields...)
+	}
 	return int64(len(*results))
 }
-
-///*
-//ValuesFlat query all data and map to []interface.
-//it's designed for one column record set, auto change to []value, not [][column]value.
-//*/
-//func (rs RecordSet) ValuesFlat(result *[]interface{}, expr string) int64 {
-//	if getFieldColumn(rs.ModelName(), expr) != "" {
-//		// expr is a stored field
-//		num, err := rs.query.ValuesFlat(result, expr)
-//		if err != nil {
-//			panic(fmt.Errorf("recordSet `%s` ValuesFlat() error: %s", rs, err))
-//		}
-//		return num
-//	} else {
-//		// expr is a computed field
-//		*result = make([]interface{}, int(rs.SearchCount()))
-//		for i, rec := range rs.Records() {
-//			params := make(FieldMap)
-//			rec.computeFieldValues(&params, expr)
-//			(*result)[i] = params[GetFieldJSON(rs.ModelName(), expr)]
-//		}
-//		return 0
-//	}
-//}
 
 /*
 Call calls the given method name methName with the given arguments and return the
 result as interface{}.
 */
 func (rs RecordSet) Call(methName string, args ...interface{}) interface{} {
-	methInfo, ok := methodsCache.get(method{modelName: rs.ModelName(), name: methName})
+	methInfo, ok := rs.mi.methods.get(methName)
 	if !ok {
 		panic(fmt.Errorf("Unknown method `%s` in model `%s`", methName, rs.ModelName()))
 	}
@@ -302,7 +297,7 @@ func (rs RecordSet) call(methLayer *methodLayer, args ...interface{}) interface{
 
 	rsVal := reflect.ValueOf(rs)
 	inVals := []reflect.Value{rsVal}
-	methName := fmt.Sprintf("%s.%s()", methLayer.methInfo.ref.modelName, methLayer.methInfo.ref.name)
+	methName := fmt.Sprintf("%s.%s()", methLayer.methInfo.mi.name, methLayer.methInfo.name)
 	for i := 1; i < fnTyp.NumIn(); i++ {
 		if i > len(args) {
 			panic(fmt.Errorf("Not enough argument when Calling `%s`", methName))
@@ -342,7 +337,7 @@ func (rs RecordSet) Super(args ...interface{}) interface{} {
 MethodType returns the type of the method given by methName
 */
 func (rs RecordSet) MethodType(methName string) reflect.Type {
-	methInfo, ok := methodsCache.get(method{modelName: rs.ModelName(), name: methName})
+	methInfo, ok := rs.mi.methods.get(methName)
 	if !ok {
 		panic(fmt.Errorf("Unknown method `%s` in model `%s`", methName, rs.ModelName()))
 	}
@@ -353,7 +348,6 @@ func (rs RecordSet) MethodType(methName string) reflect.Type {
 Records returns the slice of RecordSet singletons that constitute this RecordSet
 */
 func (rs RecordSet) Records() []*RecordSet {
-	rs.Search()
 	res := make([]*RecordSet, len(rs.Ids()))
 	for i, id := range rs.Ids() {
 		res[i] = rs.withIds([]int64{id})
@@ -371,65 +365,73 @@ func (rs RecordSet) EnsureOne() {
 	}
 }
 
+// create inserts a new record in the database with the given data.
+// data can be either a FieldMap or a struct pointer of the same model as rs.
+// This function is private and low level. It should not be called directly.
+// Instead use rs.Call("Create") or env.Create()
+func (rs RecordSet) create(data interface{}) *RecordSet {
+	// create our FieldMap
+	var fMap FieldMap
+	if _, ok := data.(FieldMap); ok {
+		fMap = data.(FieldMap)
+	} else {
+		if err := checkStructPtr(data); err != nil {
+			panic(err)
+		}
+		fMap = structToMap(data, 0)
+	}
+	// clean our fMap from ID and non stored fields
+	delete(fMap, "id")
+	delete(fMap, "ID")
+	for _, cf := range rs.mi.fields.getComputedFields() {
+		delete(fMap, cf.name)
+		delete(fMap, cf.json)
+	}
+	// insert in DB
+	sql, args := rs.query.insertQuery(fMap)
+	var createdId int64
+	DBGet(rs.env.cr, &createdId, sql, args...)
+	// compute stored fields
+	//rs.updateStoredFields()
+	if _, ok := data.(FieldMap); !ok {
+		// set ID to the given struct
+		idVal := reflect.ValueOf(data).Elem().FieldByName("ID")
+		idVal.Set(reflect.ValueOf(createdId))
+		// Update the given struct with its computed fields
+		//rs.computeFields(data)
+	}
+	return rs.withIds([]int64{createdId})
+}
+
 /*
 withIdMap returns a copy of rs filtered on the given ids slice (overwriting current query).
 */
 func (rs RecordSet) withIds(ids []int64) *RecordSet {
 	rs.ids = ids
 	if len(ids) > 0 {
-		rs.query = Query{}
+		rs.query = newQuery(&rs)
 		rs = *rs.Filter("ID", "in", ids)
 	}
 	return &rs
 }
 
-///*
-//computeFields sets the value of the computed (non stored) fields of structPtr.
-//*/
-//func (rs RecordSet) computeFields(structPtr interface{}) {
-//	val := reflect.ValueOf(structPtr)
-//	ind := reflect.Indirect(val)
-//
-//	fInfos, _ := fieldsCache.getComputedFields(rs.ModelName())
-//	params := make(FieldMap)
-//	for _, fInfo := range fInfos {
-//		sf := ind.FieldByName(fInfo.name)
-//		if !sf.IsValid() {
-//			// Computed field is not present in structPtr
-//			continue
-//		}
-//		if _, exists := params[fInfo.name]; exists {
-//			// We already have the value we need in params
-//			continue
-//		}
-//		newParams := rs.Call(fInfo.compute).(orm.Params)
-//		for k, v := range newParams {
-//			params[k] = v
-//		}
-//		structField := ind.FieldByName(fInfo.name)
-//		structField.Set(reflect.ValueOf(params[fInfo.name]))
-//	}
-//}
-
-///*
-//computeFieldValues updates the given params with the given computed (non stored) fields
-//or all the computed fields of the model if not given.
-//*/
-//func (rs RecordSet) computeFieldValues(params *FieldMap, fields ...string) {
-//	fInfos, _ := fieldsCache.getComputedFields(rs.ModelName(), fields...)
-//	for _, fInfo := range fInfos {
-//		if _, exists := (*params)[fInfo.name]; exists {
-//			// We already have the value we need in params
-//			// probably because it was computed with another field
-//			continue
-//		}
-//		newParams := rs.Call(fInfo.compute).(FieldMap)
-//		for k, v := range newParams {
-//			key := GetFieldJSON(rs.ModelName(), k)
-//			(*params)[key] = v
-//		}
-//	}
-//}
+// computeFieldValues updates the given params with the given computed (non stored) fields
+// or all the computed fields of the model if not given.
+// Returned fieldMap keys are field's JSON name
+func (rs RecordSet) computeFieldValues(params *FieldMap, fields ...string) {
+	for _, fInfo := range rs.mi.fields.getComputedFields(fields...) {
+		if _, exists := (*params)[fInfo.name]; exists {
+			// We already have the value we need in params
+			// probably because it was computed with another field
+			continue
+		}
+		newParams := rs.Call(fInfo.compute).(FieldMap)
+		for k, v := range newParams {
+			key, _ := rs.mi.fields.get(k)
+			(*params)[key.json] = v
+		}
+	}
+}
 
 ///*
 //updateStoredFields updates all dependent fields of rs that are included in structPtrOrParams.
@@ -498,12 +500,10 @@ func newRecordSet(env *Environment, modelName string) *RecordSet {
 		panic(fmt.Errorf("Unknown model name `%s`", modelName))
 	}
 	rs := RecordSet{
-		mi: mi,
-		query: Query{
-			cond: NewCondition(),
-		},
-		env: env,
-		ids: make([]int64, 0),
+		mi:    mi,
+		query: newQuery(),
+		env:   env,
+		ids:   make([]int64, 0),
 	}
 	rs.query.recordSet = &rs
 	return &rs

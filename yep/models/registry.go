@@ -60,6 +60,7 @@ type modelInfo struct {
 	name      string
 	tableName string
 	fields    *fieldsCollection
+	methods   *methodsCollection
 }
 
 // addFieldsFromStruct adds the fields of the given struct to our
@@ -123,11 +124,12 @@ func createModelInfo(name string, model interface{}) {
 		name:      name,
 		tableName: tools.SnakeCaseString(name),
 		fields:    newFieldsCollection(),
+		methods:   newMethodsCollection(),
 	}
 	pk := &fieldInfo{
 		name:      "ID",
 		json:      "id",
-		modelInfo: mi,
+		mi:        mi,
 		required:  true,
 		fieldType: tools.INTEGER,
 	}

@@ -78,24 +78,17 @@ func (env Environment) Sudo(userId ...int64) *Environment {
 	return &env
 }
 
-///*
-//Create creates a new record in database from the given data and returns a recordSet
-//Data must be a struct pointer.
-//*/
-//func (env *Environment) Create(data interface{}) RecordSet {
-//	if err := checkStructPtr(data); err != nil {
-//		panic(fmt.Errorf("Create error: %s", err))
-//	}
-//	_, err := env.cr.Insert(data)
-//	if err != nil {
-//		panic(fmt.Errorf("Create error: %s", err))
-//	}
-//	rs := newRecordStructFromData(env, data)
-//	rs.updateStoredFields(data)
-//	rs.computeFields(data)
-//	return rs
-//}
-//
+// Create creates a new record in database from the given data and returns a recordSet
+// Data must be a struct pointer.
+func (env Environment) Create(data interface{}) *RecordSet {
+	if err := checkStructPtr(data); err != nil {
+		panic(err)
+	}
+	modelName := getModelName(data)
+	rs := env.Pool(modelName).Call("Create", data).(*RecordSet)
+	return rs
+}
+
 ///*
 //Sync writes the given data to database.
 //data must be a struct pointer that has been originally populated by RecordSet.ReadOne()

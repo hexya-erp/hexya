@@ -16,11 +16,10 @@ package models
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/npiganeau/yep/yep/tools"
-	"strconv"
 )
 
 /*
@@ -38,7 +37,6 @@ type computeData struct {
 
 // fieldsCollection is a collection of fieldInfo instances in a model.
 type fieldsCollection struct {
-	sync.RWMutex
 	registryByName       map[string]*fieldInfo
 	registryByJSON       map[string]*fieldInfo
 	computedFields       []*fieldInfo
@@ -60,10 +58,22 @@ func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
 }
 
 // names returns a slice with the names of all the stored fields
-func (fc *fieldsCollection) storedFieldNames() []string {
+// If fields are given, return only fieldInfo in the list
+func (fc *fieldsCollection) storedFieldNames(fieldNames ...string) []string {
 	var res []string
 	for fName, fi := range fc.registryByName {
-		if fi.isStored() {
+		var keepField bool
+		if len(fieldNames) == 0 {
+			keepField = true
+		} else {
+			for _, f := range fieldNames {
+				if fName == f {
+					keepField = true
+					break
+				}
+			}
+		}
+		if fi.isStored() && keepField {
 			res = append(res, fName)
 		}
 	}
@@ -130,7 +140,7 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 
 // fieldInfo holds the meta information about a field
 type fieldInfo struct {
-	modelInfo     *modelInfo
+	mi            *modelInfo
 	name          string
 	json          string
 	description   string
@@ -262,7 +272,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	fInfo := fieldInfo{
 		name:          sf.Name,
 		json:          json,
-		modelInfo:     mi,
+		mi:            mi,
 		compute:       computeName,
 		computed:      computed,
 		stored:        stored,

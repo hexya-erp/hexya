@@ -33,6 +33,8 @@ func BootStrap() {
 	createModelLinks()
 	syncDatabase()
 
+	bootStrapMethods()
+
 	//fieldsCache.Lock()
 	//defer fieldsCache.Unlock()
 	//processDepends()
@@ -73,6 +75,7 @@ func createModelLinks() {
 			}
 			fi.relatedModel = relatedMI
 		}
+		mi.fields.bootstrapped = true
 	}
 }
 
@@ -166,7 +169,7 @@ func createDBColumn(fi *fieldInfo) {
 	query := fmt.Sprintf(`
 		ALTER TABLE %s
 		ADD COLUMN %s %s
-	`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, adapter.columnSQLDefinition(fi))
+	`, adapter.quoteTableName(fi.mi.tableName), fi.json, adapter.columnSQLDefinition(fi))
 	dbExecuteNoTx(query)
 }
 
@@ -176,7 +179,7 @@ func updateDBColumnDataType(fi *fieldInfo) {
 	query := fmt.Sprintf(`
 		ALTER TABLE %s
 		ALTER COLUMN %s SET DATA TYPE %s
-	`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, adapter.typeSQL(fi))
+	`, adapter.quoteTableName(fi.mi.tableName), fi.json, adapter.typeSQL(fi))
 	dbExecuteNoTx(query)
 }
 
@@ -192,7 +195,7 @@ func updateDBColumnNullable(fi *fieldInfo) {
 	query := fmt.Sprintf(`
 		ALTER TABLE %s
 		ALTER COLUMN %s %s NOT NULL
-	`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, verb)
+	`, adapter.quoteTableName(fi.mi.tableName), fi.json, verb)
 	dbExecuteNoTx(query)
 }
 
@@ -205,12 +208,12 @@ func updateDBColumnDefault(fi *fieldInfo) {
 		query = fmt.Sprintf(`
 			ALTER TABLE %s
 			ALTER COLUMN %s DROP DEFAULT
-		`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json)
+		`, adapter.quoteTableName(fi.mi.tableName), fi.json)
 	} else {
 		query = fmt.Sprintf(`
 			ALTER TABLE %s
 			ALTER COLUMN %s SET DEFAULT %s
-		`, adapter.quoteTableName(fi.modelInfo.tableName), fi.json, adapter.fieldSQLDefault(fi))
+		`, adapter.quoteTableName(fi.mi.tableName), fi.json, adapter.fieldSQLDefault(fi))
 	}
 	dbExecuteNoTx(query)
 }
@@ -247,4 +250,11 @@ func createColumnIndex(tableName, colName string) {
 		CREATE INDEX %s ON %s (%s)
 	`, fmt.Sprintf("%s_%s_index", tableName, colName), adapter.quoteTableName(tableName), colName)
 	dbExecuteNoTx(query)
+}
+
+// bootStrapMethods freezes the methods of the models.
+func bootStrapMethods() {
+	for _, mi := range modelRegistry.registryByName {
+		mi.methods.bootstrapped = true
+	}
 }

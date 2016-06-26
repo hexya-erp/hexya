@@ -17,6 +17,8 @@ package models
 import (
 	"fmt"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type SQLParams []interface{}
@@ -46,7 +48,13 @@ type Query struct {
 // WHERE clause of this Query
 func (q *Query) sqlWhereClause() (string, SQLParams) {
 	sql, args := q.conditionSQLClause(q.cond)
-	sql = "WHERE " + sql
+	if sql != "" {
+		sql = "WHERE " + sql
+	}
+	sql, args, err := sqlx.In(sql, args...)
+	if err != nil {
+		panic(fmt.Errorf("Unable to expand 'IN' statement in sql: %s", err))
+	}
 	return sql, args
 }
 
@@ -131,6 +139,35 @@ func (q *Query) deleteQuery() (string, SQLParams) {
 	return delQuery, args
 }
 
+// insertQuery returns the SQL query string and parameters to insert
+// a row with the given data.
+func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
+	adapter := adapters[db.DriverName()]
+	if len(data) == 0 {
+		panic(fmt.Errorf("No data given for insert"))
+	}
+	cols := make([]string, len(data))
+	vals := make(SQLParams, len(data))
+	var (
+		i   int
+		sql string
+	)
+	for k, v := range data {
+		fi, ok := q.recordSet.mi.fields.get(k)
+		if !ok {
+			panic(fmt.Errorf("Unknown field `%s` in model `%s`", k, q.recordSet.mi.name))
+		}
+		cols[i] = fi.json
+		vals[i] = v
+		i++
+	}
+	tableName := adapter.quoteTableName(q.recordSet.mi.tableName)
+	fields := strings.Join(cols, ", ")
+	values := "?" + strings.Repeat(", ?", len(vals)-1)
+	sql = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id", tableName, fields, values)
+	return sql, vals
+}
+
 // countQuery returns the SQL query string and parameters to count
 // the rows pointed at by this Query object.
 func (q *Query) countQuery() (string, SQLParams) {
@@ -207,12 +244,15 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	curMI := q.recordSet.mi
 	curTJ := &currentTJ
 	alias := curMI.tableName
-	for _, expr := range fieldExprs {
+	exprsLen := len(fieldExprs)
+	for i, expr := range fieldExprs {
 		fi, ok := curMI.fields.get(expr)
 		if !ok {
 			panic(fmt.Errorf("Unparsable Expression: `%s`", strings.Join(fieldExprs, ExprSep)))
 		}
-		if fi.relatedModel == nil {
+		if fi.relatedModel == nil || i == exprsLen-1 {
+			// Don't create an extra join if our field is not a relation field
+			// or if it is the last field of our expressions
 			break
 		}
 		var innerJoin bool
@@ -253,4 +293,17 @@ func (q *Query) tablesSQL(fExprs [][]string) string {
 		}
 	}
 	return res
+}
+
+// newQuery returns a new empty query
+// If rs is given, bind this query to the given RecordSet.
+func newQuery(rs ...*RecordSet) Query {
+	var rset *RecordSet
+	if len(rs) > 0 {
+		rset = rs[0]
+	}
+	return Query{
+		cond:      NewCondition(),
+		recordSet: rset,
+	}
 }

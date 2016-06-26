@@ -23,3 +23,11 @@ type Date time.Time
 type DateTime time.Time
 
 type FieldMap map[string]interface{}
+
+// Keys returns the FieldMap keys as a slice of strings
+func (fm FieldMap) Keys() (res []string) {
+	for k, _ := range fm {
+		res = append(res, k)
+	}
+	return
+}

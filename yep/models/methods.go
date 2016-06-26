@@ -17,67 +17,57 @@ package models
 import (
 	"fmt"
 	"reflect"
-	"sync"
 )
 
-var methodsCache = &_methodsCache{
-	cache:       make(map[method]*methodInfo),
-	cacheByFunc: make(map[reflect.Value]*methodLayer),
-}
-
-// method is the key to find a method in the methodsCache.
-type method struct {
-	modelName string
-	name      string
-}
-
 // methodsCache is the methodInfo collection
-type _methodsCache struct {
-	sync.RWMutex
-	cache       map[method]*methodInfo
-	cacheByFunc map[reflect.Value]*methodLayer
-	done        bool
+type methodsCollection struct {
+	cache        map[string]*methodInfo
+	cacheByFunc  map[reflect.Value]*methodLayer
+	bootstrapped bool
 }
 
-/*
-get returns the methodInfo of the given method.
-*/
-func (mc *_methodsCache) get(ref method) (mi *methodInfo, ok bool) {
-	mi, ok = mc.cache[ref]
+// get returns the methodInfo of the given method.
+func (mc *methodsCollection) get(methodName string) (mi *methodInfo, ok bool) {
+	mi, ok = mc.cache[methodName]
 	return
 }
 
-/*
-getByFunc returns the methodInfo that includes the given function as a layer.
-*/
-func (mc *_methodsCache) getByFunc(fnctPtr interface{}) (ml *methodLayer, ok bool) {
+// getByFunc returns the methodInfo that includes the given function as a layer.
+func (mc *methodsCollection) getByFunc(fnctPtr interface{}) (ml *methodLayer, ok bool) {
 	ml, ok = mc.cacheByFunc[reflect.ValueOf(fnctPtr).Elem()]
 	return
 }
 
-/*
-set adds the given methodInfo to the methodsCache.
-*/
-func (mc *_methodsCache) set(ref method, methInfo *methodInfo) {
-	mc.cache[ref] = methInfo
+//set adds the given methodInfo to the methodsCollection.
+func (mc *methodsCollection) set(methodName string, methInfo *methodInfo) {
+	mc.cache[methodName] = methInfo
 	mc.cacheByFunc[methInfo.topLayer.funcValue] = methInfo.topLayer
 }
 
-func (mc *_methodsCache) addLayer(fnVal reflect.Value, methLayer *methodLayer) {
+// addLayer adds the given function Value in the given methodLayer
+func (mc *methodsCollection) addLayer(fnVal reflect.Value, methLayer *methodLayer) {
 	mc.cacheByFunc[fnVal] = methLayer
+}
+
+// newMethodsCollection returns a pointer to a new methodsCollection
+func newMethodsCollection() *methodsCollection {
+	mc := methodsCollection{
+		cache:       make(map[string]*methodInfo),
+		cacheByFunc: make(map[reflect.Value]*methodLayer),
+	}
+	return &mc
 }
 
 // methodInfo is a RecordSet method info
 type methodInfo struct {
-	ref        method
+	name       string
+	mi         *modelInfo
 	methodType reflect.Type
 	topLayer   *methodLayer
 	nextLayer  map[*methodLayer]*methodLayer
 }
 
-/*
-addMethodLayer adds the given layer to this methodInfo.
-*/
+// addMethodLayer adds the given layer to this methodInfo.
 func (methInfo *methodInfo) addMethodLayer(val reflect.Value) {
 	ml := methodLayer{
 		funcValue: val,
@@ -85,7 +75,7 @@ func (methInfo *methodInfo) addMethodLayer(val reflect.Value) {
 	}
 	methInfo.nextLayer[&ml] = methInfo.topLayer
 	methInfo.topLayer = &ml
-	methodsCache.addLayer(ml.funcValue, &ml)
+	methInfo.mi.methods.addLayer(ml.funcValue, &ml)
 }
 
 func (methInfo *methodInfo) getNextLayer(methodLayer *methodLayer) *methodLayer {
@@ -98,18 +88,17 @@ type methodLayer struct {
 	funcValue reflect.Value
 }
 
-/*
-newMethodInfo creates a new method ref with the given func value as first layer.
-First argument of given function must implement RecordSet.
-*/
-func newMethodInfo(ref method, val reflect.Value) *methodInfo {
+// newMethodInfo creates a new method ref with the given func value as first layer.
+// First argument of given function must implement RecordSet.
+func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodInfo {
 	funcType := val.Type()
 	if funcType.NumIn() == 0 || funcType.In(0) != reflect.TypeOf((*RecordSet)(nil)).Elem() {
 		panic(fmt.Errorf("Function must have `RecordSet` as first argument to be used as method."))
 	}
 
 	methInfo := methodInfo{
-		ref:        ref,
+		mi:         mi,
+		name:       methodName,
 		methodType: val.Type(),
 		nextLayer:  make(map[*methodLayer]*methodLayer),
 	}
@@ -125,8 +114,12 @@ DeclareMethod creates a new method (or override it if it exists) on given model
 name and adds the given fnct as layer for this method. This function must have a RecordSet as
 first argument.
 */
-func DeclareMethod(modelName, name string, fnct interface{}) {
-	if methodsCache.done {
+func DeclareMethod(modelName, methodName string, fnct interface{}) {
+	mi, ok := modelRegistry.get(modelName)
+	if !ok {
+		panic(fmt.Errorf("Unknown modelName `%s`", modelName))
+	}
+	if mi.methods.bootstrapped {
 		panic(fmt.Errorf("CreateMethod must be run before BootStrap"))
 	}
 
@@ -134,11 +127,7 @@ func DeclareMethod(modelName, name string, fnct interface{}) {
 	if val.Kind() != reflect.Func {
 		panic(fmt.Errorf("CreateMethod: `fnct` must be a function"))
 	}
-	ref := method{
-		modelName: modelName,
-		name:      name,
-	}
-	methInfo, exists := methodsCache.get(ref)
+	methInfo, exists := mi.methods.get(methodName)
 	if exists {
 		if methInfo.methodType != val.Type() {
 			panic(fmt.Errorf("Function signature does not match. Received: %s, Expected: %s",
@@ -146,6 +135,6 @@ func DeclareMethod(modelName, name string, fnct interface{}) {
 		}
 		methInfo.addMethodLayer(val)
 	} else {
-		methodsCache.set(ref, newMethodInfo(ref, val))
+		mi.methods.set(methodName, newMethodInfo(mi, methodName, val))
 	}
 }

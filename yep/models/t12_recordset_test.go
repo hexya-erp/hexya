@@ -14,84 +14,84 @@
 
 package models
 
-//
-//import (
-//	"testing"
-//
-//	. "github.com/smartystreets/goconvey/convey"
-//)
-//
-//var env Environment
-//
-//type Profile_WithID struct {
-//	ID    int64
-//	Age   int16
-//	Money float64
-//}
-//
-//type User_WithID struct {
-//	ID       int64
-//	UserName string
-//	Email    string
-//	Profile  *Profile_WithID
-//}
-//
-//func TestCreateRecordSet(t *testing.T) {
-//	Convey("Test record creation", t, func() {
-//		env = NewEnvironment(dORM, 1)
-//		Convey("Creating simple user John with no relations and checking ID", func() {
-//			userJohn := User_WithID{
-//				UserName: "John Smith",
-//				Email:    "jsmith@example.com",
-//			}
-//			users := env.Create(&userJohn)
-//			So(users.Ids(), ShouldContain, 1)
-//			So(userJohn.ID, ShouldEqual, 1)
-//		})
-//		Convey("Creating user Jane with related Profile using Call('Create')", func() {
-//			userJane := User_WithID{
-//				UserName: "Jane Smith",
-//				Email:    "jane.smith@example.com",
-//				Profile: &Profile_WithID{
-//					Age:   23,
-//					Money: 12345,
-//				},
-//			}
-//			rsProfile := env.Pool("Profile")
-//			profile := rsProfile.Call("Create", userJane.Profile).(RecordSet)
-//			So(profile.Ids(), ShouldContain, 1)
-//			So(userJane.Profile.ID, ShouldEqual, 1)
-//			rsUsers := NewRecordSet(env, "User")
-//			users2 := rsUsers.Call("Create", &userJane).(RecordSet)
-//			So(users2.Ids(), ShouldContain, 2)
-//			So(userJane.Profile.ID, ShouldEqual, 1)
-//		})
-//	})
-//}
-//
-//func TestSearchRecordSet(t *testing.T) {
-//	Convey("Testing search through RecorSets", t, func() {
-//		Convey("Searching User Jane and getting struct through ReadOne", func() {
-//			users := env.Pool(new(User)).Filter("UserName", "Jane Smith").Search()
-//			So(len(users.Ids()), ShouldEqual, 1)
-//			var userJane User_WithID
-//			users.RelatedSel(1).ReadOne(&userJane)
-//			So(userJane.UserName, ShouldEqual, "Jane Smith")
-//			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
-//		})
-//
-//		Convey("Testing search all users and getting struct slice", func() {
-//			usersAll := env.Pool(new(User)).Search()
-//			var userStructs []*User_PartialWithPosts
-//			num := usersAll.ReadAll(&userStructs)
-//			So(num, ShouldEqual, 2)
-//			So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
-//			So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
-//		})
-//	})
-//
-//}
-//
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+type Profile_WithID struct {
+	ID    int64
+	Age   int16
+	Money float64
+}
+
+type User_WithID struct {
+	ID       int64
+	UserName string
+	Email    string
+	Profile  *Profile_WithID
+}
+
+func TestCreateRecordSet(t *testing.T) {
+	Convey("Test record creation", t, func() {
+		env := NewEnvironment(1)
+		Convey("Creating simple user John with no relations and checking ID", func() {
+			userJohn := User_WithID{
+				UserName: "John Smith",
+				Email:    "jsmith@example.com",
+			}
+			users := env.Create(&userJohn)
+			So(len(users.Ids()), ShouldEqual, 1)
+			So(userJohn.ID, ShouldEqual, users.Ids()[0])
+		})
+		Convey("Creating user Jane with related Profile using Call('Create')", func() {
+			userJane := User_WithID{
+				UserName: "Jane Smith",
+				Email:    "jane.smith@example.com",
+				Profile: &Profile_WithID{
+					Age:   23,
+					Money: 12345,
+				},
+			}
+			rsProfile := env.Pool("Profile")
+			profile := rsProfile.Call("Create", userJane.Profile).(*RecordSet)
+			So(len(profile.Ids()), ShouldEqual, 1)
+			So(userJane.Profile.ID, ShouldEqual, profile.Ids()[0])
+			rsUsers := env.Pool("User")
+			users2 := rsUsers.Call("Create", &userJane).(*RecordSet)
+			So(len(users2.Ids()), ShouldEqual, 1)
+			So(userJane.ID, ShouldEqual, users2.Ids()[0])
+		})
+		env.cr.Commit()
+	})
+}
+
+func TestSearchRecordSet(t *testing.T) {
+	Convey("Testing search through RecordSets", t, func() {
+		env := NewEnvironment(1)
+		Convey("Searching User Jane and getting struct through ReadOne", func() {
+			users := env.Pool("User").Filter("UserName", "=", "Jane Smith").Search()
+			So(len(users.Ids()), ShouldEqual, 1)
+			var userJane User_WithID
+			users.RelatedDepth(1).ReadOne(&userJane)
+			So(userJane.UserName, ShouldEqual, "Jane Smith")
+			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
+		})
+
+		Convey("Testing search all users and getting struct slice", func() {
+			usersAll := env.Pool("User").Search()
+			So(len(usersAll.Ids()), ShouldEqual, 2)
+			var userStructs []*User_PartialWithPosts
+			num := usersAll.ReadAll(&userStructs)
+			So(num, ShouldEqual, 2)
+			So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
+			So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+		})
+		env.cr.Rollback()
+	})
+}
+
 //func TestUpdateRecordSet(t *testing.T) {
 //	Convey("Testing updates through RecordSets", t, func() {
 //		Convey("Simple update with params to user Jane", func() {

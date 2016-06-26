@@ -124,6 +124,11 @@ func TestCreateDB(t *testing.T) {
 			}
 		})
 	})
+	Convey("Truncating all tables...", t, func() {
+		for tn, _ := range modelRegistry.registryByTableName {
+			dbExecuteNoTx(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))
+		}
+	})
 }
 
 type User struct {

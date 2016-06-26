@@ -16,6 +16,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -65,29 +66,27 @@ func DBConnect(driver, connData string) {
 // It executes a query that returns no row
 func DBExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
 	// TODO Add SQL debug logging here
+	query = cr.Rebind(query)
 	return cr.MustExec(query, args...)
 }
 
 // dbExecuteNoTx simply executes the given query in the database without any transaction
 func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
 	// TODO Add SQL debug logging
+	query = db.Rebind(query)
 	return db.MustExec(query, args...)
 }
 
 // DBGet is a wrapper around sqlx.Get
-// It gets the value of a single row found by the
-// given query and arguments
-func DBGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) error {
+// It gets the value of a single row found by the given query and arguments
+// It panics in case of error
+func DBGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
 	// TODO Add SQL debug logging here
-	return cr.Get(dest, query, args...)
-}
-
-// DBSelect is a wrapper around sqlx.Select
-// It gets the value of multiple rows found by the
-// given query and arguments
-func DBSelect(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) error {
-	// TODO Add SQL debug logging here
-	return cr.Select(dest, query, args...)
+	query = cr.Rebind(query)
+	err := cr.Get(dest, query, args...)
+	if err != nil {
+		panic(fmt.Errorf("Error while getting from database: %s. %s, %+v", err, query, args))
+	}
 }
 
 // dbGetNoTx is a wrapper around sqlx.Get outside a transaction
@@ -95,5 +94,19 @@ func DBSelect(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) 
 // given query and arguments
 func dbGetNoTx(dest interface{}, query string, args ...interface{}) error {
 	// TODO Add SQL debug logging
+	query = db.Rebind(query)
 	return db.Get(dest, query, args...)
+}
+
+// DBQuery is a wrapper around sqlx.Queryx
+// It returns a sqlx.Rowsx found by the given query and arguments
+// It panics in case of error
+func DBQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
+	// TODO Add SQL debug logging here
+	query = cr.Rebind(query)
+	rows, err := cr.Queryx(query, args...)
+	if err != nil {
+		panic(fmt.Errorf("Error while querying from database: %s. %s, %+v", err, query, args))
+	}
+	return rows
 }
