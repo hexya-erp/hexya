@@ -147,7 +147,7 @@ func (c Condition) clone() *Condition {
 func (c Condition) getAllExpressions(mi *modelInfo) [][]string {
 	var res [][]string
 	for _, cv := range c.params {
-		res = append(res, columnizeExpr(mi, cv.exprs))
+		res = append(res, jsonizeExpr(mi, cv.exprs))
 		if cv.cond != nil {
 			res = append(res, cv.cond.getAllExpressions(mi)...)
 		}

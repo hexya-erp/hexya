@@ -109,7 +109,7 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 		sql += fmt.Sprintf(`(%s) `, subSQL)
 		args = args.Extend(subArgs)
 	} else {
-		exprs := columnizeExpr(q.recordSet.mi, cv.exprs)
+		exprs := jsonizeExpr(q.recordSet.mi, cv.exprs)
 		field := q.joinedFieldExpression(exprs)
 		sql += fmt.Sprintf(`%s %s `, field, adapter.operatorSQL(cv.operator))
 		args = cv.args
@@ -185,7 +185,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {
-		fieldExprs[i] = columnizeExpr(q.recordSet.mi, strings.Split(f, ExprSep))
+		fieldExprs[i] = jsonizeExpr(q.recordSet.mi, strings.Split(f, ExprSep))
 	}
 	// Then given by condition
 	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.mi)...)

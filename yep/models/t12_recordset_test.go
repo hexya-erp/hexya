@@ -45,7 +45,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(len(users.Ids()), ShouldEqual, 1)
 			So(userJohn.ID, ShouldEqual, users.Ids()[0])
 		})
-		Convey("Creating user Jane with related Profile using Call('Create')", func() {
+		Convey("Creating user Jane with related Profile using rs.Create / rs.Call('Create')", func() {
 			userJane := User_WithID{
 				UserName: "Jane Smith",
 				Email:    "jane.smith@example.com",
@@ -55,13 +55,24 @@ func TestCreateRecordSet(t *testing.T) {
 				},
 			}
 			rsProfile := env.Pool("Profile")
-			profile := rsProfile.Call("Create", userJane.Profile).(*RecordSet)
+			profile := rsProfile.Create(userJane.Profile)
 			So(len(profile.Ids()), ShouldEqual, 1)
 			So(userJane.Profile.ID, ShouldEqual, profile.Ids()[0])
 			rsUsers := env.Pool("User")
 			users2 := rsUsers.Call("Create", &userJane).(*RecordSet)
 			So(len(users2.Ids()), ShouldEqual, 1)
 			So(userJane.ID, ShouldEqual, users2.Ids()[0])
+		})
+		Convey("Creating a user Will Smith", func() {
+			userWill := User_WithID{
+				UserName: "Will Smith",
+				Email:    "will.smith@example.com",
+			}
+			users := env.Create(&userWill)
+			Convey("Created user ids should match struct's ID ", func() {
+				So(len(users.Ids()), ShouldEqual, 1)
+				So(users.Ids()[0], ShouldEqual, userWill.ID)
+			})
 		})
 		env.cr.Commit()
 	})
@@ -77,16 +88,18 @@ func TestSearchRecordSet(t *testing.T) {
 			users.RelatedDepth(1).ReadOne(&userJane)
 			So(userJane.UserName, ShouldEqual, "Jane Smith")
 			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
+			So(userJane.Profile.Age, ShouldEqual, 23)
 		})
 
 		Convey("Testing search all users and getting struct slice", func() {
 			usersAll := env.Pool("User").Search()
-			So(len(usersAll.Ids()), ShouldEqual, 2)
+			So(len(usersAll.Ids()), ShouldEqual, 3)
 			var userStructs []*User_PartialWithPosts
 			num := usersAll.ReadAll(&userStructs)
-			So(num, ShouldEqual, 2)
+			So(num, ShouldEqual, 3)
 			So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
 			So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+			So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
 		})
 		env.cr.Rollback()
 	})
@@ -123,23 +136,15 @@ func TestSearchRecordSet(t *testing.T) {
 //		})
 //	})
 //}
-//
-//func TestDeleteRecordSet(t *testing.T) {
-//	Convey("Delete user John Smith", t, func() {
-//		users := env.Pool("User").Filter("UserName", "John Smith")
-//		num := users.Unlink()
-//		Convey("Number of deleted record should be 1", func() {
-//			So(num, ShouldEqual, 1)
-//		})
-//	})
-//	Convey("Creating a user Will Smith instead", t, func() {
-//		userWill := User_WithID{
-//			UserName: "Will Smith",
-//			Email:    "will.smith@example.com",
-//		}
-//		users := env.Create(&userWill)
-//		Convey("Created user ids should be [3] ", func() {
-//			So(users.Ids(), ShouldContain, 3)
-//		})
-//	})
-//}
+
+func TestDeleteRecordSet(t *testing.T) {
+	env := NewEnvironment(1)
+	Convey("Delete user John Smith", t, func() {
+		users := env.Pool("User").Filter("UserName", "=", "John Smith")
+		num := users.Unlink()
+		Convey("Number of deleted record should be 1", func() {
+			So(num, ShouldEqual, 1)
+		})
+	})
+	env.cr.Rollback()
+}

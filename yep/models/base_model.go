@@ -38,8 +38,8 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "ComputeNameGet", ComputeNameGet)
 	DeclareMethod(name, "Create", Create)
 	//DeclareMethod(name, "Read", ReadModel)
-	//DeclareMethod(name, "Write", Write)
-	//DeclareMethod(name, "Unlink", Unlink)
+	DeclareMethod(name, "Write", Write)
+	DeclareMethod(name, "Unlink", Unlink)
 	DeclareMethod(name, "NameGet", NameGet)
 	//DeclareMethod(name, "FieldsViewGet", FieldsViewGet)
 	//DeclareMethod(name, "FieldsGet", FieldsGet)
@@ -102,22 +102,19 @@ func Create(rs RecordSet, data interface{}) *RecordSet {
 //	}
 //	return res
 //}
-//
-///*
-//Write is the base implementation of the 'Write' method which updates
-//records in the database with the given params.
-//*/
-//func Write(rs RecordSet, data orm.Params) bool {
-//	return rs.Write(data)
-//}
-//
-///*
-//Unlink is the base implementation of the 'Unlink' method which deletes
-//records in the database.
-//*/
-//func Unlink(rs RecordSet) int64 {
-//	return rs.Unlink()
-//}
+
+// Write is the base implementation of the 'Write' method which updates
+// records in the database with the given data.
+// Data can be either a struct pointer or a FieldMap.
+func Write(rs RecordSet, data interface{}) bool {
+	return rs.update(data)
+}
+
+// Unlink is the base implementation of the 'Unlink' method which deletes
+// records in the database.
+func Unlink(rs RecordSet) int64 {
+	return rs.delete()
+}
 
 /*
 NameGet is the base implementation of the 'NameGet' method which retrieves the

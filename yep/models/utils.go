@@ -126,7 +126,7 @@ func checkStructSlicePtr(data interface{}) error {
 // columnizeExpr returns an expression slice with field names changed to the DB column names
 // Computation is made relatively to the given modelInfo
 // e.g. [User Profile Name] -> [user_id profile_id name]
-func columnizeExpr(mi *modelInfo, exprs []string) []string {
+func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 	if len(exprs) == 0 {
 		return []string{}
 	}
@@ -138,9 +138,8 @@ func columnizeExpr(mi *modelInfo, exprs []string) []string {
 	res = append(res, fi.json)
 	if len(exprs) > 1 {
 		if fi.relatedModel != nil {
-			res = append(res, columnizeExpr(fi.relatedModel, exprs[1:])...)
+			res = append(res, jsonizeExpr(fi.relatedModel, exprs[1:])...)
 		} else {
-			fmt.Printf("fi:%+v\n", fi)
 			panic(fmt.Errorf("Unknown expression: field `%s` is not a relation in model `%s`", exprs[0], mi.name))
 		}
 	}
@@ -208,20 +207,26 @@ func structToMap(structPtr interface{}, depth int, prefix ...string) FieldMap {
 		if fieldValue.Kind() == reflect.Ptr {
 			// Get the related struct if not nil
 			relInd := reflect.Indirect(fieldValue)
-			switch relInd.Kind() {
+			relTyp := fieldValue.Type().Elem()
+			switch relTyp.Kind() {
 			case reflect.Struct:
-				if !relInd.FieldByName("ID").IsValid() {
-					// Skip if pointer is nil
-					continue
-				}
-				// get the ID of the related struct
-				resVal = relInd.FieldByName("ID").Interface()
 				if depth > 0 {
+					if !relInd.IsValid() {
+						// create the struct if the pointer is nil
+						fieldValue = reflect.New(relTyp)
+					}
 					// get the related struct fields
-					relMap := structToMap(fieldValue, depth-1, fieldName)
+					relMap := structToMap(fieldValue.Interface(), depth-1, fieldName)
 					for k, v := range relMap {
 						res[k] = v
 					}
+				} else {
+					if !relInd.IsValid() {
+						// Skip if pointer is nil
+						continue
+					}
+					// get the ID of the related struct
+					resVal = relInd.FieldByName("ID").Interface()
 				}
 			}
 			if relInd.Kind() != reflect.Struct {
@@ -259,7 +264,12 @@ func mapToStruct(mi *modelInfo, structPtr interface{}, fMap FieldMap) {
 				if !ok {
 					continue
 				}
+				if !fVal.Elem().IsValid() {
+					// Create the related struct if it does not exist
+					fVal.Set(reflect.New(sf.Type.Elem()))
+				}
 				mapToStruct(fi.relatedModel, fVal.Interface(), fm)
+				continue
 			}
 		}
 		if mValExists {
@@ -275,6 +285,7 @@ func nestMap(fMap FieldMap) FieldMap {
 	res := make(FieldMap)
 	nested := make(map[string]FieldMap)
 	for k, v := range fMap {
+		k = strings.Replace(k, sqlSep, ExprSep, -1)
 		exprs := strings.Split(k, ExprSep)
 		if len(exprs) == 1 {
 			// We are in the top map here
@@ -332,22 +343,49 @@ func getFieldType(typ reflect.Type) tools.FieldType {
 func filterFields(mi *modelInfo, fields, filters []string) []string {
 	var res []string
 	for _, field := range fields {
-		fi, ok := mi.fields.get(field)
-		if !ok {
-			panic(fmt.Errorf("Unknown field `%s` in model `%s`", field, mi.name))
-		}
+		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
+		field = strings.Join(fieldExprs, ExprSep)
 		if len(filters) == 0 {
-			res = append(res, fi.json)
+			res = append(res, field)
 			continue
 		}
 		for _, filter := range filters {
-			fif, ok := mi.fields.get(filter)
-			if !ok {
-				panic(fmt.Errorf("Unknown field `%s` in model `%s`", filter, mi.name))
+			filterExprs := jsonizeExpr(mi, strings.Split(filter, ExprSep))
+			filter = strings.Join(filterExprs, ExprSep)
+			if field == filter {
+				res = append(res, field)
 			}
-			if fi.json == fif.json {
-				res = append(res, fi.json)
+		}
+	}
+	return res
+}
+
+// filterOnDBFields returns the given fields slice with only stored fields
+func filterOnDBFields(mi *modelInfo, fields []string) []string {
+	var res []string
+	for _, field := range fields {
+		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
+		fi, ok := mi.fields.get(fieldExprs[0])
+		if !ok {
+			panic(fmt.Errorf("Unknown Field `%s` for model `%s`", fieldExprs[0], mi.name))
+		}
+		var resExprs []string
+		if fi.isStored() {
+			resExprs = append(resExprs, fi.json)
+		}
+		if len(fieldExprs) > 1 {
+			if fi.relatedModel != nil {
+				subFieldName := strings.Join(fieldExprs[1:], ExprSep)
+				subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName})
+				if len(subFieldRes) > 0 {
+					resExprs = append(resExprs, subFieldRes[0])
+				}
+			} else {
+				panic(fmt.Errorf("Unknown expression: field `%s` is not a relation in model `%s`", fieldExprs[0], mi.name))
 			}
+		}
+		if len(resExprs) > 0 {
+			res = append(res, strings.Join(resExprs, ExprSep))
 		}
 	}
 	return res

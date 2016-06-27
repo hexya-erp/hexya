@@ -95,11 +95,11 @@ func (rs *RecordSet) ForceSearch() *RecordSet {
 	return rs.withIds(ids)
 }
 
-/*
-Write updates the database with the given data and returns the number of updated rows.
-It panics in case of error.
-*/
-func (rs RecordSet) Write(data FieldMap) bool {
+// update updates the database with the given data and returns the number of updated rows.
+// It panics in case of error.
+// This function is private and low level. It should not be called directly.
+// Instead use rs.Write() or rs.Call("Write")
+func (rs RecordSet) update(data interface{}) bool {
 	//_, err := rs.qs.Update(data)
 	//if err != nil {
 	//	panic(fmt.Errorf("recordSet `%s` Write error: %s", rs, err))
@@ -108,14 +108,25 @@ func (rs RecordSet) Write(data FieldMap) bool {
 	return true
 }
 
-/*
-Unlink deletes the database record of this RecordSet and returns the number of deleted rows.
-*/
-func (rs RecordSet) Unlink() int64 {
+// Write is a shortcut for rs.Call("Write") on the current RecordSet.
+// Data can be either a struct pointer or a FieldMap.
+func (rs RecordSet) Write(data interface{}) bool {
+	return rs.Call("Write", data).(bool)
+}
+
+// delete deletes the database record of this RecordSet and returns the number of deleted rows.
+// This function is private and low level. It should not be called directly.
+// Instead use rs.Unlink() or rs.Call("Unlink")
+func (rs RecordSet) delete() int64 {
 	sql, args := rs.query.deleteQuery()
 	res := DBExecute(rs.env.cr, sql, args...)
 	num, _ := res.RowsAffected()
 	return num
+}
+
+// Unlink is a shortcut for rs.Call("Unlink") on the current RecordSet.
+func (rs RecordSet) Unlink() int64 {
+	return rs.Call("Unlink").(int64)
 }
 
 /*
@@ -232,7 +243,7 @@ func (rs RecordSet) ReadOne(container interface{}, cols ...string) {
 	}
 	sfMap := structToMap(container, rs.query.relDepth)
 	fields := filterFields(rs.mi, sfMap.Keys(), cols)
-	dbFields := filterFields(rs.mi, rs.mi.fields.storedFieldNames(), fields)
+	dbFields := filterOnDBFields(rs.mi, fields)
 	var fMap FieldMap
 	rs.ReadValue(&fMap, dbFields...)
 	mapToStruct(rs.mi, container, fMap)
@@ -253,7 +264,7 @@ func (rs RecordSet) ReadValue(result *FieldMap, fields ...string) {
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
 // If no fields are given, all columns of the RecordSet's model are retrieved.
 func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
-	dbFields := filterFields(rs.mi, rs.mi.fields.storedFieldNames(), fields)
+	dbFields := filterOnDBFields(rs.mi, fields)
 	sql, args := rs.query.selectQuery(dbFields)
 	rows := DBQuery(rs.env.cr, sql, args...)
 	defer rows.Close()
@@ -283,9 +294,8 @@ func (rs RecordSet) Call(methName string, args ...interface{}) interface{} {
 	}
 	methLayer := methInfo.topLayer
 
-	rsCopy := copyRecordStruct(rs)
-	rsCopy.callStack = append([]*methodLayer{methLayer}, rsCopy.callStack...)
-	return rsCopy.call(methLayer, args...)
+	rs.callStack = append([]*methodLayer{methLayer}, rs.callStack...)
+	return rs.call(methLayer, args...)
 }
 
 /*
@@ -328,9 +338,8 @@ func (rs RecordSet) Super(args ...interface{}) interface{} {
 		return nil
 	}
 
-	rsCopy := copyRecordStruct(rs)
-	rsCopy.callStack[0] = methLayer
-	return rsCopy.call(methLayer, args...)
+	rs.callStack[0] = methLayer
+	return rs.call(methLayer, args...)
 }
 
 /*
@@ -368,7 +377,7 @@ func (rs RecordSet) EnsureOne() {
 // create inserts a new record in the database with the given data.
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
-// Instead use rs.Call("Create") or env.Create()
+// Instead use rs.Create(), rs.Call("Create") or env.Create()
 func (rs RecordSet) create(data interface{}) *RecordSet {
 	// create our FieldMap
 	var fMap FieldMap
@@ -401,6 +410,12 @@ func (rs RecordSet) create(data interface{}) *RecordSet {
 		//rs.computeFields(data)
 	}
 	return rs.withIds([]int64{createdId})
+}
+
+// Create is a shortcut function for rs.Call("Create") on the current RecordSet.
+// Data can be either a struct pointer or a FieldMap.
+func (rs RecordSet) Create(data interface{}) *RecordSet {
+	return rs.Call("Create", data).(*RecordSet)
 }
 
 /*
@@ -522,13 +537,3 @@ func newRecordSet(env *Environment, modelName string) *RecordSet {
 //	id := ind.FieldByName("ID").Int()
 //	return rs.withIds([]int64{id})
 //}
-
-func copyRecordStruct(rs RecordSet) *RecordSet {
-	newRs := newRecordSet(rs.env, rs.ModelName())
-	newRs.query = rs.query
-	newRs.ids = make([]int64, len(rs.ids))
-	copy(newRs.ids, rs.ids)
-	newRs.callStack = make([]*methodLayer, len(rs.callStack))
-	copy(newRs.callStack, rs.callStack)
-	return newRs
-}
