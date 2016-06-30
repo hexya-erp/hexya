@@ -81,13 +81,15 @@ var allowedOperators = map[DomainOperator]bool{
 ParseDomain gets an Odoo domain and parses it into an orm.Condition.
 */
 func ParseDomain(dom Domain) *Condition {
-	return parseDomain(&dom)
+	res := parseDomain(&dom)
+	for len(dom) > 0 {
+		res = NewCondition().AndCond(res).AndCond(parseDomain(&dom))
+	}
+	return res
 }
 
-/*
-parseDomain is the internal recursive function making all the job of
-ParseDomain. The given domain through pointer is deleted during operation.
-*/
+// parseDomain is the internal recursive function making all the job of
+// ParseDomain. The given domain through pointer is deleted during operation.
 func parseDomain(dom *Domain) *Condition {
 	res := NewCondition()
 	if len(*dom) == 0 {
@@ -96,37 +98,44 @@ func parseDomain(dom *Domain) *Condition {
 
 	currentOp := PREFIX_AND
 
+	operatorTerm := (*dom)[0]
 	firstTerm := (*dom)[0]
-	if ftStr, ok := firstTerm.(string); ok {
+	if ftStr, ok := operatorTerm.(string); ok {
 		currentOp = DomainPrefixOperator(ftStr)
 		*dom = (*dom)[1:]
 		firstTerm = (*dom)[0]
 	}
-	switch firstTerm.(type) {
+
+	switch ft := firstTerm.(type) {
 	case string:
+		// We have a unary operator '|' or '&', so this is an included condition
+		// We have AndCond because this is the first term.
 		res = res.AndCond(parseDomain(dom))
 	case []interface{}:
-		term := DomainTerm(firstTerm.([]interface{}))
-		res = addTerm(res, term, PREFIX_AND)
+		// We have a domain leaf ['field', 'op', value]
+		term := DomainTerm(ft)
+		res = addTerm(res, term, currentOp)
 		*dom = (*dom)[1:]
 	}
 
 	// dom has been reduced in previous step
+	// check if we still have terms to add
 	if len(*dom) > 0 {
 		secondTerm := (*dom)[0]
 		switch secondTerm.(type) {
 		case string:
-			res = res.AndCond(parseDomain(dom))
+			// We have a unary operator '|' or '&', so this is an included condition
+			switch currentOp {
+			case PREFIX_OR:
+				res = res.OrCond(parseDomain(dom))
+			default:
+				res = res.AndCond(parseDomain(dom))
+			}
 		case []interface{}:
 			term := DomainTerm(secondTerm.([]interface{}))
 			res = addTerm(res, term, currentOp)
 			*dom = (*dom)[1:]
 		}
-	}
-
-	if len(*dom) > 0 {
-		// We still have some more terms in dom
-		res = NewCondition().AndCond(res).AndCond(parseDomain(dom))
 	}
 	return res
 }

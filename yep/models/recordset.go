@@ -166,7 +166,7 @@ func (rs RecordSet) Exclude(cond, op string, data ...interface{}) *RecordSet {
 /*
 SetCond returns a new RecordSet with the given additional condition
 */
-func (rs RecordSet) SetCond(cond *Condition) *RecordSet {
+func (rs RecordSet) Condition(cond *Condition) *RecordSet {
 	rs.query.cond = rs.query.cond.AndCond(cond)
 	return &rs
 }

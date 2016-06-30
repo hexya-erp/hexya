@@ -43,42 +43,42 @@ func TestDomains(t *testing.T) {
 			env.Pool("User").Filter("UserName", "=", "Martin Weston").RelatedDepth(1).ReadOne(&userRes)
 			So(userRes.Profile.Age, ShouldEqual, 45)
 		})
-		//Convey("Testing simple [(A), (B)] domain", func() {
-		//	dom1 := []interface{}{
-		//		0: []interface{}{"UserName", "like", "Smith"},
-		//		1: []interface{}{"Age", "=", 24},
-		//	}
-		//	var dom1Users []*User_WithDecoratedName
-		//	env.Pool("User").SetCond(ParseDomain(dom1)).ReadAll(&dom1Users)
-		//	So(len(dom1Users), ShouldEqual, 1)
-		//	So(dom1Users[0].UserName, ShouldEqual, "Jane A. Smith")
-		//})
-		//Convey("Testing ['|', (A), (B)] domain", func() {
-		//	dom2 := []interface{}{
-		//		0: "|",
-		//		1: []interface{}{"UserName", "like", "Will"},
-		//		2: []interface{}{"Age", "<", 25},
-		//	}
-		//	var dom2Users []*User_WithDecoratedName
-		//	env.Pool("User").SetCond(ParseDomain(dom2)).OrderBy("UserName").ReadAll(&dom2Users)
-		//	So(len(dom2Users), ShouldEqual, 2)
-		//	So(dom2Users[0].UserName, ShouldEqual, "Jane A. Smith")
-		//	So(dom2Users[1].UserName, ShouldEqual, "Will Smith")
-		//})
-		//Convey("Testing ['|', (A), '&' , (B), (C), (D)] domain", func() {
-		//	dom3 := []interface{}{
-		//		0: "|",
-		//		1: []interface{}{"UserName", "like", "Will"},
-		//		2: "&",
-		//		3: []interface{}{"Age", ">", 0},
-		//		4: []interface{}{"Age", "<", 25},
-		//		5: []interface{}{"Email", "not like", "will.smith"},
-		//	}
-		//	var dom3Users []*User_WithDecoratedName
-		//	env.Pool("User").SetCond(ParseDomain(dom3)).OrderBy("UserName").ReadAll(&dom3Users)
-		//	So(len(dom3Users), ShouldEqual, 1)
-		//	So(dom3Users[0].UserName, ShouldEqual, "Jane A. Smith")
-		//})
+		Convey("Testing simple [(A), (B)] domain", func() {
+			dom1 := []interface{}{
+				0: []interface{}{"UserName", "like", "Smith"},
+				1: []interface{}{"Age", "=", 24},
+			}
+			var dom1Users []*User_WithDecoratedName
+			env.Pool("User").Condition(ParseDomain(dom1)).ReadAll(&dom1Users)
+			So(len(dom1Users), ShouldEqual, 1)
+			So(dom1Users[0].UserName, ShouldEqual, "Jane A. Smith")
+		})
+		Convey("Testing ['|', (A), (B)] domain", func() {
+			dom2 := []interface{}{
+				0: "|",
+				1: []interface{}{"UserName", "like", "Will"},
+				2: []interface{}{"Email", "ilike", "Jane.Smith"},
+			}
+			var dom2Users []*User_WithDecoratedName
+			env.Pool("User").Condition(ParseDomain(dom2)).OrderBy("UserName").ReadAll(&dom2Users)
+			So(len(dom2Users), ShouldEqual, 2)
+			So(dom2Users[0].UserName, ShouldEqual, "Jane A. Smith")
+			So(dom2Users[1].UserName, ShouldEqual, "Will Smith")
+		})
+		Convey("Testing ['|', (A), '&' , (B), (C), (D)] domain", func() {
+			dom3 := []interface{}{
+				0: "|",
+				1: []interface{}{"UserName", "like", "Will"},
+				2: "&",
+				3: []interface{}{"Age", ">", 0},
+				4: []interface{}{"Age", "<", 25},
+				5: []interface{}{"Email", "not like", "will.smith"},
+			}
+			var dom3Users []*User_WithDecoratedName
+			env.Pool("User").Condition(ParseDomain(dom3)).OrderBy("UserName").ReadAll(&dom3Users)
+			So(len(dom3Users), ShouldEqual, 1)
+			So(dom3Users[0].UserName, ShouldEqual, "Jane A. Smith")
+		})
 		env.cr.Rollback()
 	})
 

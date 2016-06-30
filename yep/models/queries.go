@@ -91,10 +91,7 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 	if len(first) > 0 {
 		isFirst = first[0]
 	}
-	if cv.isOr {
-		if isFirst {
-			panic(fmt.Errorf("First WHERE clause cannot be OR"))
-		}
+	if cv.isOr && !isFirst {
 		sql += "OR "
 	} else if !isFirst {
 		sql += "AND "
