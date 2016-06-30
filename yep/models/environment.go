@@ -15,6 +15,7 @@
 package models
 
 import (
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/tools"
 )
@@ -89,20 +90,18 @@ func (env Environment) Create(data interface{}) *RecordSet {
 	return rs
 }
 
-///*
-//Sync writes the given data to database.
-//data must be a struct pointer that has been originally populated by RecordSet.ReadOne()
-//or RecordSet.ReadAll().
-//*/
-//func (env Environment) Sync(data interface{}, cols ...string) bool {
-//	if err := checkStructPtr(data); err != nil {
-//		panic(fmt.Errorf("<Environment.Sync>: %s", err))
-//	}
-//	rs := newRecordStructFromData(env, data)
-//	params := structToMap(data)
-//	res := rs.Call("Write", params).(bool)
-//	return res
-//}
+/*
+Sync writes the given data to database.
+data must be a struct pointer that has been originally populated by RecordSet.ReadOne()
+or RecordSet.ReadAll().
+*/
+func (env Environment) Sync(data interface{}, cols ...string) bool {
+	if err := checkStructPtr(data); err != nil {
+		panic(fmt.Errorf("<Environment.Sync>: %s", err))
+	}
+	res := env.Pool(getModelName(data)).Write(data)
+	return res
+}
 
 // NewEnvironment returns a new Environment with the given parameters in a new DB transaction.
 //

@@ -19,6 +19,8 @@
 
 package models
 
+import "fmt"
+
 /*
 Domain is a list of search criteria (DomainTerm) in the form of a tuplet (field_name, operator, value).
 Domain criteria (DomainTerm) can be combined using logical operators in prefix form (DomainPrefixOperator)
@@ -75,132 +77,87 @@ var allowedOperators = map[DomainOperator]bool{
 	OPERATOR_CHILD_OF:      true,
 }
 
-///*
-//ParseDomain gets an Odoo domain and parses it into an orm.Condition.
-//*/
-//func ParseDomain(dom Domain) *orm.Condition {
-//	return parseDomain(&dom)
-//}
-//
-///*
-//parseDomain is the internal recursive function making all the job of
-//ParseDomain. The given domain through pointer is deleted during operation.
-//*/
-//func parseDomain(dom *Domain) *orm.Condition {
-//	res := orm.NewCondition()
-//	if len(*dom) == 0 {
-//		return res
-//	}
-//
-//	currentOp := PREFIX_AND
-//
-//	firstTerm := (*dom)[0]
-//	if ftStr, ok := firstTerm.(string); ok {
-//		currentOp = DomainPrefixOperator(ftStr)
-//		*dom = (*dom)[1:]
-//		firstTerm = (*dom)[0]
-//	}
-//	switch firstTerm.(type) {
-//	case string:
-//		res = res.AndCond(parseDomain(dom))
-//	case []interface{}:
-//		term := DomainTerm(firstTerm.([]interface{}))
-//		res = addTerm(res, term, PREFIX_AND)
-//		*dom = (*dom)[1:]
-//	}
-//
-//	// dom has been reduced in previous step
-//	if len(*dom) > 0 {
-//		secondTerm := (*dom)[0]
-//		switch secondTerm.(type) {
-//		case string:
-//			res = res.AndCond(parseDomain(dom))
-//		case []interface{}:
-//			term := DomainTerm(secondTerm.([]interface{}))
-//			res = addTerm(res, term, currentOp)
-//			*dom = (*dom)[1:]
-//		}
-//	}
-//
-//	if len(*dom) > 0 {
-//		// We still have some more terms in dom
-//		res = orm.NewCondition().AndCond(res).AndCond(parseDomain(dom))
-//	}
-//	return res
-//}
-//
-///*
-//addTerm parses the given DomainTerm and adds it to the given condition with the given
-//prefix operator. Returns the new condition.
-//*/
-//func addTerm(cond *orm.Condition, term DomainTerm, op DomainPrefixOperator) *orm.Condition {
-//	if len(term) != 3 {
-//		panic(fmt.Errorf("Malformed domain term: %v", term))
-//	}
-//	fieldName := term[0].(string)
-//	operator := DomainOperator(term[1].(string))
-//	value := term[2]
-//	oOp, neg := matchOperator(operator)
-//	expr := fmt.Sprintf("%s%s%s", fieldName, orm.ExprSep, oOp)
-//	meth := getConditionMethod(cond, op, neg)
-//	cond = meth(expr, value)
-//	return cond
-//}
-//
-///*
-//matchOperatorAndFunc returns the orm operator corresponding to the given DomainOperator.
-//The second argument is true if the DomainOperator is the negation of the returned operator.
-//*/
-//func matchOperator(op DomainOperator) (string, bool) {
-//	switch op {
-//	case OPERATOR_EQUALS:
-//		return "exact", false
-//	case OPERATOR_NOT_EQUALS:
-//		return "exact", true
-//	case OPERATOR_GREATER:
-//		return "gt", false
-//	case OPERATOR_GREATER_EQUAL:
-//		return "gte", false
-//	case OPERATOR_LOWER:
-//		return "lt", false
-//	case OPERATOR_LOWER_EQUAL:
-//		return "lte", false
-//	case OPERATOR_LIKE:
-//		return "contains", false
-//	case OPERATOR_NOT_LIKE:
-//		return "contains", true
-//	case OPERATOR_ILIKE:
-//		return "icontains", false
-//	case OPERATOR_NOT_ILIKE:
-//		return "icontaines", true
-//	case OPERATOR_IN:
-//		return "in", false
-//	case OPERATOR_NOT_IN:
-//		return "in", true
-//	default:
-//		panic(fmt.Errorf("Unsupported operator: %s", op))
-//	}
-//}
-//
-///*
-//getConditionMethod returns the condition method to use on the given condition
-//for the given prefix operator and negation condition.
-//*/
-//func getConditionMethod(cond *orm.Condition, op DomainPrefixOperator, neg bool) func(expr string, args ...interface{}) *orm.Condition {
-//	switch op {
-//	case PREFIX_AND:
-//		if neg == true {
-//			return cond.AndNot
-//		} else {
-//			return cond.And
-//		}
-//	case PREFIX_OR:
-//		if neg == true {
-//			return cond.OrNot
-//		} else {
-//			return cond.Or
-//		}
-//	default:
-//		panic(fmt.Errorf("Unknown prefix operator: %s", op))
-//	}
-//}
+/*
+ParseDomain gets an Odoo domain and parses it into an orm.Condition.
+*/
+func ParseDomain(dom Domain) *Condition {
+	return parseDomain(&dom)
+}
+
+/*
+parseDomain is the internal recursive function making all the job of
+ParseDomain. The given domain through pointer is deleted during operation.
+*/
+func parseDomain(dom *Domain) *Condition {
+	res := NewCondition()
+	if len(*dom) == 0 {
+		return res
+	}
+
+	currentOp := PREFIX_AND
+
+	firstTerm := (*dom)[0]
+	if ftStr, ok := firstTerm.(string); ok {
+		currentOp = DomainPrefixOperator(ftStr)
+		*dom = (*dom)[1:]
+		firstTerm = (*dom)[0]
+	}
+	switch firstTerm.(type) {
+	case string:
+		res = res.AndCond(parseDomain(dom))
+	case []interface{}:
+		term := DomainTerm(firstTerm.([]interface{}))
+		res = addTerm(res, term, PREFIX_AND)
+		*dom = (*dom)[1:]
+	}
+
+	// dom has been reduced in previous step
+	if len(*dom) > 0 {
+		secondTerm := (*dom)[0]
+		switch secondTerm.(type) {
+		case string:
+			res = res.AndCond(parseDomain(dom))
+		case []interface{}:
+			term := DomainTerm(secondTerm.([]interface{}))
+			res = addTerm(res, term, currentOp)
+			*dom = (*dom)[1:]
+		}
+	}
+
+	if len(*dom) > 0 {
+		// We still have some more terms in dom
+		res = NewCondition().AndCond(res).AndCond(parseDomain(dom))
+	}
+	return res
+}
+
+/*
+addTerm parses the given DomainTerm and adds it to the given condition with the given
+prefix operator. Returns the new condition.
+*/
+func addTerm(cond *Condition, term DomainTerm, op DomainPrefixOperator) *Condition {
+	if len(term) != 3 {
+		panic(fmt.Errorf("Malformed domain term: %v", term))
+	}
+	fieldName := term[0].(string)
+	operator := DomainOperator(term[1].(string))
+	value := term[2]
+	meth := getConditionMethod(cond, op)
+	cond = meth(fieldName, string(operator), value)
+	return cond
+}
+
+/*
+getConditionMethod returns the condition method to use on the given condition
+for the given prefix operator and negation condition.
+*/
+func getConditionMethod(cond *Condition, op DomainPrefixOperator) func(string, string, ...interface{}) *Condition {
+	switch op {
+	case PREFIX_AND:
+		return cond.And
+	case PREFIX_OR:
+		return cond.Or
+	default:
+		panic(fmt.Errorf("Unknown prefix operator: %s", op))
+	}
+}

@@ -272,7 +272,7 @@ func mapToStruct(mi *modelInfo, structPtr interface{}, fMap FieldMap) {
 				continue
 			}
 		}
-		if mValExists {
+		if mValExists && mValue != nil {
 			convertedValue := reflect.ValueOf(mValue).Convert(fVal.Type())
 			fVal.Set(convertedValue)
 		}

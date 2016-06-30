@@ -28,7 +28,7 @@ var (
 
 type dbAdapter interface {
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
-	operatorSQL(DomainOperator) string
+	operatorSQL(DomainOperator, ...interface{}) (string, []interface{})
 	// typeSQL returns the SQL type string, including columns constraints if any
 	typeSQL(fi *fieldInfo) string
 	// columnSQLDefinition returns the SQL type string, including columns constraints if any

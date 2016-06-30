@@ -37,7 +37,7 @@ func BootStrap() {
 
 	//fieldsCache.Lock()
 	//defer fieldsCache.Unlock()
-	//processDepends()
+	processDepends()
 	//
 	//fieldsCache.done = true
 }

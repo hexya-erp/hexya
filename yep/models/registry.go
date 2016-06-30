@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
+	"strings"
 )
 
 var modelRegistry *modelCollection
@@ -84,6 +85,24 @@ func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
 		}
 		mi.fields.add(fi)
 	}
+}
+
+// getRelatedModelInfo returns the modelInfo of the related model when
+// following path. Path can be formed from field names or JSON names.
+func (mi *modelInfo) getRelatedModelInfo(path string) *modelInfo {
+	if path == "" {
+		return mi
+	}
+	exprs := strings.Split(path, ExprSep)
+	jsonizeExpr(mi, exprs)
+	fi, ok := mi.fields.get(exprs[0])
+	if !ok || fi.relatedModel == nil {
+		panic(fmt.Errorf("Unknown field `%s` for model `%s` or field is not a relation", exprs[0], mi.name))
+	}
+	if len(exprs) > 1 {
+		return fi.relatedModel.getRelatedModelInfo(strings.Join(exprs[1:], ExprSep))
+	}
+	return fi.relatedModel
 }
 
 // CreateModel creates a new model with the given name

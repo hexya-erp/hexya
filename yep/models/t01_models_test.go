@@ -76,7 +76,7 @@ func computeAge(rs RecordSet) FieldMap {
 		Profile *Profile_Simple
 	}
 	user := new(User_Simple)
-	rs.RelatedDepth(1).ReadOne(user)
+	rs.RelatedDepth(1).Search().ReadOne(user)
 	if user.Profile != nil {
 		res["Age"] = user.Profile.Age
 	}

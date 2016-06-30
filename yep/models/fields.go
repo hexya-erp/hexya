@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 
+	"fmt"
 	"github.com/npiganeau/yep/yep/tools"
 )
 
@@ -27,10 +28,10 @@ computeData holds data to recompute another field.
 - modelName is the name of the model to recompute
 - compute is the name of the function to call on modelName
 - path is the search string that will be used to find records to update.
-The path should take an ID as argument (e.g. path = "Profile__BestPost").
+The path should take an ID as argument (e.g. path = "Profile.BestPost").
 */
 type computeData struct {
-	modelName string
+	modelInfo *modelInfo
 	compute   string
 	path      string
 }
@@ -42,7 +43,6 @@ type fieldsCollection struct {
 	computedFields       []*fieldInfo
 	computedStoredFields []*fieldInfo
 	bootstrapped         bool
-	//dependencyMap        map[fieldRef][]computeData
 }
 
 /*
@@ -57,8 +57,8 @@ func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
 	return
 }
 
-// names returns a slice with the names of all the stored fields
-// If fields are given, return only fieldInfo in the list
+// storedFieldNames returns a slice with the names of all the stored fields
+// If fields are given, return only names in the list
 func (fc *fieldsCollection) storedFieldNames(fieldNames ...string) []string {
 	var res []string
 	for fName, fi := range fc.registryByName {
@@ -74,6 +74,18 @@ func (fc *fieldsCollection) storedFieldNames(fieldNames ...string) []string {
 			}
 		}
 		if fi.isStored() && keepField {
+			res = append(res, fName)
+		}
+	}
+	return res
+}
+
+// nonRelatedFieldJSONNames returns a slice with the JSON names of all the fields that
+// are not relations.
+func (fc *fieldsCollection) nonRelatedFieldJSONNames() []string {
+	var res []string
+	for fName, fi := range fc.registryByJSON {
+		if fi.relatedModel == nil {
 			res = append(res, fName)
 		}
 	}
@@ -117,7 +129,6 @@ func newFieldsCollection() *fieldsCollection {
 	return &fieldsCollection{
 		registryByName: make(map[string]*fieldInfo),
 		registryByJSON: make(map[string]*fieldInfo),
-		//dependencyMap:        make(map[fieldRef][]computeData),
 	}
 }
 
@@ -159,6 +170,7 @@ type fieldInfo struct {
 	size          int
 	digits        tools.Digits
 	structField   reflect.StructField
+	dependencies  []computeData
 }
 
 // isStored returns true if this field is stored in database
@@ -197,17 +209,17 @@ func (fi *fieldInfo) isStored() bool {
 ///*
 //getDependentFields return the fields that must be recomputed when ref is modified.
 //*/
-//func (fc *_fieldsCache) getDependentFields(ref fieldRef) (target []computeData, ok bool) {
+//func (fc *fieldsCollection) getDependentFields(ref fieldRef) (target []computeData, ok bool) {
 //	target, ok = fc.dependencyMap[ref]
 //	return
 //}
-
+//
 ///*
 //setDependency adds a dependency in the dependencyMap.
 //target field depends on ref field, i.e. when ref field is modified,
 //target field must be recomputed.
 //*/
-//func (fc *_fieldsCache) setDependency(ref fieldRef, target computeData) {
+//func (fc *fieldsCollection) setDependency(ref fieldRef, target computeData) {
 //	fc.dependencyMap[ref] = append(fc.dependencyMap[ref], target)
 //}
 
@@ -292,35 +304,35 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	return &fInfo
 }
 
-///*
-//processDepends populates the dependsMap of the fieldsCache from the depends strings of
-//each fieldInfo instance.
-//*/
-//func processDepends() {
-//	for targetField, fInfo := range fieldsCache.cache {
-//		var (
-//			refName string
-//		)
-//		for _, depString := range fInfo.depends {
-//			if depString != "" {
-//				tokens := strings.Split(depString, orm.ExprSep)
-//				refName = tokens[len(tokens)-1]
-//				refModelName := getRelatedModelName(targetField.modelName, depString)
-//				refField := fieldRef{
-//					modelName: refModelName,
-//					name:      refName,
-//				}
-//				path := strings.Join(tokens[:len(tokens)-1], orm.ExprSep)
-//				targetComputeData := computeData{
-//					modelName: fInfo.modelName,
-//					compute:   fInfo.compute,
-//					path:      path,
-//				}
-//				fieldsCache.setDependency(refField, targetComputeData)
-//			}
-//		}
-//	}
-//}
+/*
+processDepends populates the dependencies of each fieldInfo from the depends strings of
+each fieldInfo instances.
+*/
+func processDepends() {
+	for _, mi := range modelRegistry.registryByTableName {
+		for _, fInfo := range mi.fields.registryByJSON {
+			var refName string
+			for _, depString := range fInfo.depends {
+				if depString != "" {
+					tokens := jsonizeExpr(mi, strings.Split(depString, ExprSep))
+					refName = tokens[len(tokens)-1]
+					path := strings.Join(tokens[:len(tokens)-1], ExprSep)
+					targetComputeData := computeData{
+						modelInfo: mi,
+						compute:   fInfo.compute,
+						path:      path,
+					}
+					refModelInfo := mi.getRelatedModelInfo(path)
+					refField, ok := refModelInfo.fields.get(refName)
+					if !ok {
+						panic(fmt.Errorf("Unknown field `%s` for model `%s`", refName, refModelInfo.name))
+					}
+					refField.dependencies = append(refField.dependencies, targetComputeData)
+				}
+			}
+		}
+	}
+}
 
 ///*
 //getRelatedModelName returns the model name of the field given by path calculated from the origin model.

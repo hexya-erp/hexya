@@ -26,11 +26,11 @@ type postgresAdapter struct{}
 var pgOperators = map[DomainOperator]string{
 	OPERATOR_EQUALS:        "= ?",
 	OPERATOR_NOT_EQUALS:    "!= ?",
-	OPERATOR_LIKE:          "LIKE %?%",
-	OPERATOR_NOT_LIKE:      "NOT LIKE %?%",
+	OPERATOR_LIKE:          "LIKE ?",
+	OPERATOR_NOT_LIKE:      "NOT LIKE ?",
 	OPERATOR_LIKE_PATTERN:  "LIKE ?",
-	OPERATOR_ILIKE:         "ILIKE %?%",
-	OPERATOR_NOT_ILIKE:     "NOT ILIKE %?%",
+	OPERATOR_ILIKE:         "ILIKE ?",
+	OPERATOR_NOT_ILIKE:     "NOT ILIKE ?",
 	OPERATOR_ILIKE_PATTERN: "ILIKE ?",
 	OPERATOR_IN:            "IN (?)",
 	OPERATOR_NOT_IN:        "NOT IN (?)",
@@ -72,8 +72,16 @@ var pgDefaultValues = map[tools.FieldType]string{
 }
 
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
-func (d *postgresAdapter) operatorSQL(do DomainOperator) string {
-	return pgOperators[do]
+// Also modifies the given args to match the syntax of the operator.
+func (d *postgresAdapter) operatorSQL(do DomainOperator, args ...interface{}) (string, []interface{}) {
+	op := pgOperators[do]
+	switch do {
+	case OPERATOR_LIKE, OPERATOR_ILIKE, OPERATOR_NOT_LIKE, OPERATOR_NOT_ILIKE:
+		if len(args) > 0 {
+			args[0] = fmt.Sprintf("%%%s%%", args[0])
+		}
+	}
+	return op, args
 }
 
 // typeSQL returns the sql type string for the given fieldInfo

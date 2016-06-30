@@ -26,6 +26,7 @@ recordStruct implements RecordSet
 */
 type RecordSet struct {
 	query     Query
+	relDepth  int
 	mi        *modelInfo
 	env       *Environment
 	ids       []int64
@@ -64,7 +65,7 @@ func (rs RecordSet) Ids() []int64 {
 }
 
 func (rs RecordSet) RelatedDepth(depth int) *RecordSet {
-	rs.query.relDepth = depth
+	rs.relDepth = depth
 	return &rs
 }
 
@@ -100,11 +101,28 @@ func (rs *RecordSet) ForceSearch() *RecordSet {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
 func (rs RecordSet) update(data interface{}) bool {
-	//_, err := rs.qs.Update(data)
-	//if err != nil {
-	//	panic(fmt.Errorf("recordSet `%s` Write error: %s", rs, err))
-	//}
-	//rs.updateStoredFields(data)
+	var fMap FieldMap
+	if _, ok := data.(FieldMap); ok {
+		fMap = data.(FieldMap)
+	} else {
+		if err := checkStructPtr(data); err != nil {
+			panic(err)
+		}
+		fMap = structToMap(data, 0)
+		rs = *rs.withIds([]int64{fMap["ID"].(int64)})
+	}
+	// clean our fMap from ID and non stored fields
+	delete(fMap, "id")
+	delete(fMap, "ID")
+	for _, cf := range rs.mi.fields.getComputedFields() {
+		delete(fMap, cf.name)
+		delete(fMap, cf.json)
+	}
+	// update DB
+	sql, args := rs.query.updateQuery(fMap)
+	DBExecute(rs.env.cr, sql, args...)
+	// compute stored fields
+	rs.updateStoredFields(fMap)
 	return true
 }
 
@@ -210,12 +228,13 @@ func (rs RecordSet) SearchCount() int {
 // Returns the number of rows fetched.
 // It panics in case of error
 func (rs RecordSet) ReadAll(container interface{}, cols ...string) int64 {
+	rs = *rs.Search()
 	if err := checkStructSlicePtr(container); err != nil {
 		panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
 	}
 	typ := reflect.TypeOf(container).Elem().Elem().Elem()
 	structCtn := reflect.New(typ).Interface()
-	sfMap := structToMap(structCtn, rs.query.relDepth)
+	sfMap := structToMap(structCtn, rs.relDepth)
 	fields := filterFields(rs.mi, sfMap.Keys(), cols)
 
 	var fMaps []FieldMap
@@ -237,15 +256,16 @@ func (rs RecordSet) ReadAll(container interface{}, cols ...string) int64 {
 // If cols are given, retrieve only the given fields.
 // It panics if the RecordSet does not contain exactly one row.
 func (rs RecordSet) ReadOne(container interface{}, cols ...string) {
+	rs = *rs.Search()
 	rs.EnsureOne()
 	if err := checkStructPtr(container); err != nil {
 		panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
 	}
-	sfMap := structToMap(container, rs.query.relDepth)
+
+	sfMap := structToMap(container, rs.relDepth)
 	fields := filterFields(rs.mi, sfMap.Keys(), cols)
-	dbFields := filterOnDBFields(rs.mi, fields)
 	var fMap FieldMap
-	rs.ReadValue(&fMap, dbFields...)
+	rs.ReadValue(&fMap, fields...)
 	mapToStruct(rs.mi, container, fMap)
 }
 
@@ -264,10 +284,14 @@ func (rs RecordSet) ReadValue(result *FieldMap, fields ...string) {
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
 // If no fields are given, all columns of the RecordSet's model are retrieved.
 func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
+	if len(fields) == 0 {
+		fields = rs.mi.fields.nonRelatedFieldJSONNames()
+	}
 	dbFields := filterOnDBFields(rs.mi, fields)
 	sql, args := rs.query.selectQuery(dbFields)
 	rows := DBQuery(rs.env.cr, sql, args...)
 	defer rows.Close()
+	var ids []int64
 	for rows.Next() {
 		line := make(FieldMap)
 		err := rows.MapScan(line)
@@ -275,8 +299,11 @@ func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
 			panic(err)
 		}
 		*results = append(*results, line)
+		ids = append(ids, line["id"].(int64))
 	}
 
+	// Call withIds directly and not ForceSearch to avoid infinite recursion
+	rs = *rs.withIds(ids)
 	for i, rec := range rs.Records() {
 		rec.computeFieldValues(&(*results)[i], fields...)
 	}
@@ -401,7 +428,7 @@ func (rs RecordSet) create(data interface{}) *RecordSet {
 	var createdId int64
 	DBGet(rs.env.cr, &createdId, sql, args...)
 	// compute stored fields
-	//rs.updateStoredFields()
+	rs.updateStoredFields(fMap)
 	if _, ok := data.(FieldMap); !ok {
 		// set ID to the given struct
 		idVal := reflect.ValueOf(data).Elem().FieldByName("ID")
@@ -418,16 +445,15 @@ func (rs RecordSet) Create(data interface{}) *RecordSet {
 	return rs.Call("Create", data).(*RecordSet)
 }
 
-/*
-withIdMap returns a copy of rs filtered on the given ids slice (overwriting current query).
-*/
-func (rs RecordSet) withIds(ids []int64) *RecordSet {
+// withIdMap sets the given RecordSet ids to the given ids slice (overwriting current query).
+// This method both replaces in place and returns a pointer to the same RecordSet.
+func (rs *RecordSet) withIds(ids []int64) *RecordSet {
 	rs.ids = ids
 	if len(ids) > 0 {
-		rs.query = newQuery(&rs)
-		rs = *rs.Filter("ID", "in", ids)
+		rs.query.cond = NewCondition()
+		rs = rs.Filter("ID", "in", ids)
 	}
-	return &rs
+	return rs
 }
 
 // computeFieldValues updates the given params with the given computed (non stored) fields
@@ -448,65 +474,44 @@ func (rs RecordSet) computeFieldValues(params *FieldMap, fields ...string) {
 	}
 }
 
-///*
-//updateStoredFields updates all dependent fields of rs that are included in structPtrOrParams.
-//*/
-//func (rs RecordSet) updateStoredFields(structPtrOrParams interface{}) {
-//	// First get list of fields that have been passed through structPtrOrParams
-//	var fieldNames []string
-//	if params, ok := structPtrOrParams.(FieldMap); ok {
-//		cpsf, _ := fieldsCache.getComputedStoredFields(rs.ModelName())
-//		fieldNames = make([]string, len(params)+len(cpsf))
-//		i := 0
-//		for k, _ := range params {
-//			fieldNames[i] = k
-//			i++
-//		}
-//		for _, v := range cpsf {
-//			fieldNames[i] = v.name
-//			i++
-//		}
-//	} else {
-//		val := reflect.ValueOf(structPtrOrParams)
-//		typ := reflect.Indirect(val).Type()
-//		fieldNames = make([]string, typ.NumField())
-//		for i := 0; i < typ.NumField(); i++ {
-//			fieldNames[i] = typ.Field(i).Name
-//		}
-//	}
-//	// Then get all fields to update
-//	var toUpdate []computeData
-//	for _, fieldName := range fieldNames {
-//		refField := fieldRef{modelName: rs.ModelName(), name: fieldName}
-//		targetFields, ok := fieldsCache.getDependentFields(refField)
-//		if !ok {
-//			continue
-//		}
-//		toUpdate = append(toUpdate, targetFields...)
-//	}
-//	// Compute all that must be computed and store the values
-//	computed := make(map[string]bool)
-//	rs = rs.Search()
-//	for _, cData := range toUpdate {
-//		methUID := fmt.Sprintf("%s.%s", cData.modelName, cData.compute)
-//		if _, ok := computed[methUID]; ok {
-//			continue
-//		}
-//		recs := NewRecordSet(rs.env, cData.modelName)
-//		if cData.path != "" {
-//			domainString := fmt.Sprintf("%s%s%s", cData.path, orm.ExprSep, "in")
-//			recs.Filter(domainString, rs.Ids())
-//		} else {
-//			recs = rs
-//		}
-//		for _, rec := range recs.Records() {
-//			vals := rec.Call(cData.compute)
-//			if len(vals.(FieldMap)) > 0 {
-//				rec.Write(vals.(FieldMap))
-//			}
-//		}
-//	}
-//}
+/*
+updateStoredFields updates all dependent fields of rs that are included in the given FieldMap.
+*/
+func (rs RecordSet) updateStoredFields(fMap FieldMap) {
+	// First get list of fields that have been passed through structPtrOrParams
+	fieldNames := fMap.Keys()
+	var toUpdate []computeData
+	for _, fieldName := range fieldNames {
+		//refField := fieldRef{modelName: rs.ModelName(), name: fieldName}
+		refFieldInfo, ok := rs.mi.fields.get(fieldName)
+		if !ok {
+			continue
+		}
+		toUpdate = append(toUpdate, refFieldInfo.dependencies...)
+	}
+	// Compute all that must be computed and store the values
+	computed := make(map[string]bool)
+	rs = *rs.Search()
+	for _, cData := range toUpdate {
+		methUID := fmt.Sprintf("%s.%s", cData.modelInfo.tableName, cData.compute)
+		if _, ok := computed[methUID]; ok {
+			continue
+		}
+		recs := rs.env.Pool(cData.modelInfo.name)
+		if cData.path != "" {
+			recs = recs.Filter(cData.path, "in", rs.Ids())
+		} else {
+			recs = &rs
+		}
+		recs.Search()
+		for _, rec := range recs.Records() {
+			vals := rec.Call(cData.compute)
+			if len(vals.(FieldMap)) > 0 {
+				rec.Write(vals.(FieldMap))
+			}
+		}
+	}
+}
 
 // newRecordSet returns a new empty RecordSet in the given environment for the given modelName
 func newRecordSet(env *Environment, modelName string) *RecordSet {

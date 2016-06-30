@@ -36,7 +36,6 @@ type Query struct {
 	recordSet *RecordSet
 	cond      *Condition
 	related   []string
-	relDepth  int
 	limit     int
 	offset    int
 	groups    []string
@@ -111,8 +110,9 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 	} else {
 		exprs := jsonizeExpr(q.recordSet.mi, cv.exprs)
 		field := q.joinedFieldExpression(exprs)
-		sql += fmt.Sprintf(`%s %s `, field, adapter.operatorSQL(cv.operator))
-		args = cv.args
+		var opSql string
+		opSql, args = adapter.operatorSQL(cv.operator, cv.args...)
+		sql += fmt.Sprintf(`%s %s `, field, opSql)
 	}
 	return sql, args
 }
@@ -125,9 +125,34 @@ func (q *Query) sqlLimitOffsetClause() string {
 		res = fmt.Sprintf(`LIMIT %d `, q.limit)
 	}
 	if q.offset > 0 {
-		res += fmt.Sprintf(`OFFSET %d`, q.offset)
+		res += fmt.Sprintf(`OFFSET %d `, q.offset)
 	}
 	return res
+}
+
+// sqlOrderByClause returns the sql string for the ORDER BY clause
+// of this Query
+func (q *Query) sqlOrderByClause() string {
+	if len(q.orders) == 0 {
+		return ""
+	}
+	var (
+		fieldOrder []string
+		fExprs     [][]string
+	)
+	for _, order := range q.orders {
+		fieldOrder = strings.Split(strings.TrimSpace(order), " ")
+		oExprs := jsonizeExpr(q.recordSet.mi, strings.Split(fieldOrder[0], ExprSep))
+		fExprs = append(fExprs, oExprs)
+	}
+	resSlice := make([]string, len(q.orders))
+	for i, field := range fExprs {
+		resSlice[i] = q.joinedFieldExpression(field)
+		if len(fieldOrder) > 1 {
+			resSlice[i] += fmt.Sprintf(" %s", fieldOrder[1])
+		}
+	}
+	return fmt.Sprintf("ORDER BY %s ", strings.Join(resSlice, ", "))
 }
 
 // deleteQuery returns the SQL query string and parameters to delete
@@ -189,6 +214,11 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	}
 	// Then given by condition
 	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.mi)...)
+	// Add 'order by' exprs
+	for _, order := range q.orders {
+		oExprs := jsonizeExpr(q.recordSet.mi, strings.Split(order, ExprSep))
+		fExprs = append(fExprs, oExprs)
+	}
 	// Build up the query
 	// Fields
 	fieldsSQL := q.fieldsSQL(fieldExprs)
@@ -196,9 +226,38 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	tablesSQL := q.tablesSQL(fExprs)
 	// Where clause and args
 	whereSQL, args := q.sqlWhereClause()
+	whereSQL += q.sqlOrderByClause()
 	whereSQL += q.sqlLimitOffsetClause()
 	selQuery := fmt.Sprintf(`SELECT %s FROM %s %s`, fieldsSQL, tablesSQL, whereSQL)
 	return selQuery, args
+}
+
+func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
+	adapter := adapters[db.DriverName()]
+	if len(data) == 0 {
+		panic(fmt.Errorf("No data given for update"))
+	}
+	cols := make([]string, len(data))
+	vals := make(SQLParams, len(data))
+	var (
+		i   int
+		sql string
+	)
+	for k, v := range data {
+		fi, ok := q.recordSet.mi.fields.get(k)
+		if !ok {
+			panic(fmt.Errorf("Unknown field `%s` in model `%s`", k, q.recordSet.mi.name))
+		}
+		cols[i] = fmt.Sprintf("%s = ?", fi.json)
+		vals[i] = v
+		i++
+	}
+	tableName := adapter.quoteTableName(q.recordSet.mi.tableName)
+	updates := strings.Join(cols, ", ")
+	whereSQL, args := q.sqlWhereClause()
+	sql = fmt.Sprintf("UPDATE %s SET %s %s", tableName, updates, whereSQL)
+	vals = append(vals, args...)
+	return sql, vals
 }
 
 // fieldsSQL returns the SQL string for the given field expressions

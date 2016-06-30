@@ -105,37 +105,38 @@ func TestSearchRecordSet(t *testing.T) {
 	})
 }
 
-//func TestUpdateRecordSet(t *testing.T) {
-//	Convey("Testing updates through RecordSets", t, func() {
-//		Convey("Simple update with params to user Jane", func() {
-//			rsJane := env.Pool(new(User)).Filter("UserName", "Jane Smith").Search()
-//			So(rsJane.Ids(), ShouldContain, 2)
-//			So(len(rsJane.Ids()), ShouldEqual, 1)
-//			res := rsJane.Call("Write", orm.Params{"UserName": "Jane A. Smith"})
-//			So(res, ShouldEqual, true)
-//			var userJane User_WithID
-//			rsJane.ReadOne(&userJane)
-//			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
-//			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
-//		})
-//		Convey("Simple update with struct", func() {
-//			rsJane := env.Pool(new(User)).Filter("UserName", "Jane A. Smith").Search()
-//			var userJohn User_WithID
-//			rsJohn := env.Pool("User").Filter("UserName", "John Smith")
-//			rsJohn.ReadOne(&userJohn)
-//			userJohn.Email = "jsmith2@example.com"
-//			env.Sync(&userJohn)
-//			var userJane2 User_WithID
-//			rsJane.ReadOne(&userJane2)
-//			So(userJane2.UserName, ShouldEqual, "Jane A. Smith")
-//			So(userJane2.Email, ShouldEqual, "jane.smith@example.com")
-//			var userJohn2 User_WithID
-//			env.Pool("User").Filter("UserName", "John Smith").ReadOne(&userJohn2)
-//			So(userJohn2.UserName, ShouldEqual, "John Smith")
-//			So(userJohn2.Email, ShouldEqual, "jsmith2@example.com")
-//		})
-//	})
-//}
+func TestUpdateRecordSet(t *testing.T) {
+	Convey("Testing updates through RecordSets", t, func() {
+		env := NewEnvironment(1)
+		Convey("Simple update with params to user Jane", func() {
+			rsJane := env.Pool("User").Filter("UserName", "=", "Jane Smith").Search()
+			So(len(rsJane.Ids()), ShouldEqual, 1)
+			res := rsJane.Call("Write", FieldMap{"UserName": "Jane A. Smith"})
+			So(res, ShouldEqual, true)
+			var userJane User_WithID
+			rsJane.ReadOne(&userJane)
+			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
+			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
+		})
+		Convey("Simple update with struct", func() {
+			rsJane := env.Pool("User").Filter("UserName", "=", "Jane A. Smith").Search()
+			var userJohn User_WithID
+			rsJohn := env.Pool("User").Filter("UserName", "=", "John Smith")
+			rsJohn.ReadOne(&userJohn)
+			userJohn.Email = "jsmith2@example.com"
+			env.Sync(&userJohn)
+			var userJane2 User_WithID
+			rsJane.ReadOne(&userJane2)
+			So(userJane2.UserName, ShouldEqual, "Jane A. Smith")
+			So(userJane2.Email, ShouldEqual, "jane.smith@example.com")
+			var userJohn2 User_WithID
+			env.Pool("User").Filter("UserName", "=", "John Smith").ReadOne(&userJohn2)
+			So(userJohn2.UserName, ShouldEqual, "John Smith")
+			So(userJohn2.Email, ShouldEqual, "jsmith2@example.com")
+		})
+		env.cr.Commit()
+	})
+}
 
 func TestDeleteRecordSet(t *testing.T) {
 	env := NewEnvironment(1)
