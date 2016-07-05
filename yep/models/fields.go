@@ -15,11 +15,11 @@
 package models
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 
-	"fmt"
 	"github.com/npiganeau/yep/yep/tools"
 )
 
@@ -187,41 +187,6 @@ func (fi *fieldInfo) isStored() bool {
 	}
 	return true
 }
-
-///*
-//field is the key to find a field in the fieldsCache
-//*/
-//type fieldRef struct {
-//	modelName string
-//	name      string
-//}
-//
-//// ConvertToName converts the given field ref to a fieldRef
-//// of type [modelName, fieldName].
-//func (fr *fieldRef) ConvertToName() {
-//	fi, ok := fieldsCache.get(*fr)
-//	if !ok {
-//		panic(fmt.Errorf("unknown fieldRef `%s`", *fr))
-//	}
-//	fr.name = fi.name
-//}
-
-///*
-//getDependentFields return the fields that must be recomputed when ref is modified.
-//*/
-//func (fc *fieldsCollection) getDependentFields(ref fieldRef) (target []computeData, ok bool) {
-//	target, ok = fc.dependencyMap[ref]
-//	return
-//}
-//
-///*
-//setDependency adds a dependency in the dependencyMap.
-//target field depends on ref field, i.e. when ref field is modified,
-//target field must be recomputed.
-//*/
-//func (fc *fieldsCollection) setDependency(ref fieldRef, target computeData) {
-//	fc.dependencyMap[ref] = append(fc.dependencyMap[ref], target)
-//}
 
 // createFieldInfo creates and returns a new fieldInfo pointer from the given
 // StructField and modelInfo.

@@ -146,25 +146,6 @@ func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 	return res
 }
 
-//// getStructValue returns the struct Value of the given structPtr
-//// It panics if structPtr is not a struct pointer.
-//func getStructValue(structPtr interface{}) reflect.Value {
-//	if err := checkStructPtr(structPtr); err != nil {
-//		panic(err)
-//	}
-//	val := reflect.ValueOf(structPtr)
-//	return reflect.Indirect(val)
-//}
-//
-//// getStructType returns the struct Type of the given structPtr
-//// It panics if structPtr is not a struct pointer.
-//func getStructType(structPtr interface{}) reflect.Type {
-//	if err := checkStructPtr(structPtr); err != nil {
-//		panic(err)
-//	}
-//	return reflect.TypeOf(structPtr).Elem()
-//}
-
 /*
 getModelName returns the model name corresponding to the given container
 */
@@ -361,8 +342,10 @@ func filterFields(mi *modelInfo, fields, filters []string) []string {
 }
 
 // filterOnDBFields returns the given fields slice with only stored fields
+// This function also adds the "id" field to the list if not present
 func filterOnDBFields(mi *modelInfo, fields []string) []string {
 	var res []string
+	// Check if fields are stored
 	for _, field := range fields {
 		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
 		fi, ok := mi.fields.get(fieldExprs[0])
@@ -374,6 +357,7 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 			resExprs = append(resExprs, fi.json)
 		}
 		if len(fieldExprs) > 1 {
+			// Related field (e.g. User.Profile.Age)
 			if fi.relatedModel != nil {
 				subFieldName := strings.Join(fieldExprs[1:], ExprSep)
 				subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName})
@@ -388,5 +372,37 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 			res = append(res, strings.Join(resExprs, ExprSep))
 		}
 	}
+	// Check we have "id" else add it to our list
+	var idPresent bool
+	for _, r := range res {
+		if r == "id" {
+			idPresent = true
+			break
+		}
+	}
+	if !idPresent {
+		res = append(res, "id")
+	}
 	return res
+}
+
+// convertInterfaceToFielMap converts the given data which can be of type:
+// - FieldMap
+// - map[string]interface{}
+// - struct pointer
+// to a FieldMap
+func convertInterfaceToFieldMap(data interface{}) FieldMap {
+	var fMap FieldMap
+	switch d := data.(type) {
+	case FieldMap:
+		fMap = d
+	case map[string]interface{}:
+		fMap = FieldMap(d)
+	default:
+		if err := checkStructPtr(data); err != nil {
+			panic(err)
+		}
+		fMap = structToMap(data, 0)
+	}
+	return fMap
 }

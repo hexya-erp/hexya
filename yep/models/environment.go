@@ -16,6 +16,8 @@ package models
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/tools"
 )
@@ -90,16 +92,16 @@ func (env Environment) Create(data interface{}) *RecordSet {
 	return rs
 }
 
-/*
-Sync writes the given data to database.
-data must be a struct pointer that has been originally populated by RecordSet.ReadOne()
-or RecordSet.ReadAll().
-*/
+// Sync writes the given data to database.
+// data must be a struct pointer that has been originally populated by RecordSet.ReadOne()
+// or in a batch by RecordSet.ReadAll().
 func (env Environment) Sync(data interface{}, cols ...string) bool {
 	if err := checkStructPtr(data); err != nil {
 		panic(fmt.Errorf("<Environment.Sync>: %s", err))
 	}
-	res := env.Pool(getModelName(data)).Write(data)
+	id := reflect.ValueOf(data).Elem().FieldByName("ID").Int()
+	rs := env.Pool(getModelName(data)).withIds([]int64{id})
+	res := rs.Write(data)
 	return res
 }
 

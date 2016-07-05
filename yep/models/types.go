@@ -31,3 +31,11 @@ func (fm FieldMap) Keys() (res []string) {
 	}
 	return
 }
+
+// Values returns the FieldMap values as a slice of interface{}
+func (fm FieldMap) Values() (res []interface{}) {
+	for _, v := range fm {
+		res = append(res, v)
+	}
+	return
+}

@@ -77,11 +77,13 @@ var allowedOperators = map[DomainOperator]bool{
 	OPERATOR_CHILD_OF:      true,
 }
 
-/*
-ParseDomain gets an Odoo domain and parses it into an orm.Condition.
-*/
+// ParseDomain gets an Odoo domain and parses it into a RecordSet query Condition.
+// Returns nil if the domain is []
 func ParseDomain(dom Domain) *Condition {
 	res := parseDomain(&dom)
+	if res == nil {
+		return nil
+	}
 	for len(dom) > 0 {
 		res = NewCondition().AndCond(res).AndCond(parseDomain(&dom))
 	}
@@ -91,11 +93,11 @@ func ParseDomain(dom Domain) *Condition {
 // parseDomain is the internal recursive function making all the job of
 // ParseDomain. The given domain through pointer is deleted during operation.
 func parseDomain(dom *Domain) *Condition {
-	res := NewCondition()
 	if len(*dom) == 0 {
-		return res
+		return nil
 	}
 
+	res := NewCondition()
 	currentOp := PREFIX_AND
 
 	operatorTerm := (*dom)[0]

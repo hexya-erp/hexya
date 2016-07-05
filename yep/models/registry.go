@@ -15,12 +15,14 @@
 package models
 
 import (
-	"sync"
-
+	"database/sql"
 	"fmt"
-	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 	"strings"
+	"sync"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 var modelRegistry *modelCollection
@@ -88,7 +90,8 @@ func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
 }
 
 // getRelatedModelInfo returns the modelInfo of the related model when
-// following path. Path can be formed from field names or JSON names.
+// following path. If the last part of path is a non relational field,
+// it is simply ignored. Path can be formed from field names or JSON names.
 func (mi *modelInfo) getRelatedModelInfo(path string) *modelInfo {
 	if path == "" {
 		return mi
@@ -96,13 +99,91 @@ func (mi *modelInfo) getRelatedModelInfo(path string) *modelInfo {
 	exprs := strings.Split(path, ExprSep)
 	jsonizeExpr(mi, exprs)
 	fi, ok := mi.fields.get(exprs[0])
-	if !ok || fi.relatedModel == nil {
-		panic(fmt.Errorf("Unknown field `%s` for model `%s` or field is not a relation", exprs[0], mi.name))
+	if !ok {
+		panic(fmt.Errorf("Unknown field `%s` for model `%s`", exprs[0], mi.name))
+	}
+	if fi.relatedModel == nil {
+		// The field is a non relational field, so we are already
+		// on the related modelInfo.
+		return mi
 	}
 	if len(exprs) > 1 {
 		return fi.relatedModel.getRelatedModelInfo(strings.Join(exprs[1:], ExprSep))
 	}
 	return fi.relatedModel
+}
+
+// getRelatedFieldIfo returns the fieldInfo of the related field when
+// following path. Path can be formed from field names or JSON names.
+func (mi *modelInfo) getRelatedFieldInfo(path string) *fieldInfo {
+	colExprs := strings.Split(path, ExprSep)
+	var rmi *modelInfo
+	num := len(colExprs)
+	if len(colExprs) > 1 {
+		rmi = mi.getRelatedModelInfo(path)
+	} else {
+		rmi = mi
+	}
+	fi, ok := rmi.fields.get(colExprs[num-1])
+	if !ok {
+		panic(fmt.Errorf("Unknown field `%s` for model `%s`", colExprs[num-1], rmi.name))
+	}
+	return fi
+}
+
+// scanToFieldMap scans the db query result r into the given FieldMap.
+// Unlike slqx.MapScan, the returned interface{} values are of the type
+// of the modelInfo fields instead of the database types.
+func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
+	columns, err := r.Columns()
+	if err != nil {
+		return err
+	}
+
+	// Step 1: We create a []interface{} which is in fact a []*interface{}
+	// and we scan our DB row into it. This enables us to get null values
+	// without panic, since null values will map to nil.
+	dbValues := make([]interface{}, len(columns))
+	for i := range dbValues {
+		dbValues[i] = new(interface{})
+	}
+
+	err = r.Scan(dbValues...)
+	if err != nil {
+		return err
+	}
+
+	// Step 2: We scan values with the type of the corresponding fieldInfo
+	// if the value is not nil.
+	destVals := reflect.ValueOf(dest).Elem()
+	for i, dbValue := range dbValues {
+		fi := mi.getRelatedFieldInfo(strings.Replace(columns[i], sqlSep, ExprSep, -1))
+		fType := fi.structField.Type
+		var val reflect.Value
+		switch {
+		case dbValue == nil:
+			val = reflect.Zero(fType)
+		case reflect.PtrTo(fType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
+			val = reflect.New(fType)
+			scanFunc := val.MethodByName("Scan")
+			inArgs := []reflect.Value{reflect.ValueOf(dbValue).Elem()}
+			scanFunc.Call(inArgs)
+		default:
+			if fType.Kind() == reflect.Ptr {
+				// Scan foreign keys into int64
+				fType = reflect.TypeOf(int64(0))
+			}
+			val = reflect.ValueOf(dbValue).Elem().Elem()
+			if val.IsValid() {
+				if typ := val.Type(); typ.ConvertibleTo(fType) {
+					val = val.Convert(fType)
+				}
+			}
+		}
+		destVals.SetMapIndex(reflect.ValueOf(columns[i]), val)
+	}
+
+	return r.Err()
 }
 
 // CreateModel creates a new model with the given name
@@ -120,8 +201,6 @@ func CreateModel(name string, options ...Option) {
 		model = new(BaseModel)
 	}
 	createModelInfo(name, model)
-	//orm.RegisterModelWithName(name, model)
-	//registerModelFields(name, model)
 	declareBaseMethods(name)
 }
 
@@ -151,6 +230,11 @@ func createModelInfo(name string, model interface{}) {
 		mi:        mi,
 		required:  true,
 		fieldType: tools.INTEGER,
+		structField: reflect.TypeOf(
+			struct {
+				ID int64
+			}{},
+		).Field(0),
 	}
 	mi.fields.add(pk)
 	mi.addFieldsFromStruct(model)

@@ -101,16 +101,7 @@ func (rs *RecordSet) ForceSearch() *RecordSet {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
 func (rs RecordSet) update(data interface{}) bool {
-	var fMap FieldMap
-	if _, ok := data.(FieldMap); ok {
-		fMap = data.(FieldMap)
-	} else {
-		if err := checkStructPtr(data); err != nil {
-			panic(err)
-		}
-		fMap = structToMap(data, 0)
-		rs = *rs.withIds([]int64{fMap["ID"].(int64)})
-	}
+	fMap := convertInterfaceToFieldMap(data)
 	// clean our fMap from ID and non stored fields
 	delete(fMap, "id")
 	delete(fMap, "ID")
@@ -219,7 +210,7 @@ It panics in case of error
 func (rs RecordSet) SearchCount() int {
 	sql, args := rs.query.countQuery()
 	var res int
-	DBGet(rs.env.cr, res, sql, args...)
+	DBGet(rs.env.cr, &res, sql, args...)
 	return res
 }
 
@@ -294,7 +285,7 @@ func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
 	var ids []int64
 	for rows.Next() {
 		line := make(FieldMap)
-		err := rows.MapScan(line)
+		err := rs.mi.scanToFieldMap(rows, &line)
 		if err != nil {
 			panic(err)
 		}
@@ -406,22 +397,20 @@ func (rs RecordSet) EnsureOne() {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Create(), rs.Call("Create") or env.Create()
 func (rs RecordSet) create(data interface{}) *RecordSet {
-	// create our FieldMap
-	var fMap FieldMap
-	if _, ok := data.(FieldMap); ok {
-		fMap = data.(FieldMap)
-	} else {
-		if err := checkStructPtr(data); err != nil {
-			panic(err)
-		}
-		fMap = structToMap(data, 0)
-	}
+	fMap := convertInterfaceToFieldMap(data)
 	// clean our fMap from ID and non stored fields
-	delete(fMap, "id")
-	delete(fMap, "ID")
-	for _, cf := range rs.mi.fields.getComputedFields() {
-		delete(fMap, cf.name)
-		delete(fMap, cf.json)
+	if idl, ok := fMap["id"]; ok && idl.(int64) == 0 {
+		delete(fMap, "id")
+	}
+	if idu, ok := fMap["ID"]; ok && idu.(int64) == 0 {
+		delete(fMap, "ID")
+	}
+
+	for _, cf := range rs.mi.fields.registryByJSON {
+		if !cf.isStored() {
+			delete(fMap, cf.name)
+			delete(fMap, cf.json)
+		}
 	}
 	// insert in DB
 	sql, args := rs.query.insertQuery(fMap)
@@ -429,11 +418,12 @@ func (rs RecordSet) create(data interface{}) *RecordSet {
 	DBGet(rs.env.cr, &createdId, sql, args...)
 	// compute stored fields
 	rs.updateStoredFields(fMap)
-	if _, ok := data.(FieldMap); !ok {
+	if reflect.TypeOf(data).Kind() == reflect.Ptr {
 		// set ID to the given struct
 		idVal := reflect.ValueOf(data).Elem().FieldByName("ID")
 		idVal.Set(reflect.ValueOf(createdId))
 		// Update the given struct with its computed fields
+		// FIXME: Add computed non stored field calculation here
 		//rs.computeFields(data)
 	}
 	return rs.withIds([]int64{createdId})
@@ -528,17 +518,3 @@ func newRecordSet(env *Environment, modelName string) *RecordSet {
 	rs.query.recordSet = &rs
 	return &rs
 }
-
-///*
-//newRecordStructFromData returns a recordStruct pointing to data.
-//*/
-//func newRecordStructFromData(env Environment, data interface{}) *RecordSet {
-//	rs := newRecordStruct(env, data)
-//	if err := checkStructPtr(data); err != nil {
-//		panic(fmt.Errorf("newRecordStructFromData: %s", err))
-//	}
-//	val := reflect.ValueOf(data)
-//	ind := reflect.Indirect(val)
-//	id := ind.FieldByName("ID").Int()
-//	return rs.withIds([]int64{id})
-//}

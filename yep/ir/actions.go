@@ -15,8 +15,11 @@
 package ir
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/beevik/etree"
@@ -46,45 +49,48 @@ func MakeActionRef(id string) ActionRef {
 	return ActionRef{id, action.Name}
 }
 
+// ActionRef is an array of two strings representing an action:
+// - The first one is the ID of the action
+// - The second one is the name of the action
 type ActionRef [2]string
 
-//func (e *ActionRef) String() string {
-//	sl := []string{e[0], e[1]}
-//	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
-//}
-//
-//func (e *ActionRef) FieldType() int {
-//	return orm.TypeTextField
-//}
-//
-//func (e *ActionRef) SetRaw(value interface{}) error {
-//	switch d := value.(type) {
-//	case string:
-//		dTrimmed := strings.Trim(d, "[]")
-//		tokens := strings.Split(dTrimmed, ",")
-//		if len(tokens) > 1 {
-//			*e = [2]string{tokens[0], tokens[1]}
-//			return nil
-//		}
-//		e = nil
-//		return fmt.Errorf("<ActionRef.SetRaw>Unable to parse %s", d)
-//	default:
-//		return fmt.Errorf("<ActionRef.SetRaw> unknown value `%v`", value)
-//	}
-//}
-//
-//func (e *ActionRef) RawValue() interface{} {
-//	return e.String()
-//}
-
-func (e *ActionRef) MarshalJSON() ([]byte, error) {
-	if e[0] == "" {
-		return json.Marshal(nil)
-	}
-	sl := []string{e[0], e[1]}
-	return json.Marshal(sl)
+func (ar ActionRef) String() string {
+	sl := []string{ar[0], ar[1]}
+	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
 }
 
+// Value JSON marshals our ActionRef for storing in the database.
+func (ar ActionRef) Value() (driver.Value, error) {
+	return driver.Value(ar[0]), nil
+}
+
+// Scan JSON unmarshals our ActionRef from the JSON representation
+// stored in the database.
+func (ar *ActionRef) Scan(src interface{}) error {
+	var source string
+	switch s := src.(type) {
+	case string:
+		source = s
+	case []byte:
+		source = string(s)
+	default:
+		return fmt.Errorf("Invalid type for ActionRef: %T", src)
+	}
+	*ar = MakeActionRef(source)
+	return nil
+}
+
+var _ driver.Valuer = ActionRef{}
+var _ sql.Scanner = &ActionRef{}
+
+//func (ar *ActionRef) MarshalJSON() ([]byte, error) {
+//	if ar[0] == "" {
+//		return json.Marshal(nil)
+//	}
+//	sl := []string{ar[0], ar[1]}
+//	return json.Marshal(sl)
+//}
+//
 type ActionsCollection struct {
 	sync.RWMutex
 	actions map[string]*BaseAction
