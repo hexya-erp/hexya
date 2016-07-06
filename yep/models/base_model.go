@@ -97,18 +97,14 @@ func ReadModel(rs RecordSet, fields []string) []FieldMap {
 	// Postprocessing results
 	for _, line := range res {
 		for k, v := range line {
-			if vb, ok := v.([]byte); ok {
-				line[k] = string(vb)
+			fi, _ := rs.mi.fields.get(k)
+			if fi.relatedModel != nil {
+				// Add display name to rel/reverse fields
+				id := v.(int64)
+				relMI := rs.mi.getRelatedModelInfo(k)
+				relRS := rs.Env().Pool(relMI.name).withIds([]int64{id})
+				line[k] = [2]interface{}{id, relRS.Call("NameGet").(string)}
 			}
-			//if strings.HasSuffix(k, ExprSep) {
-			//	// Add display name to rel/reverse fields
-			//	path := strings.TrimRight(k, ExprSep)
-			//	id := v.(int64)
-			//	relModelName := rs.mi.getRelatedModelInfo(fmt.Sprintf("%s%sid", path, ExprSep)).name
-			//	relRS := rs.Env().Pool(relModelName).Filter("id", "=", id).Search()
-			//	delete(line, k)
-			//	line[path] = [2]interface{}{id, relRS.Call("NameGet").(string)}
-			//}
 		}
 	}
 	return res

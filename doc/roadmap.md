@@ -3,10 +3,13 @@ YEP Roadmap
 
 ORM
 ---
-- [X] Modify Beego ORM to enable layered models
-- [X] Add meta support to ORM models/fields
-- [X] Add high level RecordSet API
+- [X] Rewrite ORM from scratch
 - [X] Add methods to ORM models
+- [X] Manage Many2One relations
+- [X] Manage One2One relations
+- [ ] Manage One2Many relations
+- [ ] Manage Rev2One relations
+- [ ] Manage Many2many relations
 - [ ] Add computed fields to ORM:
     - [X] Fields computed by ERP after retrieval of computation vars
     - [X] Fields computed by ERP and stored in DB column
@@ -15,23 +18,23 @@ ORM
 - [ ] Add i18n and l10n support to ORM models
 - [ ] Add database foreign keys to related fields
 - [ ] Add cache to RecordSets
-- [ ] Add support for schema modification (ALTER TABLE)
+- [X] Add support for schema modification (ALTER TABLE)
 
 Server
 ------
-- [ ] Create controllers for using Odoo web client with YEP Server
+- [X] Create controllers for using Odoo web client with YEP Server
 - [ ] Automate routing and include for `static` dir in modules
-- [ ] Recover from orm methods' panics
+- [X] Recover from orm methods' panics
 - [ ] Unified logging system
-- [ ] Create a JSON-RPC server with same protocol as Odoo.
 
 Client
 ------
-- [ ] Adapt Odoo web client to be used in YEP
+- [X] Adapt Odoo web client to be used in YEP (V8)
+- [ ] Adapt Odoo web client to be used in YEP (V9)
 
 Modules
 -------
 - [X] Make module registering create necessary symlinks
-- [X] Add support for internal resources data files
+- [X] Add support for internal resources XML data files
 - [ ] Add support for data & demo XML files
 - [ ] Add support for CSV data files
