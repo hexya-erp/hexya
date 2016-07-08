@@ -189,7 +189,7 @@ func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 	for i, f := range view.Fields {
 		fi, ok := rs.mi.fields.get(f)
 		if !ok {
-			panic(fmt.Errorf("Unknwon field `%s` for model `%s`", f, rs.mi.name))
+			tools.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
 		}
 		cols[i] = fi.json
 	}
@@ -214,7 +214,7 @@ func ProcessView(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) st
 	// Load arch as etree
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(arch); err != nil {
-		panic(fmt.Errorf("<ProcessView>%s", err))
+		tools.LogAndPanic(log, "Unable to parse view arch", "arch", arch, "error", err)
 	}
 	// Apply changes
 	rs.Call("UpdateFieldNames", doc)
@@ -222,7 +222,7 @@ func ProcessView(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) st
 	// Dump xml to string and return
 	res, err := doc.WriteToString()
 	if err != nil {
-		panic(fmt.Errorf("<ProcessView>Unable to render XML: %s", err))
+		tools.LogAndPanic(log, "Unable to render XML", "error", err)
 	}
 	return res
 }
@@ -251,7 +251,7 @@ func UpdateFieldNames(rs RecordSet, doc *etree.Document) {
 		fieldName := fieldTag.SelectAttr("name").Value
 		fi, ok := rs.mi.fields.get(fieldName)
 		if !ok {
-			panic(fmt.Errorf("Unknown field `%s` for model `%s`", fieldName, rs.mi.name))
+			tools.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
 		}
 		fieldTag.RemoveAttr("name")
 		fieldTag.CreateAttr("name", fi.json)
@@ -283,7 +283,7 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 	for _, f := range fields {
 		fInfo, ok := rs.mi.fields.get(f)
 		if !ok {
-			panic(fmt.Errorf("Unknown field `%s` for model `%s`", f, rs.mi.name))
+			tools.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
 		}
 		res[fInfo.json] = &FieldInfo{
 			Help:       fInfo.help,
@@ -310,14 +310,10 @@ type SearchParams struct {
 SearchRead retrieves database records according to the filters defined in params.
 */
 func SearchRead(rs RecordSet, params SearchParams) []FieldMap {
-	var fields []string
-	for fName, _ := range rs.mi.fields.registryByJSON {
-		fields = append(fields, fName)
-	}
 	if searchCond := ParseDomain(params.Domain); searchCond != nil {
 		rs = *rs.Condition(searchCond)
 	}
-	// TODO Add support for ordering & offset
+	// Limit
 	var limit int
 	switch params.Limit.(type) {
 	case bool:
@@ -327,8 +323,20 @@ func SearchRead(rs RecordSet, params SearchParams) []FieldMap {
 	default:
 		limit = 80
 	}
-	rs = *rs.Limit(limit).Search()
-	return rs.Call("Read", fields).([]FieldMap)
+	rs = *rs.Limit(limit)
+
+	// Offset
+	if params.Offset != 0 {
+		rs = *rs.Offset(params.Offset)
+	}
+
+	// Order
+	if params.Order != "" {
+		rs = *rs.OrderBy(strings.Split(params.Order, ",")...)
+	}
+
+	rs = *rs.Search()
+	return rs.Call("Read", params.Fields).([]FieldMap)
 }
 
 /*

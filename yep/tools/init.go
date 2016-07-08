@@ -12,22 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package yep
-
-import (
-	_ "github.com/lib/pq"
-	"github.com/npiganeau/yep/yep/ir"
-	"github.com/npiganeau/yep/yep/models"
-	"github.com/npiganeau/yep/yep/server"
-	"github.com/npiganeau/yep/yep/tools"
-)
+package tools
 
 func init() {
-	log := tools.GetLogger("init")
-	models.DBConnect(tools.Config.GetString("DBDriver"), tools.Config.GetString("DBSource"))
-	models.BootStrap()
-	server.LoadInternalResources()
-	ir.BootStrap()
-	server.PostInit()
-	log.Info("YEP is up and running")
+	initConfig()
+	initLogger()
 }

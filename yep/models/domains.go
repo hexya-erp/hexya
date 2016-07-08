@@ -19,7 +19,7 @@
 
 package models
 
-import "fmt"
+import "github.com/npiganeau/yep/yep/tools"
 
 /*
 Domain is a list of search criteria (DomainTerm) in the form of a tuplet (field_name, operator, value).
@@ -148,7 +148,7 @@ prefix operator. Returns the new condition.
 */
 func addTerm(cond *Condition, term DomainTerm, op DomainPrefixOperator) *Condition {
 	if len(term) != 3 {
-		panic(fmt.Errorf("Malformed domain term: %v", term))
+		tools.LogAndPanic(log, "Malformed domain term", "term", term)
 	}
 	fieldName := term[0].(string)
 	operator := DomainOperator(term[1].(string))
@@ -162,13 +162,14 @@ func addTerm(cond *Condition, term DomainTerm, op DomainPrefixOperator) *Conditi
 getConditionMethod returns the condition method to use on the given condition
 for the given prefix operator and negation condition.
 */
-func getConditionMethod(cond *Condition, op DomainPrefixOperator) func(string, string, ...interface{}) *Condition {
+func getConditionMethod(cond *Condition, op DomainPrefixOperator) func(string, string, interface{}) *Condition {
 	switch op {
 	case PREFIX_AND:
 		return cond.And
 	case PREFIX_OR:
 		return cond.Or
 	default:
-		panic(fmt.Errorf("Unknown prefix operator: %s", op))
+		tools.LogAndPanic(log, "Unknown prefix operator", "operator", op)
 	}
+	return nil
 }

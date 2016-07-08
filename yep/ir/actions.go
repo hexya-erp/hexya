@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/beevik/etree"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 type ActionType string
@@ -174,7 +175,7 @@ func LoadActionFromEtree(element *etree.Element) {
 				value, _ := nodeDoc.WriteToString()
 				actionHash[name] = value
 			default:
-				panic(fmt.Errorf("Unknown field type `%s` in view `%s`", fieldType, actionHash["id"]))
+				tools.LogAndPanic(log, "Unknown field type", "type", fieldType, "action", actionHash["id"])
 			}
 		} else {
 			actionHash[name] = fieldNode.Text()
@@ -184,7 +185,7 @@ func LoadActionFromEtree(element *etree.Element) {
 	bytes, _ := json.Marshal(actionHash)
 	var act BaseAction
 	if err := json.Unmarshal(bytes, &act); err != nil {
-		panic(fmt.Errorf("Unable to unmarshal action: %s", err))
+		tools.LogAndPanic(log, "Unable to unmarshal action", "actionHash", actionHash, "error", err)
 	}
 	ActionsRegistry.AddAction(&act)
 }

@@ -16,9 +16,9 @@ package models
 
 import (
 	"fmt"
+	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"testing"
 )
 
 func PrefixUser(rs RecordSet, prefix string) []string {

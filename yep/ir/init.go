@@ -19,7 +19,15 @@
 
 package ir
 
+import (
+	"github.com/inconshreveable/log15"
+	"github.com/npiganeau/yep/yep/tools"
+)
+
+var log log15.Logger
+
 func init() {
+	log = tools.GetLogger("ir")
 	ActionsRegistry = NewActionsCollection()
 	MenusRegistry = NewMenuCollection()
 	ViewsRegistry = NewViewsCollection()

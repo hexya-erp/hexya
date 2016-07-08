@@ -133,14 +133,14 @@ func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 	var res []string
 	fi, ok := mi.fields.get(exprs[0])
 	if !ok {
-		panic(fmt.Errorf("Unknown expression `%+v` for model `%s`", exprs, mi.name))
+		tools.LogAndPanic(log, "Unknown expression for model", "expression", exprs, "model", mi.name)
 	}
 	res = append(res, fi.json)
 	if len(exprs) > 1 {
 		if fi.relatedModel != nil {
 			res = append(res, jsonizeExpr(fi.relatedModel, exprs[1:])...)
 		} else {
-			panic(fmt.Errorf("Unknown expression: field `%s` is not a relation in model `%s`", exprs[0], mi.name))
+			tools.LogAndPanic(log, "Field is not a relation in model", "field", exprs[0], "model", mi.name)
 		}
 	}
 	return res
@@ -173,7 +173,7 @@ func structToMap(structPtr interface{}, depth int, prefix ...string) FieldMap {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		panic(fmt.Errorf("structPtr must be a pointer to a struct"))
+		tools.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
 	}
 	res := make(FieldMap)
 	for i := 0; i < ind.NumField(); i++ {
@@ -229,14 +229,14 @@ func mapToStruct(mi *modelInfo, structPtr interface{}, fMap FieldMap) {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		panic(fmt.Errorf("structPtr must be a pointer to a struct"))
+		tools.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
 	}
 	for i := 0; i < ind.NumField(); i++ {
 		fVal := ind.Field(i)
 		sf := ind.Type().Field(i)
 		fi, ok := mi.fields.get(sf.Name)
 		if !ok {
-			panic(fmt.Errorf("Unregistered field `%s` in model `%s`", sf.Name, mi.name))
+			tools.LogAndPanic(log, "Unregistered field in model", "field", sf.Name, "model", mi.name)
 		}
 		mValue, mValExists := fMap[fi.json]
 		if sf.Type.Kind() == reflect.Ptr {
@@ -314,7 +314,8 @@ func getFieldType(typ reflect.Type) tools.FieldType {
 	case reflect.TypeOf(Date{}):
 		return tools.DATE
 	}
-	panic(fmt.Errorf("Unable to match field type with go Type `%s`. Please specify 'type()' in struct tag", typ))
+	tools.LogAndPanic(log, "Unable to match field type with go Type. Please specify 'type()' in struct tag", "type", typ)
+	return tools.NO_TYPE
 }
 
 // filterFields returns the fields slice with only the fields that appear in
@@ -350,7 +351,7 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
 		fi, ok := mi.fields.get(fieldExprs[0])
 		if !ok {
-			panic(fmt.Errorf("Unknown Field `%s` for model `%s`", fieldExprs[0], mi.name))
+			tools.LogAndPanic(log, "Unknown Field in model", "field", fieldExprs[0], "model", mi.name)
 		}
 		var resExprs []string
 		if fi.isStored() {
@@ -365,7 +366,7 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 					resExprs = append(resExprs, subFieldRes[0])
 				}
 			} else {
-				panic(fmt.Errorf("Unknown expression: field `%s` is not a relation in model `%s`", fieldExprs[0], mi.name))
+				tools.LogAndPanic(log, "Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
 			}
 		}
 		if len(resExprs) > 0 {
@@ -400,7 +401,7 @@ func convertInterfaceToFieldMap(data interface{}) FieldMap {
 		fMap = FieldMap(d)
 	default:
 		if err := checkStructPtr(data); err != nil {
-			panic(err)
+			tools.LogAndPanic(log, err.Error(), "data", data)
 		}
 		fMap = structToMap(data, 0)
 	}

@@ -145,7 +145,8 @@ func (vc *ViewsCollection) GetFirstViewForModel(model string, viewType ViewType)
 			return view
 		}
 	}
-	panic(fmt.Errorf("Unable to find view of type `%s` for model `%s`", viewType, model))
+	tools.LogAndPanic(log, "No view of this type in model", "type", viewType, "model", model)
+	return nil
 }
 
 type View struct {
@@ -182,7 +183,7 @@ func LoadViewFromEtree(element *etree.Element) {
 				value, _ := nodeDoc.WriteToString()
 				viewHash[name] = value
 			default:
-				panic(fmt.Errorf("Unknown field type `%s` in view `%s`", fieldType, viewHash["id"]))
+				tools.LogAndPanic(log, "Unknown field type", "type", fieldType, "view", viewHash["id"])
 			}
 		} else {
 			viewHash[name] = fieldNode.Text()
@@ -192,7 +193,7 @@ func LoadViewFromEtree(element *etree.Element) {
 	bytes, _ := json.Marshal(viewHash)
 	var view View
 	if err := json.Unmarshal(bytes, &view); err != nil {
-		panic(fmt.Errorf("Unable to unmarshal view: %s", err))
+		tools.LogAndPanic(log, "Unable to unmarshal view", "viewHash", viewHash, "error", err)
 	}
 	ViewsRegistry.AddView(&view)
 }

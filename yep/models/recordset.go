@@ -16,6 +16,7 @@ package models
 
 import (
 	"fmt"
+	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 	"strconv"
 	"strings"
@@ -141,16 +142,16 @@ func (rs RecordSet) Unlink() int64 {
 /*
 Filter returns a new RecordSet with the given additional filter condition.
 */
-func (rs RecordSet) Filter(cond, op string, data ...interface{}) *RecordSet {
-	rs.query.cond = rs.query.cond.And(cond, op, data...)
+func (rs RecordSet) Filter(cond, op string, data interface{}) *RecordSet {
+	rs.query.cond = rs.query.cond.And(cond, op, data)
 	return &rs
 }
 
 /*
 Exclude returns a new RecordSet with the given additional NOT filter condition.
 */
-func (rs RecordSet) Exclude(cond, op string, data ...interface{}) *RecordSet {
-	rs.query.cond = rs.query.cond.AndNot(cond, op, data...)
+func (rs RecordSet) Exclude(cond, op string, data interface{}) *RecordSet {
+	rs.query.cond = rs.query.cond.AndNot(cond, op, data)
 	return &rs
 }
 
@@ -221,7 +222,7 @@ func (rs RecordSet) SearchCount() int {
 func (rs RecordSet) ReadAll(container interface{}, cols ...string) int64 {
 	rs = *rs.Search()
 	if err := checkStructSlicePtr(container); err != nil {
-		panic(fmt.Errorf("recordSet `%s` ReadAll() error: %s", rs, err))
+		tools.LogAndPanic(log, err.Error(), "container", container)
 	}
 	typ := reflect.TypeOf(container).Elem().Elem().Elem()
 	structCtn := reflect.New(typ).Interface()
@@ -250,7 +251,7 @@ func (rs RecordSet) ReadOne(container interface{}, cols ...string) {
 	rs = *rs.Search()
 	rs.EnsureOne()
 	if err := checkStructPtr(container); err != nil {
-		panic(fmt.Errorf("recordSet `%s` ReadOne() error: %s", rs, err))
+		tools.LogAndPanic(log, err.Error(), "container", container)
 	}
 
 	sfMap := structToMap(container, rs.relDepth)
@@ -287,7 +288,7 @@ func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
 		line := make(FieldMap)
 		err := rs.mi.scanToFieldMap(rows, &line)
 		if err != nil {
-			panic(err)
+			tools.LogAndPanic(log, err.Error(), "model", rs.ModelName(), "fields", fields)
 		}
 		*results = append(*results, line)
 		ids = append(ids, line["id"].(int64))
@@ -308,7 +309,7 @@ result as interface{}.
 func (rs RecordSet) Call(methName string, args ...interface{}) interface{} {
 	methInfo, ok := rs.mi.methods.get(methName)
 	if !ok {
-		panic(fmt.Errorf("Unknown method `%s` in model `%s`", methName, rs.ModelName()))
+		tools.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rs.ModelName())
 	}
 	methLayer := methInfo.topLayer
 
@@ -328,7 +329,7 @@ func (rs RecordSet) call(methLayer *methodLayer, args ...interface{}) interface{
 	methName := fmt.Sprintf("%s.%s()", methLayer.methInfo.mi.name, methLayer.methInfo.name)
 	for i := 1; i < fnTyp.NumIn(); i++ {
 		if i > len(args) {
-			panic(fmt.Errorf("Not enough argument when Calling `%s`", methName))
+			tools.LogAndPanic(log, "Not enough argument while calling method", "model", rs.mi.name, "method", methName, "args", args, "expected", fnTyp.NumIn())
 		}
 		inVals = append(inVals, reflect.ValueOf(args[i-1]))
 	}
@@ -339,14 +340,11 @@ func (rs RecordSet) call(methLayer *methodLayer, args ...interface{}) interface{
 	return retVal[0].Interface()
 }
 
-/*
-Super calls the next method Layer after the given funcPtr.
-This method is meant to be used inside a method layer function to call its parent,
-passing itself as funcPtr.
-*/
+// Super calls the next method Layer after the given funcPtr.
+// This method is meant to be used inside a method layer function to call its parent.
 func (rs RecordSet) Super(args ...interface{}) interface{} {
 	if len(rs.callStack) == 0 {
-		panic(fmt.Errorf("Internal error: empty call stack !"))
+		tools.LogAndPanic(log, "Empty call stack", "model", rs.mi.name)
 	}
 	methLayer := rs.callStack[0]
 	methInfo := methLayer.methInfo
@@ -366,7 +364,7 @@ MethodType returns the type of the method given by methName
 func (rs RecordSet) MethodType(methName string) reflect.Type {
 	methInfo, ok := rs.mi.methods.get(methName)
 	if !ok {
-		panic(fmt.Errorf("Unknown method `%s` in model `%s`", methName, rs.ModelName()))
+		tools.LogAndPanic(log, "Unknown method in model", "model", rs.ModelName(), "method", methName)
 	}
 	return methInfo.methodType
 }
@@ -382,13 +380,11 @@ func (rs RecordSet) Records() []*RecordSet {
 	return res
 }
 
-/*
-EnsureOne panics if rs is not a singleton
-*/
+// EnsureOne panics if rs is not a singleton
 func (rs RecordSet) EnsureOne() {
 	rs.Search()
 	if len(rs.Ids()) != 1 {
-		panic(fmt.Errorf("Expected singleton, got : %s", rs))
+		tools.LogAndPanic(log, "Expected singleton", "model", rs.ModelName(), "received", rs)
 	}
 }
 
@@ -507,7 +503,7 @@ func (rs RecordSet) updateStoredFields(fMap FieldMap) {
 func newRecordSet(env *Environment, modelName string) *RecordSet {
 	mi, ok := modelRegistry.get(modelName)
 	if !ok {
-		panic(fmt.Errorf("Unknown model name `%s`", modelName))
+		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	rs := RecordSet{
 		mi:    mi,

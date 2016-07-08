@@ -17,7 +17,6 @@ package tools
 import (
 	"crypto/sha1"
 	"encoding/xml"
-	"fmt"
 	"io/ioutil"
 )
 
@@ -38,7 +37,7 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte) {
 		cnt, _ := ioutil.ReadFile(fileName)
 		err := xml.Unmarshal(cnt, &content)
 		if err != nil {
-			panic(fmt.Errorf("Unable to parse %s", fileName))
+			LogAndPanic(log, "Unable to parse file", "file", fileName)
 		}
 		if reStruct.XMLName.Local == "" {
 			reStruct.XMLName = content.XMLName
@@ -47,7 +46,7 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte) {
 	}
 	res, err := xml.Marshal(reStruct)
 	if err != nil {
-		panic(fmt.Errorf("Unable to convert back to XML: %s", err))
+		LogAndPanic(log, "Unable to convert back to XML", "error", err)
 	}
 	return res, sha1.Sum(res)
 }

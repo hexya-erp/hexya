@@ -15,8 +15,9 @@
 package models
 
 import (
-	"fmt"
 	"reflect"
+
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 // methodsCache is the methodInfo collection
@@ -93,7 +94,7 @@ type methodLayer struct {
 func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodInfo {
 	funcType := val.Type()
 	if funcType.NumIn() == 0 || funcType.In(0) != reflect.TypeOf((*RecordSet)(nil)).Elem() {
-		panic(fmt.Errorf("Function must have `RecordSet` as first argument to be used as method."))
+		tools.LogAndPanic(log, "Function must have `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName)
 	}
 
 	methInfo := methodInfo{
@@ -117,21 +118,21 @@ first argument.
 func DeclareMethod(modelName, methodName string, fnct interface{}) {
 	mi, ok := modelRegistry.get(modelName)
 	if !ok {
-		panic(fmt.Errorf("Unknown modelName `%s`", modelName))
+		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	if mi.methods.bootstrapped {
-		panic(fmt.Errorf("CreateMethod must be run before BootStrap"))
+		tools.LogAndPanic(log, "CreateMethod must be run before BootStrap", "model", modelName, "method", methodName)
 	}
 
 	val := reflect.ValueOf(fnct)
 	if val.Kind() != reflect.Func {
-		panic(fmt.Errorf("CreateMethod: `fnct` must be a function"))
+		tools.LogAndPanic(log, "fnct parameter must be a function", "model", modelName, "method", methodName, "fnct", fnct)
 	}
 	methInfo, exists := mi.methods.get(methodName)
 	if exists {
 		if methInfo.methodType != val.Type() {
-			panic(fmt.Errorf("Function signature does not match. Received: %s, Expected: %s",
-				methInfo.methodType, val.Type()))
+			tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
+				"received", methInfo.methodType, "expected", val.Type())
 		}
 		methInfo.addMethodLayer(val)
 	} else {

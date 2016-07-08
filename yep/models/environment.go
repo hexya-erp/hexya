@@ -15,7 +15,6 @@
 package models
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/jmoiron/sqlx"
@@ -85,7 +84,7 @@ func (env Environment) Sudo(userId ...int64) *Environment {
 // Data must be a struct pointer.
 func (env Environment) Create(data interface{}) *RecordSet {
 	if err := checkStructPtr(data); err != nil {
-		panic(err)
+		tools.LogAndPanic(log, err.Error())
 	}
 	modelName := getModelName(data)
 	rs := env.Pool(modelName).Call("Create", data).(*RecordSet)
@@ -97,7 +96,7 @@ func (env Environment) Create(data interface{}) *RecordSet {
 // or in a batch by RecordSet.ReadAll().
 func (env Environment) Sync(data interface{}, cols ...string) bool {
 	if err := checkStructPtr(data); err != nil {
-		panic(fmt.Errorf("<Environment.Sync>: %s", err))
+		tools.LogAndPanic(log, err.Error(), "data", data)
 	}
 	id := reflect.ValueOf(data).Elem().FieldByName("ID").Int()
 	rs := env.Pool(getModelName(data)).withIds([]int64{id})

@@ -26,20 +26,16 @@ BootStrap freezes model, fields and method caches and syncs the database structu
 with the declared data.
 */
 func BootStrap() {
+	log.Info("Bootstrapping models")
 	modelRegistry.Lock()
 	defer modelRegistry.Unlock()
+
 	modelRegistry.bootstrapped = true
 
 	createModelLinks()
 	syncDatabase()
-
 	bootStrapMethods()
-
-	//fieldsCache.Lock()
-	//defer fieldsCache.Unlock()
 	processDepends()
-	//
-	//fieldsCache.done = true
 }
 
 // createModelLinks create links with related modelInfo
@@ -55,23 +51,23 @@ func createModelLinks() {
 			switch fi.fieldType {
 			case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE:
 				if sfType.Kind() != reflect.Ptr {
-					panic(fmt.Errorf("Many2one/One2one fields must be pointers"))
+					tools.LogAndPanic(log, "Many2one/One2one fields must be pointers", "model", mi.name, "field", fi.name)
 				}
 				relatedMI, ok = modelRegistry.get(sfType.Elem().Name())
 				if !ok {
-					panic(fmt.Errorf("Unknown model `%s`", sfType.Elem().Name()))
+					tools.LogAndPanic(log, "Unknown related model", "relModel", sfType.Elem().Name(), "baseModel", mi.name, "field", fi.name)
 				}
 			case tools.ONE2MANY, tools.MANY2MANY:
 				if sfType.Kind() != reflect.Slice {
-					panic(fmt.Errorf("One2many or Many2many fields must be slice of pointers"))
+					tools.LogAndPanic(log, "One2many/Many2many fields must be slice of pointers", "model", mi.name, "field", fi.name)
 				}
 				if sfType.Elem().Kind() != reflect.Ptr {
-					panic(fmt.Errorf("One2many or Many2many fields must be slice of pointers"))
+					tools.LogAndPanic(log, "One2many/Many2many fields must be slice of pointers", "model", mi.name, "field", fi.name)
 				}
 				relatedMI, ok = modelRegistry.get(sfType.Elem().Elem().Name())
-			}
-			if !ok {
-				panic(fmt.Errorf("Unknown model `%s`", sfType.Elem().Name()))
+				if !ok {
+					tools.LogAndPanic(log, "Unknown related model", "relModel", sfType.Elem().Elem().Name(), "baseModel", mi.name, "field", fi.name)
+				}
 			}
 			fi.relatedModel = relatedMI
 		}
@@ -163,7 +159,7 @@ func updateDBColumns(mi *modelInfo) {
 // createDBColumn insert the column described by fieldInfo in the database
 func createDBColumn(fi *fieldInfo) {
 	if !fi.isStored() {
-		panic(fmt.Errorf("createDBColumn should not be called on non stored fields (%s)", fi.json))
+		tools.LogAndPanic(log, "createDBColumn should not be called on non stored fields", "model", fi.mi.name, "field", fi.json)
 	}
 	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`

@@ -45,7 +45,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 		rError = rs.Env().Cr().Commit()
 	}()
 	if uid == 0 {
-		panic(fmt.Errorf("User must be logged in to call model method."))
+		tools.LogAndPanic(log, "User must be logged in to call model method", "params", params)
 	}
 	ctxStr, ok := params.KWArgs["context"]
 	var ctx tools.Context
@@ -134,7 +134,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 			for i := 1; i < rs.MethodType(methodName).NumIn(); i++ {
 				if len(parms) <= i-1 {
 					// We have less arguments than the arguments of the method
-					panic(fmt.Errorf("<Execute>Wrong number of args in non-struct function args"))
+					tools.LogAndPanic(log, "Wrong number of args in non-struct function args", "method", methodName, "args", parms, "expected", rs.MethodType(methodName).NumIn())
 				}
 				argsValue := reflect.ValueOf(parms[i-1])
 				resValue := reflect.New(rs.MethodType(methodName).In(i))
@@ -182,10 +182,12 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 			}
 			res = nil
 			rError = fmt.Errorf("%s", r)
+			return
 		}
+		rs.Env().Cr().Commit()
 	}()
 	if uid == 0 {
-		panic(fmt.Errorf("User must be logged in to retrieve field."))
+		tools.LogAndPanic(log, "User must be logged in to retrieve field")
 	}
 	model = tools.ConvertModelName(model)
 	env := models.NewEnvironment(uid)
@@ -195,6 +197,7 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 	if len(parms) == 0 {
 		res = nil
 	} else {
+		delete(parms, "id")
 		res = parms.Values()[0]
 	}
 	return
@@ -228,7 +231,7 @@ func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rErr
 		}
 	}()
 	if uid == 0 {
-		panic(fmt.Errorf("User must be logged in to search database."))
+		tools.LogAndPanic(log, "User must be logged in to search database")
 	}
 	model := tools.ConvertModelName(params.Model)
 	env := models.NewEnvironment(uid)

@@ -15,8 +15,9 @@
 package models
 
 import (
-	"fmt"
 	"strings"
+
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 // ExprSep define the expression separation
@@ -28,7 +29,7 @@ const (
 type condValue struct {
 	exprs    []string
 	operator DomainOperator
-	args     SQLParams
+	arg      interface{}
 	cond     *Condition
 	isOr     bool
 	isNot    bool
@@ -49,34 +50,34 @@ func NewCondition() *Condition {
 
 // checkArgs check expressions, operator and args and panics if
 // they are not valid
-func checkArgs(expr, op string, args ...interface{}) {
-	if expr == "" || len(args) == 0 {
-		panic(fmt.Errorf("<Condition> args cannot empty"))
+func checkArgs(expr, op string, arg interface{}) {
+	if expr == "" || op == "" || arg == nil {
+		tools.LogAndPanic(log, "Condition arguments cannot empty", "expr", expr, "operator", op, "arg", arg)
 	}
 	dop := DomainOperator(op)
 	if !allowedOperators[dop] {
-		panic(fmt.Errorf("<Condition> unknown operator `%s`", op))
+		tools.LogAndPanic(log, "Unknown operator", "operator", op)
 	}
 }
 
 // And add expression to condition
-func (c Condition) And(expr string, op string, args ...interface{}) *Condition {
-	checkArgs(expr, op, args...)
+func (c Condition) And(expr string, op string, arg interface{}) *Condition {
+	checkArgs(expr, op, arg)
 	c.params = append(c.params, condValue{
 		exprs:    strings.Split(expr, ExprSep),
 		operator: DomainOperator(op),
-		args:     SQLParams(args),
+		arg:      arg,
 	})
 	return &c
 }
 
 // AndNot add NOT expression to condition
-func (c Condition) AndNot(expr string, op string, args ...interface{}) *Condition {
-	checkArgs(expr, op, args...)
+func (c Condition) AndNot(expr string, op string, arg interface{}) *Condition {
+	checkArgs(expr, op, arg)
 	c.params = append(c.params, condValue{
 		exprs:    strings.Split(expr, ExprSep),
 		operator: DomainOperator(op),
-		args:     SQLParams(args),
+		arg:      arg,
 		isNot:    true,
 	})
 	return &c
@@ -86,7 +87,7 @@ func (c Condition) AndNot(expr string, op string, args ...interface{}) *Conditio
 func (c *Condition) AndCond(cond *Condition) *Condition {
 	c = c.clone()
 	if c == cond {
-		panic(fmt.Errorf("<Condition.AndCond> cannot use self as sub cond"))
+		tools.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
 	}
 	if cond != nil {
 		c.params = append(c.params, condValue{cond: cond, isCond: true})
@@ -95,24 +96,24 @@ func (c *Condition) AndCond(cond *Condition) *Condition {
 }
 
 // Or add OR expression to condition
-func (c Condition) Or(expr string, op string, args ...interface{}) *Condition {
-	checkArgs(expr, op, args...)
+func (c Condition) Or(expr string, op string, arg interface{}) *Condition {
+	checkArgs(expr, op, arg)
 	c.params = append(c.params, condValue{
 		exprs:    strings.Split(expr, ExprSep),
 		operator: DomainOperator(op),
-		args:     SQLParams(args),
+		arg:      arg,
 		isOr:     true,
 	})
 	return &c
 }
 
 // OrNot add OR NOT expression to condition
-func (c Condition) OrNot(expr string, op string, args ...interface{}) *Condition {
-	checkArgs(expr, op, args...)
+func (c Condition) OrNot(expr string, op string, arg interface{}) *Condition {
+	checkArgs(expr, op, arg)
 	c.params = append(c.params, condValue{
 		exprs:    strings.Split(expr, ExprSep),
 		operator: DomainOperator(op),
-		args:     SQLParams(args),
+		arg:      arg,
 		isNot:    true,
 		isOr:     true,
 	})
@@ -123,7 +124,7 @@ func (c Condition) OrNot(expr string, op string, args ...interface{}) *Condition
 func (c *Condition) OrCond(cond *Condition) *Condition {
 	c = c.clone()
 	if c == cond {
-		panic(fmt.Errorf("<Condition.OrCond> cannot use self as sub cond"))
+		tools.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
 	}
 	if cond != nil {
 		c.params = append(c.params, condValue{cond: cond, isCond: true, isOr: true})

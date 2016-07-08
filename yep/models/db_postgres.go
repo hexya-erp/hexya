@@ -73,15 +73,13 @@ var pgDefaultValues = map[tools.FieldType]string{
 
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
 // Also modifies the given args to match the syntax of the operator.
-func (d *postgresAdapter) operatorSQL(do DomainOperator, args ...interface{}) (string, []interface{}) {
+func (d *postgresAdapter) operatorSQL(do DomainOperator, arg interface{}) (string, interface{}) {
 	op := pgOperators[do]
 	switch do {
 	case OPERATOR_LIKE, OPERATOR_ILIKE, OPERATOR_NOT_LIKE, OPERATOR_NOT_ILIKE:
-		if len(args) > 0 {
-			args[0] = fmt.Sprintf("%%%s%%", args[0])
-		}
+		arg = fmt.Sprintf("%%%s%%", arg)
 	}
-	return op, args
+	return op, arg
 }
 
 // typeSQL returns the sql type string for the given fieldInfo
@@ -96,7 +94,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 	typ, ok := pgTypes[fi.fieldType]
 	res = typ
 	if !ok {
-		panic(fmt.Errorf("Unknown column type `%s`", fi.fieldType))
+		tools.LogAndPanic(log, "Unknown column type", "type", fi.fieldType, "model", fi.mi.name, "field", fi.name)
 	}
 	switch fi.fieldType {
 	case tools.CHAR:
@@ -147,7 +145,7 @@ func (d *postgresAdapter) tables() map[string]bool {
 	var resList []string
 	query := "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')"
 	if err := db.Select(&resList, query); err != nil {
-		panic(fmt.Errorf("Unable to get list of tables from database: %s", err))
+		tools.LogAndPanic(log, "Unable to get list of tables from database", "error", err)
 	}
 	res := make(map[string]bool, len(resList))
 	for _, tableName := range resList {
@@ -177,7 +175,7 @@ func (d *postgresAdapter) columns(tableName string) map[string]ColumnData {
 	`, tableName)
 	var colData []ColumnData
 	if err := db.Select(&colData, query); err != nil {
-		panic(fmt.Errorf("Unable to get list of columns for table `%s`: %s", tableName, err))
+		tools.LogAndPanic(log, "Unable to get list of columns for table", "table", tableName, "error", err)
 	}
 	res := make(map[string]ColumnData, len(colData))
 	for _, col := range colData {

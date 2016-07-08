@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 type SQLParams []interface{}
@@ -52,7 +53,7 @@ func (q *Query) sqlWhereClause() (string, SQLParams) {
 	}
 	sql, args, err := sqlx.In(sql, args...)
 	if err != nil {
-		panic(fmt.Errorf("Unable to expand 'IN' statement in sql: %s", err))
+		tools.LogAndPanic(log, "Unable to expand 'IN' statement", "error", err, "sql", sql, "args", args)
 	}
 	return sql, args
 }
@@ -107,9 +108,9 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 	} else {
 		exprs := jsonizeExpr(q.recordSet.mi, cv.exprs)
 		field := q.joinedFieldExpression(exprs)
-		var opSql string
-		opSql, args = adapter.operatorSQL(cv.operator, cv.args...)
+		opSql, arg := adapter.operatorSQL(cv.operator, cv.arg)
 		sql += fmt.Sprintf(`%s %s `, field, opSql)
+		args = append(args, arg)
 	}
 	return sql, args
 }
@@ -133,21 +134,21 @@ func (q *Query) sqlOrderByClause() string {
 	if len(q.orders) == 0 {
 		return ""
 	}
-	var (
-		fieldOrder []string
-		fExprs     [][]string
-	)
-	for _, order := range q.orders {
-		fieldOrder = strings.Split(strings.TrimSpace(order), " ")
+
+	var fExprs [][]string
+	directions := make([]string, len(q.orders))
+	for i, order := range q.orders {
+		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
 		oExprs := jsonizeExpr(q.recordSet.mi, strings.Split(fieldOrder[0], ExprSep))
 		fExprs = append(fExprs, oExprs)
+		if len(fieldOrder) > 1 {
+			directions[i] = fieldOrder[1]
+		}
 	}
 	resSlice := make([]string, len(q.orders))
 	for i, field := range fExprs {
 		resSlice[i] = q.joinedFieldExpression(field)
-		if len(fieldOrder) > 1 {
-			resSlice[i] += fmt.Sprintf(" %s", fieldOrder[1])
-		}
+		resSlice[i] += fmt.Sprintf(" %s", directions[i])
 	}
 	return fmt.Sprintf("ORDER BY %s ", strings.Join(resSlice, ", "))
 }
@@ -166,7 +167,7 @@ func (q *Query) deleteQuery() (string, SQLParams) {
 func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	if len(data) == 0 {
-		panic(fmt.Errorf("No data given for insert"))
+		tools.LogAndPanic(log, "No data given for insert")
 	}
 	cols := make([]string, len(data))
 	vals := make(SQLParams, len(data))
@@ -177,7 +178,7 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	for k, v := range data {
 		fi, ok := q.recordSet.mi.fields.get(k)
 		if !ok {
-			panic(fmt.Errorf("Unknown field `%s` in model `%s`", k, q.recordSet.mi.name))
+			tools.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
 		}
 		cols[i] = fi.json
 		vals[i] = v
@@ -213,7 +214,8 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.mi)...)
 	// Add 'order by' exprs
 	for _, order := range q.orders {
-		oExprs := jsonizeExpr(q.recordSet.mi, strings.Split(order, ExprSep))
+		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
+		oExprs := jsonizeExpr(q.recordSet.mi, strings.Split(orderField, ExprSep))
 		fExprs = append(fExprs, oExprs)
 	}
 	// Build up the query
@@ -232,7 +234,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	if len(data) == 0 {
-		panic(fmt.Errorf("No data given for update"))
+		tools.LogAndPanic(log, "No data given for update")
 	}
 	cols := make([]string, len(data))
 	vals := make(SQLParams, len(data))
@@ -243,7 +245,7 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	for k, v := range data {
 		fi, ok := q.recordSet.mi.fields.get(k)
 		if !ok {
-			panic(fmt.Errorf("Unknown field `%s` in model `%s`", k, q.recordSet.mi.name))
+			tools.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
 		}
 		cols[i] = fmt.Sprintf("%s = ?", fi.json)
 		vals[i] = v
@@ -304,7 +306,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	for i, expr := range fieldExprs {
 		fi, ok := curMI.fields.get(expr)
 		if !ok {
-			panic(fmt.Errorf("Unparsable Expression: `%s`", strings.Join(fieldExprs, ExprSep)))
+			tools.LogAndPanic(log, "Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
 		}
 		if fi.relatedModel == nil || i == exprsLen-1 {
 			// Don't create an extra join if our field is not a relation field

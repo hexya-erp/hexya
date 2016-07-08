@@ -20,6 +20,8 @@ import (
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/inconshreveable/log15"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 type Server struct {
@@ -81,6 +83,7 @@ func BindRPCParams(c *gin.Context, data interface{}) {
 }
 
 var yepServer *Server
+var log log15.Logger
 
 /*
 GetServer return the http server instance
@@ -90,10 +93,14 @@ func GetServer() *Server {
 }
 
 func init() {
-	yepServer = &Server{gin.Default()}
+	log = tools.GetLogger("server")
+	gin.SetMode(gin.ReleaseMode)
+	yepServer = &Server{gin.New()}
 	store := sessions.NewCookieStore([]byte(">r&5#5T/sG-jnf=EW8$(WQX'-m2R6Gk*^qqr`CxEtG'wQ[/'G@`NYn^on?b!4G`9"),
 		[]byte("!WY9Q|}09!4Ke=@w0HS|]$u,p1f^k(5T"))
+	yepServer.Use(gin.Recovery())
 	yepServer.Use(sessions.Sessions("yep-session", store))
+	yepServer.Use(tools.Log15ForGin(log))
 	cleanModuleSymlinks()
 }
 

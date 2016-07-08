@@ -15,7 +15,6 @@
 package models
 
 import (
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -290,7 +289,7 @@ func processDepends() {
 					refModelInfo := mi.getRelatedModelInfo(path)
 					refField, ok := refModelInfo.fields.get(refName)
 					if !ok {
-						panic(fmt.Errorf("Unknown field `%s` for model `%s`", refName, refModelInfo.name))
+						tools.LogAndPanic(log, "Unknown field in model", "model", refModelInfo.name, "field", refField)
 					}
 					refField.dependencies = append(refField.dependencies, targetComputeData)
 				}
@@ -298,13 +297,3 @@ func processDepends() {
 		}
 	}
 }
-
-///*
-//getRelatedModelName returns the model name of the field given by path calculated from the origin model.
-//path is a query string as used in RecordSet.Filter()
-//*/
-//func getRelatedModelName(origin, path string) string {
-//	qs := orm.NewOrm().QueryTable(origin)
-//	modelName, _ := qs.TargetModelField(path)
-//	return modelName
-//}

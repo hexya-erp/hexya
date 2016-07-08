@@ -16,7 +16,6 @@ package models
 
 import (
 	"database/sql"
-	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -71,7 +70,7 @@ type modelInfo struct {
 func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
 	typ := reflect.TypeOf(structPtr)
 	if typ.Kind() != reflect.Ptr {
-		panic(fmt.Errorf("StructPtr must be a pointer to a struct"))
+		tools.LogAndPanic(log, "StructPtr must be a pointer to a struct", "model", mi.name, "received", structPtr)
 	}
 	typ = typ.Elem()
 	for i := 0; i < typ.NumField(); i++ {
@@ -100,7 +99,7 @@ func (mi *modelInfo) getRelatedModelInfo(path string) *modelInfo {
 	jsonizeExpr(mi, exprs)
 	fi, ok := mi.fields.get(exprs[0])
 	if !ok {
-		panic(fmt.Errorf("Unknown field `%s` for model `%s`", exprs[0], mi.name))
+		tools.LogAndPanic(log, "Unknown field in model", "field", exprs[0], "model", mi.name)
 	}
 	if fi.relatedModel == nil {
 		// The field is a non relational field, so we are already
@@ -126,7 +125,7 @@ func (mi *modelInfo) getRelatedFieldInfo(path string) *fieldInfo {
 	}
 	fi, ok := rmi.fields.get(colExprs[num-1])
 	if !ok {
-		panic(fmt.Errorf("Unknown field `%s` for model `%s`", colExprs[num-1], rmi.name))
+		tools.LogAndPanic(log, "Unknown field in model", "field", colExprs[num-1], "model", rmi.name)
 	}
 	return fi
 }
@@ -208,7 +207,7 @@ func CreateModel(name string, options ...Option) {
 func ExtendModel(name string, structPtrs ...interface{}) {
 	mi, ok := modelRegistry.get(name)
 	if !ok {
-		panic(fmt.Errorf("Unknown model `%s`", name))
+		tools.LogAndPanic(log, "Unknown model", "model", name)
 	}
 	for _, structPtr := range structPtrs {
 		mi.addFieldsFromStruct(structPtr)

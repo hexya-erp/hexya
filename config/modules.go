@@ -18,10 +18,3 @@ package config
 import (
 	_ "github.com/npiganeau/yep-addons/web"
 )
-
-const (
-	DB_DRIVER = "postgres"
-	DB_SOURCE = "dbname=yep sslmode=disable password=yep user=yep"
-	DB_FORCE  = true
-	ORM_DEBUG = false
-)

@@ -16,9 +16,10 @@ package models
 
 import (
 	"database/sql"
-	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 var (
@@ -28,7 +29,7 @@ var (
 
 type dbAdapter interface {
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
-	operatorSQL(DomainOperator, ...interface{}) (string, []interface{})
+	operatorSQL(DomainOperator, interface{}) (string, interface{})
 	// typeSQL returns the SQL type string, including columns constraints if any
 	typeSQL(fi *fieldInfo) string
 	// columnSQLDefinition returns the SQL type string, including columns constraints if any
@@ -58,55 +59,68 @@ func registerDBAdapter(name string, adapter dbAdapter) {
 // It connects to a database using the given driver and
 // connection data.
 func DBConnect(driver, connData string) {
-	// TODO Add log
 	db = sqlx.MustConnect(driver, connData)
+	log.Info("Connected to database", "driver", driver, "connData", connData)
 }
 
 // DBExecute is a wrapper around sqlx.MustExec
 // It executes a query that returns no row
 func DBExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
-	// TODO Add SQL debug logging here
 	query = cr.Rebind(query)
-	return cr.MustExec(query, args...)
+	t := time.Now()
+	res := cr.MustExec(query, args...)
+	log.Debug("Query Executed", "query", query, "args", args, "duration", time.Now().Sub(t))
+	return res
 }
 
 // dbExecuteNoTx simply executes the given query in the database without any transaction
 func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
-	// TODO Add SQL debug logging
 	query = db.Rebind(query)
-	return db.MustExec(query, args...)
+	t := time.Now()
+	res := db.MustExec(query, args...)
+	log.Debug("Query Executed", "query", query, "args", args, "duration", time.Now().Sub(t))
+	return res
 }
 
 // DBGet is a wrapper around sqlx.Get
 // It gets the value of a single row found by the given query and arguments
 // It panics in case of error
 func DBGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
-	// TODO Add SQL debug logging here
 	query = cr.Rebind(query)
+	t := time.Now()
 	err := cr.Get(dest, query, args...)
+	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
 	if err != nil {
-		panic(fmt.Errorf("Error while getting from database: %s. %s, %+v", err, query, args))
+		tools.LogAndPanic(logCtx, "Error while executing query", "error", err)
 	}
+	logCtx.Debug("Query executed")
 }
 
 // dbGetNoTx is a wrapper around sqlx.Get outside a transaction
 // It gets the value of a single row found by the
 // given query and arguments
-func dbGetNoTx(dest interface{}, query string, args ...interface{}) error {
-	// TODO Add SQL debug logging
+func dbGetNoTx(dest interface{}, query string, args ...interface{}) {
 	query = db.Rebind(query)
-	return db.Get(dest, query, args...)
+	t := time.Now()
+	err := db.Get(dest, query, args...)
+	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
+	if err != nil {
+		tools.LogAndPanic(logCtx, "Error while executing query", "error", err)
+	}
+	logCtx.Debug("Query executed")
 }
 
 // DBQuery is a wrapper around sqlx.Queryx
 // It returns a sqlx.Rowsx found by the given query and arguments
 // It panics in case of error
 func DBQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
-	// TODO Add SQL debug logging here
 	query = cr.Rebind(query)
+	t := time.Now()
 	rows, err := cr.Queryx(query, args...)
+	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
 	if err != nil {
-		panic(fmt.Errorf("Error while querying from database: %s. %s, %+v", err, query, args))
+		tools.LogAndPanic(logCtx, "Error while executing query", "error", err)
 	}
+	logCtx.Debug("Query executed")
 	return rows
 }
