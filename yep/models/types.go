@@ -22,6 +22,8 @@ type Date time.Time
 // DateTime type that JSON marshals and unmarshals as "YYYY-MM-DD HH:MM:SS"
 type DateTime time.Time
 
+// FieldMap is a map of interface{} specifically used for holding model
+// fields values.
 type FieldMap map[string]interface{}
 
 // Keys returns the FieldMap keys as a slice of strings

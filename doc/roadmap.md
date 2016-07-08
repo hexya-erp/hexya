@@ -10,6 +10,8 @@ ORM
 - [ ] Manage One2Many relations
 - [ ] Manage Rev2One relations
 - [ ] Manage Many2many relations
+- [ ] Related fields
+- [ ] 'Inherits' model inheritance (Odoo-like)
 - [ ] Add computed fields to ORM:
     - [X] Fields computed by ERP after retrieval of computation vars
     - [X] Fields computed by ERP and stored in DB column
@@ -20,12 +22,16 @@ ORM
 - [ ] Add cache to RecordSets
 - [X] Add support for schema modification (ALTER TABLE)
 
+Views
+-----
+- [ ] Add support for inherited views
+
 Server
 ------
 - [X] Create controllers for using Odoo web client with YEP Server
 - [ ] Automate routing and include for `static` dir in modules
 - [X] Recover from orm methods' panics
-- [ ] Unified logging system
+- [X] Unified logging system
 
 Client
 ------
