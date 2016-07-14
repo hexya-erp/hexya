@@ -60,13 +60,13 @@ func (ar ActionRef) String() string {
 	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
 }
 
-// Value JSON marshals our ActionRef for storing in the database.
+// Value extracts ID of our ActionRef for storing in the database.
 func (ar ActionRef) Value() (driver.Value, error) {
 	return driver.Value(ar[0]), nil
 }
 
-// Scan JSON unmarshals our ActionRef from the JSON representation
-// stored in the database.
+// Scan fetches the name of our action from the ID
+// stored in the database to fill the ActionRef.
 func (ar *ActionRef) Scan(src interface{}) error {
 	var source string
 	switch s := src.(type) {
@@ -84,14 +84,6 @@ func (ar *ActionRef) Scan(src interface{}) error {
 var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
 
-//func (ar *ActionRef) MarshalJSON() ([]byte, error) {
-//	if ar[0] == "" {
-//		return json.Marshal(nil)
-//	}
-//	sl := []string{ar[0], ar[1]}
-//	return json.Marshal(sl)
-//}
-//
 type ActionsCollection struct {
 	sync.RWMutex
 	actions map[string]*BaseAction

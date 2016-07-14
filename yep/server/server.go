@@ -41,6 +41,18 @@ type ResponseRPC struct {
 	Result  interface{} `json:"result"`
 }
 
+type ResponseError struct {
+	JsonRPC string       `json:"jsonrpc"`
+	ID      int64        `json:"id"`
+	Error   JSONRPCError `json:"error"`
+}
+
+type JSONRPCError struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data"`
+}
+
 /*
 RPC serializes the given struct as JSON-RPC into the response body.
 */
@@ -55,7 +67,18 @@ func RPC(c *gin.Context, code int, obj interface{}, err ...error) {
 		id = req.ID
 	}
 	if len(err) > 0 && err[0] != nil {
-		c.String(http.StatusInternalServerError, "%s", err[0])
+		respErr := ResponseError{
+			JsonRPC: "2.0",
+			ID:      id.(int64),
+			Error: JSONRPCError{
+				Code:    code,
+				Message: "YEP Server Error",
+				Data: map[string]string{
+					"debug": err[0].Error(),
+				},
+			},
+		}
+		c.JSON(code, respErr)
 		return
 	}
 	resp := ResponseRPC{

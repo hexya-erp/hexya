@@ -68,10 +68,18 @@ func GetLogger(moduleName string) log15.Logger {
 // the given logger and then panic with the same error message.
 func LogAndPanic(log log15.Logger, msg string, ctx ...interface{}) {
 	caller := stack.Caller(1)
-	trace := stack.Trace()
-	ctx = append(ctx, "caller", fmt.Sprintf("%+n", caller), "trace", fmt.Sprintf("%+v", trace))
+	ctx = append(ctx, "caller", fmt.Sprintf("%+n", caller))
 	log.Error(msg, ctx...)
-	fullMsg := fmt.Sprintf("%s, %v", msg, ctx)
+
+	trace := stack.Trace()
+	var traceStr string
+	for _, call := range trace {
+		log.Debug(fmt.Sprintf("%+v", call))
+		log.Debug(fmt.Sprintf(">> %n", call))
+		traceStr += fmt.Sprintf("%+v\n>> %n\n", call, call)
+	}
+
+	fullMsg := fmt.Sprintf("%s, %v\n\n%s", msg, ctx, traceStr)
 	panic(fullMsg)
 }
 

@@ -20,6 +20,8 @@ import (
 	"strings"
 	"sync"
 
+	"database/sql"
+	"database/sql/driver"
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/tools"
 )
@@ -64,39 +66,29 @@ func (e *ViewRef) String() string {
 	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
 }
 
-func (e *ViewRef) FieldType() tools.FieldType {
-	return tools.CHAR
+// Value extracts ID of our ViewRef for storing in the database.
+func (vr ViewRef) Value() (driver.Value, error) {
+	return driver.Value(vr[0]), nil
 }
 
-func (e *ViewRef) SetRaw(value interface{}) error {
-	switch d := value.(type) {
+// Scan fetches the name of our view from the ID
+// stored in the database to fill the ViewRef.
+func (vr *ViewRef) Scan(src interface{}) error {
+	var source string
+	switch s := src.(type) {
 	case string:
-		dTrimmed := strings.Trim(d, "[]")
-		tokens := strings.Split(dTrimmed, ",")
-		if len(tokens) > 1 {
-			*e = [2]string{tokens[0], tokens[1]}
-			return nil
-		}
-		e = nil
-		return fmt.Errorf("<ViewRef.SetRaw> Unable to parse %s", d)
+		source = s
+	case []byte:
+		source = string(s)
 	default:
-		return fmt.Errorf("<ViewRef.SetRaw> unknown value `%v`", value)
+		return fmt.Errorf("Invalid type for ViewRef: %T", src)
 	}
+	*vr = MakeViewRef(source)
+	return nil
 }
 
-func (e *ViewRef) RawValue() interface{} {
-	return e.String()
-}
-
-func (e *ViewRef) MarshalJSON() ([]byte, error) {
-	if e[0] == "" {
-		return json.Marshal(nil)
-	}
-	sl := []string{e[0], e[1]}
-	return json.Marshal(sl)
-}
-
-//var _ orm.Fielder = new(ViewRef)
+var _ driver.Valuer = ActionRef{}
+var _ sql.Scanner = &ActionRef{}
 
 type ViewsCollection struct {
 	sync.RWMutex
