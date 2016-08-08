@@ -156,13 +156,16 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 	// if the value is not nil.
 	destVals := reflect.ValueOf(dest).Elem()
 	for i, dbValue := range dbValues {
-		fi := mi.getRelatedFieldInfo(strings.Replace(columns[i], sqlSep, ExprSep, -1))
+		colName := strings.Replace(columns[i], sqlSep, ExprSep, -1)
+		fi := mi.getRelatedFieldInfo(colName)
 		fType := fi.structField.Type
 		var val reflect.Value
 		switch {
 		case dbValue == nil:
+			// dbValue is null, we put the type zero value instead
 			val = reflect.Zero(fType)
 		case reflect.PtrTo(fType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
+			// the type implements sql.Scanner, so we call Scan
 			val = reflect.New(fType)
 			scanFunc := val.MethodByName("Scan")
 			inArgs := []reflect.Value{reflect.ValueOf(dbValue).Elem()}
@@ -179,7 +182,7 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 				}
 			}
 		}
-		destVals.SetMapIndex(reflect.ValueOf(columns[i]), val)
+		destVals.SetMapIndex(reflect.ValueOf(colName), val)
 	}
 
 	return r.Err()

@@ -24,10 +24,10 @@ import (
 
 /*
 computeData holds data to recompute another field.
-- modelName is the name of the model to recompute
-- compute is the name of the function to call on modelName
-- path is the search string that will be used to find records to update.
-The path should take an ID as argument (e.g. path = "Profile.BestPost").
+- modelInfo is a pointer to the modelInfo instance to recompute
+- compute is the name of the function to call on modelInfo
+- path is the search string that will be used to find records to update
+(e.g. path = "Profile.BestPost").
 */
 type computeData struct {
 	modelInfo *modelInfo
@@ -41,6 +41,7 @@ type fieldsCollection struct {
 	registryByJSON       map[string]*fieldInfo
 	computedFields       []*fieldInfo
 	computedStoredFields []*fieldInfo
+	relatedFields        []*fieldInfo
 	bootstrapped         bool
 }
 
@@ -146,6 +147,9 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 			fc.computedFields = append(fc.computedFields, fInfo)
 		}
 	}
+	if fInfo.related != "" {
+		fc.relatedFields = append(fc.relatedFields, fInfo)
+	}
 }
 
 // fieldInfo holds the meta information about a field
@@ -169,6 +173,7 @@ type fieldInfo struct {
 	size          int
 	digits        tools.Digits
 	structField   reflect.StructField
+	related       string
 	dependencies  []computeData
 }
 
@@ -264,6 +269,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		structField:   sf,
 		size:          size,
 		digits:        digits,
+		related:       tags["related"],
 	}
 	return &fInfo
 }

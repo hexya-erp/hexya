@@ -28,7 +28,7 @@ type FieldMap map[string]interface{}
 
 // Keys returns the FieldMap keys as a slice of strings
 func (fm FieldMap) Keys() (res []string) {
-	for k, _ := range fm {
+	for k := range fm {
 		res = append(res, k)
 	}
 	return
@@ -40,4 +40,25 @@ func (fm FieldMap) Values() (res []interface{}) {
 		res = append(res, v)
 	}
 	return
+}
+
+// KeySubstitution defines a key substitution in a FieldMap
+type KeySubstitution struct {
+	Orig string
+	New  string
+	Keep bool
+}
+
+// substituteKeys changes the column names of the given field map with the
+// given substitutions.
+func (fm *FieldMap) SubstituteKeys(substs []KeySubstitution) {
+	for _, subs := range substs {
+		value, exists := (*fm)[subs.Orig]
+		if exists {
+			if !subs.Keep {
+				delete(*fm, subs.Orig)
+			}
+			(*fm)[subs.New] = value
+		}
+	}
 }

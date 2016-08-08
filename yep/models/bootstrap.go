@@ -88,9 +88,9 @@ func syncDatabase() {
 		updateDBIndexes(mi)
 	}
 	// Drop DB tables that are not in the models
-	for dbTable, _ := range adapter.tables() {
+	for dbTable := range adapter.tables() {
 		var modelExists bool
-		for tableName, _ := range modelRegistry.registryByTableName {
+		for tableName := range modelRegistry.registryByTableName {
 			if dbTable != tableName {
 				continue
 			}
@@ -149,7 +149,7 @@ func updateDBColumns(mi *modelInfo) {
 		}
 	}
 	// drop columns that no longer exist
-	for colName, _ := range dbColumns {
+	for colName := range dbColumns {
 		if _, ok := mi.fields.registryByJSON[colName]; !ok {
 			dropDBColumn(mi.tableName, colName)
 		}

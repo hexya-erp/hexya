@@ -231,6 +231,8 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	return selQuery, args
 }
 
+// updateQuery returns the SQL update string and parameters to update
+// the rows pointed at by this Query object with the given FieldMap.
 func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	if len(data) == 0 {

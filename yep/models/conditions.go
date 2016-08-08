@@ -144,7 +144,7 @@ func (c Condition) clone() *Condition {
 
 // getAllExpressions returns a list of all exprs used in this condition,
 // and recursively in all subconditions.
-// Expressions are given in column name format
+// Expressions are given in field json format
 func (c Condition) getAllExpressions(mi *modelInfo) [][]string {
 	var res [][]string
 	for _, cv := range c.params {

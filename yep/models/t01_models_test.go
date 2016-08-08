@@ -114,18 +114,18 @@ func TestCreateDB(t *testing.T) {
 		})
 		Convey("All models should have a DB table", func() {
 			dbTables := testAdapter.tables()
-			for tableName, _ := range modelRegistry.registryByTableName {
+			for tableName := range modelRegistry.registryByTableName {
 				So(dbTables[tableName], ShouldBeTrue)
 			}
 		})
 		Convey("All DB tables should have a model", func() {
-			for dbTable, _ := range testAdapter.tables() {
+			for dbTable := range testAdapter.tables() {
 				So(modelRegistry.registryByTableName, ShouldContainKey, dbTable)
 			}
 		})
 	})
 	Convey("Truncating all tables...", t, func() {
-		for tn, _ := range modelRegistry.registryByTableName {
+		for tn := range modelRegistry.registryByTableName {
 			dbExecuteNoTx(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))
 		}
 	})
@@ -145,6 +145,7 @@ type User struct {
 	Posts         []*Post  `yep:"type(one2many)"`
 	Nums          int
 	unexportBool  bool
+	PMoney        float64 `yep:"related(Profile.Money)"`
 }
 
 func (u *User) TableIndex() [][]string {

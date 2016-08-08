@@ -89,6 +89,7 @@ func TestSearchRecordSet(t *testing.T) {
 			So(userJane.UserName, ShouldEqual, "Jane Smith")
 			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
 			So(userJane.Profile.Age, ShouldEqual, 23)
+			So(userJane.Profile.Money, ShouldEqual, 12345)
 		})
 
 		Convey("Testing search all users and getting struct slice", func() {

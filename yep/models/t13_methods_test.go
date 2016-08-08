@@ -40,6 +40,7 @@ type User_Simple struct {
 	UserName string
 	Profile  *Profile_Simple
 	Age      int16
+	PMoney   float64
 }
 
 func TestMethods(t *testing.T) {
@@ -99,6 +100,7 @@ func TestComputedStoredFields(t *testing.T) {
 			janeRs := env.Pool("User").RelatedDepth(1).Filter("Email", "=", "jane.smith@example.com")
 			janeRs.ReadOne(&userJane)
 			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
+			So(userJane.Profile.Money, ShouldEqual, 12345)
 			userJane.Profile.Age = 24
 			env.Sync(userJane.Profile)
 			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
@@ -119,5 +121,17 @@ func TestComputedStoredFields(t *testing.T) {
 			So(userWill.Age, ShouldEqual, 34)
 		})
 		env.cr.Commit()
+	})
+}
+
+func TestRelatedNonStoredFields(t *testing.T) {
+	Convey("Testing non stored related fields", t, func() {
+		env := NewEnvironment(1)
+		Convey("Checking that user Jane money equals is 12345", func() {
+			var userJane User_Simple
+			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
+			So(userJane.PMoney, ShouldEqual, 12345)
+		})
+		env.cr.Rollback()
 	})
 }

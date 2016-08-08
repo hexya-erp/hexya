@@ -279,7 +279,8 @@ func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
 	if len(fields) == 0 {
 		fields = rs.mi.fields.nonRelatedFieldJSONNames()
 	}
-	dbFields := filterOnDBFields(rs.mi, fields)
+	subFields, substs := rs.substituteRelatedFields(fields)
+	dbFields := filterOnDBFields(rs.mi, subFields)
 	sql, args := rs.query.selectQuery(dbFields)
 	rows := DBQuery(rs.env.cr, sql, args...)
 	defer rows.Close()
@@ -287,6 +288,7 @@ func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
 	for rows.Next() {
 		line := make(FieldMap)
 		err := rs.mi.scanToFieldMap(rows, &line)
+		line.SubstituteKeys(substs)
 		if err != nil {
 			tools.LogAndPanic(log, err.Error(), "model", rs.ModelName(), "fields", fields)
 		}
@@ -381,7 +383,7 @@ func (rs RecordSet) Records() []*RecordSet {
 }
 
 // EnsureOne panics if rs is not a singleton
-func (rs RecordSet) EnsureOne() {
+func (rs *RecordSet) EnsureOne() {
 	rs.Search()
 	if len(rs.Ids()) != 1 {
 		tools.LogAndPanic(log, "Expected singleton", "model", rs.ModelName(), "received", rs)
@@ -497,6 +499,34 @@ func (rs RecordSet) updateStoredFields(fMap FieldMap) {
 			}
 		}
 	}
+}
+
+// substituteRelatedFields returns a copy of the given fields slice with
+// related fields substituted by their related field path. It also returns
+// the list of substitutions to be given to resetRelatedFields.
+func (rs *RecordSet) substituteRelatedFields(fields []string) ([]string, []KeySubstitution) {
+	// We create a map to check if the substituted field already exists
+	duplMap := make(map[string]bool, len(fields))
+	for _, field := range fields {
+		duplMap[field] = true
+	}
+	// Now we go for the substitution
+	res := make([]string, len(fields))
+	var substs []KeySubstitution
+	for i, field := range fields {
+		fi, ok := rs.mi.fields.get(field)
+		if ok && fi.related != "" {
+			res[i] = fi.related
+			substs = append(substs, KeySubstitution{
+				Orig: jsonizePath(rs.mi, fi.related),
+				New:  fi.json,
+				Keep: duplMap[fi.json],
+			})
+			continue
+		}
+		res[i] = field
+	}
+	return res, substs
 }
 
 // newRecordSet returns a new empty RecordSet in the given environment for the given modelName

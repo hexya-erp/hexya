@@ -19,6 +19,8 @@ import (
 	"reflect"
 	"strings"
 
+	"errors"
+
 	"github.com/npiganeau/yep/yep/tools"
 )
 
@@ -44,6 +46,7 @@ var (
 		"group_operator": 2,
 		"size":           2,
 		"digits":         2,
+		"related":        2,
 	}
 )
 
@@ -83,14 +86,14 @@ func checkStructPtr(data interface{}) error {
 	ind := reflect.Indirect(val)
 	indType := ind.Type()
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		return fmt.Errorf("Argument must be a struct pointer")
+		return errors.New("Argument must be a struct pointer")
 	}
 
 	if _, ok := indType.FieldByName("ID"); !ok {
-		return fmt.Errorf("Struct must have an ID field")
+		return errors.New("Struct must have an ID field")
 	}
 	if f, _ := indType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
-		return fmt.Errorf("Struct ID field must be of type `int64`")
+		return errors.New("Struct ID field must be of type `int64`")
 	}
 	return nil
 }
@@ -110,20 +113,20 @@ func checkStructSlicePtr(data interface{}) error {
 		indType.Elem().Kind() != reflect.Ptr ||
 		indType.Elem().Elem().Kind() != reflect.Struct {
 
-		return fmt.Errorf("Argument must be a pointer to a slice of struct pointers")
+		return errors.New("Argument must be a pointer to a slice of struct pointers")
 	}
 	structType := indType.Elem().Elem()
 
 	if _, ok := structType.FieldByName("ID"); !ok {
-		return fmt.Errorf("Struct must have an ID field")
+		return errors.New("Struct must have an ID field")
 	}
 	if f, _ := structType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
-		return fmt.Errorf("Struct ID field must be of type `int64`")
+		return errors.New("Struct ID field must be of type `int64`")
 	}
 	return nil
 }
 
-// columnizeExpr returns an expression slice with field names changed to the DB column names
+// jsonizeExpr returns an expression slice with field names changed to the fields json names
 // Computation is made relatively to the given modelInfo
 // e.g. [User Profile Name] -> [user_id profile_id name]
 func jsonizeExpr(mi *modelInfo, exprs []string) []string {
@@ -144,6 +147,15 @@ func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 		}
 	}
 	return res
+}
+
+// jsonizePath returns a path with field names changed to the field json names
+// Computation is made relatively to the given modelInfo
+// e.g. User.Profile.Name -> user_id.profile_id.name
+func jsonizePath(mi *modelInfo, path string) string {
+	exprs := strings.Split(path, ExprSep)
+	exprs = jsonizeExpr(mi, exprs)
+	return strings.Join(exprs, ExprSep)
 }
 
 /*
@@ -266,7 +278,6 @@ func nestMap(fMap FieldMap) FieldMap {
 	res := make(FieldMap)
 	nested := make(map[string]FieldMap)
 	for k, v := range fMap {
-		k = strings.Replace(k, sqlSep, ExprSep, -1)
 		exprs := strings.Split(k, ExprSep)
 		if len(exprs) == 1 {
 			// We are in the top map here

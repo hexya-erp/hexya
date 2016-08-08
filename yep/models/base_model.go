@@ -273,7 +273,7 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 	res := make(map[string]*FieldInfo)
 	fields := args.AllFields
 	if len(args.AllFields) == 0 {
-		for jName, _ := range rs.mi.fields.registryByJSON {
+		for jName := range rs.mi.fields.registryByJSON {
 			//if fi.fieldType != tools.MANY2MANY {
 			// We don't want Many2Many as it points to the link table
 			fields = append(fields, jName)

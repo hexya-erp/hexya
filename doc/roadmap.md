@@ -21,6 +21,7 @@ ORM
 - [ ] Add database foreign keys to related fields
 - [ ] Add cache to RecordSets
 - [X] Add support for schema modification (ALTER TABLE)
+- [ ] Implement "group by" queries
 
 Views
 -----
