@@ -5,27 +5,29 @@ ORM
 ---
 - [X] Rewrite ORM from scratch
 - [X] Add methods to ORM models
-- [X] Manage Many2One relations
-- [X] Manage One2One relations
-- [ ] Manage One2Many relations
-- [ ] Manage Rev2One relations
-- [ ] Manage Many2many relations
-- [ ] Related fields
-- [ ] 'Inherits' model inheritance (Odoo-like)
-- [ ] Add computed fields to ORM:
+- [X] Many2One relations
+- [X] One2One relations
+- [ ] One2Many relations
+- [ ] Rev2One relations
+- [ ] Many2many relations
+- [X] ReadOnly related fields
+- [ ] ReadWrite related fields
+- [ ] Searchable related fields
+- [X] 'Inherits' model inheritance (Odoo-like)
+- [ ] Computed fields to ORM:
     - [X] Fields computed by ERP after retrieval of computation vars
     - [X] Fields computed by ERP and stored in DB column
     - [ ] Fields computed by DB by SQL function when reading DB
-- [ ] Add CRUD permissions to models and fields
-- [ ] Add i18n and l10n support to ORM models
-- [ ] Add database foreign keys to related fields
-- [ ] Add cache to RecordSets
-- [X] Add support for schema modification (ALTER TABLE)
+- [ ] CRUD permissions to models and fields
+- [ ] i18n and l10n support to ORM models
+- [ ] Database foreign keys to related fields
+- [ ] Cache to RecordSets
+- [X] Support for schema modification (ALTER TABLE)
 - [ ] Implement "group by" queries
 
 Views
 -----
-- [ ] Add support for inherited views
+- [ ] Inherited views
 
 Server
 ------

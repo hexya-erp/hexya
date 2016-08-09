@@ -16,15 +16,15 @@ package models
 
 import (
 	"fmt"
-	"github.com/npiganeau/yep/yep/tools"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/npiganeau/yep/yep/tools"
 )
 
-/*
-recordStruct implements RecordSet
-*/
+// RecordSet is a generic struct representing several
+// records of a model.
 type RecordSet struct {
 	query     Query
 	relDepth  int
@@ -34,6 +34,7 @@ type RecordSet struct {
 	callStack []*methodLayer
 }
 
+// String returns the string representation of a RecordSet
 func (rs RecordSet) String() string {
 	idsStr := make([]string, len(rs.ids))
 	for i, id := range rs.ids {
@@ -44,57 +45,63 @@ func (rs RecordSet) String() string {
 	return fmt.Sprintf("%s(%s)", rs.mi.name, rsIds)
 }
 
-/*
-Env returns the RecordSet's Environment
-*/
+// Env returns the RecordSet's Environment
 func (rs RecordSet) Env() *Environment {
 	return rs.env
 }
 
-/*
-ModelName returns the model name of the RecordSet
-*/
+// ModelName returns the model name of the RecordSet
 func (rs RecordSet) ModelName() string {
 	return rs.mi.name
 }
 
-/*
-Ids return the ids of the RecordSet
-*/
+// Ids return the ids of the RecordSet
 func (rs RecordSet) Ids() []int64 {
 	return rs.ids
 }
 
+// RelatedDepth sets the depth at which to populate the structs with
+// ReadOne and ReadAll.
 func (rs RecordSet) RelatedDepth(depth int) *RecordSet {
 	rs.relDepth = depth
 	return &rs
 }
 
-/*
-Search query the database with the current filter and fills the RecordSet with the queries ids.
-Does nothing in case RecordSet already has Ids. It panics in case of error.
-It returns a pointer to the same RecordSet.
-*/
-func (rs *RecordSet) Search() *RecordSet {
-	if len(rs.Ids()) == 0 {
-		return rs.ForceSearch()
+// create inserts a new record in the database with the given data.
+// data can be either a FieldMap or a struct pointer of the same model as rs.
+// This function is private and low level. It should not be called directly.
+// Instead use rs.Create(), rs.Call("Create") or env.Create()
+func (rs RecordSet) create(data interface{}) *RecordSet {
+	fMap := convertInterfaceToFieldMap(data)
+	// clean our fMap from ID and non stored fields
+	if idl, ok := fMap["id"]; ok && idl.(int64) == 0 {
+		delete(fMap, "id")
 	}
-	return rs
-}
+	if idu, ok := fMap["ID"]; ok && idu.(int64) == 0 {
+		delete(fMap, "ID")
+	}
 
-/*
-Search query the database with the current filter and fills the RecordSet with the queries ids.
-Overwrite RecordSet Ids if any. It panics in case of error.
-It returns a pointer to the same RecordSet.
-*/
-func (rs *RecordSet) ForceSearch() *RecordSet {
-	var idsMap []FieldMap
-	num := rs.ReadValues(&idsMap, "id")
-	ids := make([]int64, num)
-	for i := 0; i < int(num); i++ {
-		ids[i] = idsMap[i]["id"].(int64)
+	for _, cf := range rs.mi.fields.registryByJSON {
+		if !cf.isStored() {
+			delete(fMap, cf.name)
+			delete(fMap, cf.json)
+		}
 	}
-	return rs.withIds(ids)
+	// insert in DB
+	sql, args := rs.query.insertQuery(fMap)
+	var createdId int64
+	DBGet(rs.env.cr, &createdId, sql, args...)
+	// compute stored fields
+	rs.updateStoredFields(fMap)
+	if reflect.TypeOf(data).Kind() == reflect.Ptr {
+		// set ID to the given struct
+		idVal := reflect.ValueOf(data).Elem().FieldByName("ID")
+		idVal.Set(reflect.ValueOf(createdId))
+		// Update the given struct with its computed fields
+		// FIXME: Add computed non stored field calculation here
+		//rs.computeFields(data)
+	}
+	return rs.withIds([]int64{createdId})
 }
 
 // update updates the database with the given data and returns the number of updated rows.
@@ -106,9 +113,11 @@ func (rs RecordSet) update(data interface{}) bool {
 	// clean our fMap from ID and non stored fields
 	delete(fMap, "id")
 	delete(fMap, "ID")
-	for _, cf := range rs.mi.fields.getComputedFields() {
-		delete(fMap, cf.name)
-		delete(fMap, cf.json)
+	for fName := range fMap {
+		if fi := rs.mi.getRelatedFieldInfo(fName); !fi.isStored() {
+			delete(fMap, fi.name)
+			delete(fMap, fi.json)
+		}
 	}
 	// update DB
 	sql, args := rs.query.updateQuery(fMap)
@@ -116,12 +125,6 @@ func (rs RecordSet) update(data interface{}) bool {
 	// compute stored fields
 	rs.updateStoredFields(fMap)
 	return true
-}
-
-// Write is a shortcut for rs.Call("Write") on the current RecordSet.
-// Data can be either a struct pointer or a FieldMap.
-func (rs RecordSet) Write(data interface{}) bool {
-	return rs.Call("Write", data).(bool)
 }
 
 // delete deletes the database record of this RecordSet and returns the number of deleted rows.
@@ -132,11 +135,6 @@ func (rs RecordSet) delete() int64 {
 	res := DBExecute(rs.env.cr, sql, args...)
 	num, _ := res.RowsAffected()
 	return num
-}
-
-// Unlink is a shortcut for rs.Call("Unlink") on the current RecordSet.
-func (rs RecordSet) Unlink() int64 {
-	return rs.Call("Unlink").(int64)
 }
 
 /*
@@ -202,6 +200,29 @@ func (rs RecordSet) GroupBy(exprs ...string) *RecordSet {
 func (rs RecordSet) Distinct() *RecordSet {
 	rs.query.distinct = true
 	return &rs
+}
+
+// Search query the database with the current filter and fills the RecordSet with the queries ids.
+// Does nothing in case RecordSet already has Ids. It panics in case of error.
+// It returns a pointer to the same RecordSet.
+func (rs *RecordSet) Search() *RecordSet {
+	if len(rs.Ids()) == 0 {
+		return rs.ForceSearch()
+	}
+	return rs
+}
+
+// ForceSearch query the database with the current filter and fills the RecordSet with the queries ids.
+// Overwrite RecordSet Ids if any. It panics in case of error.
+// It returns a pointer to the same RecordSet.
+func (rs *RecordSet) ForceSearch() *RecordSet {
+	var idsMap []FieldMap
+	num := rs.ReadValues(&idsMap, "id")
+	ids := make([]int64, num)
+	for i := 0; i < int(num); i++ {
+		ids[i] = idsMap[i]["id"].(int64)
+	}
+	return rs.withIds(ids)
 }
 
 /*
@@ -304,76 +325,7 @@ func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
 	return int64(len(*results))
 }
 
-/*
-Call calls the given method name methName with the given arguments and return the
-result as interface{}.
-*/
-func (rs RecordSet) Call(methName string, args ...interface{}) interface{} {
-	methInfo, ok := rs.mi.methods.get(methName)
-	if !ok {
-		tools.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rs.ModelName())
-	}
-	methLayer := methInfo.topLayer
-
-	rs.callStack = append([]*methodLayer{methLayer}, rs.callStack...)
-	return rs.call(methLayer, args...)
-}
-
-/*
-call is a wrapper around reflect.Value.Call() to use with interface{} type.
-*/
-func (rs RecordSet) call(methLayer *methodLayer, args ...interface{}) interface{} {
-	fnVal := methLayer.funcValue
-	fnTyp := fnVal.Type()
-
-	rsVal := reflect.ValueOf(rs)
-	inVals := []reflect.Value{rsVal}
-	methName := fmt.Sprintf("%s.%s()", methLayer.methInfo.mi.name, methLayer.methInfo.name)
-	for i := 1; i < fnTyp.NumIn(); i++ {
-		if i > len(args) {
-			tools.LogAndPanic(log, "Not enough argument while calling method", "model", rs.mi.name, "method", methName, "args", args, "expected", fnTyp.NumIn())
-		}
-		inVals = append(inVals, reflect.ValueOf(args[i-1]))
-	}
-	retVal := fnVal.Call(inVals)
-	if len(retVal) == 0 {
-		return nil
-	}
-	return retVal[0].Interface()
-}
-
-// Super calls the next method Layer after the given funcPtr.
-// This method is meant to be used inside a method layer function to call its parent.
-func (rs RecordSet) Super(args ...interface{}) interface{} {
-	if len(rs.callStack) == 0 {
-		tools.LogAndPanic(log, "Empty call stack", "model", rs.mi.name)
-	}
-	methLayer := rs.callStack[0]
-	methInfo := methLayer.methInfo
-	methLayer = methInfo.getNextLayer(methLayer)
-	if methLayer == nil {
-		// No parent
-		return nil
-	}
-
-	rs.callStack[0] = methLayer
-	return rs.call(methLayer, args...)
-}
-
-/*
-MethodType returns the type of the method given by methName
-*/
-func (rs RecordSet) MethodType(methName string) reflect.Type {
-	methInfo, ok := rs.mi.methods.get(methName)
-	if !ok {
-		tools.LogAndPanic(log, "Unknown method in model", "model", rs.ModelName(), "method", methName)
-	}
-	return methInfo.methodType
-}
-
-/*
-Records returns the slice of RecordSet singletons that constitute this RecordSet
-*/
+// Records returns the slice of RecordSet singletons that constitute this RecordSet
 func (rs RecordSet) Records() []*RecordSet {
 	res := make([]*RecordSet, len(rs.Ids()))
 	for i, id := range rs.Ids() {
@@ -390,49 +342,6 @@ func (rs *RecordSet) EnsureOne() {
 	}
 }
 
-// create inserts a new record in the database with the given data.
-// data can be either a FieldMap or a struct pointer of the same model as rs.
-// This function is private and low level. It should not be called directly.
-// Instead use rs.Create(), rs.Call("Create") or env.Create()
-func (rs RecordSet) create(data interface{}) *RecordSet {
-	fMap := convertInterfaceToFieldMap(data)
-	// clean our fMap from ID and non stored fields
-	if idl, ok := fMap["id"]; ok && idl.(int64) == 0 {
-		delete(fMap, "id")
-	}
-	if idu, ok := fMap["ID"]; ok && idu.(int64) == 0 {
-		delete(fMap, "ID")
-	}
-
-	for _, cf := range rs.mi.fields.registryByJSON {
-		if !cf.isStored() {
-			delete(fMap, cf.name)
-			delete(fMap, cf.json)
-		}
-	}
-	// insert in DB
-	sql, args := rs.query.insertQuery(fMap)
-	var createdId int64
-	DBGet(rs.env.cr, &createdId, sql, args...)
-	// compute stored fields
-	rs.updateStoredFields(fMap)
-	if reflect.TypeOf(data).Kind() == reflect.Ptr {
-		// set ID to the given struct
-		idVal := reflect.ValueOf(data).Elem().FieldByName("ID")
-		idVal.Set(reflect.ValueOf(createdId))
-		// Update the given struct with its computed fields
-		// FIXME: Add computed non stored field calculation here
-		//rs.computeFields(data)
-	}
-	return rs.withIds([]int64{createdId})
-}
-
-// Create is a shortcut function for rs.Call("Create") on the current RecordSet.
-// Data can be either a struct pointer or a FieldMap.
-func (rs RecordSet) Create(data interface{}) *RecordSet {
-	return rs.Call("Create", data).(*RecordSet)
-}
-
 // withIdMap sets the given RecordSet ids to the given ids slice (overwriting current query).
 // This method both replaces in place and returns a pointer to the same RecordSet.
 func (rs *RecordSet) withIds(ids []int64) *RecordSet {
@@ -442,91 +351,6 @@ func (rs *RecordSet) withIds(ids []int64) *RecordSet {
 		rs = rs.Filter("ID", "in", ids)
 	}
 	return rs
-}
-
-// computeFieldValues updates the given params with the given computed (non stored) fields
-// or all the computed fields of the model if not given.
-// Returned fieldMap keys are field's JSON name
-func (rs RecordSet) computeFieldValues(params *FieldMap, fields ...string) {
-	for _, fInfo := range rs.mi.fields.getComputedFields(fields...) {
-		if _, exists := (*params)[fInfo.name]; exists {
-			// We already have the value we need in params
-			// probably because it was computed with another field
-			continue
-		}
-		newParams := rs.Call(fInfo.compute).(FieldMap)
-		for k, v := range newParams {
-			key, _ := rs.mi.fields.get(k)
-			(*params)[key.json] = v
-		}
-	}
-}
-
-/*
-updateStoredFields updates all dependent fields of rs that are included in the given FieldMap.
-*/
-func (rs RecordSet) updateStoredFields(fMap FieldMap) {
-	// First get list of fields that have been passed through structPtrOrParams
-	fieldNames := fMap.Keys()
-	var toUpdate []computeData
-	for _, fieldName := range fieldNames {
-		//refField := fieldRef{modelName: rs.ModelName(), name: fieldName}
-		refFieldInfo, ok := rs.mi.fields.get(fieldName)
-		if !ok {
-			continue
-		}
-		toUpdate = append(toUpdate, refFieldInfo.dependencies...)
-	}
-	// Compute all that must be computed and store the values
-	computed := make(map[string]bool)
-	rs = *rs.Search()
-	for _, cData := range toUpdate {
-		methUID := fmt.Sprintf("%s.%s", cData.modelInfo.tableName, cData.compute)
-		if _, ok := computed[methUID]; ok {
-			continue
-		}
-		recs := rs.env.Pool(cData.modelInfo.name)
-		if cData.path != "" {
-			recs = recs.Filter(cData.path, "in", rs.Ids())
-		} else {
-			recs = &rs
-		}
-		recs.Search()
-		for _, rec := range recs.Records() {
-			vals := rec.Call(cData.compute)
-			if len(vals.(FieldMap)) > 0 {
-				rec.Write(vals.(FieldMap))
-			}
-		}
-	}
-}
-
-// substituteRelatedFields returns a copy of the given fields slice with
-// related fields substituted by their related field path. It also returns
-// the list of substitutions to be given to resetRelatedFields.
-func (rs *RecordSet) substituteRelatedFields(fields []string) ([]string, []KeySubstitution) {
-	// We create a map to check if the substituted field already exists
-	duplMap := make(map[string]bool, len(fields))
-	for _, field := range fields {
-		duplMap[field] = true
-	}
-	// Now we go for the substitution
-	res := make([]string, len(fields))
-	var substs []KeySubstitution
-	for i, field := range fields {
-		fi, ok := rs.mi.fields.get(field)
-		if ok && fi.related != "" {
-			res[i] = fi.related
-			substs = append(substs, KeySubstitution{
-				Orig: jsonizePath(rs.mi, fi.related),
-				New:  fi.json,
-				Keep: duplMap[fi.json],
-			})
-			continue
-		}
-		res[i] = field
-	}
-	return res, substs
 }
 
 // newRecordSet returns a new empty RecordSet in the given environment for the given modelName

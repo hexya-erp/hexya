@@ -41,6 +41,15 @@ type User_Simple struct {
 	Profile  *Profile_Simple
 	Age      int16
 	PMoney   float64
+	Title    string
+	Content  string
+}
+
+type User_WithLastPost struct {
+	ID       int64
+	Title    string
+	Content  string
+	LastPost *Post
 }
 
 func TestMethods(t *testing.T) {
@@ -133,5 +142,33 @@ func TestRelatedNonStoredFields(t *testing.T) {
 			So(userJane.PMoney, ShouldEqual, 12345)
 		})
 		env.cr.Rollback()
+	})
+}
+
+func TestInheritedModels(t *testing.T) {
+	Convey("Testing inherits-ed models", t, func() {
+		env := NewEnvironment(1)
+		Convey("Adding a last post to Jane", func() {
+			postRs := env.Pool("Post").Create(FieldMap{
+				"Title":   "This is my title",
+				"Content": "Here we have some content",
+			})
+			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Write(FieldMap{
+				"LastPost": postRs.Ids()[0],
+			})
+		})
+		Convey("Checking that we can access jane's post directly", func() {
+			var userJane User_Simple
+			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
+			So(userJane.Title, ShouldEqual, "This is my title")
+			So(userJane.Content, ShouldEqual, "Here we have some content")
+			var userJane2 User_WithLastPost
+			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").RelatedDepth(1).ReadOne(&userJane2)
+			So(userJane2.Title, ShouldEqual, "This is my title")
+			So(userJane2.Content, ShouldEqual, "Here we have some content")
+			So(userJane2.LastPost.Title, ShouldEqual, "This is my title")
+			So(userJane2.LastPost.Content, ShouldEqual, "Here we have some content")
+		})
+		env.cr.Commit()
 	})
 }

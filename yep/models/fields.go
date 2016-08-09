@@ -95,7 +95,7 @@ func (fc *fieldsCollection) nonRelatedFieldJSONNames() []string {
 /*
 getComputedFields returns the slice of fieldInfo of the computed, but not
 stored fields of the given modelName.
-If fields are given, return only fieldInfo in the list
+If fields are given, return only fieldInfo instances in the list
 */
 func (fc *fieldsCollection) getComputedFields(fields ...string) (fil []*fieldInfo) {
 	fInfos := fc.computedFields
@@ -140,14 +140,14 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 	jsonName := fInfo.json
 	fc.registryByName[name] = fInfo
 	fc.registryByJSON[jsonName] = fInfo
-	if fInfo.computed {
+	if fInfo.computed() {
 		if fInfo.stored {
 			fc.computedStoredFields = append(fc.computedStoredFields, fInfo)
 		} else {
 			fc.computedFields = append(fc.computedFields, fInfo)
 		}
 	}
-	if fInfo.related != "" {
+	if fInfo.related() {
 		fc.relatedFields = append(fc.relatedFields, fInfo)
 	}
 }
@@ -159,7 +159,6 @@ type fieldInfo struct {
 	json          string
 	description   string
 	help          string
-	computed      bool
 	stored        bool
 	required      bool
 	unique        bool
@@ -173,8 +172,19 @@ type fieldInfo struct {
 	size          int
 	digits        tools.Digits
 	structField   reflect.StructField
-	related       string
+	relatedPath   string
 	dependencies  []computeData
+	inherits      bool
+}
+
+// computed returns true if this field is computed
+func (fi *fieldInfo) computed() bool {
+	return fi.compute != ""
+}
+
+// related returns true if this field is related
+func (fi *fieldInfo) related() bool {
+	return fi.relatedPath != ""
 }
 
 // isStored returns true if this field is stored in database
@@ -185,8 +195,8 @@ func (fi *fieldInfo) isStored() bool {
 		// reverse fields are not stored
 		return false
 	}
-	if fi.computed && !fi.stored {
-		// Computed non stored fields are not stored
+	if (fi.computed() || fi.related()) && !fi.stored {
+		// Computed and related non stored fields are not stored
 		return false
 	}
 	return true
@@ -206,8 +216,10 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	_, required := attrs["required"]
 	_, unique := attrs["unique"]
 	_, index := attrs["index"]
+	_, inherits := attrs["inherits"]
 
-	computeName, computed := tags["compute"]
+	computeName := tags["compute"]
+	relatedPath := tags["related"]
 	sStr, _ := tags["size"]
 	size, _ := strconv.Atoi(sStr)
 
@@ -235,6 +247,11 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		typ = getFieldType(sf.Type)
 	}
 
+	if inherits && typ != tools.MANY2ONE && typ != tools.ONE2ONE {
+		log.Warn("'inherits' should be set only on many2one or one2one fields", "model", mi.name, "field", sf.Name, "type", typ)
+		inherits = false
+	}
+
 	json, ok := tags["json"]
 	if !ok {
 		json = tools.SnakeCaseString(sf.Name)
@@ -255,7 +272,6 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		json:          json,
 		mi:            mi,
 		compute:       computeName,
-		computed:      computed,
 		stored:        stored,
 		required:      required,
 		unique:        unique,
@@ -269,7 +285,8 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		structField:   sf,
 		size:          size,
 		digits:        digits,
-		related:       tags["related"],
+		relatedPath:   relatedPath,
+		inherits:      inherits,
 	}
 	return &fInfo
 }

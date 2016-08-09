@@ -51,7 +51,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	var ctx tools.Context
 	if ok {
 		if err := json.Unmarshal(ctxStr, &ctx); err != nil {
-			ok = false
+			tools.LogAndPanic(log, "Unable to JSON unmarshal context", "context_string", ctxStr)
 		}
 	}
 

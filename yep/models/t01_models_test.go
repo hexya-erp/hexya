@@ -140,12 +140,13 @@ type User struct {
 	Status        int16 `yep:"json(status_json)"`
 	IsStaff       bool
 	IsActive      bool
-	Profile       *Profile `yep:"null;type(many2one)"` //;on_delete(set_null)"`
+	Profile       *Profile `yep:"type(many2one)"` //;on_delete(set_null)"`
 	Age           int16    `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
 	Posts         []*Post  `yep:"type(one2many)"`
 	Nums          int
 	unexportBool  bool
 	PMoney        float64 `yep:"related(Profile.Money)"`
+	LastPost      *Post   `yep:"inherits"`
 }
 
 func (u *User) TableIndex() [][]string {
@@ -188,7 +189,7 @@ type Post struct {
 	User    *User
 	Title   string
 	Content string `yep:"type(text)"`
-	Tags    []*Tag `yep:"type(many2many)"`
+	//Tags    []*Tag `yep:"type(many2many)"`
 }
 
 func (u *Post) TableIndex() [][]string {

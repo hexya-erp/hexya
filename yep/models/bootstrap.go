@@ -33,6 +33,8 @@ func BootStrap() {
 	modelRegistry.bootstrapped = true
 
 	createModelLinks()
+	inflateInherits()
+	syncRelatedFieldInfo()
 	syncDatabase()
 	bootStrapMethods()
 	processDepends()
@@ -72,6 +74,53 @@ func createModelLinks() {
 			fi.relatedModel = relatedMI
 		}
 		mi.fields.bootstrapped = true
+	}
+}
+
+// inflateInherits creates related fields for all fields of related-inherits-ed
+// models.
+func inflateInherits() {
+	for _, mi := range modelRegistry.registryByName {
+		for _, fi := range mi.fields.registryByName {
+			if !fi.inherits {
+				continue
+			}
+			for relName, relFI := range fi.relatedModel.fields.registryByName {
+				if _, ok := mi.fields.get(relName); ok {
+					// Don't add the field if we have a field with the same name
+					// in our model (shadowing).
+					continue
+				}
+				fInfo := fieldInfo{
+					name:        relName,
+					json:        relFI.json,
+					mi:          mi,
+					stored:      fi.stored,
+					structField: relFI.structField,
+					relatedPath: fmt.Sprintf("%s%s%s", fi.name, ExprSep, relName),
+				}
+				mi.fields.add(&fInfo)
+			}
+		}
+	}
+}
+
+// syncRelatedFieldInfo overwrites the fieldInfo data of the related fields
+// with the data of the fieldInfo of the target.
+func syncRelatedFieldInfo() {
+	for _, mi := range modelRegistry.registryByName {
+		for _, fi := range mi.fields.registryByName {
+			if !fi.related() {
+				continue
+			}
+			newFI := *mi.getRelatedFieldInfo(fi.relatedPath)
+			newFI.name = fi.name
+			newFI.json = fi.json
+			newFI.relatedPath = fi.relatedPath
+			newFI.stored = fi.stored
+			newFI.mi = mi
+			*fi = newFI
+		}
 	}
 }
 
