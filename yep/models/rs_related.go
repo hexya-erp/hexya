@@ -26,7 +26,7 @@ func (rs *RecordSet) substituteRelatedFields(fields []string) ([]string, []KeySu
 	// We create a map to check if the substituted field already exists
 	duplMap := make(map[string]bool, len(fields))
 	for _, field := range fields {
-		duplMap[field] = true
+		duplMap[jsonizePath(rs.mi, field)] = true
 	}
 	// Now we go for the substitution
 	res := make([]string, len(fields))
@@ -35,10 +35,11 @@ func (rs *RecordSet) substituteRelatedFields(fields []string) ([]string, []KeySu
 		fi, ok := rs.mi.fields.get(field)
 		if ok && fi.related() {
 			res[i] = fi.relatedPath
+			relatedJSONPath := jsonizePath(rs.mi, fi.relatedPath)
 			substs = append(substs, KeySubstitution{
-				Orig: jsonizePath(rs.mi, fi.relatedPath),
+				Orig: relatedJSONPath,
 				New:  fi.json,
-				Keep: duplMap[fi.relatedPath],
+				Keep: duplMap[relatedJSONPath],
 			})
 			continue
 		}
