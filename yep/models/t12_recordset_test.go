@@ -43,7 +43,7 @@ func TestCreateRecordSet(t *testing.T) {
 			}
 			users := env.Create(&userJohn)
 			So(len(users.Ids()), ShouldEqual, 1)
-			So(userJohn.ID, ShouldEqual, users.Ids()[0])
+			So(userJohn.ID, ShouldEqual, users.ID())
 		})
 		Convey("Creating user Jane with related Profile using rs.Create / rs.Call('Create')", func() {
 			userJane := User_WithID{
@@ -57,11 +57,11 @@ func TestCreateRecordSet(t *testing.T) {
 			rsProfile := env.Pool("Profile")
 			profile := rsProfile.Create(userJane.Profile)
 			So(len(profile.Ids()), ShouldEqual, 1)
-			So(userJane.Profile.ID, ShouldEqual, profile.Ids()[0])
+			So(userJane.Profile.ID, ShouldEqual, profile.ID())
 			rsUsers := env.Pool("User")
 			users2 := rsUsers.Call("Create", &userJane).(*RecordSet)
 			So(len(users2.Ids()), ShouldEqual, 1)
-			So(userJane.ID, ShouldEqual, users2.Ids()[0])
+			So(userJane.ID, ShouldEqual, users2.ID())
 		})
 		Convey("Creating a user Will Smith", func() {
 			userWill := User_WithID{
@@ -71,7 +71,7 @@ func TestCreateRecordSet(t *testing.T) {
 			users := env.Create(&userWill)
 			Convey("Created user ids should match struct's ID ", func() {
 				So(len(users.Ids()), ShouldEqual, 1)
-				So(users.Ids()[0], ShouldEqual, userWill.ID)
+				So(users.ID(), ShouldEqual, userWill.ID)
 			})
 		})
 		env.cr.Commit()

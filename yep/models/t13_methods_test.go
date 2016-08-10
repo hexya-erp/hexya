@@ -154,7 +154,7 @@ func TestInheritedModels(t *testing.T) {
 				"Content": "Here we have some content",
 			})
 			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Write(FieldMap{
-				"LastPost": postRs.Ids()[0],
+				"LastPost": postRs.ID(),
 			})
 		})
 		Convey("Checking that we can access jane's post directly", func() {

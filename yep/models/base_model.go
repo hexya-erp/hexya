@@ -49,6 +49,9 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "Write", Write)
 	DeclareMethod(name, "Unlink", Unlink)
 	DeclareMethod(name, "NameGet", NameGet)
+	DeclareMethod(name, "NameSearch", NameSearch)
+	DeclareMethod(name, "GetFormviewId", GetFormviewId)
+	DeclareMethod(name, "GetFormviewAction", GetFormviewAction)
 	DeclareMethod(name, "FieldsViewGet", FieldsViewGet)
 	DeclareMethod(name, "FieldsGet", FieldsGet)
 	DeclareMethod(name, "ProcessView", ProcessView)
@@ -138,7 +141,77 @@ func NameGet(rs RecordSet) string {
 	return rs.String()
 }
 
-// Args struct for the FieldsViewGet function
+// convertLimitToInt converts the given limit as interface{} to an int
+func convertLimitToInt(limit interface{}) int {
+	var lim int
+	switch limit.(type) {
+	case bool:
+		lim = -1
+	case int:
+		lim = limit.(int)
+	default:
+		lim = 80
+	}
+	return lim
+}
+
+// NameSearchParams is the args struct for the NameSearch function
+type NameSearchParams struct {
+	Args     Domain      `json:"args"`
+	Name     string      `json:"name"`
+	Operator string      `json:"operator"`
+	Limit    interface{} `json:"limit"`
+}
+
+// NameSearch searches for records that have a display name matching the given
+// `name` pattern when compared with the given `operator`, while also
+// matching the optional search domain (`args`).
+//
+// This is used for example to provide suggestions based on a partial
+// value for a relational field. Sometimes be seen as the inverse
+// function of NameGet but it is not guaranteed to be.
+func NameSearch(rs RecordSet, params NameSearchParams) []RecordRef {
+	searchRs := rs.Filter("Name", params.Operator, params.Name).Limit(convertLimitToInt(params.Limit))
+	if extraCondition := ParseDomain(params.Args); extraCondition != nil {
+		searchRs = searchRs.Condition(extraCondition)
+	}
+
+	var fValues []FieldMap
+	searchRs.Search().ReadValues(&fValues, "ID", "DisplayName")
+
+	res := make([]RecordRef, len(fValues))
+	for i, fMap := range fValues {
+		res[i].ID = fMap["id"].(int64)
+		res[i].Name = fMap["display_name"].(string)
+	}
+	return res
+}
+
+// GetFormviewId returns an view id to open the document with.
+// This method is meant to be overridden in addons that want
+// to give specific view ids for example.
+func GetFormviewId(rs RecordSet) string {
+	return ""
+}
+
+// GetFormviewAction returns an action to open the document.
+// This method is meant to be overridden in addons that want
+// to give specific view ids for example.
+func GetFormviewAction(rs RecordSet) *ir.BaseAction {
+	viewID := rs.Call("GetFormviewId").(string)
+	return &ir.BaseAction{
+		Type:        ir.ACTION_ACT_WINDOW,
+		Model:       rs.ModelName(),
+		ActViewType: ir.ACTION_VIEW_TYPE_FORM,
+		ViewMode:    "form",
+		Views:       []ir.ViewRef{{viewID, string(ir.VIEW_TYPE_FORM)}},
+		Target:      "current",
+		ResID:       rs.ID(),
+		Context:     rs.Env().Context(),
+	}
+}
+
+// FieldsViewGetParams is the args struct for the FieldsViewGet function
 type FieldsViewGetParams struct {
 	ViewID   string `json:"view_id"`
 	ViewType string `json:"view_type"`
@@ -173,6 +246,8 @@ type FieldInfo struct {
 	Type             tools.FieldType        `json:"type"`
 	Store            bool                   `json:"store"`
 	String           string                 `json:"string"`
+	Domain           Domain                 `json:"domain"`
+	Relation         string                 `json:"relation"`
 }
 
 /*
@@ -256,6 +331,15 @@ func UpdateFieldNames(rs RecordSet, doc *etree.Document) {
 		fieldTag.RemoveAttr("name")
 		fieldTag.CreateAttr("name", fi.json)
 	}
+	for _, labelTag := range doc.FindElements("//label") {
+		fieldName := labelTag.SelectAttr("for").Value
+		fi, ok := rs.mi.fields.get(fieldName)
+		if !ok {
+			tools.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
+		}
+		labelTag.RemoveAttr("for")
+		labelTag.CreateAttr("for", fi.json)
+	}
 }
 
 // Args for the FieldsGet function
@@ -285,6 +369,10 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 		if !ok {
 			tools.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
 		}
+		var relation string
+		if fInfo.relatedModel != nil {
+			relation = fInfo.relatedModel.name
+		}
 		res[fInfo.json] = &FieldInfo{
 			Help:       fInfo.help,
 			Searchable: true,
@@ -293,6 +381,7 @@ func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
 			Type:       fInfo.fieldType,
 			Store:      fInfo.stored,
 			String:     fInfo.description,
+			Relation:   relation,
 		}
 	}
 	return res
@@ -314,16 +403,7 @@ func SearchRead(rs RecordSet, params SearchParams) []FieldMap {
 		rs = *rs.Condition(searchCond)
 	}
 	// Limit
-	var limit int
-	switch params.Limit.(type) {
-	case bool:
-		limit = -1
-	case int:
-		limit = params.Limit.(int)
-	default:
-		limit = 80
-	}
-	rs = *rs.Limit(limit)
+	rs = *rs.Limit(convertLimitToInt(params.Limit))
 
 	// Offset
 	if params.Offset != 0 {

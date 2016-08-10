@@ -14,7 +14,10 @@
 
 package models
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Date type that JSON marshal and unmarshals as "YYYY-MM-DD"
 type Date time.Time
@@ -61,4 +64,35 @@ func (fm *FieldMap) SubstituteKeys(substs []KeySubstitution) {
 			(*fm)[subs.New] = value
 		}
 	}
+}
+
+// RecordRef is a tuple with an ID and the display name of a record
+type RecordRef struct {
+	ID   int64
+	Name string
+}
+
+// MarshalJSON for RecordRef type
+func (rf RecordRef) MarshalJSON() ([]byte, error) {
+	arr := [2]interface{}{
+		0: rf.ID,
+		1: rf.Name,
+	}
+	res, err := json.Marshal(arr)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(res), nil
+}
+
+// UnmarshalJSON for RecordRef type
+func (rf *RecordRef) UnmarshalJSON(data []byte) error {
+	var arr [2]interface{}
+	err := json.Unmarshal(data, &arr)
+	if err != nil {
+		return err
+	}
+	rf.ID = arr[0].(int64)
+	rf.Name = arr[1].(string)
+	return nil
 }

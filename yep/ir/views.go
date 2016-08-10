@@ -60,7 +60,6 @@ func MakeViewRef(id string) ViewRef {
 
 type ViewRef [2]string
 
-// TODO Change to sql.Scanner & driver.Valuer
 func (e *ViewRef) String() string {
 	sl := []string{e[0], e[1]}
 	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))

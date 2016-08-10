@@ -152,11 +152,28 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 		return err
 	}
 
-	// Step 2: We scan values with the type of the corresponding fieldInfo
-	// if the value is not nil.
-	destVals := reflect.ValueOf(dest).Elem()
+	// Step 2: We populate our FieldMap with these values
 	for i, dbValue := range dbValues {
 		colName := strings.Replace(columns[i], sqlSep, ExprSep, -1)
+		dbVal := reflect.ValueOf(dbValue).Elem().Interface()
+		(*dest)[colName] = dbVal
+	}
+
+	// Step 3: We convert values with the type of the corresponding fieldInfo
+	// if the value is not nil.
+	mi.convertValuesToFieldType(dest)
+	return r.Err()
+}
+
+// convertValuesToFieldType converts all values of the given FieldMap to
+// their type in the modelInfo.
+func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
+	destVals := reflect.ValueOf(fMap).Elem()
+	for colName, dbValue := range *fMap {
+		if _, ok := dbValue.(bool); ok {
+			// Hack to manage client returning false instead of nil
+			dbValue = nil
+		}
 		fi := mi.getRelatedFieldInfo(colName)
 		fType := fi.structField.Type
 		var val reflect.Value
@@ -168,14 +185,14 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 			// the type implements sql.Scanner, so we call Scan
 			val = reflect.New(fType)
 			scanFunc := val.MethodByName("Scan")
-			inArgs := []reflect.Value{reflect.ValueOf(dbValue).Elem()}
+			inArgs := []reflect.Value{reflect.ValueOf(dbValue)}
 			scanFunc.Call(inArgs)
 		default:
 			if fType.Kind() == reflect.Ptr {
 				// Scan foreign keys into int64
 				fType = reflect.TypeOf(int64(0))
 			}
-			val = reflect.ValueOf(dbValue).Elem().Elem()
+			val = reflect.ValueOf(dbValue)
 			if val.IsValid() {
 				if typ := val.Type(); typ.ConvertibleTo(fType) {
 					val = val.Convert(fType)
@@ -184,8 +201,6 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 		}
 		destVals.SetMapIndex(reflect.ValueOf(colName), val)
 	}
-
-	return r.Err()
 }
 
 // CreateModel creates a new model with the given name

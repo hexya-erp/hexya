@@ -55,9 +55,16 @@ func (rs RecordSet) ModelName() string {
 	return rs.mi.name
 }
 
-// Ids return the ids of the RecordSet
+// Ids returns the ids of the RecordSet
 func (rs RecordSet) Ids() []int64 {
 	return rs.ids
+}
+
+// ID returns the ID of the unique record of this RecordSet
+// It panics if rs is not a singleton.
+func (rs RecordSet) ID() int64 {
+	rs.EnsureOne()
+	return rs.ids[0]
 }
 
 // RelatedDepth sets the depth at which to populate the structs with
@@ -73,6 +80,7 @@ func (rs RecordSet) RelatedDepth(depth int) *RecordSet {
 // Instead use rs.Create(), rs.Call("Create") or env.Create()
 func (rs RecordSet) create(data interface{}) *RecordSet {
 	fMap := convertInterfaceToFieldMap(data)
+	rs.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	if idl, ok := fMap["id"]; ok && idl.(int64) == 0 {
 		delete(fMap, "id")
@@ -110,6 +118,7 @@ func (rs RecordSet) create(data interface{}) *RecordSet {
 // Instead use rs.Write() or rs.Call("Write")
 func (rs RecordSet) update(data interface{}) bool {
 	fMap := convertInterfaceToFieldMap(data)
+	rs.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	delete(fMap, "id")
 	delete(fMap, "ID")

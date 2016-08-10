@@ -134,9 +134,9 @@ type BaseAction struct {
 	Target       string         `json:"target"`
 	AutoSearch   bool           `json:"auto_search"`
 	//SearchView  string         `json:"search_view"`
-	Filter bool  `json:"filter"`
-	Limit  int64 `json:"limit"`
-	//Context models.Context `json:"context"`
+	Filter  bool          `json:"filter"`
+	Limit   int64         `json:"limit"`
+	Context tools.Context `json:"context"`
 }
 
 type Toolbar struct {
