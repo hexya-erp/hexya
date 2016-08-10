@@ -78,7 +78,7 @@ func (d DateTime) Value() (driver.Value, error) {
 	if d.IsNull() {
 		return driver.Value("0001-01-01 00:00:00"), nil
 	}
-	return driver.Value(d), nil
+	return driver.Value(time.Time(d).Format("2006-01-02 15:04:05")), nil
 }
 
 // FieldMap is a map of interface{} specifically used for holding model

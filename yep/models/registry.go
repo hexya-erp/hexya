@@ -246,6 +246,7 @@ func createModelInfo(name string, model interface{}) {
 		json:      "id",
 		mi:        mi,
 		required:  true,
+		noCopy:    true,
 		fieldType: tools.INTEGER,
 		structField: reflect.TypeOf(
 			struct {

@@ -97,6 +97,7 @@ func inflateInherits() {
 					mi:          mi,
 					stored:      fi.stored,
 					structField: relFI.structField,
+					noCopy:      true,
 					relatedPath: fmt.Sprintf("%s%s%s", fi.name, ExprSep, relName),
 				}
 				mi.fields.add(&fInfo)
@@ -119,6 +120,7 @@ func syncRelatedFieldInfo() {
 			newFI.relatedPath = fi.relatedPath
 			newFI.stored = fi.stored
 			newFI.mi = mi
+			newFI.noCopy = true
 			*fi = newFI
 		}
 	}

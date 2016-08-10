@@ -175,6 +175,7 @@ type fieldInfo struct {
 	relatedPath   string
 	dependencies  []computeData
 	inherits      bool
+	noCopy        bool
 }
 
 // computed returns true if this field is computed
@@ -217,6 +218,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	_, unique := attrs["unique"]
 	_, index := attrs["index"]
 	_, inherits := attrs["inherits"]
+	_, noCopy := attrs["nocopy"]
 
 	computeName := tags["compute"]
 	relatedPath := tags["related"]
@@ -287,6 +289,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		digits:        digits,
 		relatedPath:   relatedPath,
 		inherits:      inherits,
+		noCopy:        noCopy,
 	}
 	return &fInfo
 }

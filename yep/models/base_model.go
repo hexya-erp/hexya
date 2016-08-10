@@ -30,11 +30,11 @@ const (
 
 type BaseModel struct {
 	ID          int64
-	CreateDate  time.Time `yep:"type(datetime)"`
-	CreateUid   int64
-	WriteDate   time.Time `yep:"type(datetime);compute(ComputeWriteDate);store;depends(ID)"`
-	WriteUid    int64
-	DisplayName string `yep:"compute(ComputeNameGet)"`
+	CreateDate  time.Time `yep:"type(datetime);nocopy"`
+	CreateUid   int64     `yep:"nocopy"`
+	WriteDate   time.Time `yep:"type(datetime);compute(ComputeWriteDate);store;depends(ID);nocopy"`
+	WriteUid    int64     `yep:"nocopy"`
+	DisplayName string    `yep:"compute(ComputeNameGet)"`
 }
 
 type BaseTransientModel struct {
@@ -45,9 +45,10 @@ func declareBaseMethods(name string) {
 	DeclareMethod(name, "ComputeWriteDate", ComputeWriteDate)
 	DeclareMethod(name, "ComputeNameGet", ComputeNameGet)
 	DeclareMethod(name, "Create", Create)
-	DeclareMethod(name, "Read", ReadModel)
+	DeclareMethod(name, "Read", Read)
 	DeclareMethod(name, "Write", Write)
 	DeclareMethod(name, "Unlink", Unlink)
+	DeclareMethod(name, "Copy", Copy)
 	DeclareMethod(name, "NameGet", NameGet)
 	DeclareMethod(name, "NameSearch", NameSearch)
 	DeclareMethod(name, "GetFormviewId", GetFormviewId)
@@ -83,12 +84,10 @@ func Create(rs RecordSet, data interface{}) *RecordSet {
 	return rs.create(data)
 }
 
-/*
-ReadModel is the base implementation of the 'Read' method.
-It reads the database and returns a list of FieldMap
-of the given model
-*/
-func ReadModel(rs RecordSet, fields []string) []FieldMap {
+// Read is the base implementation of the 'Read' method.
+// It reads the database and returns a list of FieldMap
+// of the given model
+func Read(rs RecordSet, fields []string) []FieldMap {
 	var res []FieldMap
 	// Add id field to the list
 	fList := []string{"id"}
@@ -130,6 +129,26 @@ func Write(rs RecordSet, data interface{}) bool {
 // records in the database.
 func Unlink(rs RecordSet) int64 {
 	return rs.delete()
+}
+
+// Copy duplicates the record given by rs
+// It panics if rs is not a singleton
+func Copy(rs RecordSet) *RecordSet {
+	rs.EnsureOne()
+
+	var fields []string
+	for _, fi := range rs.mi.fields.registryByName {
+		if !fi.noCopy {
+			fields = append(fields, fi.json)
+		}
+	}
+	var fMap FieldMap
+	rs.Search().ReadValue(&fMap, fields...)
+
+	delete(fMap, "ID")
+	delete(fMap, "id")
+	newRs := rs.Create(fMap)
+	return newRs
 }
 
 /*

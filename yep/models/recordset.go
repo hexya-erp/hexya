@@ -344,7 +344,7 @@ func (rs RecordSet) Records() []*RecordSet {
 }
 
 // EnsureOne panics if rs is not a singleton
-func (rs *RecordSet) EnsureOne() {
+func (rs RecordSet) EnsureOne() {
 	rs.Search()
 	if len(rs.Ids()) != 1 {
 		tools.LogAndPanic(log, "Expected singleton", "model", rs.ModelName(), "received", rs)

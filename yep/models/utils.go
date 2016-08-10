@@ -38,6 +38,7 @@ var (
 		"unique":         1,
 		"index":          1,
 		"inherits":       1,
+		"nocopy":         1,
 		"string":         2,
 		"help":           2,
 		"compute":        2,
