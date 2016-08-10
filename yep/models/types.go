@@ -15,15 +15,71 @@
 package models
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
 // Date type that JSON marshal and unmarshals as "YYYY-MM-DD"
 type Date time.Time
 
+// IsNull returns true if the Date is the zero value
+func (d Date) IsNull() bool {
+	if time.Time(d).Format("2006-01-02") == "0001-01-01" {
+		return true
+	}
+	return false
+}
+
+// MarshalJSON for Date type
+func (d Date) MarshalJSON() ([]byte, error) {
+	if d.IsNull() {
+		return []byte("null"), nil
+	}
+	dateStr := time.Time(d).Format("2006-01-02")
+	dateStr = fmt.Sprintf(`"%s"`, dateStr)
+	return []byte(dateStr), nil
+}
+
+// Value formats our Date for storing in database
+// Especially handles empty Date.
+func (d Date) Value() (driver.Value, error) {
+	if d.IsNull() {
+		return driver.Value("0001-01-01"), nil
+	}
+	return driver.Value(d), nil
+}
+
 // DateTime type that JSON marshals and unmarshals as "YYYY-MM-DD HH:MM:SS"
 type DateTime time.Time
+
+// IsNull returns true if the DateTime is the zero value
+func (d DateTime) IsNull() bool {
+	if time.Time(d).Format("2006-01-02 15:04:05") == "0001-01-01 00:00:00" {
+		return true
+	}
+	return false
+}
+
+// MarshalJSON for Date type
+func (d DateTime) MarshalJSON() ([]byte, error) {
+	if d.IsNull() {
+		return []byte("null"), nil
+	}
+	dateStr := time.Time(d).Format("2006-01-02 15:04:05")
+	dateStr = fmt.Sprintf(`"%s"`, dateStr)
+	return []byte(dateStr), nil
+}
+
+// Value formats our DateTime for storing in database
+// Especially handles empty DateTime.
+func (d DateTime) Value() (driver.Value, error) {
+	if d.IsNull() {
+		return driver.Value("0001-01-01 00:00:00"), nil
+	}
+	return driver.Value(d), nil
+}
 
 // FieldMap is a map of interface{} specifically used for holding model
 // fields values.

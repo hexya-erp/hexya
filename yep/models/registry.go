@@ -170,7 +170,7 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 	destVals := reflect.ValueOf(fMap).Elem()
 	for colName, dbValue := range *fMap {
-		if _, ok := dbValue.(bool); ok {
+		if val, ok := dbValue.(bool); ok && !val {
 			// Hack to manage client returning false instead of nil
 			dbValue = nil
 		}

@@ -97,13 +97,19 @@ func ReadModel(rs RecordSet, fields []string) []FieldMap {
 	}
 	// Get the values
 	rs.ReadValues(&res, fList...)
+
 	// Postprocessing results
+	// TODO: Put this in lower ORM
 	for _, line := range res {
 		for k, v := range line {
 			fi, _ := rs.mi.fields.get(k)
 			if fi.relatedModel != nil {
 				// Add display name to rel/reverse fields
-				id := v.(int64)
+				id, ok := v.(int64)
+				if !ok {
+					// We don't have an int64 here, so we assume it is nil
+					continue
+				}
 				relMI := rs.mi.getRelatedModelInfo(k)
 				relRS := rs.Env().Pool(relMI.name).withIds([]int64{id})
 				line[k] = [2]interface{}{id, relRS.Call("NameGet").(string)}
