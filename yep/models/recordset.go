@@ -63,6 +63,7 @@ func (rs RecordSet) Ids() []int64 {
 // ID returns the ID of the unique record of this RecordSet
 // It panics if rs is not a singleton.
 func (rs RecordSet) ID() int64 {
+	rs.Search()
 	rs.EnsureOne()
 	return rs.ids[0]
 }
