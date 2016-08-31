@@ -66,28 +66,28 @@ func declareBaseMethods(name string) {
 /*
 ComputeWriteDate updates the WriteDate field with the current datetime.
 */
-func ComputeWriteDate(rs RecordSet) FieldMap {
+func ComputeWriteDate(rs RecordCollection) FieldMap {
 	return FieldMap{"WriteDate": time.Now()}
 }
 
 /*
 ComputeNameGet updates the DisplayName field with the result of NameGet.
 */
-func ComputeNameGet(rs RecordSet) FieldMap {
+func ComputeNameGet(rs RecordCollection) FieldMap {
 	return FieldMap{"DisplayName": rs.Call("NameGet").(string)}
 }
 
 // Create is the base implementation of the 'Create' method which creates
 // a record in the database from the given structPtr.
 // Returns a pointer to a RecordSet with the created id.
-func Create(rs RecordSet, data interface{}) *RecordSet {
+func Create(rs RecordCollection, data interface{}) *RecordCollection {
 	return rs.create(data)
 }
 
 // Read is the base implementation of the 'Read' method.
 // It reads the database and returns a list of FieldMap
 // of the given model
-func Read(rs RecordSet, fields []string) []FieldMap {
+func Read(rs RecordCollection, fields []string) []FieldMap {
 	var res []FieldMap
 	// Add id field to the list
 	fList := []string{"id"}
@@ -121,19 +121,19 @@ func Read(rs RecordSet, fields []string) []FieldMap {
 // Write is the base implementation of the 'Write' method which updates
 // records in the database with the given data.
 // Data can be either a struct pointer or a FieldMap.
-func Write(rs RecordSet, data interface{}) bool {
+func Write(rs RecordCollection, data interface{}) bool {
 	return rs.update(data)
 }
 
 // Unlink is the base implementation of the 'Unlink' method which deletes
 // records in the database.
-func Unlink(rs RecordSet) int64 {
+func Unlink(rs RecordCollection) int64 {
 	return rs.delete()
 }
 
 // Copy duplicates the record given by rs
 // It panics if rs is not a singleton
-func Copy(rs RecordSet) *RecordSet {
+func Copy(rs RecordCollection) *RecordCollection {
 	rs.EnsureOne()
 
 	var fields []string
@@ -155,7 +155,7 @@ func Copy(rs RecordSet) *RecordSet {
 NameGet is the base implementation of the 'NameGet' method which retrieves the
 human readable name of an object.
 */
-func NameGet(rs RecordSet) string {
+func NameGet(rs RecordCollection) string {
 	rs.EnsureOne()
 	_, nameExists := rs.mi.fields.get("name")
 	if nameExists {
@@ -195,7 +195,7 @@ type NameSearchParams struct {
 // This is used for example to provide suggestions based on a partial
 // value for a relational field. Sometimes be seen as the inverse
 // function of NameGet but it is not guaranteed to be.
-func NameSearch(rs RecordSet, params NameSearchParams) []RecordRef {
+func NameSearch(rs RecordCollection, params NameSearchParams) []RecordRef {
 	searchRs := rs.Filter("Name", params.Operator, params.Name).Limit(convertLimitToInt(params.Limit))
 	if extraCondition := ParseDomain(params.Args); extraCondition != nil {
 		searchRs = searchRs.Condition(extraCondition)
@@ -215,14 +215,14 @@ func NameSearch(rs RecordSet, params NameSearchParams) []RecordRef {
 // GetFormviewId returns an view id to open the document with.
 // This method is meant to be overridden in addons that want
 // to give specific view ids for example.
-func GetFormviewId(rs RecordSet) string {
+func GetFormviewId(rs RecordCollection) string {
 	return ""
 }
 
 // GetFormviewAction returns an action to open the document.
 // This method is meant to be overridden in addons that want
 // to give specific view ids for example.
-func GetFormviewAction(rs RecordSet) *ir.BaseAction {
+func GetFormviewAction(rs RecordCollection) *ir.BaseAction {
 	viewID := rs.Call("GetFormviewId").(string)
 	return &ir.BaseAction{
 		Type:        ir.ACTION_ACT_WINDOW,
@@ -280,7 +280,7 @@ FieldsViewGet is the base implementation of the 'FieldsViewGet' method which
 gets the detailed composition of the requested view like fields, model,
 view architecture.
 */
-func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
+func FieldsViewGet(rs RecordCollection, args FieldsViewGetParams) *FieldsViewData {
 	view := ir.ViewsRegistry.GetViewById(args.ViewID)
 	if view == nil {
 		view = ir.ViewsRegistry.GetFirstViewForModel(rs.ModelName(), ir.ViewType(args.ViewType))
@@ -310,7 +310,7 @@ func FieldsViewGet(rs RecordSet, args FieldsViewGetParams) *FieldsViewData {
 Process view makes all the necessary modifications to the view
 arch and returns the new xml string.
 */
-func ProcessView(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) string {
+func ProcessView(rs RecordCollection, arch string, fieldInfos map[string]*FieldInfo) string {
 	// Load arch as etree
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(arch); err != nil {
@@ -330,7 +330,7 @@ func ProcessView(rs RecordSet, arch string, fieldInfos map[string]*FieldInfo) st
 /*
 AddModifiers adds the modifiers attribute nodes to given xml doc.
 */
-func AddModifiers(rs RecordSet, doc *etree.Document, fieldInfos map[string]*FieldInfo) {
+func AddModifiers(rs RecordCollection, doc *etree.Document, fieldInfos map[string]*FieldInfo) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
 		var mods []string
@@ -346,7 +346,7 @@ func AddModifiers(rs RecordSet, doc *etree.Document, fieldInfos map[string]*Fiel
 UpdateFieldNames changes the field names in the view to the column names.
 If a field name is already column names then it does nothing.
 */
-func UpdateFieldNames(rs RecordSet, doc *etree.Document) {
+func UpdateFieldNames(rs RecordCollection, doc *etree.Document) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
 		fi, ok := rs.mi.fields.get(fieldName)
@@ -378,7 +378,7 @@ FieldsGet returns the definition of each field.
 The _inherits'd fields are included.
 TODO The string, help, and selection (if present) attributes are translated.
 */
-func FieldsGet(rs RecordSet, args FieldsGetArgs) map[string]*FieldInfo {
+func FieldsGet(rs RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 	res := make(map[string]*FieldInfo)
 	fields := args.AllFields
 	if len(args.AllFields) == 0 {
@@ -423,7 +423,7 @@ type SearchParams struct {
 /*
 SearchRead retrieves database records according to the filters defined in params.
 */
-func SearchRead(rs RecordSet, params SearchParams) []FieldMap {
+func SearchRead(rs RecordCollection, params SearchParams) []FieldMap {
 	if searchCond := ParseDomain(params.Domain); searchCond != nil {
 		rs = *rs.Condition(searchCond)
 	}
@@ -447,7 +447,7 @@ func SearchRead(rs RecordSet, params SearchParams) []FieldMap {
 /*
 DefaultGet returns a Params map with the default values for the model.
 */
-func DefaultGet(rs RecordSet) FieldMap {
+func DefaultGet(rs RecordCollection) FieldMap {
 	// TODO Implement DefaultGet
 	return make(FieldMap)
 }
@@ -461,7 +461,7 @@ type OnchangeParams struct {
 /*
 Onchange returns the values that must be modified in the pseudo-record given as params.Values
 */
-func Onchange(rs RecordSet, params OnchangeParams) FieldMap {
+func Onchange(rs RecordCollection, params OnchangeParams) FieldMap {
 	// TODO Implement Onchange
 	return make(FieldMap)
 }

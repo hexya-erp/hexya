@@ -34,7 +34,7 @@ type CallParams struct {
 Execute executes a method on an object
 */
 func Execute(uid int64, params CallParams) (res interface{}, rError error) {
-	var rs models.RecordSet
+	var rs models.RecordCollection
 	defer func() {
 		if r := recover(); r != nil {
 			rs.Env().Cr().Rollback()
@@ -159,7 +159,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 		res = newRes.Interface()
 	}
 	// Return ID(s) if res is a *RecordSet
-	if rec, ok := res.(*models.RecordSet); ok {
+	if rec, ok := res.(*models.RecordCollection); ok {
 		if len(rec.Ids()) == 1 {
 			res = rec.ID()
 		} else {
@@ -174,7 +174,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 GetFieldValue retrieves the given field of the given model and id.
 */
 func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError error) {
-	var rs *models.RecordSet
+	var rs *models.RecordCollection
 	defer func() {
 		if r := recover(); r != nil {
 			if rs != nil {
@@ -222,7 +222,7 @@ type SearchReadResult struct {
 SearchRead retrieves database records according to the filters defined in params.
 */
 func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rError error) {
-	var rs *models.RecordSet
+	var rs *models.RecordCollection
 	defer func() {
 		if r := recover(); r != nil {
 			rs.Env().Cr().Rollback()

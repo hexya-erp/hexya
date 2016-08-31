@@ -16,17 +16,17 @@ package models
 
 // Create is a shortcut function for rs.Call("Create") on the current RecordSet.
 // Data can be either a struct pointer or a FieldMap.
-func (rs RecordSet) Create(data interface{}) *RecordSet {
-	return rs.Call("Create", data).(*RecordSet)
+func (rs RecordCollection) Create(data interface{}) *RecordCollection {
+	return rs.Call("Create", data).(*RecordCollection)
 }
 
 // Write is a shortcut for rs.Call("Write") on the current RecordSet.
 // Data can be either a struct pointer or a FieldMap.
-func (rs RecordSet) Write(data interface{}) bool {
+func (rs RecordCollection) Write(data interface{}) bool {
 	return rs.Call("Write", data).(bool)
 }
 
 // Unlink is a shortcut for rs.Call("Unlink") on the current RecordSet.
-func (rs RecordSet) Unlink() int64 {
+func (rs RecordCollection) Unlink() int64 {
 	return rs.Call("Unlink").(int64)
 }

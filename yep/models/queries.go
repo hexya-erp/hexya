@@ -34,7 +34,7 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 }
 
 type Query struct {
-	recordSet *RecordSet
+	recordSet *RecordCollection
 	cond      *Condition
 	related   []string
 	limit     int
@@ -357,8 +357,8 @@ func (q *Query) tablesSQL(fExprs [][]string) string {
 
 // newQuery returns a new empty query
 // If rs is given, bind this query to the given RecordSet.
-func newQuery(rs ...*RecordSet) Query {
-	var rset *RecordSet
+func newQuery(rs ...*RecordCollection) Query {
+	var rset *RecordCollection
 	if len(rs) > 0 {
 		rset = rs[0]
 	}

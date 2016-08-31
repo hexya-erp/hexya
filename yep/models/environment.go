@@ -82,12 +82,12 @@ func (env Environment) Sudo(userId ...int64) *Environment {
 
 // Create creates a new record in database from the given data and returns a recordSet
 // Data must be a struct pointer.
-func (env Environment) Create(data interface{}) *RecordSet {
+func (env Environment) Create(data interface{}) *RecordCollection {
 	if err := checkStructPtr(data); err != nil {
 		tools.LogAndPanic(log, err.Error())
 	}
 	modelName := getModelName(data)
-	rs := env.Pool(modelName).Call("Create", data).(*RecordSet)
+	rs := env.Pool(modelName).Call("Create", data).(*RecordCollection)
 	return rs
 }
 
@@ -125,6 +125,6 @@ func NewEnvironment(uid int64, context ...tools.Context) *Environment {
 /*
 Pool returns an empty RecordSet from the given table name string
 */
-func (env Environment) Pool(tableName string) *RecordSet {
+func (env Environment) Pool(tableName string) *RecordCollection {
 	return newRecordSet(&env, tableName)
 }

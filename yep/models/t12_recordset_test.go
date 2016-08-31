@@ -59,7 +59,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(len(profile.Ids()), ShouldEqual, 1)
 			So(userJane.Profile.ID, ShouldEqual, profile.ID())
 			rsUsers := env.Pool("User")
-			users2 := rsUsers.Call("Create", &userJane).(*RecordSet)
+			users2 := rsUsers.Call("Create", &userJane).(*RecordCollection)
 			So(len(users2.Ids()), ShouldEqual, 1)
 			So(userJane.ID, ShouldEqual, users2.ID())
 		})

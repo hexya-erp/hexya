@@ -21,7 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func PrefixUser(rs RecordSet, prefix string) []string {
+func PrefixUser(rs RecordCollection, prefix string) []string {
 	var res []string
 	type User_Simple struct {
 		ID       int64
@@ -35,7 +35,7 @@ func PrefixUser(rs RecordSet, prefix string) []string {
 	return res
 }
 
-func PrefixUserEmailExtension(rs RecordSet, prefix string) []string {
+func PrefixUserEmailExtension(rs RecordCollection, prefix string) []string {
 
 	res := rs.Super(prefix).([]string)
 	type User_Email struct {
@@ -50,22 +50,22 @@ func PrefixUserEmailExtension(rs RecordSet, prefix string) []string {
 	return res
 }
 
-func DecorateEmail(rs RecordSet, email string) string {
+func DecorateEmail(rs RecordCollection, email string) string {
 	return fmt.Sprintf("<%s>", email)
 }
 
-func DecorateEmailExtension(rs RecordSet, email string) string {
+func DecorateEmailExtension(rs RecordCollection, email string) string {
 	res := rs.Super(email).(string)
 	return fmt.Sprintf("[%s]", res)
 }
 
-func computeDecoratedName(rs RecordSet) FieldMap {
+func computeDecoratedName(rs RecordCollection) FieldMap {
 	res := make(FieldMap)
 	res["DecoratedName"] = rs.Call("PrefixedUser", "User").([]string)[0]
 	return res
 }
 
-func computeAge(rs RecordSet) FieldMap {
+func computeAge(rs RecordCollection) FieldMap {
 	res := make(FieldMap)
 	type Profile_Simple struct {
 		ID  int64

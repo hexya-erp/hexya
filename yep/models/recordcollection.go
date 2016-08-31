@@ -25,7 +25,7 @@ import (
 
 // RecordSet is a generic struct representing several
 // records of a model.
-type RecordSet struct {
+type RecordCollection struct {
 	query     Query
 	relDepth  int
 	mi        *modelInfo
@@ -35,7 +35,7 @@ type RecordSet struct {
 }
 
 // String returns the string representation of a RecordSet
-func (rs RecordSet) String() string {
+func (rs RecordCollection) String() string {
 	idsStr := make([]string, len(rs.ids))
 	for i, id := range rs.ids {
 		idsStr[i] = strconv.Itoa(int(id))
@@ -46,23 +46,23 @@ func (rs RecordSet) String() string {
 }
 
 // Env returns the RecordSet's Environment
-func (rs RecordSet) Env() *Environment {
+func (rs RecordCollection) Env() *Environment {
 	return rs.env
 }
 
 // ModelName returns the model name of the RecordSet
-func (rs RecordSet) ModelName() string {
+func (rs RecordCollection) ModelName() string {
 	return rs.mi.name
 }
 
 // Ids returns the ids of the RecordSet
-func (rs RecordSet) Ids() []int64 {
+func (rs RecordCollection) Ids() []int64 {
 	return rs.ids
 }
 
 // ID returns the ID of the unique record of this RecordSet
 // It panics if rs is not a singleton.
-func (rs RecordSet) ID() int64 {
+func (rs RecordCollection) ID() int64 {
 	rs.Search()
 	rs.EnsureOne()
 	return rs.ids[0]
@@ -70,7 +70,7 @@ func (rs RecordSet) ID() int64 {
 
 // RelatedDepth sets the depth at which to populate the structs with
 // ReadOne and ReadAll.
-func (rs RecordSet) RelatedDepth(depth int) *RecordSet {
+func (rs RecordCollection) RelatedDepth(depth int) *RecordCollection {
 	rs.relDepth = depth
 	return &rs
 }
@@ -79,7 +79,7 @@ func (rs RecordSet) RelatedDepth(depth int) *RecordSet {
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Create(), rs.Call("Create") or env.Create()
-func (rs RecordSet) create(data interface{}) *RecordSet {
+func (rs RecordCollection) create(data interface{}) *RecordCollection {
 	fMap := convertInterfaceToFieldMap(data)
 	rs.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
@@ -117,7 +117,7 @@ func (rs RecordSet) create(data interface{}) *RecordSet {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
-func (rs RecordSet) update(data interface{}) bool {
+func (rs RecordCollection) update(data interface{}) bool {
 	fMap := convertInterfaceToFieldMap(data)
 	rs.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
@@ -140,7 +140,7 @@ func (rs RecordSet) update(data interface{}) bool {
 // delete deletes the database record of this RecordSet and returns the number of deleted rows.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Unlink() or rs.Call("Unlink")
-func (rs RecordSet) delete() int64 {
+func (rs RecordCollection) delete() int64 {
 	sql, args := rs.query.deleteQuery()
 	res := DBExecute(rs.env.cr, sql, args...)
 	num, _ := res.RowsAffected()
@@ -150,7 +150,7 @@ func (rs RecordSet) delete() int64 {
 /*
 Filter returns a new RecordSet with the given additional filter condition.
 */
-func (rs RecordSet) Filter(cond, op string, data interface{}) *RecordSet {
+func (rs RecordCollection) Filter(cond, op string, data interface{}) *RecordCollection {
 	rs.query.cond = rs.query.cond.And(cond, op, data)
 	return &rs
 }
@@ -158,7 +158,7 @@ func (rs RecordSet) Filter(cond, op string, data interface{}) *RecordSet {
 /*
 Exclude returns a new RecordSet with the given additional NOT filter condition.
 */
-func (rs RecordSet) Exclude(cond, op string, data interface{}) *RecordSet {
+func (rs RecordCollection) Exclude(cond, op string, data interface{}) *RecordCollection {
 	rs.query.cond = rs.query.cond.AndNot(cond, op, data)
 	return &rs
 }
@@ -166,7 +166,7 @@ func (rs RecordSet) Exclude(cond, op string, data interface{}) *RecordSet {
 /*
 SetCond returns a new RecordSet with the given additional condition
 */
-func (rs RecordSet) Condition(cond *Condition) *RecordSet {
+func (rs RecordCollection) Condition(cond *Condition) *RecordCollection {
 	rs.query.cond = rs.query.cond.AndCond(cond)
 	return &rs
 }
@@ -174,7 +174,7 @@ func (rs RecordSet) Condition(cond *Condition) *RecordSet {
 /*
 Limit returns a new RecordSet with the given limit as additional condition
 */
-func (rs RecordSet) Limit(limit int, args ...int) *RecordSet {
+func (rs RecordCollection) Limit(limit int, args ...int) *RecordCollection {
 	rs.query.limit = limit
 	if len(args) > 0 {
 		rs.query.offset = args[0]
@@ -185,7 +185,7 @@ func (rs RecordSet) Limit(limit int, args ...int) *RecordSet {
 /*
 Offset returns a new RecordSet with the given offset as additional condition
 */
-func (rs RecordSet) Offset(offset int) *RecordSet {
+func (rs RecordCollection) Offset(offset int) *RecordCollection {
 	rs.query.offset = offset
 	return &rs
 }
@@ -193,7 +193,7 @@ func (rs RecordSet) Offset(offset int) *RecordSet {
 /*
 OrderBy returns a new RecordSet with the given ORDER BY clause in its Query
 */
-func (rs RecordSet) OrderBy(exprs ...string) *RecordSet {
+func (rs RecordCollection) OrderBy(exprs ...string) *RecordCollection {
 	rs.query.orders = append(rs.query.orders, exprs...)
 	return &rs
 }
@@ -201,13 +201,13 @@ func (rs RecordSet) OrderBy(exprs ...string) *RecordSet {
 /*
 GroupBy returns a new RecordSet with the given GROUP BY clause in its Query
 */
-func (rs RecordSet) GroupBy(exprs ...string) *RecordSet {
+func (rs RecordCollection) GroupBy(exprs ...string) *RecordCollection {
 	rs.query.groups = append(rs.query.groups, exprs...)
 	return &rs
 }
 
 // Distinct returns a new RecordSet with its Query filtering duplicates
-func (rs RecordSet) Distinct() *RecordSet {
+func (rs RecordCollection) Distinct() *RecordCollection {
 	rs.query.distinct = true
 	return &rs
 }
@@ -215,7 +215,7 @@ func (rs RecordSet) Distinct() *RecordSet {
 // Search query the database with the current filter and fills the RecordSet with the queries ids.
 // Does nothing in case RecordSet already has Ids. It panics in case of error.
 // It returns a pointer to the same RecordSet.
-func (rs *RecordSet) Search() *RecordSet {
+func (rs *RecordCollection) Search() *RecordCollection {
 	if len(rs.Ids()) == 0 {
 		return rs.ForceSearch()
 	}
@@ -225,7 +225,7 @@ func (rs *RecordSet) Search() *RecordSet {
 // ForceSearch query the database with the current filter and fills the RecordSet with the queries ids.
 // Overwrite RecordSet Ids if any. It panics in case of error.
 // It returns a pointer to the same RecordSet.
-func (rs *RecordSet) ForceSearch() *RecordSet {
+func (rs *RecordCollection) ForceSearch() *RecordCollection {
 	var idsMap []FieldMap
 	num := rs.ReadValues(&idsMap, "id")
 	ids := make([]int64, num)
@@ -239,7 +239,7 @@ func (rs *RecordSet) ForceSearch() *RecordSet {
 SearchCount fetch from the database the number of records that match the RecordSet conditions
 It panics in case of error
 */
-func (rs RecordSet) SearchCount() int {
+func (rs RecordCollection) SearchCount() int {
 	sql, args := rs.query.countQuery()
 	var res int
 	DBGet(rs.env.cr, &res, sql, args...)
@@ -250,7 +250,7 @@ func (rs RecordSet) SearchCount() int {
 // If cols are given, retrieve only the given fields.
 // Returns the number of rows fetched.
 // It panics in case of error
-func (rs RecordSet) ReadAll(container interface{}, cols ...string) int64 {
+func (rs RecordCollection) ReadAll(container interface{}, cols ...string) int64 {
 	rs = *rs.Search()
 	if err := checkStructSlicePtr(container); err != nil {
 		tools.LogAndPanic(log, err.Error(), "container", container)
@@ -278,7 +278,7 @@ func (rs RecordSet) ReadAll(container interface{}, cols ...string) int64 {
 // ReadOne query the RecordSet row and map to container.
 // If cols are given, retrieve only the given fields.
 // It panics if the RecordSet does not contain exactly one row.
-func (rs RecordSet) ReadOne(container interface{}, cols ...string) {
+func (rs RecordCollection) ReadOne(container interface{}, cols ...string) {
 	rs = *rs.Search()
 	rs.EnsureOne()
 	if err := checkStructPtr(container); err != nil {
@@ -294,7 +294,7 @@ func (rs RecordSet) ReadOne(container interface{}, cols ...string) {
 
 // Value query a single line of data in the database and maps the
 // result to the result FieldMap
-func (rs RecordSet) ReadValue(result *FieldMap, fields ...string) {
+func (rs RecordCollection) ReadValue(result *FieldMap, fields ...string) {
 	rs.EnsureOne()
 	var fieldsMap []FieldMap
 	rs.ReadValues(&fieldsMap, fields...)
@@ -306,7 +306,7 @@ func (rs RecordSet) ReadValue(result *FieldMap, fields ...string) {
 // fields are the fields to retrieve in the expression format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
 // If no fields are given, all columns of the RecordSet's model are retrieved.
-func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
+func (rs RecordCollection) ReadValues(results *[]FieldMap, fields ...string) int64 {
 	if len(fields) == 0 {
 		fields = rs.mi.fields.nonRelatedFieldJSONNames()
 	}
@@ -336,8 +336,8 @@ func (rs RecordSet) ReadValues(results *[]FieldMap, fields ...string) int64 {
 }
 
 // Records returns the slice of RecordSet singletons that constitute this RecordSet
-func (rs RecordSet) Records() []*RecordSet {
-	res := make([]*RecordSet, len(rs.Ids()))
+func (rs RecordCollection) Records() []*RecordCollection {
+	res := make([]*RecordCollection, len(rs.Ids()))
 	for i, id := range rs.Ids() {
 		res[i] = rs.withIds([]int64{id})
 	}
@@ -345,7 +345,7 @@ func (rs RecordSet) Records() []*RecordSet {
 }
 
 // EnsureOne panics if rs is not a singleton
-func (rs RecordSet) EnsureOne() {
+func (rs RecordCollection) EnsureOne() {
 	rs.Search()
 	if len(rs.Ids()) != 1 {
 		tools.LogAndPanic(log, "Expected singleton", "model", rs.ModelName(), "received", rs)
@@ -354,7 +354,7 @@ func (rs RecordSet) EnsureOne() {
 
 // withIdMap sets the given RecordSet ids to the given ids slice (overwriting current query).
 // This method both replaces in place and returns a pointer to the same RecordSet.
-func (rs *RecordSet) withIds(ids []int64) *RecordSet {
+func (rs *RecordCollection) withIds(ids []int64) *RecordCollection {
 	rs.ids = ids
 	if len(ids) > 0 {
 		rs.query.cond = NewCondition()
@@ -364,12 +364,12 @@ func (rs *RecordSet) withIds(ids []int64) *RecordSet {
 }
 
 // newRecordSet returns a new empty RecordSet in the given environment for the given modelName
-func newRecordSet(env *Environment, modelName string) *RecordSet {
+func newRecordSet(env *Environment, modelName string) *RecordCollection {
 	mi, ok := modelRegistry.get(modelName)
 	if !ok {
 		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
-	rs := RecordSet{
+	rs := RecordCollection{
 		mi:    mi,
 		query: newQuery(),
 		env:   env,

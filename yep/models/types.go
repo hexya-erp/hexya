@@ -62,7 +62,7 @@ func (d DateTime) IsNull() bool {
 	return false
 }
 
-// MarshalJSON for Date type
+// MarshalJSON for DateTime type
 func (d DateTime) MarshalJSON() ([]byte, error) {
 	if d.IsNull() {
 		return []byte("null"), nil
@@ -151,4 +151,32 @@ func (rf *RecordRef) UnmarshalJSON(data []byte) error {
 	rf.ID = arr[0].(int64)
 	rf.Name = arr[1].(string)
 	return nil
+}
+
+// RecordSet identifies a type that holds a set of records of
+// a given model.
+type RecordSet interface {
+	// ModelName returns the name of the model of this RecordSet
+	ModelName() string
+	// Ids returns the ids in this set of Records
+	Ids() []int64
+}
+
+// Caller identifies a type that can call layered methods on itself
+type Caller interface {
+	// Call calls the given method with the given arguments
+	Call(methodName string, args ...interface{}) interface{}
+	// Super calls the next method Layer after the given funcPtr.
+	// This method is meant to be used inside a method layer function
+	// to call its parent.
+	Super(args ...interface{}) interface{}
+}
+
+// Querier identifies a type that can make CRUD operations on
+// a model. Data is read or written to RecordSet objects.
+type Querier interface {
+	Create(modelName string, data RecordSet)
+	Read(modelName string, condition *Condition, dest RecordSet)
+	Update(rs RecordSet)
+	Delete(rs RecordSet)
 }

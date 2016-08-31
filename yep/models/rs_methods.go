@@ -23,7 +23,7 @@ import (
 
 // Call calls the given method name methName with the given arguments and return the
 // result as interface{}.
-func (rs RecordSet) Call(methName string, args ...interface{}) interface{} {
+func (rs RecordCollection) Call(methName string, args ...interface{}) interface{} {
 	methInfo, ok := rs.mi.methods.get(methName)
 	if !ok {
 		tools.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rs.ModelName())
@@ -35,7 +35,7 @@ func (rs RecordSet) Call(methName string, args ...interface{}) interface{} {
 }
 
 // call is a wrapper around reflect.Value.Call() to use with interface{} type.
-func (rs RecordSet) call(methLayer *methodLayer, args ...interface{}) interface{} {
+func (rs RecordCollection) call(methLayer *methodLayer, args ...interface{}) interface{} {
 	fnVal := methLayer.funcValue
 	fnTyp := fnVal.Type()
 
@@ -55,9 +55,9 @@ func (rs RecordSet) call(methLayer *methodLayer, args ...interface{}) interface{
 	return retVal[0].Interface()
 }
 
-// Super calls the next method Layer after the given funcPtr.
+// Super calls the next method Layer.
 // This method is meant to be used inside a method layer function to call its parent.
-func (rs RecordSet) Super(args ...interface{}) interface{} {
+func (rs RecordCollection) Super(args ...interface{}) interface{} {
 	if len(rs.callStack) == 0 {
 		tools.LogAndPanic(log, "Empty call stack", "model", rs.mi.name)
 	}
@@ -74,7 +74,7 @@ func (rs RecordSet) Super(args ...interface{}) interface{} {
 }
 
 // MethodType returns the type of the method given by methName
-func (rs RecordSet) MethodType(methName string) reflect.Type {
+func (rs RecordCollection) MethodType(methName string) reflect.Type {
 	methInfo, ok := rs.mi.methods.get(methName)
 	if !ok {
 		tools.LogAndPanic(log, "Unknown method in model", "model", rs.ModelName(), "method", methName)

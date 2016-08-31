@@ -17,7 +17,7 @@ package models
 // substituteRelatedFields returns a copy of the given fields slice with
 // related fields substituted by their related field path. It also returns
 // the list of substitutions to be given to resetRelatedFields.
-func (rs *RecordSet) substituteRelatedFields(fields []string) ([]string, []KeySubstitution) {
+func (rs *RecordCollection) substituteRelatedFields(fields []string) ([]string, []KeySubstitution) {
 	// We create a map to check if the substituted field already exists
 	duplMap := make(map[string]bool, len(fields))
 	for _, field := range fields {

@@ -19,7 +19,7 @@ import "fmt"
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
 // Returned fieldMap keys are field's JSON name
-func (rs RecordSet) computeFieldValues(params *FieldMap, fields ...string) {
+func (rs RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
 	for _, fInfo := range rs.mi.fields.getComputedFields(fields...) {
 		if _, exists := (*params)[fInfo.name]; exists {
 			// We already have the value we need in params
@@ -37,7 +37,7 @@ func (rs RecordSet) computeFieldValues(params *FieldMap, fields ...string) {
 /*
 updateStoredFields updates all dependent fields of rs that are included in the given FieldMap.
 */
-func (rs RecordSet) updateStoredFields(fMap FieldMap) {
+func (rs RecordCollection) updateStoredFields(fMap FieldMap) {
 	// First get list of fields that have been passed through structPtrOrParams
 	fieldNames := fMap.Keys()
 	var toUpdate []computeData
