@@ -23,7 +23,7 @@ import (
 	"github.com/npiganeau/yep/yep/tools"
 )
 
-// RecordSet is a generic struct representing several
+// RecordCollection is a generic struct representing several
 // records of a model.
 type RecordCollection struct {
 	query     Query
