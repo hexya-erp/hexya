@@ -59,13 +59,14 @@ func newMethodsCollection() *methodsCollection {
 	return &mc
 }
 
-// methodInfo is a RecordSet method info
+// A methodInfo is a definition of a model's method
 type methodInfo struct {
-	name       string
-	mi         *modelInfo
-	methodType reflect.Type
-	topLayer   *methodLayer
-	nextLayer  map[*methodLayer]*methodLayer
+	name         string
+	mi           *modelInfo
+	methodType   reflect.Type
+	topLayer     *methodLayer
+	nextLayer    map[*methodLayer]*methodLayer
+	baseLayerPkg string
 }
 
 // addMethodLayer adds the given layer to this methodInfo.
@@ -98,10 +99,11 @@ func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodI
 	}
 
 	methInfo := methodInfo{
-		mi:         mi,
-		name:       methodName,
-		methodType: val.Type(),
-		nextLayer:  make(map[*methodLayer]*methodLayer),
+		mi:           mi,
+		name:         methodName,
+		methodType:   val.Type(),
+		nextLayer:    make(map[*methodLayer]*methodLayer),
+		baseLayerPkg: val.Type().PkgPath(),
 	}
 	methInfo.topLayer = &methodLayer{
 		funcValue: val,
@@ -110,32 +112,49 @@ func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodI
 	return &methInfo
 }
 
-/*
-DeclareMethod creates a new method (or override it if it exists) on given model
-name and adds the given fnct as layer for this method. This function must have a RecordSet as
-first argument.
-*/
-func DeclareMethod(modelName, methodName string, fnct interface{}) {
+// CreateMethod creates a new method on given model name and adds the given fnct
+// as first layer for this method. Given fnct function must have a RecordSet as
+// first argument.
+func CreateMethod(modelName, methodName string, fnct interface{}) {
+	mi := checkMethodAndFnctType(modelName, methodName, fnct)
+	_, exists := mi.methods.get(methodName)
+	if exists {
+		tools.LogAndPanic(log, "Call to CreateMethod with an existing method name", "model", modelName, "method", methodName)
+	}
+	mi.methods.set(methodName, newMethodInfo(mi, methodName, reflect.ValueOf(fnct)))
+}
+
+// ExtendMethod adds the given fnct function as a new layer on the given
+// method of the given model.
+// fnct must be of the same signature as the first layer of this method.
+func ExtendMethod(modelName, methodName string, fnct interface{}) {
+	mi := checkMethodAndFnctType(modelName, methodName, fnct)
+	methInfo, exists := mi.methods.get(methodName)
+	if !exists {
+		tools.LogAndPanic(log, "Call to ExtendMethod on non existant method", "model", modelName, "method", methodName)
+	}
+	val := reflect.ValueOf(fnct)
+	if methInfo.methodType != val.Type() {
+		tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
+			"received", methInfo.methodType, "expected", val.Type())
+	}
+	methInfo.addMethodLayer(val)
+}
+
+// checkMethodAndFnctType checks whether the given arguments are valid for
+// CreateMethod or ExtendMethod
+func checkMethodAndFnctType(modelName, methodName string, fnct interface{}) *modelInfo {
 	mi, ok := modelRegistry.get(modelName)
 	if !ok {
 		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	if mi.methods.bootstrapped {
-		tools.LogAndPanic(log, "CreateMethod must be run before BootStrap", "model", modelName, "method", methodName)
+		tools.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", modelName, "method", methodName)
 	}
 
 	val := reflect.ValueOf(fnct)
 	if val.Kind() != reflect.Func {
 		tools.LogAndPanic(log, "fnct parameter must be a function", "model", modelName, "method", methodName, "fnct", fnct)
 	}
-	methInfo, exists := mi.methods.get(methodName)
-	if exists {
-		if methInfo.methodType != val.Type() {
-			tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
-				"received", methInfo.methodType, "expected", val.Type())
-		}
-		methInfo.addMethodLayer(val)
-	} else {
-		mi.methods.set(methodName, newMethodInfo(mi, methodName, val))
-	}
+	return mi
 }
