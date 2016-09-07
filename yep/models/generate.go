@@ -17,35 +17,37 @@ package models
 import (
 	"fmt"
 	"path"
+	"reflect"
 	"strings"
 	"text/template"
 
-	"github.com/npiganeau/yep/yep/tools"
-	"reflect"
+	"github.com/npiganeau/yep/yep/tools/generate"
 )
 
 // GeneratePool generates source code files inside the
 // given directory for all models.
 func GeneratePool(dir string) {
+	docParamsMap := generate.GetMethodsDocAndParamsNames()
 	for modelName, mi := range modelRegistry.registryByName {
 		fileName := fmt.Sprintf("%s.go", strings.ToLower(modelName))
-		generateModelPoolFile(mi, path.Join(dir, fileName))
+		generateModelPoolFile(mi, path.Join(dir, fileName), docParamsMap)
 	}
 }
 
 // generateModelPoolFile generates the file with the source code of the
 // pool object for the given modelInfo.
-func generateModelPoolFile(mi *modelInfo, fileName string) {
+func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[generate.MethodRef]generate.DocAndParams) {
 	// Generate model data
 	deps := map[string]bool{
-		"github.com/npiganeau/yep/yep/models": true,
-		"github.com/npiganeau/yep/pool":       true,
+		generate.MODELS_PATH: true,
+		generate.POOL_PATH:   true,
 	}
 	type methodData struct {
-		Name       string
-		Params     string
-		ParamsType string
-		Returns    string
+		Name           string
+		Doc            string
+		Params         string
+		ParamsWithType string
+		Returns        string
 	}
 	type modelData struct {
 		Name    string
@@ -74,35 +76,41 @@ func generateModelPoolFile(mi *modelInfo, fileName string) {
 		addDependency(&mData, fi.structField.Type)
 	}
 	// Add methods
-	fmt.Println("Yes, we are Methods")
 	for methodName, methInfo := range mi.methods.cache {
+		ref := generate.MethodRef{Model: mi.name, Method: methodName}
+		dParams, ok := docParamsMap[ref]
+		if !ok {
+			// Methods generated in 'yep/models' don't have a model set
+			newRef := generate.MethodRef{Model: "", Method: methodName}
+			dParams = docParamsMap[newRef]
+		}
 		methType := methInfo.methodType
 		params := make([]string, methType.NumIn()-1)
 		paramsType := make([]string, methType.NumIn()-1)
-		fmt.Println("Method", methodName)
 		for i := 0; i < methType.NumIn()-1; i++ {
-			paramsType[i] = fmt.Sprintf("in%d %s", i, methType.In(i+1).String())
-			params[i] = fmt.Sprintf("in%d", i)
-			fmt.Println("In Type PkgPath:", methType.In(i+1).PkgPath())
+			mts := methType.In(i + 1).String()
+			paramsType[i] = fmt.Sprintf("%s %s", dParams.Params[i+1], strings.Replace(mts, "pool.", "", 1))
+			params[i] = dParams.Params[i+1]
 			addDependency(&mData, methType.In(i+1))
 		}
 
 		var returns string
 		if methType.NumOut() > 0 {
-			returns = methType.Out(0).String()
+			returns = strings.Replace(methType.Out(0).String(), "pool.", "", 1)
 			addDependency(&mData, methType.Out(0))
 		}
 
 		methData := methodData{
-			Name:       methodName,
-			Params:     strings.Join(params, ", "),
-			ParamsType: strings.Join(paramsType, ", "),
-			Returns:    returns,
+			Name:           methodName,
+			Doc:            dParams.Doc,
+			Params:         strings.Join(params, ", "),
+			ParamsWithType: strings.Join(paramsType, ", "),
+			Returns:        returns,
 		}
 		mData.Methods = append(mData.Methods, methData)
 	}
 	// Create file
-	tools.CreateFileFromTemplate(fileName, defsFileTemplate, mData)
+	generate.CreateFileFromTemplate(fileName, defsFileTemplate, mData)
 	log.Info("Generated pool source file for model", "model", mi.name, "fileName", fileName)
 }
 
@@ -148,8 +156,8 @@ func (s *{{ .Name }}) Call(methName string, args ...interface{}) interface{} {
 }
 
 {{ range .Methods }}
-// {{ .Name }} is a shortcut for the {{ .Name }} method of the {{ $.Name }} model
-func (s *{{ $.Name }}) {{ .Name }}({{ .ParamsType }}) ({{ .Returns }}) {
+{{ .Doc }}
+func (s *{{ $.Name }}) {{ .Name }}({{ .ParamsWithType }}) ({{ .Returns }}) {
 {{ if eq .Returns "" -}}
 	s.Call("{{ .Name }}", {{ .Params}})
 {{- else -}}
@@ -191,8 +199,8 @@ func (s *{{ .Name }}Set) Call(methName string, args ...interface{}) interface{} 
 }
 
 {{ range .Methods }}
-// {{ .Name }} is a shortcut for the {{ .Name }} method of the {{ $.Name }}Set model
-func (s *{{ $.Name }}Set) {{ .Name }}({{ .ParamsType }}) ({{ .Returns }}) {
+{{ .Doc }}
+func (s *{{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .Returns }}) {
 {{ if eq .Returns "" -}}
 	s.Call("{{ .Name }}", {{ .Params}})
 {{- else -}}

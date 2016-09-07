@@ -61,12 +61,11 @@ func newMethodsCollection() *methodsCollection {
 
 // A methodInfo is a definition of a model's method
 type methodInfo struct {
-	name         string
-	mi           *modelInfo
-	methodType   reflect.Type
-	topLayer     *methodLayer
-	nextLayer    map[*methodLayer]*methodLayer
-	baseLayerPkg string
+	name       string
+	mi         *modelInfo
+	methodType reflect.Type
+	topLayer   *methodLayer
+	nextLayer  map[*methodLayer]*methodLayer
 }
 
 // addMethodLayer adds the given layer to this methodInfo.
@@ -99,11 +98,10 @@ func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodI
 	}
 
 	methInfo := methodInfo{
-		mi:           mi,
-		name:         methodName,
-		methodType:   val.Type(),
-		nextLayer:    make(map[*methodLayer]*methodLayer),
-		baseLayerPkg: val.Type().PkgPath(),
+		mi:         mi,
+		name:       methodName,
+		methodType: val.Type(),
+		nextLayer:  make(map[*methodLayer]*methodLayer),
 	}
 	methInfo.topLayer = &methodLayer{
 		funcValue: val,

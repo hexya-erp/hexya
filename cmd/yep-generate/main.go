@@ -21,10 +21,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"strings"
 	"text/template"
 
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/generate"
 )
 
 const (
@@ -44,11 +43,11 @@ YEP Generate
 Loading program...
 Warnings may appear here, just ignore them if yep-generate doesn't crash
 `)
-	conf.Import("github.com/npiganeau/yep/config")
+	conf.Import(generate.CONFIG_PATH)
 	program, _ := conf.Load()
 	fmt.Println("Ok")
 	fmt.Print("Identifying modules...")
-	modules := getModulePackages(program)
+	modules := generate.GetModulePackages(program)
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 1: Generating temporary structs...")
@@ -69,83 +68,18 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash
 	fmt.Println("Pool successfully generated")
 }
 
-// moduleType describes a type of module
-type packageType int8
-
-const (
-	// The base package of a module
-	BASE packageType = iota
-	// The defs package of a module
-	DEFS
-	// A sub package of a module (that is not defs)
-	SUB
-)
-
-// moduleInfo is a wrapper around loader.Package with additional data to
-// describe a module.
-type moduleInfo struct {
-	loader.PackageInfo
-	modType packageType
-}
-
-// newModuleInfo returns a pointer to a new moduleInfo instance
-func newModuleInfo(pack *loader.PackageInfo, modType packageType) *moduleInfo {
-	return &moduleInfo{
-		PackageInfo: *pack,
-		modType:     modType,
-	}
-}
-
 // cleanPoolDir removes all files in the given directory and leaves only
 // one empty file declaring package 'pool'.
 func cleanPoolDir(dirName string) {
 	os.RemoveAll(dirName)
 	os.MkdirAll(dirName, 0755)
-	tools.CreateFileFromTemplate(path.Join(dirName, "temp.go"), emptyPoolTemplate, nil)
-}
-
-// getModulePackages returns a slice of PackageInfo for packages that are yep modules, that is:
-// - A package that declares a "MODULE_NAME" constant
-// - A package that is in a subdirectory of a package
-func getModulePackages(program *loader.Program) []*moduleInfo {
-	modules := make(map[string]*moduleInfo)
-
-	// We add to the modulePaths all packages which define a MODULE_NAME constant
-	for _, pack := range program.AllPackages {
-		obj := pack.Pkg.Scope().Lookup("MODULE_NAME")
-		_, ok := obj.(*types.Const)
-		if ok {
-			modules[pack.Pkg.Path()] = newModuleInfo(pack, BASE)
-		}
-	}
-
-	// Now we add packages that live inside another module
-	for _, pack := range program.AllPackages {
-		for _, module := range modules {
-			if strings.HasPrefix(pack.Pkg.Path(), module.Pkg.Path()) {
-				typ := SUB
-				if strings.HasSuffix(pack.String(), "defs") {
-					typ = DEFS
-				}
-				modules[pack.Pkg.Path()] = newModuleInfo(pack, typ)
-			}
-		}
-	}
-
-	// Finally, we build up our result slice from modules map
-	modSlice := make([]*moduleInfo, len(modules))
-	var i int
-	for _, mod := range modules {
-		modSlice[i] = mod
-		i++
-	}
-	return modSlice
+	generate.CreateFileFromTemplate(path.Join(dirName, "temp.go"), emptyPoolTemplate, nil)
 }
 
 // getMissingDeclarations parses the errors from the program for
 // identifiers not declared in package pool, and returns a slice
 // with all these names.
-func getMissingDeclarations(packages []*moduleInfo) []string {
+func getMissingDeclarations(packages []*generate.ModuleInfo) []string {
 	// We scan all packages and populate a map to have distinct values
 	missing := make(map[string]bool)
 	for _, pack := range packages {
@@ -179,15 +113,15 @@ func getMissingDeclarations(packages []*moduleInfo) []string {
 // This is typically done so that yep can compile to have access to
 // reflection and generate the final structs.
 func generateTempStructs(fileName string, names []string) {
-	tools.CreateFileFromTemplate(fileName, tempStructsTemplate, names)
+	generate.CreateFileFromTemplate(fileName, tempStructsTemplate, names)
 }
 
 // filterDefsModules returns the names of modules of type DEFS from the given
 // modules list.
-func filterDefsModules(modules []*moduleInfo) []string {
+func filterDefsModules(modules []*generate.ModuleInfo) []string {
 	var modulesList []string
 	for _, modInfo := range modules {
-		if modInfo.modType == DEFS {
+		if modInfo.ModType == generate.DEFS {
 			modulesList = append(modulesList, modInfo.String())
 		}
 	}
@@ -198,7 +132,7 @@ func filterDefsModules(modules []*moduleInfo) []string {
 // in the model registry that will be created by importing the given modules.
 func generateFromModelRegistry(dirName string, modules []string) {
 	generatorFileName := path.Join(os.TempDir(), STRUCT_GEN)
-	//defer os.Remove(generatorFileName)
+	defer os.Remove(generatorFileName)
 
 	data := struct {
 		Imports []string
@@ -207,7 +141,7 @@ func generateFromModelRegistry(dirName string, modules []string) {
 		Imports: modules,
 		DirName: dirName,
 	}
-	tools.CreateFileFromTemplate(generatorFileName, buildTemplate, data)
+	generate.CreateFileFromTemplate(generatorFileName, buildTemplate, data)
 
 	cmd := exec.Command("go", "run", generatorFileName)
 	if output, err := cmd.CombinedOutput(); err != nil {
