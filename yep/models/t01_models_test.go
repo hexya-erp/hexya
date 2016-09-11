@@ -21,7 +21,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func PrefixUser(rs RecordCollection, prefix string) []string {
+func PrefixUser(rs *RecordCollection, prefix string) []string {
 	var res []string
 	type User_Simple struct {
 		ID       int64
@@ -35,7 +35,7 @@ func PrefixUser(rs RecordCollection, prefix string) []string {
 	return res
 }
 
-func PrefixUserEmailExtension(rs RecordCollection, prefix string) []string {
+func PrefixUserEmailExtension(rs *RecordCollection, prefix string) []string {
 
 	res := rs.Super(prefix).([]string)
 	type User_Email struct {
@@ -50,22 +50,22 @@ func PrefixUserEmailExtension(rs RecordCollection, prefix string) []string {
 	return res
 }
 
-func DecorateEmail(rs RecordCollection, email string) string {
+func DecorateEmail(rs *RecordCollection, email string) string {
 	return fmt.Sprintf("<%s>", email)
 }
 
-func DecorateEmailExtension(rs RecordCollection, email string) string {
+func DecorateEmailExtension(rs *RecordCollection, email string) string {
 	res := rs.Super(email).(string)
 	return fmt.Sprintf("[%s]", res)
 }
 
-func computeDecoratedName(rs RecordCollection) FieldMap {
+func computeDecoratedName(rs *RecordCollection) FieldMap {
 	res := make(FieldMap)
 	res["DecoratedName"] = rs.Call("PrefixedUser", "User").([]string)[0]
 	return res
 }
 
-func computeAge(rs RecordCollection) FieldMap {
+func computeAge(rs *RecordCollection) FieldMap {
 	res := make(FieldMap)
 	type Profile_Simple struct {
 		ID  int64
@@ -94,12 +94,12 @@ func TestCreateDB(t *testing.T) {
 		CreateModel("Tag")
 		ExtendModel("Tag", new(Tag), new(Tag_Extension))
 
-		DeclareMethod("User", "PrefixedUser", PrefixUser)
-		DeclareMethod("User", "PrefixedUser", PrefixUserEmailExtension)
-		DeclareMethod("User", "DecorateEmail", DecorateEmail)
-		DeclareMethod("User", "DecorateEmail", DecorateEmailExtension)
-		DeclareMethod("User", "computeDecoratedName", computeDecoratedName)
-		DeclareMethod("User", "computeAge", computeAge)
+		CreateMethod("User", "PrefixedUser", PrefixUser)
+		ExtendMethod("User", "PrefixedUser", PrefixUserEmailExtension)
+		CreateMethod("User", "DecorateEmail", DecorateEmail)
+		ExtendMethod("User", "DecorateEmail", DecorateEmailExtension)
+		CreateMethod("User", "computeDecoratedName", computeDecoratedName)
+		CreateMethod("User", "computeAge", computeAge)
 
 		// Creating a dummy table to check that it is correctly removed by Bootstrap
 		db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")

@@ -18,6 +18,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -170,6 +171,8 @@ type Caller interface {
 	// This method is meant to be used inside a method layer function
 	// to call its parent.
 	Super(args ...interface{}) interface{}
+	// MethodType returns the type of the method given by methName
+	MethodType(string) reflect.Type
 }
 
 // Querier identifies a type that can make CRUD operations on

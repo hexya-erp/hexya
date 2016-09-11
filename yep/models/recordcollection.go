@@ -26,12 +26,11 @@ import (
 // RecordCollection is a generic struct representing several
 // records of a model.
 type RecordCollection struct {
-	query     Query
-	relDepth  int
-	mi        *modelInfo
-	env       *Environment
-	ids       []int64
-	callStack []*methodLayer
+	BaseCaller
+	query    Query
+	relDepth int
+	env      *Environment
+	ids      []int64
 }
 
 // String returns the string representation of a RecordSet
@@ -51,18 +50,18 @@ func (rs RecordCollection) Env() *Environment {
 }
 
 // ModelName returns the model name of the RecordSet
-func (rs RecordCollection) ModelName() string {
+func (rs *RecordCollection) ModelName() string {
 	return rs.mi.name
 }
 
 // Ids returns the ids of the RecordSet
-func (rs RecordCollection) Ids() []int64 {
+func (rs *RecordCollection) Ids() []int64 {
 	return rs.ids
 }
 
 // ID returns the ID of the unique record of this RecordSet
 // It panics if rs is not a singleton.
-func (rs RecordCollection) ID() int64 {
+func (rs *RecordCollection) ID() int64 {
 	rs.Search()
 	rs.EnsureOne()
 	return rs.ids[0]
@@ -363,6 +362,8 @@ func (rs *RecordCollection) withIds(ids []int64) *RecordCollection {
 	return rs
 }
 
+var _ RecordSet = new(RecordCollection)
+
 // newRecordSet returns a new empty RecordSet in the given environment for the given modelName
 func newRecordSet(env *Environment, modelName string) *RecordCollection {
 	mi, ok := modelRegistry.get(modelName)
@@ -370,7 +371,9 @@ func newRecordSet(env *Environment, modelName string) *RecordCollection {
 		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	rs := RecordCollection{
-		mi:    mi,
+		BaseCaller: BaseCaller{
+			mi: mi,
+		},
 		query: newQuery(),
 		env:   env,
 		ids:   make([]int64, 0),

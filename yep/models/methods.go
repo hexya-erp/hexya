@@ -93,8 +93,8 @@ type methodLayer struct {
 // First argument of given function must implement RecordSet.
 func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodInfo {
 	funcType := val.Type()
-	if funcType.NumIn() == 0 || funcType.In(0) != reflect.TypeOf((*RecordCollection)(nil)).Elem() {
-		tools.LogAndPanic(log, "Function must have `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName)
+	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+		tools.LogAndPanic(log, "Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
 	}
 
 	methInfo := methodInfo{
