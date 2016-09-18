@@ -1,0 +1,523 @@
+= Models API
+Author Nicolas Piganeau
+:prewrap!:
+:toc:
+
+== Introduction
+
+The models API allows modules to interact with YEP's models and records. This
+API is mainly an ORM but with additional features needed for business logic.
+Developers familiar with Odoo's ORM should find many similarities with the
+latter.
+
+Special care has been put in YEP's model API to ease development. In
+particular:
+
+* Almost no reflection so that a standard Go IDE can propose relevant
+inspections and autocompletion.
+* Type safety by preferring structs to maps and almost never use string
+references so that most mistakes can be spotted at compile time.
+
+== RecordSets
+
+=== Records and RecordSets types
+
+Interaction with models and records is performed through RecordSets, a sorted
+set of Records of the same model. Methods defined on a model are executed on a
+RecordSet.
+
+Each model has its own RecordSet Go type named by appending "Set" to the
+model's name (e.g. the RecordSet type for the `ResPartner` model is called
+`ResPartnerSet`). All RecordSet types implement the `RecordSet` interface, but
+also a whole set of methods with defined names but which differ by the
+parameters or return values types. For example, all RecordSets implement a
+`Create` method but each take a Record struct of its model type and return its
+own type.
+
+Each model has also its own Record Go type which has the same name as its
+model's name. A Record type is simply a struct with all the fields of the model
+whether they are stored into the database or computed on the fly. Record types
+are used to read and write values to RecordSets.
+
+All Record and RecordSet types live in the `pool` package.
+
+A constant for the field name of each model of type `models.FieldName` exists
+in the `pool` package in the form `pool.__ModelName_FieldName__`.
+
+=== Using RecordSets
+
+RecordSets are self-querying. One should initialize an empty RecordSet call
+`search()` on it to populate it from the database. RecordSets implement lazy
+loading, so that data is actually queried only when needed.
+
+An empty RecordSet instance of a model `ModelName` can be instantiated by
+calling `pool.NewModelNameSet()`.
+
+=== Common RecordSet Methods
+
+The following methods can be called RecordSet instances.
+
+[NOTE]
+====
+A parameter or return value of type `RecordSetType` means the actual type of
+the RecordSet for this model (not an interface).
+
+A parameter or return value of type `RecordType` means the actual type of the
+Record struct for this model.
+====
+
+==== Data Access Methods
+
+`*First() RecordType*`::
+Returns a copy of the first Record of the RecordSet. It panics if the RecordSet
+is empty.
+
+RecordSets implement type safe getters and setters for all fields of the
+Record struct type.
+
+`*__FieldName__() __FieldType__*`::
+Getter for the field called `__FieldName__` of type `__FieldType__` of the
+`First()` Record of the RecordSet. Call to the getter will make a call to
+`Read()` first if the field is not loaded in the RecordSet's cache.
++
+It panics if it is called on an empty RecordSet.
+
+`*Set__FieldName__(value __FieldType__)*`::
+Setter for the field called `__FieldName__` of type `__FieldType__`. If the
+RecordSet has several Records, all of them will be updated. Each call to the
+setter makes an update query in the database.
++
+It panics if it is called on an empty RecordSet.
+
+NOTE: The `__FieldType__` of a relation field (i.e. many2one, ...) is a
+RecordSet of the type of the related model.
+
+==== CRUD Methods
+
+`*Create(data *RecordType) RecordSetType*`::
+Insert a new record in the database with the given data and returns the
+inserted Record. Fields which are not given a value are set to the type's zero
+value.
+
+[source,go]
+----
+customer := pool.NewResPartnerSet().Create(pool.ResPartner{
+    Name: "Jane Smith",
+    Email: "jsmith@example.com",
+    Position: "Sale's Manager",
+})
+fmt.Println(customer.Name())
+// Returns:
+// Jane Smith
+----
+
+IMPORTANT: `Create` is meant to be called on an empty RecordSet.
+Thus, it discards any value already loaded.
+
+`*Write(data *RecordType, fieldsToUnset ...models.FieldName) bool*`::
+Update records in the database with the given data. Updates are made with a
+single SQL query. Fields in `fieldsToUnset` are first set to their Go zero
+value, then all non-zero values of data are updated.
+
+[source,go]
+----
+partner := pool.NewResPartnerSearch().Filter("Company.Name", "=", "NDP Systèmes")
+partner.Write(pool.ResPartner{
+    Lang: "fr_FR",
+})
+----
+
+IMPORTANT: As said above, zero values in the `data` struct fields will *NOT* be
+updated. If you are not sure whether the values you pass in the `data` struct
+are zero values or not (e.g. when setting from a variable), include their
+`FieldName` in the `fieldsToUnset` to be sure the value will be correctly
+updated in case it is a zero value.
+
+`*Unlink() bool*`::
+Deletes the database records that are linked with this RecordSet.
+
+`*Read(fields ...models.FieldName) RecordSetType*`::
+Populates this RecordSet with the data from the database matching the current
+search condition. If fields are given, only those fields are fetched and the
+other fields of the Records are set to their `go` zero value.
+
+NOTE: Call to `Read()` is optional. It will be automatically called (without
+fields arguments) on the first call to a getter or when calling `Records()`.
+
+TIP: Calling `Read()` with fields arguments before any other call allows to
+finely control which fields will be queried from the database since subsequent
+calls to a getter will not call `Read()` again if the value is already loaded.
+
+[source,go]
+----
+partners := pool.NewResPartnerSet()
+partners.Filter("Name", "ilike", "John").Read(pool.ResPartner_Name, pool.ResPartner_Birthday)
+
+// The following lines will not load from the database, but use
+// the values cached in the RecordSet.
+for _, p := range partners.Records() {
+    fmt.Println(p.Name(), p.Birthday())
+}
+// Returns:
+// John Smith 1982-06-03
+// John Doo 1975-01-06
+----
+
+==== Search Methods
+
+`*Search(condition *models.Condition) RecordSetType*`::
+Apply the given search condition to the given RecordSet.
+A new Condition instance can be created with `models.NewCondition()`.
+
+[source,go]
+----
+cond := models.NewCondition().And(pool.ResUsers_Email, "ilike", "example.com").Or(pool.ResUsers_Email, "ilike", "example.net")
+users := NewResUsersSet().Condition(cond).Search()
+----
+
+====
+.Available methods on Condition type
+* `And(field models.FieldName, operator string, value interface{})`
+* `AndNot(field models.FieldName, operator string, value interface{})`
+* `AndCond(condition *models.Condition)`
+* `Or(field models.FieldName, operator string, value interface{})`
+* `OrNot(field models.FieldName, operator string, value interface{})`
+* `OrCond(condition *models.Condition)`
+====
+
+`*Filter(field models.FieldName, operator string, value interface{}) RecordSetType*`::
+`Filter` is a shortcut for `Condition(models.NewCondition().And(field,
+operator, value))`.
+
+`*Exclude(field models.FieldName, operator string, value interface{}) RecordSetType*`::
+`Exclude` is a shortcut for `Condition(models.NewCondition().AndNot(field,
+ operator, value))`.
+
+`*SearchCount() int*`::
+Return the number of records matching the search condition.
+
+`*NameSearch(params models.NameSearchParams) RecordSetType*`::
+Search for records that have a display name matching the given
+`Name` pattern when compared with the given `Operator`, while also
+matching the optional search domain (`Args`).
++
+This is used for example to provide suggestions based on a partial
+value for a relational field. Sometimes be seen as the inverse
+function of `NameGet` but it is not guaranteed to be.
+
+====
+.NameSearchParams
+[source, go]
+----
+type NameSearchParams struct {
+	Args     Domain      `json:"args"`
+	Name     string      `json:"name"`
+	Operator string      `json:"operator"`
+	Limit    interface{} `json:"limit"`
+}
+
+----
+====
+
+`*Limit(n int) RecordSetType*`::
+Limit the search to `n` results.
+
+`*Offset(n int) RecordSetType*`::
+Offset the search by `n` results.
+
+`*OrderBy(exprs ...string) RecordSetType*`::
+Order the results by the given expressions. Each expression is a string with a
+valid field name and optionally a direction.
+
+[source,go]
+----
+users := pool.NewResUsersSet().OrderBy("Name ASC", "Email DESC", "ID")
+----
+
+==== RecordSet Operations
+
+`*Ids() []int64*`::
+Return a slice with all the ids of this RecordSet. Performs a lazy loading of
+the RecordSet if it is not already loaded.
+
+`*Env() *Environment*`::
+Returns the RecordSet's Environment.
+
+`*Len() int*`::
+Returns the number of records in this RecordSet.
+
+`*Record(i int) RecordSetType*`::
+Returns a new RecordSet with only the i^th^ Record inside.
+
+`*Records() []RecordSetType*`::
+Returns a slice of RecordSets, each with only one Record of the current
+RecordSet.
+
+`*EnsureOne()*`::
+Check that this RecordSet contains only one Record. Panics if there are more
+than one Record or if there are no Records at all.
+
+`*Filtered(fn func(RecordType) bool) RecordSetType*`::
+Select the records in this RecordSet such that fn(Record) is true, and return
+them as a RecordSet.
+
+`*Sorted(key func(Record) interface{}) RecordSetType*`::
+Returns a sorted copy of this RecordSet. `key(record)` should return a
+sortable value on which the RecordSet will be sorted.
++
+The Sort is not guaranteed to be stable.
+
+== Environment
+
+The Environment stores various contextual data used by the ORM: the database
+transaction (for database queries), the current user (for access rights
+checking) and the current context (storing arbitrary metadata).
+
+The usual way to get the current Environment is to call `Env()` on a RecordSet.
+
+The Environment is immutable. It can be customized with the following methods
+to be applied on the RecordSet.
+
+`*Sudo(uid ...int64) RecordSetType*`::
+Call the next method as Super User. If uid is given, use the given user id
+instead.
+
+[source,go]
+----
+noReplyUser := pool.NewResUsers().Filter("Email", "=", "no-reply@ndp-systemes.fr").Limit(1)
+partners := pool.NewResPartnerSet().Filter("Name", "ilike", "John")
+
+partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
+----
+
+`*WithEnv(env *Environment) RecordSetType*`::
+Returns a copy of the current RecordSet with the given Environment.
+
+`*WithContext(key string, value interface{}) RecordSetType*`::
+Returns a copy of the current RecordSet with its context extended by the
+given key and value.
+
+`*WithNewContext(context *tools.Context) RecordSetType*`::
+Returns a copy of the current RecordSet with its context replaced by the
+given one.
+
+== Creating / extending models
+
+When developing a YEP module, you can create your own models and/or
+extend in place existing models created by other modules.
+
+[IMPORTANT]
+====
+After creating or modifying a model, you must run `yep-generate` to
+generate the types in the `pool` package before starting the YEP server.
+
+Running `yep-generate` will also allow you to obtain code completion and
+inspection on the newly created types.
+====
+
+=== Defining fields
+
+==== Create/Extend functions
+
+`*models.CreateModel(modelName string, dataStructPtr interface{})*`::
+
+Models fields are defined through structs with annotated fields, as in the
+example below:
+
+[source,go]
+----
+models.CreateModel("Course", new(struct {
+    Name    string             `yep:"string(Name);help(This is the name of the course);required"`
+    Date    models.DateTime    `yep:"string(Date of the Course)"`
+    Teacher pool.ResPartnerSet `yep:"string(Teacher);type(many2one)"`
+})
+----
+`*models.ExtendModel(modelName string, dataStructPtr interface{})*`::
+Models can also be extended by adding or overriding fields:
+[source,go]
+----
+models.ExtendModel("Course", new(struct {
+    Date      models.DateTime    `yep:"required"`
+    Attendees pool.ResPartnerSet `yep:"string(Attendees);type(many2many)"`
+})
+----
+
+==== Struct field annotations
+
+The following tags can be used to annotate fields. All are to be set inside a
+`yep` annotation, separated by a semicolon. Where applicable tag parameters
+have to be entered directly, without inverted commas.
+
+===== Field type tags
+
+`type(__value__)`::
+Defines the type of the field. In most cases, it is implied from the field's Go
+type, but it must be specified in the following cases:
+====
+Relational fields::
+Allowed types are `one2one`, `many2one`, `one2many`, `many2many`
+Special string types::
+* `text` for multiline texts
+* `html` for html strings that must be parsed as such
+* `binary` for binary data stored in the database
+* `selection` for text data that is limited to a few values
+====
+
+`fk(__value__)`::
+Set the foreign key field name in the related model for `one2many` relations.
+
+`selection(__value__)`::
+Comma separated list of tuples `__key__|__DisplayString__` for `selection`
+type.
+
+`size(__value__)`::
+If a size is defined for a Go `float` type, then the value will be stored in
+the database as a decimal with the given size.
+
+`digits(__value__)`::
+Like size, gives the number of digits for a decimal type in database.
+
+`json(__value__)`::
+Field's json value that will be used for the column name in the database and
+for json serialization to the client.
+
+===== Field's metadata tags
+
+`string(__value__)`::
+Field's label inside the application.
+`help(__value__)`::
+Field's help typically displayed as tooltip.
+
+===== Field's modifiers tags
+
+`required`::
+Defines the field as required (i.e. not null).
+
+`optional`::
+Defines the field as optional. This is the default, the tag exists to override
+existing fields.
+
+`unique`::
+Defines the field as unique in the database table.
+
+`not-unique`::
+Unsets the `unique` attribute for this field. This is the default.
+
+`index`::
+Creates an index on this field in the database.
+
+`nocopy`::
+Fields marked with this tag will not be copied when a record is duplicated.
+
+`copy`::
+Unset the `nocopy` tag.
+
+`group_operator(__value__)`::
+`__value__` must be a valid database function that will be used on this
+field when aggregating the model. It defaults to `sum`.
+
+===== Computed fields tags
+
+`compute(__value__)`::
+Declares this field as a computed field. `__value__` must be the name of a
+method on this RecordSet with the following signature.
+
+[source,go]
+----
+func (RecordSetType) RecordType, []string
+----
+
+`related(__path__)`::
+Declares this field as a related field, i.e. a field that is automatically
+synchronized with another field. `__path__` must be a path string to the
+related field starting from the current RecordSet
+(e.g. `"Customer.Country.Name"`).
+
+`store`::
+For a `computed` or `related` field, if `store` tag is set, then the field
+will be stored into the database. For `computed` fields, recomputation will
+be triggered by the data in the `depends` tag.
++
+Storing a computed or related field allows to make queries on their values and
+speeds up reading of the RecordSet. However, the updates can be slowed down,
+especially when multiple triggers are fired at the same time.
+
+`unstore`::
+Unset the `store` tag on this field. This is the default.
+
+`depends(__paths__)`::
+Defines the fields on which to trigger recomputation of this field. This is
+relevant only for `computed` fields with the `store` tag set.
++
+`__paths__` must be a comma separated list of paths to fields used in the
+computation of this field. Paths may go through `one2many` or `many2many`
+fields. In this case all the fields that would match will be used as triggers.
+
+`inherits(__fieldName__)`::
+Implements `inherits` inheritance type on this RecordSet with the given
+`__fieldName__`. `__fieldName__` must be a the name of a `many2one` field of
+this RecordSet.
++
+When implemented, all the fields of the RecordSet pointed by `__fieldName__`
+will be automatically added as `related` fields, so that they can be accessed
+directly from this RecordSet.
+
+NOTE: Only the fields of the `inherits-ed` model will be accessible from this
+model, not its methods.
+
+=== Defining methods
+
+Models' methods are defined by in module and can be overriden by any other
+module, with the ability to call the original method with `Super`. This way,
+methods can be overriden several times by different modules to iteratively
+add new features.
+
+Each override of a method is declared by a so-called "layer function" with the
+actual implementation. Layer functions must meet the following constraints:
+
+* Its first argument is the method's receiver. It must be of the
+`__RecordSetType__` of the model.
+* It may have at most one return value.
+* It must panic when an error is encountered to force transaction rollback
+(or solve the error directly if possible).
+
+--
+
+`*models.CreateMethod(modelName, methodName string, layerFunction interface{})*`::
+Creates a new method on the given `modelName` with the given `methodName` and
+apply the given `layerFunction` as first "layer function".
+
+[source,go]
+----
+models.CreateMethod("ResPartner", "UpdateBirthday", func(rs ResPartnerSet, birthday time.Time) {
+    rs.SetBirthday(Date(birthDay))
+})
+----
+
+[IMPORTANT]
+====
+The `modelName` and `methodName` attributes of `CreateMethod` *MUST* be string
+literals for `yep-generate` to work correctly. Do *NOT* use variables or
+constants here.
+
+This limitation may be removed in a future version.
+====
+
+`*models.ExtendMethod(modelName, methodName string, layerFunction interface{})*`::
+Extends the method `methodName` in the model `modelName` with the given
+`layerFunction`.
++
+The layer function should call the `Super()` method of its first argument to
+call the previous layer, and pass it all the other arguments of the function
+layer.
+
+[source,go]
+----
+models.ExtendMethod("ResPartner", "UpdateBirthday", func(rs ResPartnerSet, birthday time.Time) {
+    rs.Super(birthday)
+    rs.SetAge(Time.Now().Year() - birthday.Year())
+})
+----
+
+NOTE: The `functionLayer` passed to `ExtendModel` must have the same signature
+as the first layer passed to `CreateModel`.
