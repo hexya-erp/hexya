@@ -23,6 +23,7 @@ import (
 	"path"
 	"text/template"
 
+	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/generate"
 )
 
@@ -33,6 +34,9 @@ const (
 )
 
 func main() {
+	// TODO Set this through flags
+	models.Testing = true
+
 	cleanPoolDir(POOL_DIR)
 	conf := loader.Config{
 		AllowErrors: true,
@@ -44,6 +48,7 @@ Loading program...
 Warnings may appear here, just ignore them if yep-generate doesn't crash
 `)
 	conf.Import(generate.CONFIG_PATH)
+	conf.Import(generate.TEST_MODULE_PATH)
 	program, _ := conf.Load()
 	fmt.Println("Ok")
 	fmt.Print("Identifying modules...")
@@ -62,7 +67,7 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 3: Generating methods...")
-	generateFromModelRegistry(POOL_DIR, []string{"github.com/npiganeau/yep/config"})
+	generateFromModelRegistry(POOL_DIR, []string{generate.CONFIG_PATH, generate.TEST_MODULE_PATH})
 	fmt.Println("Ok")
 
 	fmt.Println("Pool successfully generated")
@@ -135,11 +140,13 @@ func generateFromModelRegistry(dirName string, modules []string) {
 	defer os.Remove(generatorFileName)
 
 	data := struct {
-		Imports []string
-		DirName string
+		Imports    []string
+		DirName    string
+		ModelsPath string
 	}{
-		Imports: modules,
-		DirName: dirName,
+		Imports:    modules,
+		DirName:    dirName,
+		ModelsPath: generate.MODELS_PATH,
 	}
 	generate.CreateFileFromTemplate(generatorFileName, buildTemplate, data)
 
@@ -174,7 +181,7 @@ var buildTemplate = template.Must(template.New("").Parse(`
 package main
 
 import (
-	"github.com/npiganeau/yep/yep/models"
+	"{{ .ModelsPath }}"
 {{ range .Imports }} 	_ "{{ . }}"
 {{ end }}
 )

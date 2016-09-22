@@ -48,27 +48,17 @@ func createModelLinks() {
 			sfType := fi.structField.Type
 			var (
 				relatedMI *modelInfo
-				ok        bool = true
+				ok        bool
 			)
 			switch fi.fieldType {
-			case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE:
-				if sfType.Kind() != reflect.Ptr {
-					tools.LogAndPanic(log, "Many2one/One2one fields must be pointers", "model", mi.name, "field", fi.name)
+			case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE, tools.ONE2MANY, tools.MANY2MANY:
+				if !sfType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+					tools.LogAndPanic(log, "Relation fields must be RecordSets", "model", mi.name, "field", fi.name)
 				}
-				relatedMI, ok = modelRegistry.get(sfType.Elem().Name())
+				relatedName := sfType.Name()[:len(sfType.Name())-3]
+				relatedMI, ok = modelRegistry.get(relatedName)
 				if !ok {
-					tools.LogAndPanic(log, "Unknown related model", "relModel", sfType.Elem().Name(), "baseModel", mi.name, "field", fi.name)
-				}
-			case tools.ONE2MANY, tools.MANY2MANY:
-				if sfType.Kind() != reflect.Slice {
-					tools.LogAndPanic(log, "One2many/Many2many fields must be slice of pointers", "model", mi.name, "field", fi.name)
-				}
-				if sfType.Elem().Kind() != reflect.Ptr {
-					tools.LogAndPanic(log, "One2many/Many2many fields must be slice of pointers", "model", mi.name, "field", fi.name)
-				}
-				relatedMI, ok = modelRegistry.get(sfType.Elem().Elem().Name())
-				if !ok {
-					tools.LogAndPanic(log, "Unknown related model", "relModel", sfType.Elem().Elem().Name(), "baseModel", mi.name, "field", fi.name)
+					tools.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", relatedName)
 				}
 			}
 			fi.relatedModel = relatedMI

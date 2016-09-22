@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package models
+package tests
 
 import (
 	"fmt"
 	"os"
+	"testing"
 
 	_ "github.com/lib/pq"
+	"github.com/npiganeau/yep/yep/models"
 )
 
 var DBARGS = struct {
@@ -26,12 +28,10 @@ var DBARGS = struct {
 	Source string
 	Debug  string
 }{
-	os.Getenv("ORM_DRIVER"),
-	os.Getenv("ORM_SOURCE"),
-	os.Getenv("ORM_DEBUG"),
+	os.Getenv("YEP_DB_DRIVER"),
+	os.Getenv("YEP_DB_SOURCE"),
+	os.Getenv("YEP_DEBUG"),
 }
-
-var testAdapter dbAdapter
 
 func init() {
 	if DBARGS.Driver == "" || DBARGS.Source == "" {
@@ -48,15 +48,18 @@ go get -u github.com/lib/pq
 
 #### PostgreSQL
 psql -c 'create database orm_test;' -U postgres
-export ORM_DRIVER=postgres
-export ORM_SOURCE="user=postgres dbname=orm_test sslmode=disable"
+export YEP_DB_DRIVER=postgres
+export YEP_DB_SOURCE="user=postgres dbname=orm_test sslmode=disable"
 go test -v github.com/npiganeau/yep/yep/models
 
 `)
 		os.Exit(2)
 	}
 
-	DBConnect(DBARGS.Driver, DBARGS.Source)
-	testAdapter = adapters[db.DriverName()]
+	models.DBConnect(DBARGS.Driver, DBARGS.Source)
+	models.Testing = true
+}
 
+func TestMain(m *testing.M) {
+	os.Exit(m.Run())
 }

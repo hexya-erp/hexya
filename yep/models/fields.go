@@ -167,6 +167,8 @@ type fieldInfo struct {
 	depends       []string
 	html          bool
 	relatedModel  *modelInfo
+	reverseFK     string
+	selection     Selection
 	fieldType     tools.FieldType
 	groupOperator string
 	size          int
@@ -213,7 +215,6 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	parseStructTag(sf.Tag.Get(defaultStructTagName), &attrs, &tags)
 
 	_, stored := attrs["store"]
-	_, html := attrs["html"]
 	_, required := attrs["required"]
 	_, unique := attrs["unique"]
 	_, index := attrs["index"]
@@ -222,7 +223,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 
 	computeName := tags["compute"]
 	relatedPath := tags["related"]
-	sStr, _ := tags["size"]
+	sStr := tags["size"]
 	size, _ := strconv.Atoi(sStr)
 
 	var depends []string
@@ -249,9 +250,32 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		typ = getFieldType(sf.Type)
 	}
 
+	fk, ok := tags["fk"]
+	if typ == tools.ONE2MANY && !ok {
+		tools.LogAndPanic(log, "'one2many' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
+	}
+
 	if inherits && typ != tools.MANY2ONE && typ != tools.ONE2ONE {
 		log.Warn("'inherits' should be set only on many2one or one2one fields", "model", mi.name, "field", sf.Name, "type", typ)
 		inherits = false
+	}
+
+	sels, ok := tags["selection"]
+	var selection Selection
+	if ok {
+		if sf.Type.Kind() == reflect.String {
+			typ = tools.SELECTION
+			selection = make(Selection)
+			for _, sel := range strings.Split(sels, defaultTagDataDelim) {
+				selParts := strings.Split(sel, "|")
+				code := strings.TrimSpace(selParts[0])
+				value := strings.TrimSpace(selParts[1])
+				selection[code] = value
+			}
+		} else {
+			log.Warn("'selection' should be set only on string type fields", "model", mi.name, "field", sf.Name, "type", typ)
+			selection = nil
+		}
 	}
 
 	json, ok := tags["json"]
@@ -281,7 +305,6 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		depends:       depends,
 		description:   desc,
 		help:          tags["help"],
-		html:          html,
 		fieldType:     typ,
 		groupOperator: groupOp,
 		structField:   sf,
@@ -290,6 +313,8 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		relatedPath:   relatedPath,
 		inherits:      inherits,
 		noCopy:        noCopy,
+		reverseFK:     fk,
+		selection:     selection,
 	}
 	return &fInfo
 }

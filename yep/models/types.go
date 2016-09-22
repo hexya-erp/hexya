@@ -154,6 +154,8 @@ func (rf *RecordRef) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type Selection map[string]string
+
 // RecordSet identifies a type that holds a set of records of
 // a given model.
 type RecordSet interface {

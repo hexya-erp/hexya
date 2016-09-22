@@ -32,24 +32,30 @@ const (
 
 var (
 	supportedTag = map[string]int{
-		"store":          1,
-		"html":           1,
-		"required":       1,
-		"unique":         1,
-		"index":          1,
-		"inherits":       1,
-		"nocopy":         1,
-		"string":         2,
-		"help":           2,
-		"compute":        2,
-		"depends":        2,
-		"json":           2,
 		"type":           2,
-		"group_operator": 2,
+		"fk":             2,
+		"selection":      2,
 		"size":           2,
 		"digits":         2,
+		"json":           2,
+		"string":         2,
+		"help":           2,
+		"required":       1,
+		"optional":       1,
+		"unique":         1,
+		"not-unique":     1,
+		"index":          1,
+		"nocopy":         1,
+		"copy":           1,
+		"group_operator": 2,
+		"compute":        2,
 		"related":        2,
+		"store":          1,
+		"unstore":        1,
+		"depends":        2,
+		"inherits":       1,
 	}
+	Testing = false
 )
 
 /*

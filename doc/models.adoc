@@ -80,7 +80,7 @@ Getter for the field called `__FieldName__` of type `__FieldType__` of the
 `First()` Record of the RecordSet. Call to the getter will make a call to
 `Read()` first if the field is not loaded in the RecordSet's cache.
 +
-It panics if it is called on an empty RecordSet.
+It returns the Go zero value of the type if it is called on an empty RecordSet.
 
 `*Set__FieldName__(value __FieldType__)*`::
 Setter for the field called `__FieldName__` of type `__FieldType__`. If the
@@ -371,11 +371,11 @@ Comma separated list of tuples `__key__|__DisplayString__` for `selection`
 type.
 
 `size(__value__)`::
-If a size is defined for a Go `float` type, then the value will be stored in
-the database as a decimal with the given size.
+Maximum size for the `string` type in database.
 
 `digits(__value__)`::
-Like size, gives the number of digits for a decimal type in database.
+Sets the decimal precision to a Go `float` type to store as a decimal type in
+database. `__value__` must be a `total, decimal` pair.
 
 `json(__value__)`::
 Field's json value that will be used for the column name in the database and
@@ -420,11 +420,12 @@ field when aggregating the model. It defaults to `sum`.
 
 `compute(__value__)`::
 Declares this field as a computed field. `__value__` must be the name of a
-method on this RecordSet with the following signature.
+method on this RecordSet with the following signature, which returns a
+Record with the values to update and a slice of field names to unset.
 
 [source,go]
 ----
-func (RecordSetType) RecordType, []string
+func (RecordSetType) RecordType, []models.FieldName
 ----
 
 `related(__path__)`::
@@ -489,9 +490,10 @@ apply the given `layerFunction` as first "layer function".
 
 [source,go]
 ----
-models.CreateMethod("ResPartner", "UpdateBirthday", func(rs ResPartnerSet, birthday time.Time) {
-    rs.SetBirthday(Date(birthDay))
-})
+models.CreateMethod("ResPartner", "UpdateBirthday",
+    func(rs ResPartnerSet, birthday time.Time) {
+        rs.SetBirthday(Date(birthDay))
+    })
 ----
 
 [IMPORTANT]
@@ -513,10 +515,11 @@ layer.
 
 [source,go]
 ----
-models.ExtendMethod("ResPartner", "UpdateBirthday", func(rs ResPartnerSet, birthday time.Time) {
-    rs.Super(birthday)
-    rs.SetAge(Time.Now().Year() - birthday.Year())
-})
+models.ExtendMethod("ResPartner", "UpdateBirthday",
+    func(rs ResPartnerSet, birthday time.Time) {
+        rs.Super(birthday)
+        rs.SetAge(Time.Now().Year() - birthday.Year())
+    })
 ----
 
 NOTE: The `functionLayer` passed to `ExtendModel` must have the same signature

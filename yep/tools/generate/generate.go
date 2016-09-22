@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	CONFIG_PATH string = "github.com/npiganeau/yep/config"
-	MODELS_PATH string = "github.com/npiganeau/yep/yep/models"
-	POOL_PATH   string = "github.com/npiganeau/yep/pool"
+	CONFIG_PATH      string = "github.com/npiganeau/yep/config"
+	MODELS_PATH      string = "github.com/npiganeau/yep/yep/models"
+	POOL_PATH        string = "github.com/npiganeau/yep/pool"
+	TEST_MODULE_PATH string = "github.com/npiganeau/yep/yep/tests/test_module"
 )
 
 var log log15.Logger
@@ -138,7 +139,7 @@ type DocAndParams struct {
 }
 
 // GetMethodsDocAndParamsNames returns the doc string and parameters name of all
-// methods of  all YEP modules.
+// methods of all YEP modules.
 func GetMethodsDocAndParamsNames() map[MethodRef]DocAndParams {
 	res := make(map[MethodRef]DocAndParams)
 	// Parse source code
@@ -147,6 +148,7 @@ func GetMethodsDocAndParamsNames() map[MethodRef]DocAndParams {
 		ParserMode:  parser.ParseComments,
 	}
 	conf.Import(CONFIG_PATH)
+	conf.Import(TEST_MODULE_PATH)
 	program, _ := conf.Load()
 	modInfos := GetModulePackages(program)
 
@@ -201,7 +203,13 @@ func GetMethodsDocAndParamsNames() map[MethodRef]DocAndParams {
 						methodName = strings.Trim(mn.Value, `"`)
 					}
 
-					funcDecl := node.Args[2].(*ast.Ident).Obj.Decl.(*ast.FuncDecl)
+					var funcDecl *ast.FuncDecl
+					switch fd := node.Args[2].(type) {
+					case *ast.Ident:
+						funcDecl = fd.Obj.Decl.(*ast.FuncDecl)
+						// TODO Handle the case where we have function literal instead of ident
+					}
+
 					meths[MethodRef{Model: modelName, Method: methodName}] = funcDecl
 				}
 				return true
