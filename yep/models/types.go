@@ -18,7 +18,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
 )
 
@@ -167,18 +166,6 @@ type RecordSet interface {
 
 // A FieldName is a type representing field names in models.
 type FieldName string
-
-// Caller identifies a type that can call layered methods on itself
-type Caller interface {
-	// Call calls the given method with the given arguments
-	Call(methodName string, args ...interface{}) interface{}
-	// Super calls the next method Layer after the given funcPtr.
-	// This method is meant to be used inside a method layer function
-	// to call its parent.
-	Super(args ...interface{}) interface{}
-	// MethodType returns the type of the method given by methName
-	MethodType(string) reflect.Type
-}
 
 // Querier identifies a type that can make CRUD operations on
 // a model. Data is read or written to RecordSet objects.

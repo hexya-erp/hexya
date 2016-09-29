@@ -20,33 +20,24 @@ import (
 	"github.com/npiganeau/yep/yep/tools"
 )
 
-// A BaseCaller is a struct that is meant to be embedded inside
-// another struct so as to ease implementation of Caller interface.
-// It provides helper functions that can be called by the embedding
-// struct with all the implementation of the model's callstack.
-type BaseCaller struct {
-	mi        *modelInfo
-	callStack []*methodLayer
-}
-
-// Call calls the given method name methName on the given Caller
+// Call calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as interface{}.
-func (bc *BaseCaller) Call(methName string, rs RecordSet, args ...interface{}) interface{} {
-	methInfo, ok := bc.mi.methods.get(methName)
+func (rc RecordCollection) Call(methName string, args ...interface{}) interface{} {
+	methInfo, ok := rc.mi.methods.get(methName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown method in model", "method", methName, "model", bc.mi.name)
+		tools.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.mi.name)
 	}
 	methLayer := methInfo.topLayer
-	return bc.call(methLayer, rs, args...)
+	return rc.call(methLayer, args...)
 }
 
 // Super calls the next method Layer.
 // This method is meant to be used inside a method layer function to call its parent.
-func (bc *BaseCaller) Super(rs RecordSet, args ...interface{}) interface{} {
-	if len(bc.callStack) == 0 {
-		tools.LogAndPanic(log, "Empty call stack", "model", bc.mi.name)
+func (rc RecordCollection) Super(args ...interface{}) interface{} {
+	if len(rc.callStack) == 0 {
+		tools.LogAndPanic(log, "Empty call stack", "model", rc.mi.name)
 	}
-	currentLayer := bc.callStack[0]
+	currentLayer := rc.callStack[0]
 	methInfo := currentLayer.methInfo
 	methLayer := methInfo.getNextLayer(currentLayer)
 	if methLayer == nil {
@@ -54,32 +45,29 @@ func (bc *BaseCaller) Super(rs RecordSet, args ...interface{}) interface{} {
 		return nil
 	}
 
-	return bc.call(methLayer, rs, args...)
+	return rc.call(methLayer, args...)
 }
 
 // MethodType returns the type of the method given by methName
-func (bc *BaseCaller) MethodType(methName string) reflect.Type {
-	methInfo, ok := bc.mi.methods.get(methName)
+func (rc RecordCollection) MethodType(methName string) reflect.Type {
+	methInfo, ok := rc.mi.methods.get(methName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown method in model", "model", bc.mi.name, "method", methName)
+		tools.LogAndPanic(log, "Unknown method in model", "model", rc.mi.name, "method", methName)
 	}
 	return methInfo.methodType
 }
 
 // call is a wrapper around reflect.Value.Call() to use with interface{} type.
-// This is a method
-func (bc *BaseCaller) call(methLayer *methodLayer, rs RecordSet, args ...interface{}) interface{} {
-	fnVal := methLayer.funcValue
+func (rc RecordCollection) call(methLayer *methodLayer, args ...interface{}) interface{} {
+	rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
 
 	inVals := make([]reflect.Value, len(args)+1)
-	inVals[0] = reflect.ValueOf(rs)
+	inVals[0] = reflect.ValueOf(rc)
 	for i, arg := range args {
 		inVals[i+1] = reflect.ValueOf(arg)
 	}
 
-	bc.callStack = append([]*methodLayer{methLayer}, bc.callStack...)
-	retVal := fnVal.Call(inVals)
-	bc.callStack = bc.callStack[1:]
+	retVal := methLayer.funcValue.Call(inVals)
 
 	if len(retVal) == 0 {
 		return nil

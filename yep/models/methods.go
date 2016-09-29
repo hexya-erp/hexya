@@ -157,10 +157,16 @@ func ExtendMethod(modelName, methodName string, fnct interface{}) {
 		tools.LogAndPanic(log, "Call to ExtendMethod on non existant method", "model", modelName, "method", methodName)
 	}
 	val := reflect.ValueOf(fnct)
-	//if methInfo.methodType != val.Type() {
-	//	tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
-	//		"received", methInfo.methodType, "expected", val.Type())
-	//}
+	for i := 1; i < methInfo.methodType.NumIn(); i++ {
+		if methInfo.methodType.In(i) != val.Type().In(i) {
+			tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
+				"argument", i, "expected", methInfo.methodType.In(i), "received", val.Type().In(i))
+		}
+	}
+	if methInfo.methodType.NumOut() > 0 && methInfo.methodType.Out(0) != val.Type().Out(0) {
+		tools.LogAndPanic(log, "Function return type does not match", "model", modelName, "method", methodName,
+			"expected", methInfo.methodType.Out(0), "received", val.Type().Out(0))
+	}
 	methInfo.addMethodLayer(val)
 }
 

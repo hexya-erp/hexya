@@ -26,10 +26,11 @@ import (
 // RecordCollection is a generic struct representing several
 // records of a model.
 type RecordCollection struct {
-	*BaseCaller
-	query *Query
-	env   *Environment
-	ids   []int64
+	mi        *modelInfo
+	callStack []*methodLayer
+	query     *Query
+	env       *Environment
+	ids       []int64
 }
 
 // String returns the string representation of a RecordSet
@@ -366,9 +367,7 @@ func newRecordSet(env *Environment, modelName string) *RecordCollection {
 		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	rs := RecordCollection{
-		BaseCaller: &BaseCaller{
-			mi: mi,
-		},
+		mi:    mi,
 		query: newQuery(),
 		env:   env,
 		ids:   make([]int64, 0),
