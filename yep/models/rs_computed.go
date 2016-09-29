@@ -51,19 +51,19 @@ func (rs RecordCollection) updateStoredFields(fMap FieldMap) {
 	}
 	// Compute all that must be computed and store the values
 	computed := make(map[string]bool)
-	rs = *rs.Search()
+	rSet := rs.LazyLoad()
 	for _, cData := range toUpdate {
 		methUID := fmt.Sprintf("%s.%s", cData.modelInfo.tableName, cData.compute)
 		if _, ok := computed[methUID]; ok {
 			continue
 		}
-		recs := rs.env.Pool(cData.modelInfo.name)
+		recs := rSet.env.Pool(cData.modelInfo.name)
 		if cData.path != "" {
-			recs = recs.Filter(cData.path, "in", rs.Ids())
+			recs = recs.Filter(cData.path, "in", rSet.Ids())
 		} else {
-			recs = &rs
+			recs = rSet
 		}
-		recs.Search()
+		recs.LazyLoad()
 		for _, rec := range recs.Records() {
 			vals := rec.Call(cData.compute)
 			if len(vals.(FieldMap)) > 0 {

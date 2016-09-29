@@ -165,6 +165,9 @@ type RecordSet interface {
 	Ids() []int64
 }
 
+// A FieldName is a type representing field names in models.
+type FieldName string
+
 // Caller identifies a type that can call layered methods on itself
 type Caller interface {
 	// Call calls the given method with the given arguments

@@ -26,11 +26,10 @@ import (
 // RecordCollection is a generic struct representing several
 // records of a model.
 type RecordCollection struct {
-	BaseCaller
-	query    Query
-	relDepth int
-	env      *Environment
-	ids      []int64
+	*BaseCaller
+	query *Query
+	env   *Environment
+	ids   []int64
 }
 
 // String returns the string representation of a RecordSet
@@ -45,40 +44,33 @@ func (rs RecordCollection) String() string {
 }
 
 // Env returns the RecordSet's Environment
-func (rs RecordCollection) Env() *Environment {
-	return rs.env
+func (rs RecordCollection) Env() Environment {
+	res := *rs.env
+	return res
 }
 
 // ModelName returns the model name of the RecordSet
-func (rs *RecordCollection) ModelName() string {
+func (rs RecordCollection) ModelName() string {
 	return rs.mi.name
 }
 
 // Ids returns the ids of the RecordSet
-func (rs *RecordCollection) Ids() []int64 {
+func (rs RecordCollection) Ids() []int64 {
 	return rs.ids
 }
 
 // ID returns the ID of the unique record of this RecordSet
 // It panics if rs is not a singleton.
-func (rs *RecordCollection) ID() int64 {
-	rs.Search()
+func (rs RecordCollection) ID() int64 {
 	rs.EnsureOne()
 	return rs.ids[0]
-}
-
-// RelatedDepth sets the depth at which to populate the structs with
-// ReadOne and ReadAll.
-func (rs RecordCollection) RelatedDepth(depth int) *RecordCollection {
-	rs.relDepth = depth
-	return &rs
 }
 
 // create inserts a new record in the database with the given data.
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Create(), rs.Call("Create") or env.Create()
-func (rs RecordCollection) create(data interface{}) *RecordCollection {
+func (rs RecordCollection) create(data interface{}) RecordCollection {
 	fMap := convertInterfaceToFieldMap(data)
 	rs.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
@@ -149,82 +141,84 @@ func (rs RecordCollection) delete() int64 {
 /*
 Filter returns a new RecordSet with the given additional filter condition.
 */
-func (rs RecordCollection) Filter(cond, op string, data interface{}) *RecordCollection {
-	rs.query.cond = rs.query.cond.And(cond, op, data)
-	return &rs
+func (rs RecordCollection) Filter(fieldName, op string, data interface{}) RecordCollection {
+	rs.query.cond = rs.query.cond.And(fieldName, op, data)
+	return rs
 }
 
 /*
 Exclude returns a new RecordSet with the given additional NOT filter condition.
 */
-func (rs RecordCollection) Exclude(cond, op string, data interface{}) *RecordCollection {
-	rs.query.cond = rs.query.cond.AndNot(cond, op, data)
-	return &rs
+func (rs RecordCollection) Exclude(fieldName, op string, data interface{}) RecordCollection {
+	rs.query.cond = rs.query.cond.AndNot(fieldName, op, data)
+	return rs
 }
 
 /*
 SetCond returns a new RecordSet with the given additional condition
 */
-func (rs RecordCollection) Condition(cond *Condition) *RecordCollection {
+func (rs RecordCollection) Search(cond *Condition) RecordCollection {
 	rs.query.cond = rs.query.cond.AndCond(cond)
-	return &rs
+	return rs
 }
 
 /*
 Limit returns a new RecordSet with the given limit as additional condition
 */
-func (rs RecordCollection) Limit(limit int, args ...int) *RecordCollection {
+func (rs RecordCollection) Limit(limit int, args ...int) RecordCollection {
 	rs.query.limit = limit
 	if len(args) > 0 {
 		rs.query.offset = args[0]
 	}
-	return &rs
+	return rs
 }
 
 /*
 Offset returns a new RecordSet with the given offset as additional condition
 */
-func (rs RecordCollection) Offset(offset int) *RecordCollection {
+func (rs RecordCollection) Offset(offset int) RecordCollection {
 	rs.query.offset = offset
-	return &rs
+	return rs
 }
 
 /*
 OrderBy returns a new RecordSet with the given ORDER BY clause in its Query
 */
-func (rs RecordCollection) OrderBy(exprs ...string) *RecordCollection {
+func (rs RecordCollection) OrderBy(exprs ...string) RecordCollection {
 	rs.query.orders = append(rs.query.orders, exprs...)
-	return &rs
+	return rs
 }
 
 /*
 GroupBy returns a new RecordSet with the given GROUP BY clause in its Query
 */
-func (rs RecordCollection) GroupBy(exprs ...string) *RecordCollection {
+func (rs RecordCollection) GroupBy(exprs ...string) RecordCollection {
 	rs.query.groups = append(rs.query.groups, exprs...)
-	return &rs
+	return rs
 }
 
 // Distinct returns a new RecordSet with its Query filtering duplicates
-func (rs RecordCollection) Distinct() *RecordCollection {
+func (rs RecordCollection) Distinct() RecordCollection {
 	rs.query.distinct = true
-	return &rs
+	return rs
 }
 
-// Search query the database with the current filter and fills the RecordSet with the queries ids.
-// Does nothing in case RecordSet already has Ids. It panics in case of error.
-// It returns a pointer to the same RecordSet.
-func (rs *RecordCollection) Search() *RecordCollection {
+// LazyLoad query the database with the current filter and returns a RecordSet
+// with the queries ids.
+//
+// If this RecordSet already has ids, it does not query the database and just
+// returns the same RecordSet. Use ForceLazyLoad() instead if you want to force
+// a query in the database.
+func (rs RecordCollection) LazyLoad() RecordCollection {
 	if len(rs.Ids()) == 0 {
-		return rs.ForceSearch()
+		return rs.ForceLazyLoad()
 	}
 	return rs
 }
 
-// ForceSearch query the database with the current filter and fills the RecordSet with the queries ids.
-// Overwrite RecordSet Ids if any. It panics in case of error.
-// It returns a pointer to the same RecordSet.
-func (rs *RecordCollection) ForceSearch() *RecordCollection {
+// ForceLazyLoad query the database with the current filter and returns a
+// RecordSet with the queries ids. ForceLazyLoad always makes a database query.
+func (rs RecordCollection) ForceLazyLoad() RecordCollection {
 	var idsMap []FieldMap
 	num := rs.ReadValues(&idsMap, "id")
 	ids := make([]int64, num)
@@ -250,17 +244,17 @@ func (rs RecordCollection) SearchCount() int {
 // Returns the number of rows fetched.
 // It panics in case of error
 func (rs RecordCollection) ReadAll(container interface{}, cols ...string) int64 {
-	rs = *rs.Search()
+	rSet := rs.LazyLoad()
 	if err := checkStructSlicePtr(container); err != nil {
 		tools.LogAndPanic(log, err.Error(), "container", container)
 	}
 	typ := reflect.TypeOf(container).Elem().Elem().Elem()
 	structCtn := reflect.New(typ).Interface()
-	sfMap := structToMap(structCtn, rs.relDepth)
-	fields := filterFields(rs.mi, sfMap.Keys(), cols)
+	sfMap := structToMap(structCtn, 0)
+	fields := filterFields(rSet.mi, sfMap.Keys(), cols)
 
 	var fMaps []FieldMap
-	rs.ReadValues(&fMaps, fields...)
+	rSet.ReadValues(&fMaps, fields...)
 
 	ptrVal := reflect.ValueOf(container)
 	sliceVal := ptrVal.Elem()
@@ -268,7 +262,7 @@ func (rs RecordCollection) ReadAll(container interface{}, cols ...string) int64 
 
 	for i, fMap := range fMaps {
 		structPtr := reflect.New(typ).Interface()
-		mapToStruct(rs.mi, structPtr, fMap)
+		mapToStruct(rSet.mi, structPtr, fMap)
 		sliceVal.Index(i).Set(reflect.ValueOf(structPtr))
 	}
 	return int64(len(fMaps))
@@ -278,17 +272,17 @@ func (rs RecordCollection) ReadAll(container interface{}, cols ...string) int64 
 // If cols are given, retrieve only the given fields.
 // It panics if the RecordSet does not contain exactly one row.
 func (rs RecordCollection) ReadOne(container interface{}, cols ...string) {
-	rs = *rs.Search()
-	rs.EnsureOne()
+	rSet := rs.LazyLoad()
+	rSet.EnsureOne()
 	if err := checkStructPtr(container); err != nil {
 		tools.LogAndPanic(log, err.Error(), "container", container)
 	}
 
-	sfMap := structToMap(container, rs.relDepth)
-	fields := filterFields(rs.mi, sfMap.Keys(), cols)
+	sfMap := structToMap(container, 0)
+	fields := filterFields(rSet.mi, sfMap.Keys(), cols)
 	var fMap FieldMap
-	rs.ReadValue(&fMap, fields...)
-	mapToStruct(rs.mi, container, fMap)
+	rSet.ReadValue(&fMap, fields...)
+	mapToStruct(rSet.mi, container, fMap)
 }
 
 // Value query a single line of data in the database and maps the
@@ -326,17 +320,17 @@ func (rs RecordCollection) ReadValues(results *[]FieldMap, fields ...string) int
 		ids = append(ids, line["id"].(int64))
 	}
 
-	// Call withIds directly and not ForceSearch to avoid infinite recursion
-	rs = *rs.withIds(ids)
-	for i, rec := range rs.Records() {
+	// Call withIds directly and not ForceLazyLoad to avoid infinite recursion
+	rSet := rs.withIds(ids)
+	for i, rec := range rSet.Records() {
 		rec.computeFieldValues(&(*results)[i], fields...)
 	}
 	return int64(len(*results))
 }
 
 // Records returns the slice of RecordSet singletons that constitute this RecordSet
-func (rs RecordCollection) Records() []*RecordCollection {
-	res := make([]*RecordCollection, len(rs.Ids()))
+func (rs RecordCollection) Records() []RecordCollection {
+	res := make([]RecordCollection, len(rs.Ids()))
 	for i, id := range rs.Ids() {
 		res[i] = rs.withIds([]int64{id})
 	}
@@ -345,24 +339,25 @@ func (rs RecordCollection) Records() []*RecordCollection {
 
 // EnsureOne panics if rs is not a singleton
 func (rs RecordCollection) EnsureOne() {
-	rs.Search()
-	if len(rs.Ids()) != 1 {
-		tools.LogAndPanic(log, "Expected singleton", "model", rs.ModelName(), "received", rs)
+	rSet := rs.LazyLoad()
+	if len(rSet.Ids()) != 1 {
+		tools.LogAndPanic(log, "Expected singleton", "model", rSet.ModelName(), "received", rSet)
 	}
 }
 
-// withIdMap sets the given RecordSet ids to the given ids slice (overwriting current query).
-// This method both replaces in place and returns a pointer to the same RecordSet.
-func (rs *RecordCollection) withIds(ids []int64) *RecordCollection {
-	rs.ids = ids
+// withIdMap returns a new RecordSet pointing to the given ids.
+// It overrides the current query with ("ID", "in", ids).
+func (rs RecordCollection) withIds(ids []int64) RecordCollection {
+	rSet := rs
+	rSet.ids = ids
 	if len(ids) > 0 {
-		rs.query.cond = NewCondition()
-		rs = rs.Filter("ID", "in", ids)
+		rSet.query.cond = NewCondition()
+		rSet = rSet.Filter("ID", "in", ids)
 	}
-	return rs
+	return rSet
 }
 
-var _ RecordSet = new(RecordCollection)
+var _ RecordSet = RecordCollection{}
 
 // newRecordSet returns a new empty RecordSet in the given environment for the given modelName
 func newRecordSet(env *Environment, modelName string) *RecordCollection {
@@ -371,7 +366,7 @@ func newRecordSet(env *Environment, modelName string) *RecordCollection {
 		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	rs := RecordCollection{
-		BaseCaller: BaseCaller{
+		BaseCaller: &BaseCaller{
 			mi: mi,
 		},
 		query: newQuery(),

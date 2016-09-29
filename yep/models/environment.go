@@ -26,7 +26,7 @@ import (
 type Environment struct {
 	cr      *sqlx.Tx
 	uid     int64
-	context tools.Context
+	context *tools.Context
 }
 
 /*
@@ -47,7 +47,7 @@ func (env Environment) Uid() int64 {
 Context returns the Context of the Environment
 */
 func (env Environment) Context() tools.Context {
-	return env.context
+	return *env.context
 }
 
 /*
@@ -57,14 +57,14 @@ being updated.
 */
 func (env Environment) WithContext(ctx tools.Context, replace ...bool) *Environment {
 	if len(replace) > 0 && replace[0] {
-		env.context = ctx
+		env.context = &ctx
 		return &env
 	}
-	newCtx := env.context
+	newCtx := *env.context
 	for key, value := range ctx {
 		newCtx[key] = value
 	}
-	env.context = newCtx
+	env.context = &newCtx
 	return &env
 }
 
@@ -82,12 +82,12 @@ func (env Environment) Sudo(userId ...int64) *Environment {
 
 // Create creates a new record in database from the given data and returns a recordSet
 // Data must be a struct pointer.
-func (env Environment) Create(data interface{}) *RecordCollection {
+func (env Environment) Create(data interface{}) RecordCollection {
 	if err := checkStructPtr(data); err != nil {
 		tools.LogAndPanic(log, err.Error())
 	}
 	modelName := getModelName(data)
-	rs := env.Pool(modelName).Call("Create", data).(*RecordCollection)
+	rs := env.Pool(modelName).Call("Create", data).(RecordCollection)
 	return rs
 }
 
@@ -108,7 +108,7 @@ func (env Environment) Sync(data interface{}, cols ...string) bool {
 //
 // WARNING: Callers to NewEnvironment should ensure to either commit or rollback the returned
 // Environment.Cr() after operation to release the database connection.
-func NewEnvironment(uid int64, context ...tools.Context) *Environment {
+func NewEnvironment(uid int64, context ...tools.Context) Environment {
 	cr := db.MustBegin()
 	var ctx tools.Context
 	if len(context) > 0 {
@@ -117,14 +117,14 @@ func NewEnvironment(uid int64, context ...tools.Context) *Environment {
 	env := Environment{
 		cr:      cr,
 		uid:     uid,
-		context: ctx,
+		context: &ctx,
 	}
-	return &env
+	return env
 }
 
 /*
 Pool returns an empty RecordSet from the given table name string
 */
-func (env Environment) Pool(tableName string) *RecordCollection {
-	return newRecordSet(&env, tableName)
+func (env Environment) Pool(tableName string) RecordCollection {
+	return *newRecordSet(&env, tableName)
 }

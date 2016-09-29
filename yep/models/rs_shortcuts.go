@@ -16,8 +16,8 @@ package models
 
 // Create is a shortcut function for rs.Call("Create") on the current RecordSet.
 // Data can be either a struct pointer or a FieldMap.
-func (rs RecordCollection) Create(data interface{}) *RecordCollection {
-	return rs.Call("Create", data).(*RecordCollection)
+func (rs RecordCollection) Create(data interface{}) RecordCollection {
+	return rs.Call("Create", data).(RecordCollection)
 }
 
 // Write is a shortcut for rs.Call("Write") on the current RecordSet.

@@ -16,13 +16,13 @@ package models
 
 // Call calls the given method name methName with the given arguments and return the
 // result as interface{}.
-func (rs *RecordCollection) Call(methName string, args ...interface{}) interface{} {
+func (rs RecordCollection) Call(methName string, args ...interface{}) interface{} {
 	return rs.BaseCaller.Call(methName, rs, args...)
 }
 
 // Super calls the next method Layer.
 // This method is meant to be used inside a method layer function to call its parent.
-func (rs *RecordCollection) Super(args ...interface{}) interface{} {
+func (rs RecordCollection) Super(args ...interface{}) interface{} {
 	return rs.BaseCaller.Super(rs, args...)
 }
 

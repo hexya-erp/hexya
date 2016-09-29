@@ -60,7 +60,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 
 	// Create RecordSet from Environment
 	model := tools.ConvertModelName(params.Model)
-	rs = *env.Pool(model)
+	rs = env.Pool(model)
 
 	// Try to parse the first argument of Args as id or ids.
 	var single bool
@@ -71,12 +71,12 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 			// Unable to unmarshal in a list of IDs, trying with a single id
 			var id float64
 			if err := json.Unmarshal(params.Args[0], &id); err == nil {
-				rs = *rs.Filter("ID", "=", id)
+				rs = rs.Filter("ID", "=", id)
 				single = true
 				idsParsed = true
 			}
 		} else {
-			rs = *rs.Filter("ID", "in", ids)
+			rs = rs.Filter("ID", "in", ids)
 			idsParsed = true
 		}
 	}
@@ -174,10 +174,10 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 GetFieldValue retrieves the given field of the given model and id.
 */
 func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError error) {
-	var rs *models.RecordCollection
+	var rs models.RecordCollection
 	defer func() {
 		if r := recover(); r != nil {
-			if rs != nil {
+			if rs.Env().Cr() != nil {
 				rs.Env().Cr().Rollback()
 			}
 			res = nil
@@ -191,7 +191,7 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 	}
 	model = tools.ConvertModelName(model)
 	env := models.NewEnvironment(uid)
-	rs = env.Pool(model).Filter("ID", "=", id).Search()
+	rs = env.Pool(model).Filter("ID", "=", id).LazyLoad()
 	var parms models.FieldMap
 	rs.ReadValue(&parms, field)
 	if len(parms) == 0 {
@@ -222,7 +222,7 @@ type SearchReadResult struct {
 SearchRead retrieves database records according to the filters defined in params.
 */
 func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rError error) {
-	var rs *models.RecordCollection
+	var rs models.RecordCollection
 	defer func() {
 		if r := recover(); r != nil {
 			rs.Env().Cr().Rollback()

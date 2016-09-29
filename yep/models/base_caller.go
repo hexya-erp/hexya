@@ -70,15 +70,11 @@ func (bc *BaseCaller) MethodType(methName string) reflect.Type {
 // This is a method
 func (bc *BaseCaller) call(methLayer *methodLayer, rs RecordSet, args ...interface{}) interface{} {
 	fnVal := methLayer.funcValue
-	fnTyp := fnVal.Type()
 
-	rsVal := reflect.ValueOf(rs)
-	inVals := []reflect.Value{rsVal}
-	for i := 1; i < fnTyp.NumIn(); i++ {
-		if i > len(args) {
-			tools.LogAndPanic(log, "Not enough argument while calling method", "model", methLayer.methInfo.mi.name, "method", methLayer.methInfo.name, "args", args, "expected", fnTyp.NumIn())
-		}
-		inVals = append(inVals, reflect.ValueOf(args[i-1]))
+	inVals := make([]reflect.Value, len(args)+1)
+	inVals[0] = reflect.ValueOf(rs)
+	for i, arg := range args {
+		inVals[i+1] = reflect.ValueOf(arg)
 	}
 
 	bc.callStack = append([]*methodLayer{methLayer}, bc.callStack...)

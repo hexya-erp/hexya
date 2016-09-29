@@ -71,7 +71,7 @@ type methodInfo struct {
 // addMethodLayer adds the given layer to this methodInfo.
 func (methInfo *methodInfo) addMethodLayer(val reflect.Value) {
 	ml := methodLayer{
-		funcValue: val,
+		funcValue: wrapFunctionForMethodLayer(val),
 		methInfo:  methInfo,
 	}
 	methInfo.nextLayer[&ml] = methInfo.topLayer
@@ -104,10 +104,35 @@ func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodI
 		nextLayer:  make(map[*methodLayer]*methodLayer),
 	}
 	methInfo.topLayer = &methodLayer{
-		funcValue: val,
+		funcValue: wrapFunctionForMethodLayer(val),
 		methInfo:  &methInfo,
 	}
 	return &methInfo
+}
+
+// wrapFunctionForMethodLayer take the given fnct Value and wrap it in a
+// func(RecordCollection, args...) function Value suitable for use in a
+// methodLayer.
+func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
+	methodLayerFunction := func(rc RecordCollection, args ...interface{}) interface{} {
+		argZeroType := fnctVal.Type().In(0)
+		argsVals := make([]reflect.Value, len(args)+1)
+		argsVals[0] = reflect.New(argZeroType).Elem()
+		if argZeroType == reflect.TypeOf(RecordCollection{}) {
+			argsVals[0].Set(reflect.ValueOf(rc))
+		} else {
+			argsVals[0].Field(0).Set(reflect.ValueOf(rc))
+		}
+		for i, arg := range args {
+			argsVals[i+1] = reflect.ValueOf(arg)
+		}
+		res := fnctVal.Call(argsVals)
+		if len(res) > 0 {
+			return res[0].Interface()
+		}
+		return nil
+	}
+	return reflect.ValueOf(methodLayerFunction)
 }
 
 // CreateMethod creates a new method on given model name and adds the given fnct
@@ -132,10 +157,10 @@ func ExtendMethod(modelName, methodName string, fnct interface{}) {
 		tools.LogAndPanic(log, "Call to ExtendMethod on non existant method", "model", modelName, "method", methodName)
 	}
 	val := reflect.ValueOf(fnct)
-	if methInfo.methodType != val.Type() {
-		tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
-			"received", methInfo.methodType, "expected", val.Type())
-	}
+	//if methInfo.methodType != val.Type() {
+	//	tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
+	//		"received", methInfo.methodType, "expected", val.Type())
+	//}
 	methInfo.addMethodLayer(val)
 }
 

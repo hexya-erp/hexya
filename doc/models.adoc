@@ -69,8 +69,8 @@ Record struct for this model.
 ==== Data Access Methods
 
 `*First() RecordType*`::
-Returns a copy of the first Record of the RecordSet. It panics if the RecordSet
-is empty.
+Returns a copy of the first Record of the RecordSet. It returns an empty
+RecordType if the RecordSet is empty.
 
 RecordSets implement type safe getters and setters for all fields of the
 Record struct type.
@@ -172,7 +172,7 @@ A new Condition instance can be created with `models.NewCondition()`.
 [source,go]
 ----
 cond := models.NewCondition().And(pool.ResUsers_Email, "ilike", "example.com").Or(pool.ResUsers_Email, "ilike", "example.net")
-users := NewResUsersSet().Condition(cond).Search()
+users := NewResUsersSet().Search(cond)
 ----
 
 ====
@@ -468,7 +468,7 @@ model, not its methods.
 
 === Defining methods
 
-Models' methods are defined by in module and can be overriden by any other
+Models' methods are defined in a module and can be overriden by any other
 module, with the ability to call the original method with `Super`. This way,
 methods can be overriden several times by different modules to iteratively
 add new features.
@@ -522,5 +522,5 @@ models.ExtendMethod("ResPartner", "UpdateBirthday",
     })
 ----
 
-NOTE: The `functionLayer` passed to `ExtendModel` must have the same signature
-as the first layer passed to `CreateModel`.
+NOTE: The `functionLayer` passed to `ExtendMethod` must have the same signature
+as that of the first layer passed to `CreateMethod`.
