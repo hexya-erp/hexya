@@ -191,15 +191,7 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 	}
 	model = tools.ConvertModelName(model)
 	env := models.NewEnvironment(uid)
-	rs = env.Pool(model).Filter("ID", "=", id).LazyLoad()
-	var parms models.FieldMap
-	rs.ReadValue(&parms, field)
-	if len(parms) == 0 {
-		res = nil
-	} else {
-		delete(parms, "id")
-		res = parms.Values()[0]
-	}
+	res = env.Pool(model).Filter("ID", "=", id).Get(field)
 	return
 }
 

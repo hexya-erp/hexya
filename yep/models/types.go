@@ -122,14 +122,14 @@ func (fm *FieldMap) SubstituteKeys(substs []KeySubstitution) {
 	}
 }
 
-// RecordRef is a tuple with an ID and the display name of a record
-type RecordRef struct {
+// RecordIDWithName is a tuple with an ID and the display name of a record
+type RecordIDWithName struct {
 	ID   int64
 	Name string
 }
 
-// MarshalJSON for RecordRef type
-func (rf RecordRef) MarshalJSON() ([]byte, error) {
+// MarshalJSON for RecordIDWithName type
+func (rf RecordIDWithName) MarshalJSON() ([]byte, error) {
 	arr := [2]interface{}{
 		0: rf.ID,
 		1: rf.Name,
@@ -141,8 +141,8 @@ func (rf RecordRef) MarshalJSON() ([]byte, error) {
 	return []byte(res), nil
 }
 
-// UnmarshalJSON for RecordRef type
-func (rf *RecordRef) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON for RecordIDWithName type
+func (rf *RecordIDWithName) UnmarshalJSON(data []byte) error {
 	var arr [2]interface{}
 	err := json.Unmarshal(data, &arr)
 	if err != nil {
@@ -153,6 +153,14 @@ func (rf *RecordRef) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// A RecordRef uniquely identifies a Record by giving its model and ID.
+type RecordRef struct {
+	ModelName string
+	ID        int64
+}
+
+// A Selection is a set of possible (key, label) values for a model
+// "selection" field.
 type Selection map[string]string
 
 // RecordSet identifies a type that holds a set of records of

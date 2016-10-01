@@ -166,26 +166,6 @@ func jsonizePath(mi *modelInfo, path string) string {
 	return strings.Join(exprs, ExprSep)
 }
 
-/*
-getModelName returns the model name corresponding to the given container
-*/
-func getModelName(container interface{}) string {
-	val := reflect.ValueOf(container)
-	ind := reflect.Indirect(val)
-	indType := ind.Type()
-	if indType.Kind() == reflect.String {
-		return container.(string)
-	}
-	if indType.Kind() == reflect.Slice {
-		indType = indType.Elem()
-	}
-	if indType.Kind() == reflect.Ptr {
-		indType = indType.Elem()
-	}
-	name := strings.SplitN(indType.Name(), "_", 2)[0]
-	return name
-}
-
 // structToMap returns the fields and values of the given struct pointer in a map.
 // depth determines the level down to which we get fields of related structs.
 // Set depth to 0 to only get fields of our struct

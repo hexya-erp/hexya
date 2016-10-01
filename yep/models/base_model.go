@@ -61,6 +61,66 @@ func declareBaseMethods(name string) {
 	CreateMethod(name, "SearchRead", SearchRead)
 	CreateMethod(name, "DefaultGet", DefaultGet)
 	CreateMethod(name, "Onchange", Onchange)
+	CreateMethod(name, "Search", Search)
+	CreateMethod(name, "Filter", Filter)
+	CreateMethod(name, "Exclude", Exclude)
+	CreateMethod(name, "Distinct", Distinct)
+	CreateMethod(name, "LazyLoad", LazyLoad)
+	CreateMethod(name, "GroupBy", GroupBy)
+	CreateMethod(name, "Limit", Limit)
+	CreateMethod(name, "Offset", Offset)
+	CreateMethod(name, "OrderBy", OrderBy)
+}
+
+// Search returns a new RecordSet filtering on the current one with the
+// additional given Condition
+func Search(rc RecordCollection, cond *Condition) RecordCollection {
+	return rc.Search(cond)
+}
+
+// Filter returns a new RecordSet filtered on records matching the given additional condition.
+func Filter(rc RecordCollection, fieldName, op string, data interface{}) RecordCollection {
+	return rc.Filter(fieldName, op, data)
+}
+
+// Exclude returns a new RecordSet filtered on records NOT matching the given additional condition.
+func Exclude(rc RecordCollection, fieldName, op string, data interface{}) RecordCollection {
+	return rc.Exclude(fieldName, op, data)
+}
+
+// Distinct returns a new RecordSet without duplicates
+func Distinct(rc RecordCollection) RecordCollection {
+	return rc.Distinct()
+}
+
+// LazyLoad query the database with the current filter and returns a RecordSet
+// with the queries ids.
+//
+// If this RecordSet already has ids, it does not query the database and just
+// returns the same RecordSet. Use Read("id") instead if you want to force
+// a query in the database.
+func LazyLoad(rc RecordCollection) RecordCollection {
+	return rc.LazyLoad()
+}
+
+// GroupBy returns a new RecordSet grouped with the given GROUP BY expressions
+func GroupBy(rc RecordCollection, exprs ...string) RecordCollection {
+	return rc.GroupBy(exprs...)
+}
+
+// Limit returns a new RecordSet with only the first 'limit' records.
+func Limit(rc RecordCollection, limit int) RecordCollection {
+	return rc.Limit(limit)
+}
+
+// Offset returns a new RecordSet with only the records starting at offset
+func Offset(rc RecordCollection, offset int) RecordCollection {
+	return rc.Offset(offset)
+}
+
+// OrderBy returns a new RecordSet ordered by the given ORDER BY expressions
+func OrderBy(rc RecordCollection, exprs ...string) RecordCollection {
+	return rc.OrderBy(exprs...)
 }
 
 /*
@@ -87,35 +147,28 @@ func Create(rs RecordCollection, data interface{}) RecordCollection {
 // Read is the base implementation of the 'Read' method.
 // It reads the database and returns a list of FieldMap
 // of the given model
-func Read(rs RecordCollection, fields []string) []FieldMap {
-	var res []FieldMap
-	// Add id field to the list
-	fList := []string{"id"}
-	if fields != nil {
-		fList = append(fList, fields...)
-	}
-	// Get the values
-	rs.ReadValues(&res, fList...)
+func Read(rs RecordCollection, fields []string) RecordCollection {
+	return rs.Read(fields...)
 
 	// Postprocessing results
 	// TODO: Put this in lower ORM
-	for _, line := range res {
-		for k, v := range line {
-			fi, _ := rs.mi.fields.get(k)
-			if fi.relatedModel != nil {
-				// Add display name to rel/reverse fields
-				id, ok := v.(int64)
-				if !ok {
-					// We don't have an int64 here, so we assume it is nil
-					continue
-				}
-				relMI := rs.mi.getRelatedModelInfo(k)
-				relRS := rs.Env().Pool(relMI.name).withIds([]int64{id})
-				line[k] = [2]interface{}{id, relRS.Call("NameGet").(string)}
-			}
-		}
-	}
-	return res
+	//for _, line := range res {
+	//	for k, v := range line {
+	//		fi, _ := rs.mi.fields.get(k)
+	//		if fi.relatedModel != nil {
+	//			// Add display name to rel/reverse fields
+	//			id, ok := v.(int64)
+	//			if !ok {
+	//				// We don't have an int64 here, so we assume it is nil
+	//				continue
+	//			}
+	//			relMI := rs.mi.getRelatedModelInfo(k)
+	//			relRS := rs.Env().Pool(relMI.name).withIds([]int64{id})
+	//			line[k] = [2]interface{}{id, relRS.Call("NameGet").(string)}
+	//		}
+	//	}
+	//}
+	//return res
 }
 
 // Write is the base implementation of the 'Write' method which updates
@@ -125,45 +178,41 @@ func Write(rs RecordCollection, data interface{}) bool {
 	return rs.update(data)
 }
 
-// Unlink is the base implementation of the 'Unlink' method which deletes
-// records in the database.
+// Unlink deletes the given records in the database.
 func Unlink(rs RecordCollection) int64 {
 	return rs.delete()
 }
 
-// Copy duplicates the record given by rs
+// Copy duplicates the given record
 // It panics if rs is not a singleton
-func Copy(rs RecordCollection) RecordCollection {
-	rs.EnsureOne()
+func Copy(rc RecordCollection) RecordCollection {
+	rc.EnsureOne()
 
 	var fields []string
-	for _, fi := range rs.mi.fields.registryByName {
+	for _, fi := range rc.mi.fields.registryByName {
 		if !fi.noCopy {
 			fields = append(fields, fi.json)
 		}
 	}
-	var fMap FieldMap
-	rs.LazyLoad().ReadValue(&fMap, fields...)
 
+	rc.Read(fields...)
+
+	fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
 	delete(fMap, "ID")
 	delete(fMap, "id")
-	newRs := rs.Create(fMap)
+	newRs := rc.Create(fMap)
 	return newRs
 }
 
-/*
-NameGet is the base implementation of the 'NameGet' method which retrieves the
-human readable name of an object.
-*/
-func NameGet(rs RecordCollection) string {
-	rs.EnsureOne()
-	_, nameExists := rs.mi.fields.get("name")
+// NameGet retrieves the human readable name of this record.
+func NameGet(rc RecordCollection) string {
+	rc.EnsureOne()
+	_, nameExists := rc.mi.fields.get("name")
 	if nameExists {
-		var fMap FieldMap
-		rs.ReadValue(&fMap, "name")
-		return fMap["name"].(string)
+		rc.Read("name")
+		return rc.Get("name").(string)
 	}
-	return rs.String()
+	return rc.String()
 }
 
 // convertLimitToInt converts the given limit as interface{} to an int
@@ -195,19 +244,19 @@ type NameSearchParams struct {
 // This is used for example to provide suggestions based on a partial
 // value for a relational field. Sometimes be seen as the inverse
 // function of NameGet but it is not guaranteed to be.
-func NameSearch(rs RecordCollection, params NameSearchParams) []RecordRef {
+func NameSearch(rs RecordCollection, params NameSearchParams) []RecordIDWithName {
 	searchRs := rs.Filter("Name", params.Operator, params.Name).Limit(convertLimitToInt(params.Limit))
 	if extraCondition := ParseDomain(params.Args); extraCondition != nil {
 		searchRs = searchRs.Search(extraCondition)
 	}
 
 	var fValues []FieldMap
-	searchRs.LazyLoad().ReadValues(&fValues, "ID", "DisplayName")
+	searchRs.Read("ID", "DisplayName")
 
-	res := make([]RecordRef, len(fValues))
-	for i, fMap := range fValues {
-		res[i].ID = fMap["id"].(int64)
-		res[i].Name = fMap["display_name"].(string)
+	res := make([]RecordIDWithName, len(fValues))
+	for i, rec := range searchRs.Records() {
+		res[i].ID = rec.Get("id").(int64)
+		res[i].Name = rec.Get("display_name").(string)
 	}
 	return res
 }

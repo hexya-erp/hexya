@@ -72,6 +72,10 @@ Record struct for this model.
 Returns a copy of the first Record of the RecordSet. It returns an empty
 RecordType if the RecordSet is empty.
 
+`*All() []RecordType*`::
+Returns all Records of the RecordSet as a slice of RecordType. It returns an
+empty slice if the RecordSet is empty.
+
 RecordSets implement type safe getters and setters for all fields of the
 Record struct type.
 
@@ -490,10 +494,12 @@ apply the given `layerFunction` as first "layer function".
 
 [source,go]
 ----
-models.CreateMethod("ResPartner", "UpdateBirthday",
-    func(rs ResPartnerSet, birthday time.Time) {
-        rs.SetBirthday(Date(birthDay))
-    })
+// PartnerUpdateBirthday updates this partner birthday.
+func PartnerUpdateBirthday(rs ResPartnerSet, birthday time.Time) {
+    rs.SetBirthday(Date(birthDay))
+})
+
+models.CreateMethod("ResPartner", "UpdateBirthday", PartnerUpdateBirthday)
 ----
 
 [IMPORTANT]
@@ -504,6 +510,10 @@ constants here.
 
 This limitation may be removed in a future version.
 ====
+
+NOTE: Documentation string of the `layerFunction` passed to `CreateMethod` will
+be used automatically as documentation string of the created method. Therefore,
+we discourage the use of function literals here.
 
 `*models.ExtendMethod(modelName, methodName string, layerFunction interface{})*`::
 Extends the method `methodName` in the model `modelName` with the given

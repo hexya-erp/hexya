@@ -132,16 +132,22 @@ type MethodRef struct {
 	Method string
 }
 
+// TypeData holds a Type string and optional import path for this type.
+type TypeData struct {
+	Type       string
+	ImportPath string
+}
+
 // DocAndParams is a holder for a function's doc string and parameters names
-type DocAndParams struct {
-	Doc    string
-	Params []string
+type MethodASTData struct {
+	Doc        string
+	Params     []string
+	ReturnType TypeData
 }
 
 // GetMethodsDocAndParamsNames returns the doc string and parameters name of all
 // methods of all YEP modules.
-func GetMethodsDocAndParamsNames() map[MethodRef]DocAndParams {
-	res := make(map[MethodRef]DocAndParams)
+func GetMethodsASTData() map[MethodRef]MethodASTData {
 	// Parse source code
 	conf := loader.Config{
 		AllowErrors: true,
@@ -151,35 +157,33 @@ func GetMethodsDocAndParamsNames() map[MethodRef]DocAndParams {
 	conf.Import(TEST_MODULE_PATH)
 	program, _ := conf.Load()
 	modInfos := GetModulePackages(program)
+	return GetMethodsASTDataForModules(modInfos)
+}
 
+// GetMethodsASTDataForModules returns the MethodASTData for all methods in given modules.
+func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodASTData {
+	res := make(map[MethodRef]MethodASTData)
 	// Parse all modules for comments and params names
 	// In the same loop, we both :
-	// - Get doc and params for all functions
+	// - Get method ast data for all functions
 	// - Get the list of methods by parsing 'CreateMethod'
-	meths := make(map[MethodRef]*ast.FuncDecl)
-	funcs := make(map[*ast.FuncDecl]DocAndParams)
+	meths := make(map[MethodRef]ast.Node)
+	funcs := make(map[ast.Node]MethodASTData)
 	for _, modInfo := range modInfos {
 		for _, file := range modInfo.Files {
 			ast.Inspect(file, func(n ast.Node) bool {
 				switch node := n.(type) {
 				case *ast.FuncDecl:
-					// Extract doc
-					var docString string
-					if node.Doc != nil {
-						for _, d := range node.Doc.List {
-							docString = fmt.Sprintf("%s\n%s", docString, d.Text)
-						}
+					funcs[n] = MethodASTData{
+						Doc:        extractDocString(node),
+						Params:     extractParams(node.Type),
+						ReturnType: extractReturnType(node.Type, modInfo),
 					}
-					// Extract params
-					var params []string
-					for _, pl := range node.Type.Params.List {
-						for _, nn := range pl.Names {
-							params = append(params, nn.Name)
-						}
-					}
-					funcs[node] = DocAndParams{
-						Doc:    docString,
-						Params: params,
+				case *ast.FuncLit:
+					funcs[n] = MethodASTData{
+						Doc:        "",
+						Params:     extractParams(node.Type),
+						ReturnType: extractReturnType(node.Type, modInfo),
 					}
 				case *ast.CallExpr:
 					var fNameNode *ast.Ident
@@ -203,13 +207,13 @@ func GetMethodsDocAndParamsNames() map[MethodRef]DocAndParams {
 						methodName = strings.Trim(mn.Value, `"`)
 					}
 
-					var funcDecl *ast.FuncDecl
+					var funcDecl ast.Node
 					switch fd := node.Args[2].(type) {
 					case *ast.Ident:
 						funcDecl = fd.Obj.Decl.(*ast.FuncDecl)
-						// TODO Handle the case where we have function literal instead of ident
+					case *ast.FuncLit:
+						funcDecl = fd
 					}
-
 					meths[MethodRef{Model: modelName, Method: methodName}] = funcDecl
 				}
 				return true
@@ -221,6 +225,47 @@ func GetMethodsDocAndParamsNames() map[MethodRef]DocAndParams {
 		res[ref] = funcs[meth]
 	}
 	return res
+}
+
+// extractParams extracts the parameters name of the given FuncType
+func extractParams(ft *ast.FuncType) []string {
+	var params []string
+	for _, pl := range ft.Params.List {
+		for _, nn := range pl.Names {
+			params = append(params, nn.Name)
+		}
+	}
+	return params
+}
+
+// extractReturnType returns the return type of the first returned value
+// of the given FuncType as a string and an import path if needed.
+func extractReturnType(ft *ast.FuncType, modInfo *ModuleInfo) TypeData {
+	var returnType, importPath string
+	if ft.Results != nil && len(ft.Results.List) > 0 {
+		returnType = types.TypeString(modInfo.TypeOf(ft.Results.List[0].Type), (*types.Package).Name)
+		importPath = types.TypeString(modInfo.TypeOf(ft.Results.List[0].Type), (*types.Package).Path)
+	}
+	if importPath == POOL_PATH {
+		returnType = strings.Replace(returnType, "pool.", "", 1)
+		importPath = ""
+	}
+
+	return TypeData{
+		Type:       returnType,
+		ImportPath: importPath,
+	}
+}
+
+// extractDocString returns the documentation string for the given func decl.
+func extractDocString(fd *ast.FuncDecl) string {
+	var docString string
+	if fd.Doc != nil {
+		for _, d := range fd.Doc.List {
+			docString = fmt.Sprintf("%s\n%s", docString, d.Text)
+		}
+	}
+	return docString
 }
 
 func init() {

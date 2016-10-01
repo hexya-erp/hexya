@@ -139,66 +139,50 @@ func (rs RecordCollection) delete() int64 {
 	return num
 }
 
-/*
-Filter returns a new RecordSet with the given additional filter condition.
-*/
+// Filter returns a new RecordSet filtered on records matching the given additional condition.
 func (rs RecordCollection) Filter(fieldName, op string, data interface{}) RecordCollection {
 	rs.query.cond = rs.query.cond.And(fieldName, op, data)
 	return rs
 }
 
-/*
-Exclude returns a new RecordSet with the given additional NOT filter condition.
-*/
+// Exclude returns a new RecordSet filtered on records NOT matching the given additional condition.
 func (rs RecordCollection) Exclude(fieldName, op string, data interface{}) RecordCollection {
 	rs.query.cond = rs.query.cond.AndNot(fieldName, op, data)
 	return rs
 }
 
-/*
-SetCond returns a new RecordSet with the given additional condition
-*/
+// Search returns a new RecordSet filtering on the current one with the
+// additional given Condition
 func (rs RecordCollection) Search(cond *Condition) RecordCollection {
 	rs.query.cond = rs.query.cond.AndCond(cond)
 	return rs
 }
 
-/*
-Limit returns a new RecordSet with the given limit as additional condition
-*/
-func (rs RecordCollection) Limit(limit int, args ...int) RecordCollection {
+// Limit returns a new RecordSet with only the first 'limit' records.
+func (rs RecordCollection) Limit(limit int) RecordCollection {
 	rs.query.limit = limit
-	if len(args) > 0 {
-		rs.query.offset = args[0]
-	}
 	return rs
 }
 
-/*
-Offset returns a new RecordSet with the given offset as additional condition
-*/
+// Offset returns a new RecordSet with only the records starting at offset
 func (rs RecordCollection) Offset(offset int) RecordCollection {
 	rs.query.offset = offset
 	return rs
 }
 
-/*
-OrderBy returns a new RecordSet with the given ORDER BY clause in its Query
-*/
+// OrderBy returns a new RecordSet ordered by the given ORDER BY expressions
 func (rs RecordCollection) OrderBy(exprs ...string) RecordCollection {
 	rs.query.orders = append(rs.query.orders, exprs...)
 	return rs
 }
 
-/*
-GroupBy returns a new RecordSet with the given GROUP BY clause in its Query
-*/
+// GroupBy returns a new RecordSet grouped with the given GROUP BY expressions
 func (rs RecordCollection) GroupBy(exprs ...string) RecordCollection {
 	rs.query.groups = append(rs.query.groups, exprs...)
 	return rs
 }
 
-// Distinct returns a new RecordSet with its Query filtering duplicates
+// Distinct returns a new RecordSet without duplicates
 func (rs RecordCollection) Distinct() RecordCollection {
 	rs.query.distinct = true
 	return rs
@@ -220,13 +204,7 @@ func (rs RecordCollection) LazyLoad() RecordCollection {
 // ForceLazyLoad query the database with the current filter and returns a
 // RecordSet with the queries ids. ForceLazyLoad always makes a database query.
 func (rs RecordCollection) ForceLazyLoad() RecordCollection {
-	var idsMap []FieldMap
-	num := rs.ReadValues(&idsMap, "id")
-	ids := make([]int64, num)
-	for i := 0; i < int(num); i++ {
-		ids[i] = idsMap[i]["id"].(int64)
-	}
-	return rs.withIds(ids)
+	return rs.Read("id")
 }
 
 /*
@@ -240,116 +218,121 @@ func (rs RecordCollection) SearchCount() int {
 	return res
 }
 
-// ReadAll query all data pointed by the RecordSet and map to containers.
-// If cols are given, retrieve only the given fields.
-// Returns the number of rows fetched.
-// It panics in case of error
-func (rs RecordCollection) ReadAll(container interface{}, cols ...string) int64 {
-	rSet := rs.LazyLoad()
-	if err := checkStructSlicePtr(container); err != nil {
-		tools.LogAndPanic(log, err.Error(), "container", container)
-	}
-	typ := reflect.TypeOf(container).Elem().Elem().Elem()
-	structCtn := reflect.New(typ).Interface()
-	sfMap := structToMap(structCtn, 0)
-	fields := filterFields(rSet.mi, sfMap.Keys(), cols)
-
-	var fMaps []FieldMap
-	rSet.ReadValues(&fMaps, fields...)
-
-	ptrVal := reflect.ValueOf(container)
-	sliceVal := ptrVal.Elem()
-	sliceVal.Set(reflect.MakeSlice(ptrVal.Type().Elem(), len(fMaps), len(fMaps)))
-
-	for i, fMap := range fMaps {
-		structPtr := reflect.New(typ).Interface()
-		mapToStruct(rSet.mi, structPtr, fMap)
-		sliceVal.Index(i).Set(reflect.ValueOf(structPtr))
-	}
-	return int64(len(fMaps))
-}
-
-// ReadOne query the RecordSet row and map to container.
-// If cols are given, retrieve only the given fields.
-// It panics if the RecordSet does not contain exactly one row.
-func (rs RecordCollection) ReadOne(container interface{}, cols ...string) {
-	rSet := rs.LazyLoad()
-	rSet.EnsureOne()
-	if err := checkStructPtr(container); err != nil {
-		tools.LogAndPanic(log, err.Error(), "container", container)
-	}
-
-	sfMap := structToMap(container, 0)
-	fields := filterFields(rSet.mi, sfMap.Keys(), cols)
-	var fMap FieldMap
-	rSet.ReadValue(&fMap, fields...)
-	mapToStruct(rSet.mi, container, fMap)
-}
-
-// Value query a single line of data in the database and maps the
-// result to the result FieldMap
-func (rs RecordCollection) ReadValue(result *FieldMap, fields ...string) {
-	rs.EnsureOne()
-	var fieldsMap []FieldMap
-	rs.ReadValues(&fieldsMap, fields...)
-	*result = make(FieldMap)
-	*result = fieldsMap[0]
-}
-
-// Values query all data of the RecordSet and map to []FieldMap.
+// Read query all data of the RecordCollection and store in cache.
 // fields are the fields to retrieve in the expression format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
-// If no fields are given, all columns of the RecordSet's model are retrieved.
-func (rs RecordCollection) ReadValues(results *[]FieldMap, fields ...string) int64 {
+// If no fields are given, all columns of the RecordCollection's model are retrieved.
+func (rc RecordCollection) Read(fields ...string) RecordCollection {
+	var results []FieldMap
 	if len(fields) == 0 {
-		fields = rs.mi.fields.nonRelatedFieldJSONNames()
+		fields = rc.mi.fields.nonRelatedFieldJSONNames()
 	}
-	subFields, substs := rs.substituteRelatedFields(fields)
-	dbFields := filterOnDBFields(rs.mi, subFields)
-	sql, args := rs.query.selectQuery(dbFields)
-	rows := DBQuery(rs.env.cr, sql, args...)
+	subFields, substs := rc.substituteRelatedFields(fields)
+	dbFields := filterOnDBFields(rc.mi, subFields)
+	sql, args := rc.query.selectQuery(dbFields)
+	rows := DBQuery(rc.env.cr, sql, args...)
 	defer rows.Close()
 	var ids []int64
 	for rows.Next() {
 		line := make(FieldMap)
-		err := rs.mi.scanToFieldMap(rows, &line)
+		err := rc.mi.scanToFieldMap(rows, &line)
 		line.SubstituteKeys(substs)
 		if err != nil {
-			tools.LogAndPanic(log, err.Error(), "model", rs.ModelName(), "fields", fields)
+			tools.LogAndPanic(log, err.Error(), "model", rc.ModelName(), "fields", fields)
 		}
-		*results = append(*results, line)
+		results = append(results, line)
 		ids = append(ids, line["id"].(int64))
 	}
 
-	// Call withIds directly and not ForceLazyLoad to avoid infinite recursion
-	rSet := rs.withIds(ids)
+	rSet := rc.withIds(ids)
 	for i, rec := range rSet.Records() {
-		rec.computeFieldValues(&(*results)[i], fields...)
+		rec.computeFieldValues(&results[i], fields...)
+		rc.env.cache.addEntry(rc.ModelName(), rec.ids[0], results[i])
 	}
-	return int64(len(*results))
+	return rSet
 }
 
-// Records returns the slice of RecordSet singletons that constitute this RecordSet
-func (rs RecordCollection) Records() []RecordCollection {
-	res := make([]RecordCollection, len(rs.Ids()))
-	for i, id := range rs.Ids() {
-		res[i] = rs.withIds([]int64{id})
+// Get returns the value of the given fieldName for the first record of this RecordCollection.
+// It returns the type's zero value if the RecordCollection is empty.
+func (rc RecordCollection) Get(fieldName string) interface{} {
+	if rc.IsEmpty() {
+		fi, ok := rc.mi.fields.get(fieldName)
+		if !ok {
+			tools.LogAndPanic(log, "Unknown field in model", "model", rc.ModelName(), "field", fieldName)
+		}
+		return reflect.Zero(fi.structField.Type).Interface()
+	}
+
+	if !rc.env.cache.checkIfInCache(rc.mi, []int64{rc.ids[0]}, []string{fieldName}) {
+		// If value is not in cache we fetch the whole model to speed up
+		// later calls to Get. The user can call Read with fields beforehand
+		// in order not to have this behaviour.
+		rc.Read()
+	}
+	return rc.env.cache.get(rc.mi.name, rc.ids[0], fieldName)
+}
+
+// ReadFirst populates structPtr with a copy of the first Record of the RecordCollection.
+// structPtr must a pointer to a struct.
+func (rc RecordCollection) ReadFirst(structPtr interface{}) {
+	if err := checkStructPtr(structPtr); err != nil {
+		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structPtr)
+	}
+	if rc.IsEmpty() {
+		return
+	}
+	fMap := rc.env.cache.getRecord(rc.ModelName(), rc.ids[0])
+	mapToStruct(rc.mi, structPtr, fMap)
+}
+
+// ReadAll Returns a copy of all records of the RecordCollection.
+// It returns an empty slice if the RecordSet is empty.
+func (rc RecordCollection) ReadAll(structSlicePtr interface{}) {
+	if err := checkStructSlicePtr(structSlicePtr); err != nil {
+		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structSlicePtr)
+	}
+	val := reflect.ValueOf(structSlicePtr)
+	sspType := val.Type().Elem()
+	val.Elem().Set(reflect.MakeSlice(sspType, rc.Len(), rc.Len()))
+	recs := rc.Records()
+	for i := 0; i < rc.Len(); i++ {
+		fMap := rc.env.cache.getRecord(rc.ModelName(), recs[i].ID())
+		val.Elem().Index(i).Set(reflect.ValueOf(fMap))
+	}
+}
+
+// Records returns the slice of RecordCollection singletons that constitute this
+// RecordCollection.
+func (rc RecordCollection) Records() []RecordCollection {
+	res := make([]RecordCollection, len(rc.Ids()))
+	for i, id := range rc.Ids() {
+		res[i] = rc.withIds([]int64{id})
 	}
 	return res
 }
 
-// EnsureOne panics if rs is not a singleton
-func (rs RecordCollection) EnsureOne() {
-	rSet := rs.LazyLoad()
+// EnsureOne panics if rc is not a singleton
+func (rc RecordCollection) EnsureOne() {
+	rSet := rc.LazyLoad()
 	if len(rSet.Ids()) != 1 {
 		tools.LogAndPanic(log, "Expected singleton", "model", rSet.ModelName(), "received", rSet)
 	}
 }
 
-// withIdMap returns a new RecordSet pointing to the given ids.
+// IsEmpty returns true if rc is an empty RecordCollection
+func (rc RecordCollection) IsEmpty() bool {
+	return len(rc.ids) == 0
+}
+
+// Len returns the number of records in this RecordCollection
+func (rc RecordCollection) Len() int {
+	return len(rc.ids)
+}
+
+// withIdMap returns a new RecordCollection pointing to the given ids.
 // It overrides the current query with ("ID", "in", ids).
-func (rs RecordCollection) withIds(ids []int64) RecordCollection {
-	rSet := rs
+func (rc RecordCollection) withIds(ids []int64) RecordCollection {
+	rSet := rc
 	rSet.ids = ids
 	if len(ids) > 0 {
 		rSet.query.cond = NewCondition()
@@ -360,18 +343,19 @@ func (rs RecordCollection) withIds(ids []int64) RecordCollection {
 
 var _ RecordSet = RecordCollection{}
 
-// newRecordSet returns a new empty RecordSet in the given environment for the given modelName
-func newRecordSet(env *Environment, modelName string) *RecordCollection {
+// newRecordCollection returns a new empty RecordCollection in the
+// given environment for the given modelName
+func newRecordCollection(env Environment, modelName string) RecordCollection {
 	mi, ok := modelRegistry.get(modelName)
 	if !ok {
 		tools.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
-	rs := RecordCollection{
+	rc := RecordCollection{
 		mi:    mi,
 		query: newQuery(),
-		env:   env,
+		env:   &env,
 		ids:   make([]int64, 0),
 	}
-	rs.query.recordSet = &rs
-	return &rs
+	rc.query.recordSet = &rc
+	return rc
 }

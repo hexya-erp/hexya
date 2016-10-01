@@ -27,7 +27,7 @@ import (
 // GeneratePool generates source code files inside the
 // given directory for all models.
 func GeneratePool(dir string) {
-	docParamsMap := generate.GetMethodsDocAndParamsNames()
+	docParamsMap := generate.GetMethodsASTData()
 	for modelName, mi := range modelRegistry.registryByName {
 		fileName := fmt.Sprintf("%s.go", strings.ToLower(modelName))
 		generateModelPoolFile(mi, path.Join(dir, fileName), docParamsMap)
@@ -36,7 +36,7 @@ func GeneratePool(dir string) {
 
 // generateModelPoolFile generates the file with the source code of the
 // pool object for the given modelInfo.
-func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[generate.MethodRef]generate.DocAndParams) {
+func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[generate.MethodRef]generate.MethodASTData) {
 	// Generate model data
 	deps := map[string]bool{
 		generate.POOL_PATH: true,
@@ -159,6 +159,26 @@ func New{{ .Name }}Set(env models.Environment) {{ .Name }}Set {
 }
 
 var _ models.RecordSet = {{ .Name }}Set{}
+
+// First returns a copy of the first Record of this RecordSet.
+// It returns an empty {{ .Name }} if the RecordSet is empty.
+func (s {{ .Name }}Set) First() {{ .Name }} {
+	var res {{ .Name }}
+	s.RecordCollection.ReadFirst(&res)
+	return res
+}
+
+// All Returns a copy of all records of the RecordCollection.
+// It returns an empty slice if the RecordSet is empty.
+func (s {{ .Name }}Set) All() []{{ .Name }} {
+	var ptrSlice []*{{ .Name }}
+	s.RecordCollection.ReadAll(&ptrSlice)
+	res := make([]{{ .Name }}, len(ptrSlice))
+	for i, ps := range ptrSlice {
+		res[i] = *ps
+	}
+	return res
+}
 
 // Records returns a slice with all the records of this RecordSet, as singleton
 // RecordSets
