@@ -30,7 +30,7 @@ func TestCreateRecordSet(t *testing.T) {
 			}
 			users := env.Pool("User").Call("Create", userJohnData).(RecordCollection)
 			So(users.Len(), ShouldEqual, 1)
-			So(users.Get("ID"), ShouldNotEqual, 0)
+			So(users.Get("ID"), ShouldBeGreaterThan, 0)
 		})
 		Convey("Creating user Jane with related Profile", func() {
 			userJaneProfileData := FieldMap{
@@ -48,49 +48,59 @@ func TestCreateRecordSet(t *testing.T) {
 			So(userJane.Len(), ShouldEqual, 1)
 			So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.Get("ID"))
 		})
-		//Convey("Creating a user Will Smith", func() {
-		//	userWill := User_WithID{
-		//		UserName: "Will Smith",
-		//		Email:    "will.smith@example.com",
-		//	}
-		//	users := env.Create(&userWill)
-		//	Convey("Created user ids should match struct's ID ", func() {
-		//		So(len(users.Ids()), ShouldEqual, 1)
-		//		So(users.ID(), ShouldEqual, userWill.ID)
-		//	})
-		//})
+		Convey("Creating a user Will Smith", func() {
+			userWillData := FieldMap{
+				"UserName": "Will Smith",
+				"Email":    "will.smith@example.com",
+			}
+			userWill := env.Pool("User").Call("Create", userWillData).(RecordCollection)
+			So(userWill.Len(), ShouldEqual, 1)
+			So(userWill.Get("ID"), ShouldBeGreaterThan, 0)
+		})
 		env.cr.Commit()
 	})
 }
 
-//func TestSearchRecordSet(t *testing.T) {
-//	Convey("Testing search through RecordSets", t, func() {
-//		env := NewEnvironment(1)
-//		Convey("Searching User Jane and getting struct through ReadOne", func() {
-//			users := env.Pool("User").Filter("UserName", "=", "Jane Smith").Search()
-//			So(len(users.Ids()), ShouldEqual, 1)
-//			var userJane User_WithID
-//			users.RelatedDepth(1).ReadOne(&userJane)
-//			So(userJane.UserName, ShouldEqual, "Jane Smith")
-//			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
-//			So(userJane.Profile.Age, ShouldEqual, 23)
-//			So(userJane.Profile.Money, ShouldEqual, 12345)
-//		})
-//
-//		Convey("Testing search all users and getting struct slice", func() {
-//			usersAll := env.Pool("User").Search()
-//			So(len(usersAll.Ids()), ShouldEqual, 3)
-//			var userStructs []*User_PartialWithPosts
-//			num := usersAll.ReadAll(&userStructs)
-//			So(num, ShouldEqual, 3)
-//			So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
-//			So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
-//			So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
-//		})
-//		env.cr.Rollback()
-//	})
-//}
-//
+func TestSearchRecordSet(t *testing.T) {
+	Convey("Testing search through RecordSets", t, func() {
+		env := NewEnvironment(1)
+		Convey("Searching User Jane", func() {
+			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith").LazyLoad()
+			So(userJane.Len(), ShouldEqual, 1)
+			Convey("Reading Jane with Get", func() {
+				So(userJane.Get("UserName").(string), ShouldEqual, "Jane Smith")
+				So(userJane.Get("Email"), ShouldEqual, "jane.smith@example.com")
+				So(userJane.Get("Profile").(RecordCollection).Get("Age"), ShouldEqual, 23)
+				So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
+			})
+			Convey("Reading Jane with ReadFirst", func() {
+				type UserStruct struct {
+					ID       int64
+					UserName string
+					Email    string
+				}
+				var userJaneStruct UserStruct
+				userJane.ReadFirst(&userJaneStruct)
+				So(userJaneStruct.UserName, ShouldEqual, "Jane Smith")
+				So(userJaneStruct.Email, ShouldEqual, "jane.smith@example.com")
+				So(userJaneStruct.ID, ShouldEqual, userJane.Get("ID").(int64))
+			})
+		})
+
+		//Convey("Testing search all users and getting struct slice", func() {
+		//	usersAll := env.Pool("User").LazyLoad()
+		//	So(usersAll.Len(), ShouldEqual, 3)
+		//	var userStructs []*User_PartialWithPosts
+		//	num := usersAll.ReadAll(&userStructs)
+		//	So(num, ShouldEqual, 3)
+		//	So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
+		//	So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+		//	So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
+		//})
+		env.cr.Rollback()
+	})
+}
+
 //func TestUpdateRecordSet(t *testing.T) {
 //	Convey("Testing updates through RecordSets", t, func() {
 //		env := NewEnvironment(1)

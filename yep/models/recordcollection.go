@@ -93,8 +93,9 @@ func (rs RecordCollection) create(data interface{}) RecordCollection {
 	var createdId int64
 	DBGet(rs.env.cr, &createdId, sql, args...)
 	// compute stored fields
-	rs.updateStoredFields(fMap)
-	return rs.withIds([]int64{createdId})
+	rSet := rs.withIds([]int64{createdId})
+	rSet.updateStoredFields(fMap)
+	return rSet
 }
 
 // update updates the database with the given data and returns the number of updated rows.
@@ -210,10 +211,6 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 	if len(fields) == 0 {
 		fields = rc.mi.fields.storedFieldNames()
 	}
-	if rc.env.cache.checkIfInCache(rc.mi, rc.ids, fields) {
-		// We already have all our fields in cache
-		return rc
-	}
 	subFields, substs := rc.substituteRelatedFields(fields)
 	dbFields := filterOnDBFields(rc.mi, subFields)
 	sql, args := rc.query.selectQuery(dbFields)
@@ -233,11 +230,6 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 	}
 
 	rSet := rc.withIds(ids)
-	for i, rec := range rSet.Records() {
-		rec.computeFieldValues(&results[i], fields...)
-		// TODO: do not overwrite the whole record, but only the computed fields
-		rc.env.cache.addRecord(rc.mi, rec.ids[0], results[i])
-	}
 	return rSet
 }
 
@@ -251,6 +243,10 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 	var res interface{}
 	if rc.IsEmpty() {
 		res = reflect.Zero(fi.structField.Type).Interface()
+	} else if fi.isComputedField() && !fi.isStored() {
+		fMap := make(FieldMap)
+		rc.computeFieldValues(&fMap, fieldName)
+		res = fMap[jsonizePath(rc.mi, fieldName)]
 	} else {
 		if !rc.env.cache.checkIfInCache(rc.mi, []int64{rc.ids[0]}, []string{fieldName}) {
 			// If value is not in cache we fetch the whole model to speed up
@@ -280,6 +276,12 @@ func (rc RecordCollection) ReadFirst(structPtr interface{}) {
 	if rc.IsEmpty() {
 		return
 	}
+	typ := reflect.TypeOf(structPtr).Elem()
+	fields := make([]string, typ.NumField())
+	for i := 0; i < typ.NumField(); i++ {
+		fields[i] = typ.Field(i).Name
+	}
+	rc.Read(fields...)
 	fMap := rc.env.cache.getRecord(rc.ModelName(), rc.ids[0])
 	mapToStruct(rc.mi, structPtr, fMap)
 }
