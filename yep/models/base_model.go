@@ -95,10 +95,6 @@ func Distinct(rc RecordCollection) RecordCollection {
 
 // LazyLoad query the database with the current filter and returns a RecordSet
 // with the queries ids.
-//
-// If this RecordSet already has ids, it does not query the database and just
-// returns the same RecordSet. Use Read("id") instead if you want to force
-// a query in the database.
 func LazyLoad(rc RecordCollection) RecordCollection {
 	return rc.LazyLoad()
 }
@@ -200,7 +196,7 @@ func Copy(rc RecordCollection) RecordCollection {
 	fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
 	delete(fMap, "ID")
 	delete(fMap, "id")
-	newRs := rc.Create(fMap)
+	newRs := rc.Call("Create", fMap).(RecordCollection)
 	return newRs
 }
 

@@ -34,6 +34,7 @@ var (
 	supportedTag = map[string]int{
 		"type":           2,
 		"fk":             2,
+		"comodel":        2,
 		"selection":      2,
 		"size":           2,
 		"digits":         2,

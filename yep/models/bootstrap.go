@@ -55,10 +55,9 @@ func createModelLinks() {
 				if !sfType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
 					tools.LogAndPanic(log, "Relation fields must be RecordSets", "model", mi.name, "field", fi.name)
 				}
-				relatedName := sfType.Name()[:len(sfType.Name())-3]
-				relatedMI, ok = modelRegistry.get(relatedName)
+				relatedMI, ok = modelRegistry.get(fi.relatedModelName)
 				if !ok {
-					tools.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", relatedName)
+					tools.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
 				}
 			}
 			fi.relatedModel = relatedMI

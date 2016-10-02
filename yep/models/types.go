@@ -170,16 +170,9 @@ type RecordSet interface {
 	ModelName() string
 	// Ids returns the ids in this set of Records
 	Ids() []int64
+	// Env returns the current Environment of this RecordSet
+	Env() Environment
 }
 
 // A FieldName is a type representing field names in models.
 type FieldName string
-
-// Querier identifies a type that can make CRUD operations on
-// a model. Data is read or written to RecordSet objects.
-type Querier interface {
-	Create(modelName string, data RecordSet)
-	Read(modelName string, condition *Condition, dest RecordSet)
-	Update(rs RecordSet)
-	Delete(rs RecordSet)
-}

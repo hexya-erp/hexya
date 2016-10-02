@@ -48,7 +48,7 @@ func TestConditions(t *testing.T) {
 			Convey("Check full query with all conditions", func() {
 				rs = rs.Filter("Profile.Age", ">=", 12)
 				c2 := NewCondition().And("user_name", "like", "jane").Or("Profile.Money", "<", 1234.56)
-				rs = rs.Condition(c2)
+				rs = rs.Search(c2)
 				sql, args := rs.query.sqlWhereClause()
 				So(sql, ShouldEqual, `WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE ? OR "user__profile".money < ? ) `)
 				So(args, ShouldContain, "%jane%")

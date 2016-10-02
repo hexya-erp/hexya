@@ -190,21 +190,11 @@ func (rs RecordCollection) Distinct() RecordCollection {
 
 // LazyLoad query the database with the current filter and returns a RecordSet
 // with the queries ids.
-//
-// If this RecordSet already has ids, it does not query the database and just
-// returns the same RecordSet. Use ForceLazyLoad() instead if you want to force
-// a query in the database.
 func (rs RecordCollection) LazyLoad() RecordCollection {
 	if len(rs.Ids()) == 0 {
-		return rs.ForceLazyLoad()
+		return rs.Read("id")
 	}
 	return rs
-}
-
-// ForceLazyLoad query the database with the current filter and returns a
-// RecordSet with the queries ids. ForceLazyLoad always makes a database query.
-func (rs RecordCollection) ForceLazyLoad() RecordCollection {
-	return rs.Read("id")
 }
 
 /*
@@ -227,6 +217,10 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 	if len(fields) == 0 {
 		fields = rc.mi.fields.nonRelatedFieldJSONNames()
 	}
+	if rc.env.cache.checkIfInCache(rc.mi, rc.ids, fields) {
+		// We already have all our fields in cache
+		return rc
+	}
 	subFields, substs := rc.substituteRelatedFields(fields)
 	dbFields := filterOnDBFields(rc.mi, subFields)
 	sql, args := rc.query.selectQuery(dbFields)
@@ -241,13 +235,15 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 			tools.LogAndPanic(log, err.Error(), "model", rc.ModelName(), "fields", fields)
 		}
 		results = append(results, line)
+		rc.env.cache.addRecord(rc.mi, line["id"].(int64), line)
 		ids = append(ids, line["id"].(int64))
 	}
 
 	rSet := rc.withIds(ids)
 	for i, rec := range rSet.Records() {
 		rec.computeFieldValues(&results[i], fields...)
-		rc.env.cache.addEntry(rc.ModelName(), rec.ids[0], results[i])
+		// TODO: do not overwrite the whole record, but only the computed fields
+		rc.env.cache.addRecord(rc.mi, rec.ids[0], results[i])
 	}
 	return rSet
 }
@@ -269,7 +265,7 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		// in order not to have this behaviour.
 		rc.Read()
 	}
-	return rc.env.cache.get(rc.mi.name, rc.ids[0], fieldName)
+	return rc.env.cache.get(rc.mi, rc.ids[0], fieldName)
 }
 
 // ReadFirst populates structPtr with a copy of the first Record of the RecordCollection.
@@ -335,8 +331,7 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 	rSet := rc
 	rSet.ids = ids
 	if len(ids) > 0 {
-		rSet.query.cond = NewCondition()
-		rSet = rSet.Filter("ID", "in", ids)
+		rSet.query.cond = NewCondition().And("ID", "in", ids)
 	}
 	return rSet
 }

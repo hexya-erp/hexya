@@ -154,30 +154,31 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 
 // fieldInfo holds the meta information about a field
 type fieldInfo struct {
-	mi            *modelInfo
-	name          string
-	json          string
-	description   string
-	help          string
-	stored        bool
-	required      bool
-	unique        bool
-	index         bool
-	compute       string
-	depends       []string
-	html          bool
-	relatedModel  *modelInfo
-	reverseFK     string
-	selection     Selection
-	fieldType     tools.FieldType
-	groupOperator string
-	size          int
-	digits        tools.Digits
-	structField   reflect.StructField
-	relatedPath   string
-	dependencies  []computeData
-	inherits      bool
-	noCopy        bool
+	mi               *modelInfo
+	name             string
+	json             string
+	description      string
+	help             string
+	stored           bool
+	required         bool
+	unique           bool
+	index            bool
+	compute          string
+	depends          []string
+	html             bool
+	relatedModelName string
+	relatedModel     *modelInfo
+	reverseFK        string
+	selection        Selection
+	fieldType        tools.FieldType
+	groupOperator    string
+	size             int
+	digits           tools.Digits
+	structField      reflect.StructField
+	relatedPath      string
+	dependencies     []computeData
+	inherits         bool
+	noCopy           bool
 }
 
 // computed returns true if this field is computed
@@ -260,6 +261,14 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		inherits = false
 	}
 
+	relModelName, ok := tags["comodel"]
+	if !ok {
+		if sf.Type == reflect.TypeOf(RecordCollection{}) {
+			tools.LogAndPanic(log, "Undefined comodel on related field", "model", mi.name, "field", sf.Name, "type", typ)
+		}
+		relModelName = sf.Type.Name()[:len(sf.Type.Name())-3]
+	}
+
 	sels, ok := tags["selection"]
 	var selection Selection
 	if ok {
@@ -294,27 +303,28 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	}
 
 	fInfo := fieldInfo{
-		name:          sf.Name,
-		json:          json,
-		mi:            mi,
-		compute:       computeName,
-		stored:        stored,
-		required:      required,
-		unique:        unique,
-		index:         index,
-		depends:       depends,
-		description:   desc,
-		help:          tags["help"],
-		fieldType:     typ,
-		groupOperator: groupOp,
-		structField:   sf,
-		size:          size,
-		digits:        digits,
-		relatedPath:   relatedPath,
-		inherits:      inherits,
-		noCopy:        noCopy,
-		reverseFK:     fk,
-		selection:     selection,
+		name:             sf.Name,
+		json:             json,
+		mi:               mi,
+		compute:          computeName,
+		stored:           stored,
+		required:         required,
+		unique:           unique,
+		index:            index,
+		depends:          depends,
+		description:      desc,
+		help:             tags["help"],
+		fieldType:        typ,
+		groupOperator:    groupOp,
+		structField:      sf,
+		size:             size,
+		digits:           digits,
+		relatedPath:      relatedPath,
+		inherits:         inherits,
+		noCopy:           noCopy,
+		reverseFK:        fk,
+		relatedModelName: relModelName,
+		selection:        selection,
 	}
 	return &fInfo
 }

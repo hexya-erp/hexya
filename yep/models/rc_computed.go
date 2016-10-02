@@ -38,11 +38,9 @@ func (rs RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 updateStoredFields updates all dependent fields of rs that are included in the given FieldMap.
 */
 func (rs RecordCollection) updateStoredFields(fMap FieldMap) {
-	// First get list of fields that have been passed through structPtrOrParams
 	fieldNames := fMap.Keys()
 	var toUpdate []computeData
 	for _, fieldName := range fieldNames {
-		//refField := fieldRef{modelName: rs.ModelName(), name: fieldName}
 		refFieldInfo, ok := rs.mi.fields.get(fieldName)
 		if !ok {
 			continue
@@ -67,7 +65,7 @@ func (rs RecordCollection) updateStoredFields(fMap FieldMap) {
 		for _, rec := range recs.Records() {
 			vals := rec.Call(cData.compute)
 			if len(vals.(FieldMap)) > 0 {
-				rec.Write(vals.(FieldMap))
+				rec.Call("Write", vals.(FieldMap))
 			}
 		}
 	}

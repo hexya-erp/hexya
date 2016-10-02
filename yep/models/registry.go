@@ -188,7 +188,8 @@ func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 			inArgs := []reflect.Value{reflect.ValueOf(dbValue)}
 			scanFunc.Call(inArgs)
 		default:
-			if fType.Kind() == reflect.Ptr {
+			if fType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+				// Our field is a related field
 				// Scan foreign keys into int64
 				fType = reflect.TypeOf(int64(0))
 			}

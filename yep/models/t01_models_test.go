@@ -21,72 +21,49 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func PrefixUser(rs RecordSet, prefix string) []string {
+func PrefixUser(rc RecordCollection, prefix string) []string {
 	var res []string
-	type User_Simple struct {
-		ID       int64
-		UserName string
-	}
-	var users []*User_Simple
-	rs.ReadAll(&users)
-	for _, u := range users {
-		res = append(res, fmt.Sprintf("%s: %s", prefix, u.UserName))
+	for _, u := range rc.Records() {
+		res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("UserName")))
 	}
 	return res
 }
 
-func PrefixUserEmailExtension(rs RecordSet, prefix string) []string {
-
-	res := rs.Super(prefix).([]string)
-	type User_Email struct {
-		ID    int64
-		Email string
-	}
-	var users []*User_Email
-	rs.ReadAll(&users)
-	for i, u := range users {
-		res[i] = fmt.Sprintf("%s %s", res[i], rs.Call("DecorateEmail", u.Email))
+func PrefixUserEmailExtension(rc RecordCollection, prefix string) []string {
+	res := rc.Super(prefix).([]string)
+	for i, u := range rc.Records() {
+		email := u.Get("Email").(string)
+		res[i] = fmt.Sprintf("%s %s", res[i], rc.Call("DecorateEmail", email))
 	}
 	return res
 }
 
-func DecorateEmail(rs RecordSet, email string) string {
+func DecorateEmail(rc RecordCollection, email string) string {
 	return fmt.Sprintf("<%s>", email)
 }
 
-func DecorateEmailExtension(rs RecordSet, email string) string {
-	res := rs.Super(email).(string)
+func DecorateEmailExtension(rc RecordCollection, email string) string {
+	res := rc.Super(email).(string)
 	return fmt.Sprintf("[%s]", res)
 }
 
-func computeDecoratedName(rs RecordSet) FieldMap {
+func computeDecoratedName(rc RecordCollection) FieldMap {
 	res := make(FieldMap)
-	res["DecoratedName"] = rs.Call("PrefixedUser", "User").([]string)[0]
+	res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 	return res
 }
 
-func computeAge(rs RecordSet) FieldMap {
+func computeAge(rc RecordCollection) FieldMap {
 	res := make(FieldMap)
-	type Profile_Simple struct {
-		ID  int64
-		Age int16
-	}
-	type User_Simple struct {
-		ID      int64
-		Profile *Profile_Simple
-	}
-	user := new(User_Simple)
-	rs.RelatedDepth(1).Search().ReadOne(user)
-	if user.Profile != nil {
-		res["Age"] = user.Profile.Age
-	}
+	res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
 	return res
 }
 
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
 		CreateModel("User")
-		ExtendModel("User", new(User), new(User_Extension))
+		ExtendModel("User", new(User))
+		ExtendModel("User", new(User_Extension))
 		CreateModel("Profile")
 		ExtendModel("Profile", new(Profile), new(Profile_Extension))
 		CreateModel("Post")
@@ -94,12 +71,12 @@ func TestCreateDB(t *testing.T) {
 		CreateModel("Tag")
 		ExtendModel("Tag", new(Tag), new(Tag_Extension))
 
-		DeclareMethod("User", "PrefixedUser", PrefixUser)
-		DeclareMethod("User", "PrefixedUser", PrefixUserEmailExtension)
-		DeclareMethod("User", "DecorateEmail", DecorateEmail)
-		DeclareMethod("User", "DecorateEmail", DecorateEmailExtension)
-		DeclareMethod("User", "computeDecoratedName", computeDecoratedName)
-		DeclareMethod("User", "computeAge", computeAge)
+		CreateMethod("User", "PrefixedUser", PrefixUser)
+		ExtendMethod("User", "PrefixedUser", PrefixUserEmailExtension)
+		CreateMethod("User", "DecorateEmail", DecorateEmail)
+		ExtendMethod("User", "DecorateEmail", DecorateEmailExtension)
+		CreateMethod("User", "computeDecoratedName", computeDecoratedName)
+		CreateMethod("User", "computeAge", computeAge)
 
 		// Creating a dummy table to check that it is correctly removed by Bootstrap
 		db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
@@ -140,68 +117,33 @@ type User struct {
 	Status        int16 `yep:"json(status_json)"`
 	IsStaff       bool
 	IsActive      bool
-	Profile       *Profile `yep:"type(many2one)"` //;on_delete(set_null)"`
-	Age           int16    `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
-	Posts         []*Post  `yep:"type(one2many)"`
+	Profile       RecordCollection `yep:"type(many2one);comodel(Profile)"` //;on_delete(set_null)"`
+	Age           int16            `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
+	Posts         RecordCollection `yep:"type(one2many);fk(User);comodel(Post)"`
 	Nums          int
 	unexportBool  bool
-	PMoney        float64 `yep:"related(Profile.Money)"`
-	LastPost      *Post   `yep:"inherits"`
-}
-
-func (u *User) TableIndex() [][]string {
-	return [][]string{
-		{"Id", "UserName"},
-		{"Id", "Email"},
-	}
-}
-
-func (u *User) TableUnique() [][]string {
-	return [][]string{
-		{"UserName", "Email"},
-	}
-}
-
-type User_PartialWithPosts struct {
-	ID        int64
-	Email     string
-	Email2    string
-	IsPremium bool
-	Profile   *Profile_PartialWithBestPost
-	Posts     []*Post
+	PMoney        float64          `yep:"related(Profile.Money)"`
+	LastPost      RecordCollection `yep:"inherits;type(many2one);comodel(Post)"`
 }
 
 type Profile struct {
 	Age      int16
 	Money    float64
-	User     *User
-	BestPost *Post `yep:"type(one2one)"`
-}
-
-type Profile_PartialWithBestPost struct {
-	ID       int64
-	Age      int16
-	Country  string
-	BestPost *Post
+	User     RecordCollection `yep:"type(many2one);comodel(User)"`
+	BestPost RecordCollection `yep:"type(one2one);comodel(Post)"`
 }
 
 type Post struct {
-	User    *User
+	User    RecordCollection `yep:"type(many2one);comodel(User)"`
 	Title   string
 	Content string `yep:"type(text)"`
-	//Tags    []*Tag `yep:"type(many2many)"`
-}
-
-func (u *Post) TableIndex() [][]string {
-	return [][]string{
-		{"Id", "Title"},
-	}
+	//Tags    RecordCollection `yep:"type(many2many);comodel(Tag)"`
 }
 
 type Tag struct {
 	Name     string
-	BestPost *Post
-	Posts    []*Post `yep:"type(many2many)"`
+	BestPost RecordCollection `yep:"type(many2one);comodel(Post)"`
+	Posts    RecordCollection `yep:"type(many2many);comodel(Post)"`
 }
 
 type User_Extension struct {

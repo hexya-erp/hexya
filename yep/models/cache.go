@@ -18,20 +18,39 @@ package models
 // improve performance.
 type cache map[RecordRef]FieldMap
 
-// addEntry to the cache
-func (c *cache) addEntry(modelName string, ID int64, values FieldMap) {
-	(*c)[RecordRef{ModelName: modelName, ID: ID}] = values
+// addEntry to the cache. fieldName may be a path relative to this modelInfo.
+// (e.g. "User.Profile.Age").
+func (c *cache) addEntry(mi *modelInfo, ID int64, fieldName string, value interface{}) {
+	relMI := mi.getRelatedModelInfo(fieldName)
+	_, ok := (*c)[RecordRef{ModelName: relMI.name, ID: ID}]
+	if !ok {
+		(*c)[RecordRef{ModelName: relMI.name, ID: ID}] = make(FieldMap)
+	}
+	jsonFName := jsonizePath(mi, fieldName)
+	(*c)[RecordRef{ModelName: relMI.name, ID: ID}][jsonFName] = value
 }
 
-// invalidateEntry removes an entry from the cache
-func (c *cache) invalidateEntry(modelName string, ID int64) {
-	delete((*c), RecordRef{ModelName: modelName, ID: ID})
+// addRecord successively adds each entry of the given FieldMap to the cache.
+// fMap keys may be a paths relative to this modelInfo.
+// (e.g. "User.Profile.Age").
+func (c *cache) addRecord(mi *modelInfo, ID int64, fMap FieldMap) {
+	for k, v := range fMap {
+		c.addEntry(mi, ID, k, v)
+	}
+}
+
+// invalidateRecord removes an entire record from the cache
+func (c *cache) invalidateRecord(mi *modelInfo, ID int64) {
+	delete((*c), RecordRef{ModelName: mi.name, ID: ID})
 }
 
 // get returns the cache value of the given fieldName
-// for the given modelName and ID.
-func (c *cache) get(modelName string, ID int64, fieldName string) interface{} {
-	return (*c)[RecordRef{ModelName: modelName, ID: ID}][fieldName]
+// for the given modelName and ID. fieldName may be a path
+// relative to this modelInfo (e.g. "User.Profile.Age").
+func (c *cache) get(mi *modelInfo, ID int64, fieldName string) interface{} {
+	jsonFName := jsonizePath(mi, fieldName)
+	relMI := mi.getRelatedModelInfo(jsonFName)
+	return (*c)[RecordRef{ModelName: relMI.name, ID: ID}][jsonFName]
 }
 
 // getRecord returns the whole record specified by modelName and ID
@@ -47,7 +66,8 @@ func (c *cache) checkIfInCache(mi *modelInfo, ids []int64, fieldNames []string) 
 		for _, fName := range fieldNames {
 			relMI := mi.getRelatedModelInfo(fName)
 			ref := RecordRef{ModelName: relMI.name, ID: id}
-			if _, ok := (*c)[ref][fName]; !ok {
+			jsonFName := jsonizePath(mi, fName)
+			if _, ok := (*c)[ref][jsonFName]; !ok {
 				return false
 			}
 		}

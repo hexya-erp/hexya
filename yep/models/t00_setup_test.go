@@ -26,9 +26,9 @@ var DBARGS = struct {
 	Source string
 	Debug  string
 }{
-	os.Getenv("ORM_DRIVER"),
-	os.Getenv("ORM_SOURCE"),
-	os.Getenv("ORM_DEBUG"),
+	os.Getenv("YEP_DB_DRIVER"),
+	os.Getenv("YEP_DB_SOURCE"),
+	os.Getenv("YEP_DEBUG"),
 }
 
 var testAdapter dbAdapter
