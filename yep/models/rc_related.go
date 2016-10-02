@@ -28,7 +28,7 @@ func (rs *RecordCollection) substituteRelatedFields(fields []string) ([]string, 
 	var substs []KeySubstitution
 	for i, field := range fields {
 		fi, ok := rs.mi.fields.get(field)
-		if ok && fi.related() {
+		if ok && fi.isRelatedField() {
 			res[i] = fi.relatedPath
 			relatedJSONPath := jsonizePath(rs.mi, fi.relatedPath)
 			substs = append(substs, KeySubstitution{

@@ -169,34 +169,46 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 // their type in the modelInfo.
 func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 	destVals := reflect.ValueOf(fMap).Elem()
-	for colName, dbValue := range *fMap {
-		if val, ok := dbValue.(bool); ok && !val {
+	for colName, fMapValue := range *fMap {
+		if val, ok := fMapValue.(bool); ok && !val {
 			// Hack to manage client returning false instead of nil
-			dbValue = nil
+			fMapValue = nil
 		}
 		fi := mi.getRelatedFieldInfo(colName)
 		fType := fi.structField.Type
 		var val reflect.Value
 		switch {
-		case dbValue == nil:
+		case fMapValue == nil:
 			// dbValue is null, we put the type zero value instead
 			val = reflect.Zero(fType)
 		case reflect.PtrTo(fType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
 			// the type implements sql.Scanner, so we call Scan
 			val = reflect.New(fType)
 			scanFunc := val.MethodByName("Scan")
-			inArgs := []reflect.Value{reflect.ValueOf(dbValue)}
+			inArgs := []reflect.Value{reflect.ValueOf(fMapValue)}
 			scanFunc.Call(inArgs)
 		default:
-			if fType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+			rVal := reflect.ValueOf(fMapValue)
+			if rVal.Type().Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
 				// Our field is a related field
-				// Scan foreign keys into int64
-				fType = reflect.TypeOf(int64(0))
-			}
-			val = reflect.ValueOf(dbValue)
-			if val.IsValid() {
-				if typ := val.Type(); typ.ConvertibleTo(fType) {
-					val = val.Convert(fType)
+				ids := fMapValue.(RecordSet).Ids()
+				if fType == reflect.TypeOf(int64(0)) {
+					if len(ids) > 0 {
+						val = reflect.ValueOf(ids[0])
+					} else {
+						val = reflect.ValueOf(int64(0))
+					}
+				} else if fType == reflect.TypeOf([]int64{}) {
+					val = reflect.ValueOf(ids)
+				} else {
+					tools.LogAndPanic(log, "Non consistent type", "model", mi.name, "field", colName, "type", fType, "value", fMapValue)
+				}
+			} else {
+				val = reflect.ValueOf(fMapValue)
+				if val.IsValid() {
+					if typ := val.Type(); typ.ConvertibleTo(fType) {
+						val = val.Convert(fType)
+					}
 				}
 			}
 		}

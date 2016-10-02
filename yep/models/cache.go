@@ -21,7 +21,7 @@ type cache map[RecordRef]FieldMap
 // addEntry to the cache. fieldName may be a path relative to this modelInfo.
 // (e.g. "User.Profile.Age").
 func (c *cache) addEntry(mi *modelInfo, ID int64, fieldName string, value interface{}) {
-	relMI := mi.getRelatedModelInfo(fieldName)
+	relMI := mi.getRelatedFieldInfo(fieldName).mi
 	_, ok := (*c)[RecordRef{ModelName: relMI.name, ID: ID}]
 	if !ok {
 		(*c)[RecordRef{ModelName: relMI.name, ID: ID}] = make(FieldMap)
@@ -49,8 +49,9 @@ func (c *cache) invalidateRecord(mi *modelInfo, ID int64) {
 // relative to this modelInfo (e.g. "User.Profile.Age").
 func (c *cache) get(mi *modelInfo, ID int64, fieldName string) interface{} {
 	jsonFName := jsonizePath(mi, fieldName)
-	relMI := mi.getRelatedModelInfo(jsonFName)
-	return (*c)[RecordRef{ModelName: relMI.name, ID: ID}][jsonFName]
+	relMI := mi.getRelatedFieldInfo(jsonFName).mi
+	res := (*c)[RecordRef{ModelName: relMI.name, ID: ID}][jsonFName]
+	return res
 }
 
 // getRecord returns the whole record specified by modelName and ID
@@ -64,7 +65,7 @@ func (c *cache) getRecord(modelName string, ID int64) FieldMap {
 func (c *cache) checkIfInCache(mi *modelInfo, ids []int64, fieldNames []string) bool {
 	for _, id := range ids {
 		for _, fName := range fieldNames {
-			relMI := mi.getRelatedModelInfo(fName)
+			relMI := mi.getRelatedFieldInfo(fName).mi
 			ref := RecordRef{ModelName: relMI.name, ID: id}
 			jsonFName := jsonizePath(mi, fName)
 			if _, ok := (*c)[ref][jsonFName]; !ok {

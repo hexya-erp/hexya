@@ -94,14 +94,6 @@ func (rs RecordCollection) create(data interface{}) RecordCollection {
 	DBGet(rs.env.cr, &createdId, sql, args...)
 	// compute stored fields
 	rs.updateStoredFields(fMap)
-	if reflect.TypeOf(data).Kind() == reflect.Ptr {
-		// set ID to the given struct
-		idVal := reflect.ValueOf(data).Elem().FieldByName("ID")
-		idVal.Set(reflect.ValueOf(createdId))
-		// Update the given struct with its computed fields
-		// FIXME: Add computed non stored field calculation here
-		//rs.computeFields(data)
-	}
 	return rs.withIds([]int64{createdId})
 }
 
@@ -211,11 +203,12 @@ func (rs RecordCollection) SearchCount() int {
 // Read query all data of the RecordCollection and store in cache.
 // fields are the fields to retrieve in the expression format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
-// If no fields are given, all columns of the RecordCollection's model are retrieved.
+// If no fields are given, all DB columns of the RecordCollection's
+// model are retrieved.
 func (rc RecordCollection) Read(fields ...string) RecordCollection {
 	var results []FieldMap
 	if len(fields) == 0 {
-		fields = rc.mi.fields.nonRelatedFieldJSONNames()
+		fields = rc.mi.fields.storedFieldNames()
 	}
 	if rc.env.cache.checkIfInCache(rc.mi, rc.ids, fields) {
 		// We already have all our fields in cache
@@ -251,21 +244,31 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc RecordCollection) Get(fieldName string) interface{} {
+	fi, ok := rc.mi.fields.get(fieldName)
+	if !ok {
+		tools.LogAndPanic(log, "Unknown field in model", "model", rc.ModelName(), "field", fieldName)
+	}
+	var res interface{}
 	if rc.IsEmpty() {
-		fi, ok := rc.mi.fields.get(fieldName)
-		if !ok {
-			tools.LogAndPanic(log, "Unknown field in model", "model", rc.ModelName(), "field", fieldName)
+		res = reflect.Zero(fi.structField.Type).Interface()
+	} else {
+		if !rc.env.cache.checkIfInCache(rc.mi, []int64{rc.ids[0]}, []string{fieldName}) {
+			// If value is not in cache we fetch the whole model to speed up
+			// later calls to Get. The user can call Read with fields beforehand
+			// in order not to have this behaviour.
+			rc.Read()
 		}
-		return reflect.Zero(fi.structField.Type).Interface()
+		res = rc.env.cache.get(rc.mi, rc.ids[0], fieldName)
 	}
-
-	if !rc.env.cache.checkIfInCache(rc.mi, []int64{rc.ids[0]}, []string{fieldName}) {
-		// If value is not in cache we fetch the whole model to speed up
-		// later calls to Get. The user can call Read with fields beforehand
-		// in order not to have this behaviour.
-		rc.Read()
+	if fi.isRelationField() {
+		switch r := res.(type) {
+		case int64:
+			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
+		case []int64:
+			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
+		}
 	}
-	return rc.env.cache.get(rc.mi, rc.ids[0], fieldName)
+	return res
 }
 
 // ReadFirst populates structPtr with a copy of the first Record of the RecordCollection.

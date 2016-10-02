@@ -140,14 +140,14 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 	jsonName := fInfo.json
 	fc.registryByName[name] = fInfo
 	fc.registryByJSON[jsonName] = fInfo
-	if fInfo.computed() {
+	if fInfo.isComputedField() {
 		if fInfo.stored {
 			fc.computedStoredFields = append(fc.computedStoredFields, fInfo)
 		} else {
 			fc.computedFields = append(fc.computedFields, fInfo)
 		}
 	}
-	if fInfo.related() {
+	if fInfo.isRelatedField() {
 		fc.relatedFields = append(fc.relatedFields, fInfo)
 	}
 }
@@ -181,14 +181,19 @@ type fieldInfo struct {
 	noCopy           bool
 }
 
-// computed returns true if this field is computed
-func (fi *fieldInfo) computed() bool {
+// isComputedField returns true if this field is computed
+func (fi *fieldInfo) isComputedField() bool {
 	return fi.compute != ""
 }
 
-// related returns true if this field is related
-func (fi *fieldInfo) related() bool {
+// isComputedField returns true if this field is related
+func (fi *fieldInfo) isRelatedField() bool {
 	return fi.relatedPath != ""
+}
+
+// isRelationField returns true if this field points to another model
+func (fi *fieldInfo) isRelationField() bool {
+	return fi.relatedModel != nil
 }
 
 // isStored returns true if this field is stored in database
@@ -199,7 +204,7 @@ func (fi *fieldInfo) isStored() bool {
 		// reverse fields are not stored
 		return false
 	}
-	if (fi.computed() || fi.related()) && !fi.stored {
+	if (fi.isComputedField() || fi.isRelatedField()) && !fi.stored {
 		// Computed and related non stored fields are not stored
 		return false
 	}
@@ -262,11 +267,18 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	}
 
 	relModelName, ok := tags["comodel"]
-	if !ok {
+	if !ok && (typ == tools.MANY2ONE || typ == tools.ONE2ONE || typ == tools.REV2ONE ||
+		typ == tools.ONE2MANY || typ == tools.MANY2MANY) {
 		if sf.Type == reflect.TypeOf(RecordCollection{}) {
 			tools.LogAndPanic(log, "Undefined comodel on related field", "model", mi.name, "field", sf.Name, "type", typ)
 		}
 		relModelName = sf.Type.Name()[:len(sf.Type.Name())-3]
+	}
+
+	if typ == tools.MANY2ONE || typ == tools.ONE2ONE {
+		sf.Type = reflect.TypeOf(int64(0))
+	} else if typ == tools.ONE2MANY || typ == tools.MANY2MANY || typ == tools.REV2ONE {
+		sf.Type = reflect.TypeOf([]int64{})
 	}
 
 	sels, ok := tags["selection"]
@@ -290,7 +302,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	json, ok := tags["json"]
 	if !ok {
 		json = tools.SnakeCaseString(sf.Name)
-		if typ == tools.MANY2ONE || typ == tools.ONE2ONE {
+		if typ == tools.MANY2ONE || typ == tools.ONE2ONE || typ == tools.REV2ONE {
 			json += "_id"
 		} else if typ == tools.ONE2MANY || typ == tools.MANY2MANY {
 			json += "_ids"

@@ -32,22 +32,22 @@ func TestCreateRecordSet(t *testing.T) {
 			So(users.Len(), ShouldEqual, 1)
 			So(users.Get("ID"), ShouldNotEqual, 0)
 		})
-		//Convey("Creating user Jane with related Profile", func() {
-		//	userJaneProfileData := FieldMap{
-		//		"Age":   23,
-		//		"Money": 12345,
-		//	}
-		//	profile := env.Pool("Profile").Call("Create", userJaneProfileData).(RecordCollection)
-		//	So(profile.Len(), ShouldEqual, 1)
-		//	userJaneData := FieldMap{
-		//		"UserName": "Jane Smith",
-		//		"Email":    "jane.smith@example.com",
-		//		"Profile":  profile,
-		//	}
-		//	userJane := env.Pool("User").Call("Create", &userJaneData).(RecordCollection)
-		//	So(userJane.Len(), ShouldEqual, 1)
-		//	So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.Get("ID"))
-		//})
+		Convey("Creating user Jane with related Profile", func() {
+			userJaneProfileData := FieldMap{
+				"Age":   23,
+				"Money": 12345,
+			}
+			profile := env.Pool("Profile").Call("Create", userJaneProfileData).(RecordCollection)
+			So(profile.Len(), ShouldEqual, 1)
+			userJaneData := FieldMap{
+				"UserName": "Jane Smith",
+				"Email":    "jane.smith@example.com",
+				"Profile":  profile,
+			}
+			userJane := env.Pool("User").Call("Create", userJaneData).(RecordCollection)
+			So(userJane.Len(), ShouldEqual, 1)
+			So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.Get("ID"))
+		})
 		//Convey("Creating a user Will Smith", func() {
 		//	userWill := User_WithID{
 		//		UserName: "Will Smith",
@@ -59,7 +59,7 @@ func TestCreateRecordSet(t *testing.T) {
 		//		So(users.ID(), ShouldEqual, userWill.ID)
 		//	})
 		//})
-		//env.cr.Commit()
+		env.cr.Commit()
 	})
 }
 

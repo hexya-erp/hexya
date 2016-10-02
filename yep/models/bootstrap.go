@@ -16,8 +16,6 @@ package models
 
 import (
 	"fmt"
-	"reflect"
-
 	"github.com/npiganeau/yep/yep/tools"
 )
 
@@ -45,16 +43,12 @@ func BootStrap() {
 func createModelLinks() {
 	for _, mi := range modelRegistry.registryByName {
 		for _, fi := range mi.fields.registryByName {
-			sfType := fi.structField.Type
 			var (
 				relatedMI *modelInfo
 				ok        bool
 			)
 			switch fi.fieldType {
 			case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE, tools.ONE2MANY, tools.MANY2MANY:
-				if !sfType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-					tools.LogAndPanic(log, "Relation fields must be RecordSets", "model", mi.name, "field", fi.name)
-				}
 				relatedMI, ok = modelRegistry.get(fi.relatedModelName)
 				if !ok {
 					tools.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
@@ -100,7 +94,7 @@ func inflateInherits() {
 func syncRelatedFieldInfo() {
 	for _, mi := range modelRegistry.registryByName {
 		for _, fi := range mi.fields.registryByName {
-			if !fi.related() {
+			if !fi.isRelatedField() {
 				continue
 			}
 			newFI := *mi.getRelatedFieldInfo(fi.relatedPath)
