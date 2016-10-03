@@ -113,47 +113,67 @@ func TestSearchRecordSet(t *testing.T) {
 	})
 }
 
-//func TestUpdateRecordSet(t *testing.T) {
-//	Convey("Testing updates through RecordSets", t, func() {
-//		env := NewEnvironment(1)
-//		Convey("Simple update with params to user Jane", func() {
-//			rsJane := env.Pool("User").Filter("UserName", "=", "Jane Smith").Search()
-//			So(len(rsJane.Ids()), ShouldEqual, 1)
-//			res := rsJane.Call("Write", FieldMap{"UserName": "Jane A. Smith"})
-//			So(res, ShouldEqual, true)
-//			var userJane User_WithID
-//			rsJane.ReadOne(&userJane)
-//			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
-//			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
-//		})
-//		Convey("Simple update with struct", func() {
-//			rsJane := env.Pool("User").Filter("UserName", "=", "Jane A. Smith").Search()
-//			var userJohn User_WithID
-//			rsJohn := env.Pool("User").Filter("UserName", "=", "John Smith")
-//			rsJohn.ReadOne(&userJohn)
-//			userJohn.Email = "jsmith2@example.com"
-//			env.Sync(&userJohn)
-//			var userJane2 User_WithID
-//			rsJane.ReadOne(&userJane2)
-//			So(userJane2.UserName, ShouldEqual, "Jane A. Smith")
-//			So(userJane2.Email, ShouldEqual, "jane.smith@example.com")
-//			var userJohn2 User_WithID
-//			env.Pool("User").Filter("UserName", "=", "John Smith").ReadOne(&userJohn2)
-//			So(userJohn2.UserName, ShouldEqual, "John Smith")
-//			So(userJohn2.Email, ShouldEqual, "jsmith2@example.com")
-//		})
-//		env.cr.Commit()
-//	})
-//}
-//
-//func TestDeleteRecordSet(t *testing.T) {
-//	env := NewEnvironment(1)
-//	Convey("Delete user John Smith", t, func() {
-//		users := env.Pool("User").Filter("UserName", "=", "John Smith")
-//		num := users.Unlink()
-//		Convey("Number of deleted record should be 1", func() {
-//			So(num, ShouldEqual, 1)
-//		})
-//	})
-//	env.cr.Rollback()
-//}
+func TestUpdateRecordSet(t *testing.T) {
+	Convey("Testing updates through RecordSets", t, func() {
+		env := NewEnvironment(1)
+		Convey("Update on users Jane and John with Write and Set", func() {
+			jane := env.Pool("User").Filter("UserName", "=", "Jane Smith").LazyLoad()
+			So(jane.Len(), ShouldEqual, 1)
+			jane.Set("UserName", "Jane A. Smith")
+			jane.Read()
+			So(jane.Get("UserName"), ShouldEqual, "Jane A. Smith")
+			So(jane.Get("Email"), ShouldEqual, "jane.smith@example.com")
+
+			john := env.Pool("User").Filter("UserName", "=", "John Smith").LazyLoad()
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := FieldMap{
+				"Email": "jsmith2@example.com",
+				"Nums":  13,
+			}
+			john.Call("Write", johnValues)
+			john.Read()
+			So(john.Get("UserName"), ShouldEqual, "John Smith")
+			So(john.Get("Email"), ShouldEqual, "jsmith2@example.com")
+			So(john.Get("Nums"), ShouldEqual, 13)
+		})
+		Convey("Multiple updates at once on users", func() {
+			cond := NewCondition().And("UserName", "=", "Jane A. Smith").Or("UserName", "=", "John Smith")
+			users := env.Pool("User").Search(cond).Read()
+			So(users.Len(), ShouldEqual, 2)
+			userRecs := users.Records()
+			So(userRecs[0].Get("IsStaff").(bool), ShouldBeFalse)
+			So(userRecs[1].Get("IsStaff").(bool), ShouldBeFalse)
+			So(userRecs[0].Get("IsActive").(bool), ShouldBeFalse)
+			So(userRecs[1].Get("IsActive").(bool), ShouldBeFalse)
+
+			users.Set("IsStaff", true)
+			users.Read()
+			So(userRecs[0].Get("IsStaff").(bool), ShouldBeTrue)
+			So(userRecs[1].Get("IsStaff").(bool), ShouldBeTrue)
+
+			fMap := FieldMap{
+				"IsStaff":  false,
+				"IsActive": true,
+			}
+			users.Call("Write", fMap)
+			users.Read()
+			So(userRecs[0].Get("IsStaff").(bool), ShouldBeFalse)
+			So(userRecs[1].Get("IsStaff").(bool), ShouldBeFalse)
+			So(userRecs[0].Get("IsActive").(bool), ShouldBeTrue)
+			So(userRecs[1].Get("IsActive").(bool), ShouldBeTrue)
+		})
+		env.cr.Commit()
+	})
+}
+
+func TestDeleteRecordSet(t *testing.T) {
+	env := NewEnvironment(1)
+	Convey("Delete user John Smith", t, func() {
+		users := env.Pool("User").Filter("UserName", "=", "John Smith")
+		num := users.Call("Unlink")
+		Convey("Number of deleted record should be 1", func() {
+			So(num, ShouldEqual, 1)
+		})
+	})
+	env.cr.Rollback()
+}

@@ -429,7 +429,7 @@ Record with the values to update and a slice of field names to unset.
 
 [source,go]
 ----
-func (RecordSetType) RecordType, []models.FieldName
+func (RecordSetType) (RecordType, []models.FieldName)
 ----
 
 `related(__path__)`::

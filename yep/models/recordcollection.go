@@ -114,6 +114,12 @@ func (rs RecordCollection) update(data interface{}) bool {
 			delete(fMap, fi.json)
 		}
 	}
+	// invalidate cache
+	// We do it before the actual write on purpose so that we are sure it
+	// is invalidated, even in case of error.
+	for _, id := range rs.Ids() {
+		rs.env.cache.invalidateRecord(rs.mi, id)
+	}
 	// update DB
 	sql, args := rs.query.updateQuery(fMap)
 	DBExecute(rs.env.cr, sql, args...)
@@ -265,6 +271,18 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		}
 	}
 	return res
+}
+
+// Set sets field given by fieldName to the given value. If the RecordSet has several
+// Records, all of them will be updated. Each call to Set makes an update query in the
+// database. It panics if it is called on an empty RecordSet.
+func (rc RecordCollection) Set(fieldName string, value interface{}) {
+	if rc.IsEmpty() {
+		tools.LogAndPanic(log, "Call to Set on empty RecordSet", "model", rc.ModelName(), "field", fieldName, "value", value)
+	}
+	fMap := make(FieldMap)
+	fMap[fieldName] = value
+	rc.Call("Write", fMap)
 }
 
 // ReadFirst populates structPtr with a copy of the first Record of the RecordCollection.

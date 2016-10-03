@@ -14,8 +14,6 @@
 
 package models
 
-import "fmt"
-
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
 // Returned fieldMap keys are field's JSON name
@@ -34,27 +32,20 @@ func (rs RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 	}
 }
 
-/*
-updateStoredFields updates all dependent fields of rs that are included in the given FieldMap.
-*/
-func (rs RecordCollection) updateStoredFields(fMap FieldMap) {
+//updateStoredFields updates all dependent fields of rc that are included in the given FieldMap.
+func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 	fieldNames := fMap.Keys()
 	var toUpdate []computeData
 	for _, fieldName := range fieldNames {
-		refFieldInfo, ok := rs.mi.fields.get(fieldName)
+		refFieldInfo, ok := rc.mi.fields.get(fieldName)
 		if !ok {
 			continue
 		}
 		toUpdate = append(toUpdate, refFieldInfo.dependencies...)
 	}
 	// Compute all that must be computed and store the values
-	computed := make(map[string]bool)
-	rSet := rs.LazyLoad()
+	rSet := rc.LazyLoad()
 	for _, cData := range toUpdate {
-		methUID := fmt.Sprintf("%s.%s", cData.modelInfo.tableName, cData.compute)
-		if _, ok := computed[methUID]; ok {
-			continue
-		}
 		recs := rSet.env.Pool(cData.modelInfo.name)
 		if cData.path != "" {
 			recs = recs.Filter(cData.path, "in", rSet.Ids())
