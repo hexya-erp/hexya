@@ -63,6 +63,11 @@ func TestCreateRecordSet(t *testing.T) {
 
 func TestSearchRecordSet(t *testing.T) {
 	Convey("Testing search through RecordSets", t, func() {
+		type UserStruct struct {
+			ID       int64
+			UserName string
+			Email    string
+		}
 		env := NewEnvironment(1)
 		Convey("Searching User Jane", func() {
 			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith").LazyLoad()
@@ -74,11 +79,6 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
 			})
 			Convey("Reading Jane with ReadFirst", func() {
-				type UserStruct struct {
-					ID       int64
-					UserName string
-					Email    string
-				}
 				var userJaneStruct UserStruct
 				userJane.ReadFirst(&userJaneStruct)
 				So(userJaneStruct.UserName, ShouldEqual, "Jane Smith")
@@ -87,16 +87,28 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 		})
 
-		//Convey("Testing search all users and getting struct slice", func() {
-		//	usersAll := env.Pool("User").LazyLoad()
-		//	So(usersAll.Len(), ShouldEqual, 3)
-		//	var userStructs []*User_PartialWithPosts
-		//	num := usersAll.ReadAll(&userStructs)
-		//	So(num, ShouldEqual, 3)
-		//	So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
-		//	So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
-		//	So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
-		//})
+		Convey("Testing search all users", func() {
+			usersAll := env.Pool("User").LazyLoad()
+			So(usersAll.Len(), ShouldEqual, 3)
+			Convey("Reading first user with Get", func() {
+				So(usersAll.Get("UserName"), ShouldEqual, "John Smith")
+				So(usersAll.Get("Email"), ShouldEqual, "jsmith@example.com")
+			})
+			Convey("Reading all users with Records and Get", func() {
+				recs := usersAll.Records()
+				So(len(recs), ShouldEqual, 3)
+				So(recs[0].Get("Email"), ShouldEqual, "jsmith@example.com")
+				So(recs[1].Get("Email"), ShouldEqual, "jane.smith@example.com")
+				So(recs[2].Get("Email"), ShouldEqual, "will.smith@example.com")
+			})
+			Convey("Reading all users with ReadAll()", func() {
+				var userStructs []*UserStruct
+				usersAll.ReadAll(&userStructs)
+				So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
+				So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+				So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
+			})
+		})
 		env.cr.Rollback()
 	})
 }

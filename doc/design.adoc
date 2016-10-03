@@ -96,3 +96,13 @@ This choice has several implications that should not be an issue for the target 
 - Installed modules will be determined at compile time, there is no one click install.
 - A running YEP instance will have all its database with the same configuration, so SaaS YEP
 will not be possible as it is in Odoo. Different configurations will mean different instances.
+
+=== Developer friendly for high code quality
+
+We believe that ERP systems are serious and need high code quality. We also believe that high
+code quality is achieved, among others, by static types, attributes and methods that allow
+many errors to be lifted at compile time.
+
+*YEP's business development API will be fully static*. This also allows common IDEs to make
+reliable inspections and auto-completion. Developers won't have to lookup manually existing
+fields or methods in a model, they will autocomplete nicely.

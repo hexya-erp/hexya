@@ -293,12 +293,17 @@ func (rc RecordCollection) ReadAll(structSlicePtr interface{}) {
 		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structSlicePtr)
 	}
 	val := reflect.ValueOf(structSlicePtr)
+	// sspType is []*struct
 	sspType := val.Type().Elem()
+	// structType is struct
+	structType := sspType.Elem().Elem()
 	val.Elem().Set(reflect.MakeSlice(sspType, rc.Len(), rc.Len()))
 	recs := rc.Records()
 	for i := 0; i < rc.Len(); i++ {
 		fMap := rc.env.cache.getRecord(rc.ModelName(), recs[i].ID())
-		val.Elem().Index(i).Set(reflect.ValueOf(fMap))
+		newStructPtr := reflect.New(structType).Interface()
+		mapToStruct(rc.mi, newStructPtr, fMap)
+		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
 	}
 }
 
@@ -306,8 +311,13 @@ func (rc RecordCollection) ReadAll(structSlicePtr interface{}) {
 // RecordCollection.
 func (rc RecordCollection) Records() []RecordCollection {
 	res := make([]RecordCollection, len(rc.Ids()))
+	if rc.IsEmpty() {
+		return res
+	}
+	rc.Read()
 	for i, id := range rc.Ids() {
-		res[i] = rc.withIds([]int64{id})
+		newRC := newRecordCollection(rc.Env(), rc.ModelName())
+		res[i] = newRC.withIds([]int64{id})
 	}
 	return res
 }
