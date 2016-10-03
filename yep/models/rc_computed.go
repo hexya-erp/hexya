@@ -44,7 +44,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 		toUpdate = append(toUpdate, refFieldInfo.dependencies...)
 	}
 	// Compute all that must be computed and store the values
-	rSet := rc.LazyLoad()
+	rSet := rc.Load()
 	for _, cData := range toUpdate {
 		recs := rSet.env.Pool(cData.modelInfo.name)
 		if cData.path != "" {
@@ -52,7 +52,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 		} else {
 			recs = rSet
 		}
-		recs.LazyLoad()
+		recs = recs.Load()
 		for _, rec := range recs.Records() {
 			vals := rec.Call(cData.compute)
 			if len(vals.(FieldMap)) > 0 {

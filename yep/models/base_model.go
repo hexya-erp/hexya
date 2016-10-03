@@ -65,7 +65,7 @@ func declareBaseMethods(name string) {
 	CreateMethod(name, "Filter", Filter)
 	CreateMethod(name, "Exclude", Exclude)
 	CreateMethod(name, "Distinct", Distinct)
-	CreateMethod(name, "LazyLoad", LazyLoad)
+	CreateMethod(name, "Load", Load)
 	CreateMethod(name, "GroupBy", GroupBy)
 	CreateMethod(name, "Limit", Limit)
 	CreateMethod(name, "Offset", Offset)
@@ -93,10 +93,11 @@ func Distinct(rc RecordCollection) RecordCollection {
 	return rc.Distinct()
 }
 
-// LazyLoad query the database with the current filter and returns a RecordSet
-// with the queries ids.
-func LazyLoad(rc RecordCollection) RecordCollection {
-	return rc.LazyLoad()
+// Load query the database with the current filter and returns a RecordSet
+// with the queries ids. Load is lazy and only return ids. Use Read() instead
+// if you want to fetch all fields.
+func Load(rc RecordCollection) RecordCollection {
+	return rc.Load()
 }
 
 // GroupBy returns a new RecordSet grouped with the given GROUP BY expressions
@@ -485,7 +486,7 @@ func SearchRead(rs RecordCollection, params SearchParams) []FieldMap {
 		rs = rs.OrderBy(strings.Split(params.Order, ",")...)
 	}
 
-	rSet := rs.LazyLoad()
+	rSet := rs.Load()
 	return rSet.Call("Read", params.Fields).([]FieldMap)
 }
 

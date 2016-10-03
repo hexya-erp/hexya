@@ -70,7 +70,7 @@ func TestSearchRecordSet(t *testing.T) {
 		}
 		env := NewEnvironment(1)
 		Convey("Searching User Jane", func() {
-			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith").LazyLoad()
+			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith").Load()
 			So(userJane.Len(), ShouldEqual, 1)
 			Convey("Reading Jane with Get", func() {
 				So(userJane.Get("UserName").(string), ShouldEqual, "Jane Smith")
@@ -88,7 +88,7 @@ func TestSearchRecordSet(t *testing.T) {
 		})
 
 		Convey("Testing search all users", func() {
-			usersAll := env.Pool("User").LazyLoad()
+			usersAll := env.Pool("User").Load()
 			So(usersAll.Len(), ShouldEqual, 3)
 			Convey("Reading first user with Get", func() {
 				So(usersAll.Get("UserName"), ShouldEqual, "John Smith")
@@ -117,14 +117,14 @@ func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
 		env := NewEnvironment(1)
 		Convey("Update on users Jane and John with Write and Set", func() {
-			jane := env.Pool("User").Filter("UserName", "=", "Jane Smith").LazyLoad()
+			jane := env.Pool("User").Filter("UserName", "=", "Jane Smith").Load()
 			So(jane.Len(), ShouldEqual, 1)
 			jane.Set("UserName", "Jane A. Smith")
 			jane.Read()
 			So(jane.Get("UserName"), ShouldEqual, "Jane A. Smith")
 			So(jane.Get("Email"), ShouldEqual, "jane.smith@example.com")
 
-			john := env.Pool("User").Filter("UserName", "=", "John Smith").LazyLoad()
+			john := env.Pool("User").Filter("UserName", "=", "John Smith").Load()
 			So(john.Len(), ShouldEqual, 1)
 			johnValues := FieldMap{
 				"Email": "jsmith2@example.com",

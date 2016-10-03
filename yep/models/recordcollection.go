@@ -102,14 +102,14 @@ func (rs RecordCollection) create(data interface{}) RecordCollection {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
-func (rs RecordCollection) update(data interface{}) bool {
+func (rc RecordCollection) update(data interface{}) bool {
 	fMap := convertInterfaceToFieldMap(data)
-	rs.mi.convertValuesToFieldType(&fMap)
+	rc.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	delete(fMap, "id")
 	delete(fMap, "ID")
 	for fName := range fMap {
-		if fi := rs.mi.getRelatedFieldInfo(fName); !fi.isStored() {
+		if fi := rc.mi.getRelatedFieldInfo(fName); !fi.isStored() {
 			delete(fMap, fi.name)
 			delete(fMap, fi.json)
 		}
@@ -117,14 +117,14 @@ func (rs RecordCollection) update(data interface{}) bool {
 	// invalidate cache
 	// We do it before the actual write on purpose so that we are sure it
 	// is invalidated, even in case of error.
-	for _, id := range rs.Ids() {
-		rs.env.cache.invalidateRecord(rs.mi, id)
+	for _, id := range rc.Ids() {
+		rc.env.cache.invalidateRecord(rc.mi, id)
 	}
 	// update DB
-	sql, args := rs.query.updateQuery(fMap)
-	DBExecute(rs.env.cr, sql, args...)
+	sql, args := rc.query.updateQuery(fMap)
+	DBExecute(rc.env.cr, sql, args...)
 	// compute stored fields
-	rs.updateStoredFields(fMap)
+	rc.updateStoredFields(fMap)
 	return true
 }
 
@@ -187,9 +187,10 @@ func (rs RecordCollection) Distinct() RecordCollection {
 	return rs
 }
 
-// LazyLoad query the database with the current filter and returns a RecordSet
-// with the queries ids.
-func (rs RecordCollection) LazyLoad() RecordCollection {
+// Load query the database with the current filter and returns a RecordSet
+// with the queries ids. Load is lazy and only return ids. Use Read() instead
+// if you want to fetch all fields.
+func (rs RecordCollection) Load() RecordCollection {
 	if len(rs.Ids()) == 0 {
 		return rs.Read("id")
 	}
@@ -242,32 +243,36 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc RecordCollection) Get(fieldName string) interface{} {
-	fi, ok := rc.mi.fields.get(fieldName)
+	rSet := rc.Load()
+	fi, ok := rSet.mi.fields.get(fieldName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown field in model", "model", rc.ModelName(), "field", fieldName)
+		tools.LogAndPanic(log, "Unknown field in model", "model", rSet.ModelName(), "field", fieldName)
 	}
 	var res interface{}
-	if rc.IsEmpty() {
+	if rSet.IsEmpty() {
 		res = reflect.Zero(fi.structField.Type).Interface()
 	} else if fi.isComputedField() && !fi.isStored() {
 		fMap := make(FieldMap)
-		rc.computeFieldValues(&fMap, fieldName)
-		res = fMap[jsonizePath(rc.mi, fieldName)]
+		rSet.computeFieldValues(&fMap, fieldName)
+		res = fMap[jsonizePath(rSet.mi, fieldName)]
+	} else if fi.isRelatedField() && !fi.isStored() {
+		rSet.Read(fi.relatedPath)
+		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.relatedPath)
 	} else {
-		if !rc.env.cache.checkIfInCache(rc.mi, []int64{rc.ids[0]}, []string{fieldName}) {
+		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fieldName}) {
 			// If value is not in cache we fetch the whole model to speed up
 			// later calls to Get. The user can call Read with fields beforehand
 			// in order not to have this behaviour.
-			rc.Read()
+			rSet.Read()
 		}
-		res = rc.env.cache.get(rc.mi, rc.ids[0], fieldName)
+		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fieldName)
 	}
 	if fi.isRelationField() {
 		switch r := res.(type) {
 		case int64:
-			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
+			res = newRecordCollection(rSet.Env(), fi.relatedModel.name).withIds([]int64{r})
 		case []int64:
-			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
+			res = newRecordCollection(rSet.Env(), fi.relatedModel.name).withIds(r)
 		}
 	}
 	return res
@@ -277,12 +282,13 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 // Records, all of them will be updated. Each call to Set makes an update query in the
 // database. It panics if it is called on an empty RecordSet.
 func (rc RecordCollection) Set(fieldName string, value interface{}) {
-	if rc.IsEmpty() {
-		tools.LogAndPanic(log, "Call to Set on empty RecordSet", "model", rc.ModelName(), "field", fieldName, "value", value)
+	rSet := rc.Load()
+	if rSet.IsEmpty() {
+		tools.LogAndPanic(log, "Call to Set on empty RecordSet", "model", rSet.ModelName(), "field", fieldName, "value", value)
 	}
 	fMap := make(FieldMap)
 	fMap[fieldName] = value
-	rc.Call("Write", fMap)
+	rSet.Call("Write", fMap)
 }
 
 // ReadFirst populates structPtr with a copy of the first Record of the RecordCollection.
@@ -342,7 +348,7 @@ func (rc RecordCollection) Records() []RecordCollection {
 
 // EnsureOne panics if rc is not a singleton
 func (rc RecordCollection) EnsureOne() {
-	rSet := rc.LazyLoad()
+	rSet := rc.Load()
 	if len(rSet.Ids()) != 1 {
 		tools.LogAndPanic(log, "Expected singleton", "model", rSet.ModelName(), "received", rSet)
 	}
