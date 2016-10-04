@@ -28,6 +28,7 @@ func TestMethods(t *testing.T) {
 			res := users.Call("PrefixedUser", "Prefix")
 			So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 		})
+		env.Cr().Rollback()
 	})
 }
 

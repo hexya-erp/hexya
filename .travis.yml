@@ -17,6 +17,6 @@ before_script:
 #  - mysql -e 'create database yep_test;'
 
 env:
-- ORM_DRIVER=postgres ORM_SOURCE="dbname=yep_test sslmode=disable user=postgres"
+- YEP_DB_DRIVER=postgres YEP_DB_SOURCE="dbname=yep_test sslmode=disable user=postgres"
 #- ORM_DRIVER=mysql ORM_SOURCE="root:@/yep_test?charset=utf8"
 #- ORM_DRIVER=sqlite3 ORM_SOURCE='file:yep_test?mode=memory'

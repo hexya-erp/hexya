@@ -48,8 +48,8 @@ go get -u github.com/lib/pq
 
 #### PostgreSQL
 psql -c 'create database orm_test;' -U postgres
-export ORM_DRIVER=postgres
-export ORM_SOURCE="user=postgres dbname=orm_test sslmode=disable"
+export YEP_DB_DRIVER=postgres
+export YEP_DB_SOURCE="user=postgres dbname=orm_test sslmode=disable"
 go test -v github.com/npiganeau/yep/yep/models
 
 `)
