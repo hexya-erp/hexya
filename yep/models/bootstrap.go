@@ -25,6 +25,9 @@ with the declared data.
 */
 func BootStrap() {
 	log.Info("Bootstrapping models")
+	if modelRegistry.bootstrapped == true {
+		tools.LogAndPanic(log, "Trying to bootstrap models twice !")
+	}
 	modelRegistry.Lock()
 	defer modelRegistry.Unlock()
 

@@ -42,8 +42,9 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		generate.POOL_PATH: true,
 	}
 	type fieldData struct {
-		Name string
-		Type string
+		Name     string
+		Type     string
+		TypeIsRS bool
 	}
 	type methodData struct {
 		Name           string
@@ -51,6 +52,7 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		Params         string
 		ParamsWithType string
 		Returns        string
+		ReturnsIsRS    bool
 	}
 	type modelData struct {
 		Name    string
@@ -84,9 +86,20 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 
 	for fieldName, fi := range mi.fields.registryByName {
 		// Add fields
+		var (
+			typStr  string
+			typIsRS bool
+		)
+		if fi.isRelationField() {
+			typStr = fmt.Sprintf("%sSet", fi.relatedModelName)
+			typIsRS = true
+		} else {
+			typStr = sanitizedFieldType(fi.structField.Type)
+		}
 		mData.Fields = append(mData.Fields, fieldData{
-			Name: fieldName,
-			Type: sanitizedFieldType(fi.structField.Type),
+			Name:     fieldName,
+			Type:     typStr,
+			TypeIsRS: typIsRS,
 		})
 		// Add dependency for this field, if needed and not already imported
 		addDependency(&mData, fi.structField.Type)
@@ -104,15 +117,21 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		params := make([]string, methType.NumIn()-1)
 		paramsType := make([]string, methType.NumIn()-1)
 		for i := 0; i < methType.NumIn()-1; i++ {
-			paramsType[i] = fmt.Sprintf("%s %s", dParams.Params[i+1], sanitizedFieldType(methType.In(i+1)))
-			params[i] = dParams.Params[i+1]
+			paramsType[i] = fmt.Sprintf("%s %s", dParams.Params[i], sanitizedFieldType(methType.In(i+1)))
+			params[i] = dParams.Params[i]
 			addDependency(&mData, methType.In(i+1))
 		}
 
-		var returns string
+		var (
+			returns     string
+			returnsIsRS bool
+		)
 		if methType.NumOut() > 0 {
 			returns = sanitizedFieldType(methType.Out(0))
 			addDependency(&mData, methType.Out(0))
+			if methType.Out(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+				returnsIsRS = true
+			}
 		}
 
 		methData := methodData{
@@ -121,6 +140,7 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 			Params:         strings.Join(params, ", "),
 			ParamsWithType: strings.Join(paramsType, ", "),
 			Returns:        returns,
+			ReturnsIsRS:    returnsIsRS,
 		}
 		mData.Methods = append(mData.Methods, methData)
 	}
@@ -196,7 +216,10 @@ func (s {{ .Name }}Set) Records() []{{ .Name }}Set {
 // {{ .Name }} is a getter for the value of the "{{ .Name }}" field of the first
 // record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
 func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
-	return *new({{ .Type }})
+{{ if .TypeIsRS }}	return {{ .Type }}{
+		RecordCollection: s.RecordCollection.Get("{{ .Name }}").(models.RecordCollection),
+	}{{ else -}}
+	return s.RecordCollection.Get("{{ .Name }}").({{ .Type }}) {{ end }}
 }
 
 // Set{{ .Name }} is a setter for the value of the "{{ .Name }}" field of this
@@ -205,17 +228,22 @@ func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
 //
 // Set{{ .Name }} panics if the RecordSet is empty.
 func (s {{ $.Name }}Set) Set{{ .Name }}(value {{ .Type }}) {
-
+	s.RecordCollection.Set("{{ .Name }}", value)
 }
 {{ end }}
 
 {{ range .Methods }}
 {{ .Doc }}
-func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .Returns }}) {
+func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) {{ .Returns }} {
 {{ if eq .Returns "" -}}
 	s.Call("{{ .Name }}", {{ .Params}})
+{{- else }}{{ if .ReturnsIsRS -}}
+	return {{ .Returns }}{
+		RecordCollection: s.Call("{{ .Name }}", {{ .Params}}).(models.RecordCollection),
+	}
 {{- else -}}
 	return s.Call("{{ .Name }}", {{ .Params}}).({{ .Returns }})
+{{- end -}}
 {{- end }}
 }
 

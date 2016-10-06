@@ -23,33 +23,10 @@ import (
 )
 
 func TestCreateDB(t *testing.T) {
-	Convey("Creating DataBase...", t, func() {
-		// Creating a dummy table to check that it is correctly removed by Bootstrap
-		//db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
-	})
 
 	Convey("Database creation should run fine", t, func() {
-		//Convey("Dummy table should exist", func() {
-		//	So(testAdapter.tables(), ShouldContainKey, "shouldbedeleted")
-		//})
 		Convey("Bootstrap should not panic", func() {
 			So(models.BootStrap, ShouldNotPanic)
 		})
-		//Convey("All models should have a DB table", func() {
-		//	dbTables := testAdapter.tables()
-		//	for tableName := range modelRegistry.registryByTableName {
-		//		So(dbTables[tableName], ShouldBeTrue)
-		//	}
-		//})
-		//Convey("All DB tables should have a model", func() {
-		//	for dbTable := range testAdapter.tables() {
-		//		So(modelRegistry.registryByTableName, ShouldContainKey, dbTable)
-		//	}
-		//})
 	})
-	//Convey("Truncating all tables...", t, func() {
-	//	for tn := range modelRegistry.registryByTableName {
-	//		dbExecuteNoTx(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))
-	//	}
-	//})
 }

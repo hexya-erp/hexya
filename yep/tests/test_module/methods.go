@@ -25,6 +25,22 @@ func declareMethods() {
 	models.CreateMethod("Test__User", "DecorateEmail", DecorateEmail)
 	models.ExtendMethod("Test__User", "DecorateEmail", DecorateEmailExtension)
 	models.CreateMethod("Test__User", "computeAge", ComputeAge)
+
+	models.ExtendMethod("Test__User", "PrefixedUser",
+		func(rs pool.Test__UserSet, prefix string) []string {
+			res := rs.Super(prefix).([]string)
+			for i, u := range rs.Records() {
+				res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
+			}
+			return res
+		})
+
+	models.CreateMethod("Test__User", "computeDecoratedName",
+		func(rs pool.Test__UserSet) models.FieldMap {
+			res := make(models.FieldMap)
+			res["DecoratedName"] = rs.PrefixedUser("User")[0]
+			return res
+		})
 }
 
 func PrefixedUser(rs pool.Test__UserSet, prefix string) []string {
@@ -35,15 +51,6 @@ func PrefixedUser(rs pool.Test__UserSet, prefix string) []string {
 	return res
 }
 
-//models.ExtendMethod("Test__User", "PrefixedUser",
-//	func(rs pool.Test__UserSet, prefix string) []string {
-//		res := rs.Super(prefix).([]string)
-//		for i, u := range rs.Records() {
-//			res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
-//		}
-//		return res
-//	})
-
 func DecorateEmail(rs pool.Test__UserSet, email string) string {
 	return fmt.Sprintf("<%s>", email)
 }
@@ -52,13 +59,6 @@ func DecorateEmailExtension(rs pool.Test__UserSet, email string) string {
 	res := rs.Super(email).(string)
 	return fmt.Sprintf("[%s]", res)
 }
-
-//models.CreateMethod("Test__User", "computeDecoratedName",
-//	func(rs pool.Test__UserSet) models.FieldMap {
-//		res := make(models.FieldMap)
-//		res["DecoratedName"] = rs.PrefixedUser("User").([]string)[0]
-//		return res
-//	})
 
 func ComputeAge(rs pool.Test__UserSet) models.FieldMap {
 	res := make(models.FieldMap)

@@ -355,6 +355,33 @@ func (q *Query) tablesSQL(fExprs [][]string) string {
 	return res
 }
 
+// isEmpty returns true if this query is empty
+// i.e. this query will search all the database.
+func (q *Query) isEmpty() bool {
+	if len(q.cond.params) > 0 {
+		return false
+	}
+	if len(q.related) > 0 {
+		return false
+	}
+	if q.limit != 0 {
+		return false
+	}
+	if q.offset != 0 {
+		return false
+	}
+	if len(q.groups) > 0 {
+		return false
+	}
+	if len(q.orders) > 0 {
+		return false
+	}
+	if q.distinct {
+		return false
+	}
+	return true
+}
+
 // newQuery returns a new empty query
 // If rs is given, bind this query to the given RecordSet.
 func newQuery(rs ...*RecordCollection) *Query {

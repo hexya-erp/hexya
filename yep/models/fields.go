@@ -205,7 +205,9 @@ func (fi *fieldInfo) isRelatedField() bool {
 
 // isRelationField returns true if this field points to another model
 func (fi *fieldInfo) isRelationField() bool {
-	return fi.relatedModel != nil
+	// We check on relatedModelName and not relatedModel to be able
+	// to use this method even if the models have not been bootstrapped yet.
+	return fi.relatedModelName != ""
 }
 
 // isStored returns true if this field is stored in database

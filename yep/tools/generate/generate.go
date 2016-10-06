@@ -230,7 +230,11 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 // extractParams extracts the parameters name of the given FuncType
 func extractParams(ft *ast.FuncType) []string {
 	var params []string
-	for _, pl := range ft.Params.List {
+	for i, pl := range ft.Params.List {
+		if i == 0 {
+			// pass the first argument (rs)
+			continue
+		}
 		for _, nn := range pl.Names {
 			params = append(params, nn.Name)
 		}
@@ -244,17 +248,36 @@ func extractReturnType(ft *ast.FuncType, modInfo *ModuleInfo) TypeData {
 	var returnType, importPath string
 	if ft.Results != nil && len(ft.Results.List) > 0 {
 		returnType = types.TypeString(modInfo.TypeOf(ft.Results.List[0].Type), (*types.Package).Name)
-		importPath = types.TypeString(modInfo.TypeOf(ft.Results.List[0].Type), (*types.Package).Path)
+		importPath = computeExportPath(modInfo.TypeOf(ft.Results.List[0].Type))
 	}
 	if importPath == POOL_PATH {
 		returnType = strings.Replace(returnType, "pool.", "", 1)
 		importPath = ""
 	}
 
+	importPathTokens := strings.Split(importPath, ".")
+	if len(importPathTokens) > 0 {
+		importPath = strings.Join(importPathTokens[:len(importPathTokens)-1], ".")
+	}
+
 	return TypeData{
 		Type:       returnType,
 		ImportPath: importPath,
 	}
+}
+
+// computeExportPath returns the import path of the given type
+func computeExportPath(typ types.Type) string {
+	var res string
+	switch typ := typ.(type) {
+	case *types.Struct, *types.Named:
+		res = types.TypeString(typ, (*types.Package).Path)
+	case *types.Pointer:
+		res = computeExportPath(typ.Elem())
+	case *types.Slice:
+		res = computeExportPath(typ.Elem())
+	}
+	return res
 }
 
 // extractDocString returns the documentation string for the given func decl.

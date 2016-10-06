@@ -161,7 +161,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	// Return ID(s) if res is a *RecordSet
 	if rec, ok := res.(*models.RecordCollection); ok {
 		if len(rec.Ids()) == 1 {
-			res = rec.ID()
+			res = rec.Ids()[0]
 		} else {
 			res = rec.Ids()
 		}

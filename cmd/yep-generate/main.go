@@ -180,7 +180,7 @@ func filterDefsModules(modules []*generate.ModuleInfo) []string {
 // in the model registry that will be created by importing the given modules.
 func generateFromModelRegistry(dirName string, modules []string) {
 	generatorFileName := path.Join(os.TempDir(), STRUCT_GEN)
-	defer os.Remove(generatorFileName)
+	//defer os.Remove(generatorFileName)
 
 	data := struct {
 		Imports    []string
@@ -223,7 +223,12 @@ var tempMethodsTemplate = template.Must(template.New("").Parse(`
 
 package pool
 
-{{ range . }}
+import (
+{{ range .Imports }} 	"{{ . }}"
+{{ end }}
+)
+
+{{ range .Methods }}
 func (s {{ .Model }}) {{ .Name }}({{ .Params }}) {{ .ReturnType }} {
 	return *new({{ .ReturnType }})
 }

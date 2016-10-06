@@ -196,7 +196,7 @@ func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 					if len(ids) > 0 {
 						val = reflect.ValueOf(ids[0])
 					} else {
-						val = reflect.ValueOf(int64(0))
+						val = reflect.ValueOf(nil)
 					}
 				} else if fType == reflect.TypeOf([]int64{}) {
 					val = reflect.ValueOf(ids)

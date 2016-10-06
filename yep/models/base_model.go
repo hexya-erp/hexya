@@ -277,7 +277,7 @@ func GetFormviewAction(rs RecordCollection) *ir.BaseAction {
 		ViewMode:    "form",
 		Views:       []ir.ViewRef{{viewID, string(ir.VIEW_TYPE_FORM)}},
 		Target:      "current",
-		ResID:       rs.ID(),
+		ResID:       rs.ids[0],
 		Context:     rs.Env().Context(),
 	}
 }

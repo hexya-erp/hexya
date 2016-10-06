@@ -38,7 +38,6 @@ func init() {
 		Age           int16                 `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
 		Posts         pool.Test__PostSet    `yep:"type(one2many);fk(User)"`
 		Nums          int
-		unexportBool  bool
 		PMoney        float64            `yep:"related(Profile.Money)"`
 		LastPost      pool.Test__PostSet `yep:"type(many2one);inherits"`
 	}))

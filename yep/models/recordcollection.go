@@ -60,13 +60,6 @@ func (rs RecordCollection) Ids() []int64 {
 	return rs.ids
 }
 
-// ID returns the ID of the unique record of this RecordSet
-// It panics if rs is not a singleton.
-func (rs RecordCollection) ID() int64 {
-	rs.EnsureOne()
-	return rs.ids[0]
-}
-
 // create inserts a new record in the database with the given data.
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
@@ -191,7 +184,9 @@ func (rs RecordCollection) Distinct() RecordCollection {
 // with the queries ids. Load is lazy and only return ids. Use Read() instead
 // if you want to fetch all fields.
 func (rs RecordCollection) Load() RecordCollection {
-	if len(rs.Ids()) == 0 {
+	if len(rs.Ids()) == 0 && !rs.query.isEmpty() {
+		// We do not load empty queries to keep empty record sets empty
+		// Call Read instead to load all the records of the table
 		return rs.Read("id")
 	}
 	return rs
@@ -294,10 +289,11 @@ func (rc RecordCollection) Set(fieldName string, value interface{}) {
 // ReadFirst populates structPtr with a copy of the first Record of the RecordCollection.
 // structPtr must a pointer to a struct.
 func (rc RecordCollection) ReadFirst(structPtr interface{}) {
+	rSet := rc.Load()
 	if err := checkStructPtr(structPtr); err != nil {
-		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structPtr)
+		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structPtr)
 	}
-	if rc.IsEmpty() {
+	if rSet.IsEmpty() {
 		return
 	}
 	typ := reflect.TypeOf(structPtr).Elem()
@@ -305,28 +301,29 @@ func (rc RecordCollection) ReadFirst(structPtr interface{}) {
 	for i := 0; i < typ.NumField(); i++ {
 		fields[i] = typ.Field(i).Name
 	}
-	rc.Read(fields...)
-	fMap := rc.env.cache.getRecord(rc.ModelName(), rc.ids[0])
-	mapToStruct(rc.mi, structPtr, fMap)
+	rSet.Read(fields...)
+	fMap := rSet.env.cache.getRecord(rSet.ModelName(), rSet.ids[0])
+	mapToStruct(rSet.mi, structPtr, fMap)
 }
 
 // ReadAll Returns a copy of all records of the RecordCollection.
 // It returns an empty slice if the RecordSet is empty.
 func (rc RecordCollection) ReadAll(structSlicePtr interface{}) {
+	rSet := rc.Load()
 	if err := checkStructSlicePtr(structSlicePtr); err != nil {
-		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structSlicePtr)
+		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structSlicePtr)
 	}
 	val := reflect.ValueOf(structSlicePtr)
 	// sspType is []*struct
 	sspType := val.Type().Elem()
 	// structType is struct
 	structType := sspType.Elem().Elem()
-	val.Elem().Set(reflect.MakeSlice(sspType, rc.Len(), rc.Len()))
-	recs := rc.Records()
-	for i := 0; i < rc.Len(); i++ {
-		fMap := rc.env.cache.getRecord(rc.ModelName(), recs[i].ID())
+	val.Elem().Set(reflect.MakeSlice(sspType, rSet.Len(), rSet.Len()))
+	recs := rSet.Records()
+	for i := 0; i < rSet.Len(); i++ {
+		fMap := rSet.env.cache.getRecord(rSet.ModelName(), recs[i].ids[0])
 		newStructPtr := reflect.New(structType).Interface()
-		mapToStruct(rc.mi, newStructPtr, fMap)
+		mapToStruct(rSet.mi, newStructPtr, fMap)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
 	}
 }
@@ -334,13 +331,14 @@ func (rc RecordCollection) ReadAll(structSlicePtr interface{}) {
 // Records returns the slice of RecordCollection singletons that constitute this
 // RecordCollection.
 func (rc RecordCollection) Records() []RecordCollection {
-	res := make([]RecordCollection, len(rc.Ids()))
-	if rc.IsEmpty() {
+	rSet := rc.Load()
+	res := make([]RecordCollection, len(rSet.Ids()))
+	if rSet.IsEmpty() {
 		return res
 	}
-	rc.Read()
-	for i, id := range rc.Ids() {
-		newRC := newRecordCollection(rc.Env(), rc.ModelName())
+	rSet.Read()
+	for i, id := range rSet.Ids() {
+		newRC := newRecordCollection(rSet.Env(), rSet.ModelName())
 		res[i] = newRC.withIds([]int64{id})
 	}
 	return res
@@ -348,20 +346,20 @@ func (rc RecordCollection) Records() []RecordCollection {
 
 // EnsureOne panics if rc is not a singleton
 func (rc RecordCollection) EnsureOne() {
-	rSet := rc.Load()
-	if len(rSet.Ids()) != 1 {
-		tools.LogAndPanic(log, "Expected singleton", "model", rSet.ModelName(), "received", rSet)
+	if rc.Len() != 1 {
+		tools.LogAndPanic(log, "Expected singleton", "model", rc.ModelName(), "received", rc)
 	}
 }
 
 // IsEmpty returns true if rc is an empty RecordCollection
 func (rc RecordCollection) IsEmpty() bool {
-	return len(rc.ids) == 0
+	return rc.Len() == 0
 }
 
 // Len returns the number of records in this RecordCollection
 func (rc RecordCollection) Len() int {
-	return len(rc.ids)
+	rSet := rc.Load()
+	return len(rSet.ids)
 }
 
 // withIdMap returns a new RecordCollection pointing to the given ids.

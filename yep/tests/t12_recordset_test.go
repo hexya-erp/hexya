@@ -14,141 +14,168 @@
 
 package tests
 
-/*
 import (
 	"testing"
 
+	"github.com/npiganeau/yep/pool"
+	"github.com/npiganeau/yep/yep/models"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-type Profile_WithID struct {
-	ID    int64
-	Age   int16
-	Money float64
-}
-
-type User_WithID struct {
-	ID       int64
-	UserName string
-	Email    string
-	Profile  *Profile_WithID
-}
-
 func TestCreateRecordSet(t *testing.T) {
 	Convey("Test record creation", t, func() {
-		env := NewEnvironment(1)
+		env := models.NewEnvironment(1)
 		Convey("Creating simple user John with no relations and checking ID", func() {
-			userJohn := User_WithID{
+			userJohnData := pool.Test__User{
 				UserName: "John Smith",
 				Email:    "jsmith@example.com",
 			}
-			users := env.Create(&userJohn)
-			So(len(users.Ids()), ShouldEqual, 1)
-			So(userJohn.ID, ShouldEqual, users.ID())
+			userJohn := pool.NewTest__UserSet(env).Create(&userJohnData)
+			So(userJohn.Len(), ShouldEqual, 1)
+			So(userJohn.ID(), ShouldBeGreaterThan, 0)
 		})
-		Convey("Creating user Jane with related Profile using rs.Create / rs.Call('Create')", func() {
-			userJane := User_WithID{
+		Convey("Creating user Jane with related Profile", func() {
+			profileData := pool.Test__Profile{
+				Age:   23,
+				Money: 12345,
+			}
+			profile := pool.NewTest__ProfileSet(env).Create(&profileData)
+			So(profile.Len(), ShouldEqual, 1)
+			userJaneData := pool.Test__User{
 				UserName: "Jane Smith",
 				Email:    "jane.smith@example.com",
-				Profile: &Profile_WithID{
-					Age:   23,
-					Money: 12345,
-				},
+				Profile:  profile,
 			}
-			rsProfile := env.Pool("Profile")
-			profile := rsProfile.Create(userJane.Profile)
-			So(len(profile.Ids()), ShouldEqual, 1)
-			So(userJane.Profile.ID, ShouldEqual, profile.ID())
-			rsUsers := env.Pool("User")
-			users2 := rsUsers.Call("Create", &userJane).(*RecordCollection)
-			So(len(users2.Ids()), ShouldEqual, 1)
-			So(userJane.ID, ShouldEqual, users2.ID())
+			userJane := pool.NewTest__UserSet(env).Create(&userJaneData)
+			So(userJane.Len(), ShouldEqual, 1)
+			So(userJane.Profile().ID(), ShouldEqual, profile.ID())
 		})
 		Convey("Creating a user Will Smith", func() {
-			userWill := User_WithID{
+			userWillData := pool.Test__User{
 				UserName: "Will Smith",
 				Email:    "will.smith@example.com",
 			}
-			users := env.Create(&userWill)
-			Convey("Created user ids should match struct's ID ", func() {
-				So(len(users.Ids()), ShouldEqual, 1)
-				So(users.ID(), ShouldEqual, userWill.ID)
-			})
+			userWill := pool.NewTest__UserSet(env).Create(&userWillData)
+			So(userWill.Len(), ShouldEqual, 1)
+			So(userWill.ID(), ShouldBeGreaterThan, 0)
 		})
-		env.cr.Commit()
+		env.Cr().Commit()
 	})
 }
 
 func TestSearchRecordSet(t *testing.T) {
 	Convey("Testing search through RecordSets", t, func() {
-		env := NewEnvironment(1)
-		Convey("Searching User Jane and getting struct through ReadOne", func() {
-			users := env.Pool("User").Filter("UserName", "=", "Jane Smith").Search()
-			So(len(users.Ids()), ShouldEqual, 1)
-			var userJane User_WithID
-			users.RelatedDepth(1).ReadOne(&userJane)
-			So(userJane.UserName, ShouldEqual, "Jane Smith")
-			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
-			So(userJane.Profile.Age, ShouldEqual, 23)
-			So(userJane.Profile.Money, ShouldEqual, 12345)
+		type UserStruct struct {
+			ID       int64
+			UserName string
+			Email    string
+		}
+		env := models.NewEnvironment(1)
+		Convey("Searching User Jane", func() {
+			userJane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
+			So(userJane.Len(), ShouldEqual, 1)
+			Convey("Reading Jane with getters", func() {
+				So(userJane.UserName(), ShouldEqual, "Jane Smith")
+				So(userJane.Email(), ShouldEqual, "jane.smith@example.com")
+				So(userJane.Profile().Age(), ShouldEqual, 23)
+				So(userJane.Profile().Money(), ShouldEqual, 12345)
+			})
+			Convey("Reading Jane with ReadFirst", func() {
+				var userJaneStruct UserStruct
+				userJane.ReadFirst(&userJaneStruct)
+				So(userJaneStruct.UserName, ShouldEqual, "Jane Smith")
+				So(userJaneStruct.Email, ShouldEqual, "jane.smith@example.com")
+				So(userJaneStruct.ID, ShouldEqual, userJane.ID())
+			})
 		})
 
-		Convey("Testing search all users and getting struct slice", func() {
-			usersAll := env.Pool("User").Search()
-			So(len(usersAll.Ids()), ShouldEqual, 3)
-			var userStructs []*User_PartialWithPosts
-			num := usersAll.ReadAll(&userStructs)
-			So(num, ShouldEqual, 3)
-			So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
-			So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
-			So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
+		Convey("Testing search all users", func() {
+			usersAll := pool.NewTest__UserSet(env).Read()
+			So(usersAll.Len(), ShouldEqual, 3)
+			Convey("Reading first user with getters", func() {
+				So(usersAll.UserName(), ShouldEqual, "John Smith")
+				So(usersAll.Email(), ShouldEqual, "jsmith@example.com")
+			})
+			Convey("Reading all users with Records and Get", func() {
+				recs := usersAll.Records()
+				So(len(recs), ShouldEqual, 3)
+				So(recs[0].Email(), ShouldEqual, "jsmith@example.com")
+				So(recs[1].Email(), ShouldEqual, "jane.smith@example.com")
+				So(recs[2].Email(), ShouldEqual, "will.smith@example.com")
+			})
+			Convey("Reading all users with ReadAll()", func() {
+				var userStructs []*UserStruct
+				usersAll.ReadAll(&userStructs)
+				So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
+				So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+				So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
+			})
 		})
-		env.cr.Rollback()
+		env.Cr().Rollback()
 	})
 }
 
-func TestUpdateRecordSet(t *testing.T) {
-	Convey("Testing updates through RecordSets", t, func() {
-		env := NewEnvironment(1)
-		Convey("Simple update with params to user Jane", func() {
-			rsJane := env.Pool("User").Filter("UserName", "=", "Jane Smith").Search()
-			So(len(rsJane.Ids()), ShouldEqual, 1)
-			res := rsJane.Call("Write", FieldMap{"UserName": "Jane A. Smith"})
-			So(res, ShouldEqual, true)
-			var userJane User_WithID
-			rsJane.ReadOne(&userJane)
-			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
-			So(userJane.Email, ShouldEqual, "jane.smith@example.com")
-		})
-		Convey("Simple update with struct", func() {
-			rsJane := env.Pool("User").Filter("UserName", "=", "Jane A. Smith").Search()
-			var userJohn User_WithID
-			rsJohn := env.Pool("User").Filter("UserName", "=", "John Smith")
-			rsJohn.ReadOne(&userJohn)
-			userJohn.Email = "jsmith2@example.com"
-			env.Sync(&userJohn)
-			var userJane2 User_WithID
-			rsJane.ReadOne(&userJane2)
-			So(userJane2.UserName, ShouldEqual, "Jane A. Smith")
-			So(userJane2.Email, ShouldEqual, "jane.smith@example.com")
-			var userJohn2 User_WithID
-			env.Pool("User").Filter("UserName", "=", "John Smith").ReadOne(&userJohn2)
-			So(userJohn2.UserName, ShouldEqual, "John Smith")
-			So(userJohn2.Email, ShouldEqual, "jsmith2@example.com")
-		})
-		env.cr.Commit()
-	})
-}
+//func TestUpdateRecordSet(t *testing.T) {
+//	Convey("Testing updates through RecordSets", t, func() {
+//		env := models.NewEnvironment(1)
+//		Convey("Update on users Jane and John with Write and Set", func() {
+//			jane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
+//			So(jane.Len(), ShouldEqual, 1)
+//			jane.Set("UserName", "Jane A. Smith")
+//			jane.Read()
+//			So(jane.UserName(), ShouldEqual, "Jane A. Smith")
+//			So(jane.Email(), ShouldEqual, "jane.smith@example.com")
+//
+//			john := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+//			So(john.Len(), ShouldEqual, 1)
+//			johnValues := pool.Test__User{
+//				Email: "jsmith2@example.com",
+//				Nums:  13,
+//			}
+//			john.Write(&johnValues)
+//			john.Read()
+//			So(john.UserName(), ShouldEqual, "John Smith")
+//			So(john.Email(), ShouldEqual, "jsmith2@example.com")
+//			So(john.Nums(), ShouldEqual, 13)
+//		})
+//		Convey("Multiple updates at once on users", func() {
+//			cond := models.NewCondition().And("UserName", "=", "Jane A. Smith").Or("UserName", "=", "John Smith")
+//			users := pool.NewTest__UserSet(env).Search(cond)
+//			So(users.Len(), ShouldEqual, 2)
+//			userRecs := users.Records()
+//			So(userRecs[0].IsStaff(), ShouldBeFalse)
+//			So(userRecs[1].IsStaff(), ShouldBeFalse)
+//			So(userRecs[0].IsActive(), ShouldBeFalse)
+//			So(userRecs[1].IsActive(), ShouldBeFalse)
+//
+//			users.SetIsStaff(true)
+//			users.Read()
+//			So(userRecs[0].IsStaff(), ShouldBeTrue)
+//			So(userRecs[1].IsStaff(), ShouldBeTrue)
+//
+//			uData := pool.Test__User{
+//				IsStaff:  false,
+//				IsActive: true,
+//			}
+//			users.Write(&uData)
+//			users.Read()
+//			So(userRecs[0].IsStaff(), ShouldBeFalse)
+//			So(userRecs[1].IsStaff(), ShouldBeFalse)
+//			So(userRecs[0].IsActive(), ShouldBeTrue)
+//			So(userRecs[1].IsActive(), ShouldBeTrue)
+//		})
+//		env.Cr().Commit()
+//	})
+//}
 
-func TestDeleteRecordSet(t *testing.T) {
-	env := NewEnvironment(1)
-	Convey("Delete user John Smith", t, func() {
-		users := env.Pool("User").Filter("UserName", "=", "John Smith")
-		num := users.Unlink()
-		Convey("Number of deleted record should be 1", func() {
-			So(num, ShouldEqual, 1)
-		})
-	})
-	env.cr.Rollback()
-}
-*/
+//func TestDeleteRecordSet(t *testing.T) {
+//	env := NewEnvironment(1)
+//	Convey("Delete user John Smith", t, func() {
+//		users := env.Pool("User").Filter("UserName", "=", "John Smith")
+//		num := users.Call("Unlink")
+//		Convey("Number of deleted record should be 1", func() {
+//			So(num, ShouldEqual, 1)
+//		})
+//	})
+//	env.cr.Rollback()
+//}

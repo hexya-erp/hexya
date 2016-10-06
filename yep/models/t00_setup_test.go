@@ -19,23 +19,34 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
+	"testing"
 )
 
 var DBARGS = struct {
-	Driver string
-	Source string
-	Debug  string
+	Driver   string
+	User     string
+	Password string
+	DB       string
+	Debug    string
 }{
 	os.Getenv("YEP_DB_DRIVER"),
-	os.Getenv("YEP_DB_SOURCE"),
+	os.Getenv("YEP_DB_USER"),
+	os.Getenv("YEP_DB_PASSWORD"),
+	os.Getenv("YEP_DB_PREFIX") + "_models",
 	os.Getenv("YEP_DEBUG"),
 }
 
 var testAdapter dbAdapter
 
-func init() {
-	if DBARGS.Driver == "" || DBARGS.Source == "" {
-		fmt.Println(`need driver and source!
+func TestMain(m *testing.M) {
+	initializeTests()
+	res := m.Run()
+	os.Exit(res)
+}
+
+func initializeTests() {
+	if DBARGS.Driver == "" || DBARGS.DB == "" || DBARGS.User == "" {
+		fmt.Println(`need driver and credentials!
 
 Default DB Drivers.
 
@@ -47,16 +58,17 @@ usage:
 go get -u github.com/lib/pq
 
 #### PostgreSQL
-psql -c 'create database orm_test;' -U postgres
+psql -c 'create database yep_test_models;' -U postgres
 export YEP_DB_DRIVER=postgres
-export YEP_DB_SOURCE="user=postgres dbname=orm_test sslmode=disable"
+export YEP_DB_USER=postgres
+export YEP_DB_PREFIX=yep_test
+export YEP_DB_PASSWORD=secret
 go test -v github.com/npiganeau/yep/yep/models
 
 `)
 		os.Exit(2)
 	}
 
-	DBConnect(DBARGS.Driver, DBARGS.Source)
+	DBConnect(DBARGS.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", DBARGS.DB, DBARGS.User, DBARGS.Password))
 	testAdapter = adapters[db.DriverName()]
-
 }
