@@ -24,10 +24,15 @@ ORM
 - [ ] Cache to RecordSets
 - [X] Support for schema modification (ALTER TABLE)
 - [ ] Implement "group by" queries
+- [X] Type safe API
 
 Views
 -----
 - [ ] Inherited views
+
+Controllers
+-----------
+- [ ] Inheritable controllers
 
 Server
 ------

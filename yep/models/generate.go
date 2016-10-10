@@ -88,11 +88,14 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		}
 		return strings.Replace(typStr, "pool.", "", 1)
 	}
+
 	mData := modelData{
 		Name: mi.name,
 		Deps: []string{generate.MODELS_PATH},
 	}
-
+	// We need to simulate bootstrapping to get inherits'ed fields
+	createModelLinks()
+	inflateInherits()
 	for fieldName, fi := range mi.fields.registryByName {
 		// Add fields
 		var (

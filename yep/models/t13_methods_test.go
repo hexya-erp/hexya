@@ -24,7 +24,7 @@ func TestMethods(t *testing.T) {
 	Convey("Testing simple methods", t, func() {
 		env := NewEnvironment(1)
 		Convey("Getting all users and calling `PrefixedUser`", func() {
-			users := env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Load()
+			users := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 			res := users.Call("PrefixedUser", "Prefix")
 			So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 		})
@@ -36,7 +36,7 @@ func TestComputedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored computed fields", t, func() {
 		env := NewEnvironment(1)
 		Convey("Getting one user (Jane) and checking DisplayName", func() {
-			users := env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Load()
+			users := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 			So(users.Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 		})
 		Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
@@ -55,15 +55,15 @@ func TestComputedStoredFields(t *testing.T) {
 	Convey("Testing stored computed fields", t, func() {
 		env := NewEnvironment(1)
 		Convey("Checking that user Jane is 23", func() {
-			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Load()
+			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 			So(userJane.Get("Age"), ShouldEqual, 23)
 		})
 		Convey("Checking that user Will has no age since no profile", func() {
-			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com").Load()
+			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com")
 			So(userWill.Get("Age"), ShouldEqual, 0)
 		})
 		Convey("It's Jane's birthday, change her age, commit and check", func() {
-			jane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Load()
+			jane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 			So(jane.Get("UserName"), ShouldEqual, "Jane A. Smith")
 			So(jane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
 			jane.Get("Profile").(RecordCollection).Set("Age", 24)
@@ -73,7 +73,7 @@ func TestComputedStoredFields(t *testing.T) {
 			So(jane.Get("Age"), ShouldEqual, 24)
 		})
 		Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
-			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com").Load()
+			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com")
 			userWill.Read()
 			So(userWill.Get("UserName"), ShouldEqual, "Will Smith")
 			willProfileData := FieldMap{
@@ -94,7 +94,7 @@ func TestRelatedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored related fields", t, func() {
 		env := NewEnvironment(1)
 		Convey("Checking that user Jane PMoney equals is 12345", func() {
-			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Load()
+			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 			So(userJane.Get("PMoney"), ShouldEqual, 12345)
 		})
 		env.cr.Rollback()
@@ -109,10 +109,10 @@ func TestInheritedModels(t *testing.T) {
 				"Title":   "This is my title",
 				"Content": "Here we have some content",
 			}).(RecordCollection)
-			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Set("LastPost", postRs.Get("ID"))
+			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Set("LastPost", postRs)
 		})
 		Convey("Checking that we can access jane's post directly", func() {
-			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Load()
+			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 			So(userJane.Get("Title"), ShouldEqual, "This is my title")
 			So(userJane.Get("Content"), ShouldEqual, "Here we have some content")
 			So(userJane.Get("LastPost").(RecordCollection).Get("Title"), ShouldEqual, "This is my title")

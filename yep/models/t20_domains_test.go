@@ -38,7 +38,7 @@ func TestDomains(t *testing.T) {
 				0: []interface{}{"UserName", "like", "Smith"},
 				1: []interface{}{"Age", "=", 24},
 			}
-			dom1Users := env.Pool("User").Search(ParseDomain(dom1)).Load()
+			dom1Users := env.Pool("User").Search(ParseDomain(dom1))
 			So(dom1Users.Len(), ShouldEqual, 1)
 			So(dom1Users.Get("UserName"), ShouldEqual, "Jane A. Smith")
 		})
@@ -48,7 +48,7 @@ func TestDomains(t *testing.T) {
 				1: []interface{}{"UserName", "like", "Will"},
 				2: []interface{}{"Email", "ilike", "Jane.Smith"},
 			}
-			dom2Users := env.Pool("User").Search(ParseDomain(dom2)).OrderBy("UserName").Load()
+			dom2Users := env.Pool("User").Search(ParseDomain(dom2)).OrderBy("UserName")
 			So(dom2Users.Len(), ShouldEqual, 2)
 			userRecs := dom2Users.Records()
 			So(userRecs[0].Get("UserName"), ShouldEqual, "Jane A. Smith")
@@ -63,7 +63,7 @@ func TestDomains(t *testing.T) {
 				4: []interface{}{"Age", "<", 25},
 				5: []interface{}{"Email", "not like", "will.smith"},
 			}
-			dom3Users := env.Pool("User").Search(ParseDomain(dom3)).OrderBy("UserName").Load()
+			dom3Users := env.Pool("User").Search(ParseDomain(dom3)).OrderBy("UserName")
 			So(dom3Users.Len(), ShouldEqual, 1)
 			So(dom3Users.Get("UserName"), ShouldEqual, "Jane A. Smith")
 		})

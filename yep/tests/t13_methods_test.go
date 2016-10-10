@@ -14,163 +14,112 @@
 
 package tests
 
-/*
 import (
 	"testing"
 
+	"github.com/npiganeau/yep/pool"
+	"github.com/npiganeau/yep/yep/models"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-type User_WithDecoratedName struct {
-	ID            int64
-	UserName      string
-	Email         string
-	Profile       *Profile_WithID
-	DecoratedName string
-	DisplayName   string
-}
-
-type Profile_Simple struct {
-	ID    int64
-	Age   int16
-	Money float64
-}
-
-type User_Simple struct {
-	ID       int64
-	UserName string
-	Profile  *Profile_Simple
-	Age      int16
-	PMoney   float64
-	Title    string
-	Content  string
-}
-
-type User_WithLastPost struct {
-	ID       int64
-	Title    string
-	Content  string
-	LastPost *Post
-}
-
 func TestMethods(t *testing.T) {
 	Convey("Testing simple methods", t, func() {
-		env := NewEnvironment(1)
+		env := models.NewEnvironment(1)
 		Convey("Getting all users and calling `PrefixedUser`", func() {
-			users := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
-			res := users.Call("PrefixedUser", "Prefix")
-			So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
+			users := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			res := users.PrefixedUser("Prefix")
+			So(res[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 		})
+		env.Cr().Rollback()
 	})
 }
 
 func TestComputedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored computed fields", t, func() {
-		env := NewEnvironment(1)
+		env := models.NewEnvironment(1)
 		Convey("Getting one user (Jane) and checking DisplayName", func() {
-			var userJane User_WithDecoratedName
-			users := env.Pool("User")
-			users.Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
-			So(userJane.DecoratedName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+			users := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			So(users.DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 		})
 		Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-			var users []*User_WithDecoratedName
-			env.Pool("User").OrderBy("UserName").ReadAll(&users)
-			So(len(users), ShouldEqual, 3)
-			So(users[0].DecoratedName, ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
-			So(users[1].DecoratedName, ShouldEqual, "User: John Smith [<jsmith2@example.com>]")
-			So(users[2].DecoratedName, ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+			users := pool.NewTest__UserSet(env).OrderBy("UserName")
+			So(users.Len(), ShouldEqual, 3)
+			userRecs := users.Records()
+			So(userRecs[0].DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+			So(userRecs[1].DecoratedName(), ShouldEqual, "User: John Smith [<jsmith2@example.com>]")
+			So(userRecs[2].DecoratedName(), ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
 		})
-		Convey("Getting all users (Jane & Will) by values and checking DecoratedName", func() {
-			var params []FieldMap
-			env.Pool("User").OrderBy("UserName").ReadValues(&params)
-			So(params[0]["decorated_name"], ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
-			So(params[1]["decorated_name"], ShouldEqual, "User: John Smith [<jsmith2@example.com>]")
-			So(params[2]["decorated_name"], ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
-		})
-		env.cr.Rollback()
+		env.Cr().Rollback()
 	})
 }
 
 func TestComputedStoredFields(t *testing.T) {
 	Convey("Testing stored computed fields", t, func() {
-		env := NewEnvironment(1)
+		env := models.NewEnvironment(1)
 		Convey("Checking that user Jane is 23", func() {
-			var userJane User_Simple
-			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
-			So(userJane.Age, ShouldEqual, 23)
+			userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			So(userJane.Age(), ShouldEqual, 23)
 		})
 		Convey("Checking that user Will has no age since no profile", func() {
-			var userWill User_Simple
-			env.Pool("User").Filter("Email", "=", "will.smith@example.com").ReadOne(&userWill)
-			So(userWill.Age, ShouldEqual, 0)
+			userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
+			So(userWill.Age(), ShouldEqual, 0)
 		})
 		Convey("It's Jane's birthday, change her age, commit and check", func() {
-			var userJane User_Simple
-			janeRs := env.Pool("User").RelatedDepth(1).Filter("Email", "=", "jane.smith@example.com")
-			janeRs.ReadOne(&userJane)
-			So(userJane.UserName, ShouldEqual, "Jane A. Smith")
-			So(userJane.Profile.Money, ShouldEqual, 12345)
-			userJane.Profile.Age = 24
-			env.Sync(userJane.Profile)
-			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
-			So(userJane.Age, ShouldEqual, 24)
+			jane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			So(jane.UserName(), ShouldEqual, "Jane A. Smith")
+			So(jane.Profile().Money(), ShouldEqual, 12345)
+			jane.Profile().SetAge(24)
+
+			jane.Read()
+			jane.Profile().Read()
+			So(jane.Age(), ShouldEqual, 24)
 		})
 		Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
-			var userWill User_Simple
-			willRs := env.Pool("User").Filter("Email", "=", "will.smith@example.com")
-			willRs.ReadOne(&userWill)
-			So(userWill.UserName, ShouldEqual, "Will Smith")
-			userWill.Profile = &Profile_Simple{
+			userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
+			userWill.Read()
+			So(userWill.UserName(), ShouldEqual, "Will Smith")
+			willProfileData := pool.Test__Profile{
 				Age:   34,
 				Money: 5100,
 			}
-			env.Create(userWill.Profile)
-			env.Sync(&userWill)
-			env.Pool("User").Filter("Email", "=", "will.smith@example.com").ReadOne(&userWill)
-			So(userWill.Age, ShouldEqual, 34)
+			willProfile := pool.NewTest__ProfileSet(env).Create(&willProfileData)
+			userWill.SetProfile(willProfile)
+
+			userWill.Read()
+			So(userWill.Age(), ShouldEqual, 34)
 		})
-		env.cr.Commit()
+		env.Cr().Commit()
 	})
 }
 
 func TestRelatedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored related fields", t, func() {
-		env := NewEnvironment(1)
-		Convey("Checking that user Jane money equals is 12345", func() {
-			var userJane User_Simple
-			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
-			So(userJane.PMoney, ShouldEqual, 12345)
+		env := models.NewEnvironment(1)
+		Convey("Checking that user Jane PMoney equals is 12345", func() {
+			userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			So(userJane.PMoney(), ShouldEqual, 12345)
 		})
-		env.cr.Rollback()
+		env.Cr().Rollback()
 	})
 }
 
 func TestInheritedModels(t *testing.T) {
 	Convey("Testing inherits-ed models", t, func() {
-		env := NewEnvironment(1)
+		env := models.NewEnvironment(1)
 		Convey("Adding a last post to Jane", func() {
-			postRs := env.Pool("Post").Create(FieldMap{
-				"Title":   "This is my title",
-				"Content": "Here we have some content",
+			postRs := pool.NewTest__PostSet(env).Create(&pool.Test__Post{
+				Title:   "This is my title",
+				Content: "Here we have some content",
 			})
-			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Write(FieldMap{
-				"LastPost": postRs.ID(),
-			})
+			pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com").SetLastPost(postRs)
 		})
 		Convey("Checking that we can access jane's post directly", func() {
-			var userJane User_Simple
-			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").ReadOne(&userJane)
-			So(userJane.Title, ShouldEqual, "This is my title")
-			So(userJane.Content, ShouldEqual, "Here we have some content")
-			var userJane2 User_WithLastPost
-			env.Pool("User").Filter("Email", "=", "jane.smith@example.com").RelatedDepth(1).ReadOne(&userJane2)
-			So(userJane2.Title, ShouldEqual, "This is my title")
-			So(userJane2.Content, ShouldEqual, "Here we have some content")
-			So(userJane2.LastPost.Title, ShouldEqual, "This is my title")
-			So(userJane2.LastPost.Content, ShouldEqual, "Here we have some content")
+			userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			So(userJane.Title(), ShouldEqual, "This is my title")
+			So(userJane.Content(), ShouldEqual, "Here we have some content")
+			So(userJane.LastPost().Title(), ShouldEqual, "This is my title")
+			So(userJane.LastPost().Content(), ShouldEqual, "Here we have some content")
 		})
-		env.cr.Commit()
+		env.Cr().Commit()
 	})
 }
-*/
