@@ -15,11 +15,9 @@
 package models
 
 import (
-	"fmt"
+	"errors"
 	"reflect"
 	"strings"
-
-	"errors"
 
 	"github.com/npiganeau/yep/yep/tools"
 )
@@ -168,9 +166,8 @@ func jsonizePath(mi *modelInfo, path string) string {
 }
 
 // structToMap returns the fields and values of the given struct pointer in a map.
-// depth determines the level down to which we get fields of related structs.
-// Set depth to 0 to only get fields of our struct
-func structToMap(structPtr interface{}, depth int, prefix ...string) FieldMap {
+// struct fields that equals their type's Go zero value will not be set in the map.
+func structToMap(structPtr interface{}) FieldMap {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
@@ -178,54 +175,21 @@ func structToMap(structPtr interface{}, depth int, prefix ...string) FieldMap {
 	}
 	res := make(FieldMap)
 	for i := 0; i < ind.NumField(); i++ {
-		var fieldName string
-		if len(prefix) > 0 {
-			fieldName = fmt.Sprintf("%s.%s", prefix[0], ind.Type().Field(i).Name)
-		} else {
-			fieldName = ind.Type().Field(i).Name
-		}
+		fieldName := ind.Type().Field(i).Name
 		fieldValue := ind.Field(i)
-		var resVal interface{}
-		if fieldValue.Kind() == reflect.Ptr {
-			// Get the related struct if not nil
-			relInd := reflect.Indirect(fieldValue)
-			relTyp := fieldValue.Type().Elem()
-			switch relTyp.Kind() {
-			case reflect.Struct:
-				if depth > 0 {
-					if !relInd.IsValid() {
-						// create the struct if the pointer is nil
-						fieldValue = reflect.New(relTyp)
-					}
-					// get the related struct fields
-					relMap := structToMap(fieldValue.Interface(), depth-1, fieldName)
-					for k, v := range relMap {
-						res[k] = v
-					}
-				} else {
-					if !relInd.IsValid() {
-						// Skip if pointer is nil
-						continue
-					}
-					// get the ID of the related struct
-					resVal = relInd.FieldByName("ID").Interface()
-				}
-			}
-			if relInd.Kind() != reflect.Struct {
-				continue
-			}
 
-		} else {
-			resVal = ind.Field(i).Interface()
+		if reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface()) {
+			// Omit field if its value equals its type's zero value
+			continue
 		}
-		res[fieldName] = resVal
+
+		res[fieldName] = ind.Field(i).Interface()
 	}
 	return res
 }
 
 // mapToStruct populates the given structPtr with the values in fMap.
-// Recursively populates related structs with related keys of fMap.
-func mapToStruct(mi *modelInfo, structPtr interface{}, fMap FieldMap) {
+func mapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 	fMap = nestMap(fMap)
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
@@ -235,27 +199,32 @@ func mapToStruct(mi *modelInfo, structPtr interface{}, fMap FieldMap) {
 	for i := 0; i < ind.NumField(); i++ {
 		fVal := ind.Field(i)
 		sf := ind.Type().Field(i)
-		fi, ok := mi.fields.get(sf.Name)
+		fi, ok := rc.mi.fields.get(sf.Name)
 		if !ok {
-			tools.LogAndPanic(log, "Unregistered field in model", "field", sf.Name, "model", mi.name)
+			tools.LogAndPanic(log, "Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
 		}
+
 		mValue, mValExists := fMap[fi.json]
-		if sf.Type.Kind() == reflect.Ptr {
-			if mValExists {
-				fm, ok := mValue.(FieldMap)
-				if !ok {
-					continue
-				}
-				if !fVal.Elem().IsValid() {
-					// Create the related struct if it does not exist
-					fVal.Set(reflect.New(sf.Type.Elem()))
-				}
-				mapToStruct(fi.relatedModel, fVal.Interface(), fm)
-				continue
-			}
-		}
 		if mValExists && mValue != nil {
-			convertedValue := reflect.ValueOf(mValue).Convert(fVal.Type())
+			var convertedValue reflect.Value
+			if sf.Type.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+				var relRC RecordCollection
+				switch r := mValue.(type) {
+				case int64:
+					relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
+				case []int64:
+					relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
+				}
+				if sf.Type == reflect.TypeOf(RecordCollection{}) {
+					convertedValue = reflect.ValueOf(relRC)
+				} else {
+					// We have a generated RecordSet Type
+					convertedValue = reflect.New(sf.Type).Elem()
+					convertedValue.FieldByName("RecordCollection").Set(reflect.ValueOf(relRC))
+				}
+			} else {
+				convertedValue = reflect.ValueOf(mValue).Convert(fVal.Type())
+			}
 			fVal.Set(convertedValue)
 		}
 	}
@@ -403,7 +372,7 @@ func convertInterfaceToFieldMap(data interface{}) FieldMap {
 		if err := checkStructPtr(data); err != nil {
 			tools.LogAndPanic(log, err.Error(), "data", data)
 		}
-		fMap = structToMap(data, 0)
+		fMap = structToMap(data)
 	}
 	return fMap
 }

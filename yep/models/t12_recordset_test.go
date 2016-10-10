@@ -80,7 +80,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 			Convey("Reading Jane with ReadFirst", func() {
 				var userJaneStruct UserStruct
-				userJane.ReadFirst(&userJaneStruct)
+				userJane.First(&userJaneStruct)
 				So(userJaneStruct.UserName, ShouldEqual, "Jane Smith")
 				So(userJaneStruct.Email, ShouldEqual, "jane.smith@example.com")
 				So(userJaneStruct.ID, ShouldEqual, userJane.Get("ID").(int64))
@@ -103,7 +103,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 			Convey("Reading all users with ReadAll()", func() {
 				var userStructs []*UserStruct
-				usersAll.ReadAll(&userStructs)
+				usersAll.All(&userStructs)
 				So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
 				So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
 				So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")

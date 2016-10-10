@@ -126,7 +126,14 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 		for i, arg := range args {
 			argsVals[i+1] = reflect.ValueOf(arg)
 		}
-		res := fnctVal.Call(argsVals)
+
+		var res []reflect.Value
+		if fnctVal.Type().IsVariadic() && len(argsVals) == fnctVal.Type().NumIn() {
+			res = fnctVal.CallSlice(argsVals)
+		} else {
+			res = fnctVal.Call(argsVals)
+		}
+
 		if len(res) > 0 {
 			return res[0].Interface()
 		}

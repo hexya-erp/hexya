@@ -134,9 +134,8 @@ func ComputeNameGet(rs RecordCollection) FieldMap {
 	return FieldMap{"DisplayName": rs.Call("NameGet").(string)}
 }
 
-// Create is the base implementation of the 'Create' method which creates
-// a record in the database from the given structPtr.
-// Returns a pointer to a RecordSet with the created id.
+// Create inserts a record in the database from the given data.
+// Returns the created RecordCollection.
 func Create(rs RecordCollection, data interface{}) RecordCollection {
 	return rs.create(data)
 }
@@ -144,7 +143,7 @@ func Create(rs RecordCollection, data interface{}) RecordCollection {
 // Read is the base implementation of the 'Read' method.
 // It reads the database and returns a list of FieldMap
 // of the given model
-func Read(rs RecordCollection, fields []string) RecordCollection {
+func Read(rs RecordCollection, fields ...string) RecordCollection {
 	return rs.Read(fields...)
 
 	// Postprocessing results
@@ -171,8 +170,8 @@ func Read(rs RecordCollection, fields []string) RecordCollection {
 // Write is the base implementation of the 'Write' method which updates
 // records in the database with the given data.
 // Data can be either a struct pointer or a FieldMap.
-func Write(rs RecordCollection, data interface{}) bool {
-	return rs.update(data)
+func Write(rs RecordCollection, data interface{}, fieldsToUpdate ...string) bool {
+	return rs.update(data, fieldsToUpdate...)
 }
 
 // Unlink deletes the given records in the database.

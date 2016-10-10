@@ -81,8 +81,7 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Profile().Money(), ShouldEqual, 12345)
 			})
 			Convey("Reading Jane with ReadFirst", func() {
-				var userJaneStruct UserStruct
-				userJane.ReadFirst(&userJaneStruct)
+				userJaneStruct := userJane.First()
 				So(userJaneStruct.UserName, ShouldEqual, "Jane Smith")
 				So(userJaneStruct.Email, ShouldEqual, "jane.smith@example.com")
 				So(userJaneStruct.ID, ShouldEqual, userJane.ID())
@@ -104,8 +103,7 @@ func TestSearchRecordSet(t *testing.T) {
 				So(recs[2].Email(), ShouldEqual, "will.smith@example.com")
 			})
 			Convey("Reading all users with ReadAll()", func() {
-				var userStructs []*UserStruct
-				usersAll.ReadAll(&userStructs)
+				userStructs := usersAll.All()
 				So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
 				So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
 				So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
@@ -115,67 +113,67 @@ func TestSearchRecordSet(t *testing.T) {
 	})
 }
 
-//func TestUpdateRecordSet(t *testing.T) {
-//	Convey("Testing updates through RecordSets", t, func() {
-//		env := models.NewEnvironment(1)
-//		Convey("Update on users Jane and John with Write and Set", func() {
-//			jane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
-//			So(jane.Len(), ShouldEqual, 1)
-//			jane.Set("UserName", "Jane A. Smith")
-//			jane.Read()
-//			So(jane.UserName(), ShouldEqual, "Jane A. Smith")
-//			So(jane.Email(), ShouldEqual, "jane.smith@example.com")
-//
-//			john := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
-//			So(john.Len(), ShouldEqual, 1)
-//			johnValues := pool.Test__User{
-//				Email: "jsmith2@example.com",
-//				Nums:  13,
-//			}
-//			john.Write(&johnValues)
-//			john.Read()
-//			So(john.UserName(), ShouldEqual, "John Smith")
-//			So(john.Email(), ShouldEqual, "jsmith2@example.com")
-//			So(john.Nums(), ShouldEqual, 13)
-//		})
-//		Convey("Multiple updates at once on users", func() {
-//			cond := models.NewCondition().And("UserName", "=", "Jane A. Smith").Or("UserName", "=", "John Smith")
-//			users := pool.NewTest__UserSet(env).Search(cond)
-//			So(users.Len(), ShouldEqual, 2)
-//			userRecs := users.Records()
-//			So(userRecs[0].IsStaff(), ShouldBeFalse)
-//			So(userRecs[1].IsStaff(), ShouldBeFalse)
-//			So(userRecs[0].IsActive(), ShouldBeFalse)
-//			So(userRecs[1].IsActive(), ShouldBeFalse)
-//
-//			users.SetIsStaff(true)
-//			users.Read()
-//			So(userRecs[0].IsStaff(), ShouldBeTrue)
-//			So(userRecs[1].IsStaff(), ShouldBeTrue)
-//
-//			uData := pool.Test__User{
-//				IsStaff:  false,
-//				IsActive: true,
-//			}
-//			users.Write(&uData)
-//			users.Read()
-//			So(userRecs[0].IsStaff(), ShouldBeFalse)
-//			So(userRecs[1].IsStaff(), ShouldBeFalse)
-//			So(userRecs[0].IsActive(), ShouldBeTrue)
-//			So(userRecs[1].IsActive(), ShouldBeTrue)
-//		})
-//		env.Cr().Commit()
-//	})
-//}
+func TestUpdateRecordSet(t *testing.T) {
+	Convey("Testing updates through RecordSets", t, func() {
+		env := models.NewEnvironment(1)
+		Convey("Update on users Jane and John with Write and Set", func() {
+			jane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
+			So(jane.Len(), ShouldEqual, 1)
+			jane.Set("UserName", "Jane A. Smith")
+			jane.Read()
+			So(jane.UserName(), ShouldEqual, "Jane A. Smith")
+			So(jane.Email(), ShouldEqual, "jane.smith@example.com")
 
-//func TestDeleteRecordSet(t *testing.T) {
-//	env := NewEnvironment(1)
-//	Convey("Delete user John Smith", t, func() {
-//		users := env.Pool("User").Filter("UserName", "=", "John Smith")
-//		num := users.Call("Unlink")
-//		Convey("Number of deleted record should be 1", func() {
-//			So(num, ShouldEqual, 1)
-//		})
-//	})
-//	env.cr.Rollback()
-//}
+			john := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := pool.Test__User{
+				Email: "jsmith2@example.com",
+				Nums:  13,
+			}
+			john.Write(&johnValues)
+			john.Read()
+			So(john.UserName(), ShouldEqual, "John Smith")
+			So(john.Email(), ShouldEqual, "jsmith2@example.com")
+			So(john.Nums(), ShouldEqual, 13)
+		})
+		Convey("Multiple updates at once on users", func() {
+			cond := models.NewCondition().And("UserName", "=", "Jane A. Smith").Or("UserName", "=", "John Smith")
+			users := pool.NewTest__UserSet(env).Search(cond)
+			So(users.Len(), ShouldEqual, 2)
+			userRecs := users.Records()
+			So(userRecs[0].IsStaff(), ShouldBeFalse)
+			So(userRecs[1].IsStaff(), ShouldBeFalse)
+			So(userRecs[0].IsActive(), ShouldBeFalse)
+			So(userRecs[1].IsActive(), ShouldBeFalse)
+
+			users.SetIsStaff(true)
+			users.Read()
+			So(userRecs[0].IsStaff(), ShouldBeTrue)
+			So(userRecs[1].IsStaff(), ShouldBeTrue)
+
+			uData := pool.Test__User{
+				IsStaff:  false,
+				IsActive: true,
+			}
+			users.Write(&uData, pool.Test__User_IsActive, pool.Test__User_IsStaff)
+			users.Read()
+			So(userRecs[0].IsStaff(), ShouldBeFalse)
+			So(userRecs[1].IsStaff(), ShouldBeFalse)
+			So(userRecs[0].IsActive(), ShouldBeTrue)
+			So(userRecs[1].IsActive(), ShouldBeTrue)
+		})
+		env.Cr().Commit()
+	})
+}
+
+func TestDeleteRecordSet(t *testing.T) {
+	env := models.NewEnvironment(1)
+	Convey("Delete user John Smith", t, func() {
+		users := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+		num := users.Unlink()
+		Convey("Number of deleted record should be 1", func() {
+			So(num, ShouldEqual, 1)
+		})
+	})
+	env.Cr().Rollback()
+}

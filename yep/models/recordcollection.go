@@ -95,8 +95,15 @@ func (rs RecordCollection) create(data interface{}) RecordCollection {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
-func (rc RecordCollection) update(data interface{}) bool {
+func (rc RecordCollection) update(data interface{}, fieldsToUpdate ...string) bool {
 	fMap := convertInterfaceToFieldMap(data)
+	if _, ok := data.(FieldMap); !ok {
+		for _, f := range fieldsToUpdate {
+			if _, exists := fMap[f]; !exists {
+				fMap[f] = nil
+			}
+		}
+	}
 	rc.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	delete(fMap, "id")
@@ -286,9 +293,9 @@ func (rc RecordCollection) Set(fieldName string, value interface{}) {
 	rSet.Call("Write", fMap)
 }
 
-// ReadFirst populates structPtr with a copy of the first Record of the RecordCollection.
+// First populates structPtr with a copy of the first Record of the RecordCollection.
 // structPtr must a pointer to a struct.
-func (rc RecordCollection) ReadFirst(structPtr interface{}) {
+func (rc RecordCollection) First(structPtr interface{}) {
 	rSet := rc.Load()
 	if err := checkStructPtr(structPtr); err != nil {
 		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structPtr)
@@ -303,12 +310,12 @@ func (rc RecordCollection) ReadFirst(structPtr interface{}) {
 	}
 	rSet.Read(fields...)
 	fMap := rSet.env.cache.getRecord(rSet.ModelName(), rSet.ids[0])
-	mapToStruct(rSet.mi, structPtr, fMap)
+	mapToStruct(rSet, structPtr, fMap)
 }
 
-// ReadAll Returns a copy of all records of the RecordCollection.
+// All Returns a copy of all records of the RecordCollection.
 // It returns an empty slice if the RecordSet is empty.
-func (rc RecordCollection) ReadAll(structSlicePtr interface{}) {
+func (rc RecordCollection) All(structSlicePtr interface{}) {
 	rSet := rc.Load()
 	if err := checkStructSlicePtr(structSlicePtr); err != nil {
 		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structSlicePtr)
@@ -323,7 +330,7 @@ func (rc RecordCollection) ReadAll(structSlicePtr interface{}) {
 	for i := 0; i < rSet.Len(); i++ {
 		fMap := rSet.env.cache.getRecord(rSet.ModelName(), recs[i].ids[0])
 		newStructPtr := reflect.New(structType).Interface()
-		mapToStruct(rSet.mi, newStructPtr, fMap)
+		mapToStruct(rSet, newStructPtr, fMap)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
 	}
 }
