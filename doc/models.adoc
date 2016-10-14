@@ -76,6 +76,10 @@ RecordType if the RecordSet is empty.
 Returns all Records of the RecordSet as a slice of RecordType. It returns an
 empty slice if the RecordSet is empty.
 
+`*Read(fields []string) []FieldMap*`::
+Returns all Records of the RecordSet as a slice of FieldMap. It returns an
+empty slice if the RecordSet is empty.
+
 RecordSets implement type safe getters and setters for all fields of the
 Record struct type.
 
@@ -140,15 +144,15 @@ updated in case it is a zero value.
 `*Unlink() bool*`::
 Deletes the database records that are linked with this RecordSet.
 
-`*Read(fields ...models.FieldName) RecordSetType*`::
+`*Load(fields ...models.FieldName) RecordSetType*`::
 Populates this RecordSet with the data from the database matching the current
 search condition. If fields are given, only those fields are fetched and the
 other fields of the Records are set to their `go` zero value.
 
-NOTE: Call to `Read()` is optional. It will be automatically called (without
+NOTE: Call to `Load()` is optional. It will be automatically called (without
 fields arguments) on the first call to a getter or when calling `Records()`.
 
-TIP: Calling `Read()` with fields arguments before any other call allows to
+TIP: Calling `Load()` with fields arguments before any other call allows to
 finely control which fields will be queried from the database since subsequent
 calls to a getter will not call `Read()` again if the value is already loaded.
 

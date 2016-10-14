@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package logging
 
 import (
 	"fmt"
@@ -22,26 +22,27 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-stack/stack"
 	"github.com/inconshreveable/log15"
+	"github.com/npiganeau/yep/yep/tools/config"
 )
 
 var log log15.Logger
 
 // initLogger initializes the base logger used by all YEP components
-func initLogger() {
+func init() {
 	log = log15.New()
-	logLevel, err := log15.LvlFromString(Config.GetString("LogLevel"))
+	logLevel, err := log15.LvlFromString(config.Config.GetString("LogLevel"))
 	if err != nil {
 		log.Warn("Error while reading log level. Falling back to info", "error", err.Error())
 		logLevel = log15.LvlInfo
 	}
 
 	stdoutHandler := log15.DiscardHandler()
-	if Config.GetBool("LogStdout") {
+	if config.Config.GetBool("LogStdout") {
 		stdoutHandler = log15.StreamHandler(os.Stdout, log15.TerminalFormat())
 	}
 
 	fileHandler := log15.DiscardHandler()
-	if path := Config.GetString("LogFile"); path != "" {
+	if path := config.Config.GetString("LogFile"); path != "" {
 		fileHandler = log15.Must.FileHandler(path, log15.LogfmtFormat())
 	}
 
@@ -71,16 +72,7 @@ func LogAndPanic(log log15.Logger, msg string, ctx ...interface{}) {
 	ctx = append(ctx, "caller", fmt.Sprintf("%+n", caller))
 	log.Error(msg, ctx...)
 
-	trace := stack.Trace()
-	var traceStr string
-	for _, call := range trace {
-		log.Debug(fmt.Sprintf("%+v", call))
-		log.Debug(fmt.Sprintf(">> %n", call))
-		traceStr += fmt.Sprintf("%+v\n>> %n\n", call, call)
-	}
-
-	fullMsg := fmt.Sprintf("%s, %v\n\n%s", msg, ctx, traceStr)
-	panic(fullMsg)
+	panic(msg)
 }
 
 // Log15ForGin returns a gin.HandlerFunc (middleware) that logs requests using log15.

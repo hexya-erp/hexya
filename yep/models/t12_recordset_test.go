@@ -88,7 +88,7 @@ func TestSearchRecordSet(t *testing.T) {
 		})
 
 		Convey("Testing search all users", func() {
-			usersAll := env.Pool("User").Read()
+			usersAll := env.Pool("User").Load()
 			So(usersAll.Len(), ShouldEqual, 3)
 			Convey("Reading first user with Get", func() {
 				So(usersAll.Get("UserName"), ShouldEqual, "John Smith")
@@ -120,7 +120,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			jane := env.Pool("User").Filter("UserName", "=", "Jane Smith")
 			So(jane.Len(), ShouldEqual, 1)
 			jane.Set("UserName", "Jane A. Smith")
-			jane.Read()
+			jane.Load()
 			So(jane.Get("UserName"), ShouldEqual, "Jane A. Smith")
 			So(jane.Get("Email"), ShouldEqual, "jane.smith@example.com")
 
@@ -131,14 +131,14 @@ func TestUpdateRecordSet(t *testing.T) {
 				"Nums":  13,
 			}
 			john.Call("Write", johnValues)
-			john.Read()
+			john.Load()
 			So(john.Get("UserName"), ShouldEqual, "John Smith")
 			So(john.Get("Email"), ShouldEqual, "jsmith2@example.com")
 			So(john.Get("Nums"), ShouldEqual, 13)
 		})
 		Convey("Multiple updates at once on users", func() {
 			cond := NewCondition().And("UserName", "=", "Jane A. Smith").Or("UserName", "=", "John Smith")
-			users := env.Pool("User").Search(cond).Read()
+			users := env.Pool("User").Search(cond).Load()
 			So(users.Len(), ShouldEqual, 2)
 			userRecs := users.Records()
 			So(userRecs[0].Get("IsStaff").(bool), ShouldBeFalse)
@@ -147,7 +147,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			So(userRecs[1].Get("IsActive").(bool), ShouldBeFalse)
 
 			users.Set("IsStaff", true)
-			users.Read()
+			users.Load()
 			So(userRecs[0].Get("IsStaff").(bool), ShouldBeTrue)
 			So(userRecs[1].Get("IsStaff").(bool), ShouldBeTrue)
 
@@ -156,7 +156,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				"IsActive": true,
 			}
 			users.Call("Write", fMap)
-			users.Read()
+			users.Load()
 			So(userRecs[0].Get("IsStaff").(bool), ShouldBeFalse)
 			So(userRecs[1].Get("IsStaff").(bool), ShouldBeFalse)
 			So(userRecs[0].Get("IsActive").(bool), ShouldBeTrue)

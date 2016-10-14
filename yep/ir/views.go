@@ -23,7 +23,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"github.com/beevik/etree"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 type ViewType string
@@ -136,7 +136,7 @@ func (vc *ViewsCollection) GetFirstViewForModel(model string, viewType ViewType)
 			return view
 		}
 	}
-	tools.LogAndPanic(log, "No view of this type in model", "type", viewType, "model", model)
+	logging.LogAndPanic(log, "No view of this type in model", "type", viewType, "model", model)
 	return nil
 }
 
@@ -174,7 +174,7 @@ func LoadViewFromEtree(element *etree.Element) {
 				value, _ := nodeDoc.WriteToString()
 				viewHash[name] = value
 			default:
-				tools.LogAndPanic(log, "Unknown field type", "type", fieldType, "view", viewHash["id"])
+				logging.LogAndPanic(log, "Unknown field type", "type", fieldType, "view", viewHash["id"])
 			}
 		} else {
 			viewHash[name] = fieldNode.Text()
@@ -184,7 +184,7 @@ func LoadViewFromEtree(element *etree.Element) {
 	bytes, _ := json.Marshal(viewHash)
 	var view View
 	if err := json.Unmarshal(bytes, &view); err != nil {
-		tools.LogAndPanic(log, "Unable to unmarshal view", "viewHash", viewHash, "error", err)
+		logging.LogAndPanic(log, "Unable to unmarshal view", "viewHash", viewHash, "error", err)
 	}
 	ViewsRegistry.AddView(&view)
 }

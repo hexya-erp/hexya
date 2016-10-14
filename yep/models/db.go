@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 var (
@@ -91,7 +91,7 @@ func DBGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
 	err := cr.Get(dest, query, args...)
 	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
 	if err != nil {
-		tools.LogAndPanic(logCtx, "Error while executing query", "error", err)
+		logging.LogAndPanic(logCtx, "Error while executing query", "error", err)
 	}
 	logCtx.Debug("Query executed")
 }
@@ -105,7 +105,7 @@ func dbGetNoTx(dest interface{}, query string, args ...interface{}) {
 	err := db.Get(dest, query, args...)
 	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
 	if err != nil {
-		tools.LogAndPanic(logCtx, "Error while executing query", "error", err)
+		logging.LogAndPanic(logCtx, "Error while executing query", "error", err)
 	}
 	logCtx.Debug("Query executed")
 }
@@ -119,7 +119,7 @@ func DBQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
 	rows, err := cr.Queryx(query, args...)
 	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
 	if err != nil {
-		tools.LogAndPanic(logCtx, "Error while executing query", "error", err)
+		logging.LogAndPanic(logCtx, "Error while executing query", "error", err)
 	}
 	logCtx.Debug("Query executed")
 	return rows

@@ -22,6 +22,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 var modelRegistry *modelCollection
@@ -70,7 +71,7 @@ type modelInfo struct {
 func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
 	typ := reflect.TypeOf(structPtr)
 	if typ.Kind() != reflect.Ptr {
-		tools.LogAndPanic(log, "StructPtr must be a pointer to a struct", "model", mi.name, "received", structPtr)
+		logging.LogAndPanic(log, "StructPtr must be a pointer to a struct", "model", mi.name, "received", structPtr)
 	}
 	typ = typ.Elem()
 	for i := 0; i < typ.NumField(); i++ {
@@ -99,7 +100,7 @@ func (mi *modelInfo) getRelatedModelInfo(path string) *modelInfo {
 	jsonizeExpr(mi, exprs)
 	fi, ok := mi.fields.get(exprs[0])
 	if !ok {
-		tools.LogAndPanic(log, "Unknown field in model", "field", exprs[0], "model", mi.name)
+		logging.LogAndPanic(log, "Unknown field in model", "field", exprs[0], "model", mi.name)
 	}
 	if fi.relatedModel == nil {
 		// The field is a non relational field, so we are already
@@ -125,7 +126,7 @@ func (mi *modelInfo) getRelatedFieldInfo(path string) *fieldInfo {
 	}
 	fi, ok := rmi.fields.get(colExprs[num-1])
 	if !ok {
-		tools.LogAndPanic(log, "Unknown field in model", "field", colExprs[num-1], "model", rmi.name)
+		logging.LogAndPanic(log, "Unknown field in model", "field", colExprs[num-1], "model", rmi.name)
 	}
 	return fi
 }
@@ -201,7 +202,7 @@ func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 				} else if fType == reflect.TypeOf([]int64{}) {
 					val = reflect.ValueOf(ids)
 				} else {
-					tools.LogAndPanic(log, "Non consistent type", "model", mi.name, "field", colName, "type", fType, "value", fMapValue)
+					logging.LogAndPanic(log, "Non consistent type", "model", mi.name, "field", colName, "type", fType, "value", fMapValue)
 				}
 			} else {
 				val = reflect.ValueOf(fMapValue)
@@ -238,7 +239,7 @@ func CreateModel(name string, options ...Option) {
 func ExtendModel(name string, structPtrs ...interface{}) {
 	mi, ok := modelRegistry.get(name)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown model", "model", name)
+		logging.LogAndPanic(log, "Unknown model", "model", name)
 	}
 	for _, structPtr := range structPtrs {
 		mi.addFieldsFromStruct(structPtr)

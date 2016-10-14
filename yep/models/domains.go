@@ -14,7 +14,7 @@
 
 package models
 
-import "github.com/npiganeau/yep/yep/tools"
+import "github.com/npiganeau/yep/yep/tools/logging"
 
 /*
 Domain is a list of search criteria (DomainTerm) in the form of a tuplet (field_name, operator, value).
@@ -143,7 +143,7 @@ prefix operator. Returns the new condition.
 */
 func addTerm(cond *Condition, term DomainTerm, op DomainPrefixOperator) *Condition {
 	if len(term) != 3 {
-		tools.LogAndPanic(log, "Malformed domain term", "term", term)
+		logging.LogAndPanic(log, "Malformed domain term", "term", term)
 	}
 	fieldName := term[0].(string)
 	operator := DomainOperator(term[1].(string))
@@ -164,7 +164,7 @@ func getConditionMethod(cond *Condition, op DomainPrefixOperator) func(string, s
 	case PREFIX_OR:
 		return cond.Or
 	default:
-		tools.LogAndPanic(log, "Unknown prefix operator", "operator", op)
+		logging.LogAndPanic(log, "Unknown prefix operator", "operator", op)
 	}
 	return nil
 }

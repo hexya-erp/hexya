@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package config
 
 import (
 	flag "github.com/spf13/pflag"
@@ -21,7 +21,7 @@ import (
 
 var Config *viper.Viper
 
-func initConfig() {
+func init() {
 	Config = viper.New()
 	setConfigDefaults()
 

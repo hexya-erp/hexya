@@ -17,7 +17,7 @@ package models
 import (
 	"strings"
 
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // ExprSep define the expression separation
@@ -52,11 +52,11 @@ func NewCondition() *Condition {
 // they are not valid
 func checkArgs(expr, op string, arg interface{}) {
 	if expr == "" || op == "" || arg == nil {
-		tools.LogAndPanic(log, "Condition arguments cannot empty", "expr", expr, "operator", op, "arg", arg)
+		logging.LogAndPanic(log, "Condition arguments cannot empty", "expr", expr, "operator", op, "arg", arg)
 	}
 	dop := DomainOperator(op)
 	if !allowedOperators[dop] {
-		tools.LogAndPanic(log, "Unknown operator", "operator", op)
+		logging.LogAndPanic(log, "Unknown operator", "operator", op)
 	}
 }
 
@@ -87,7 +87,7 @@ func (c Condition) AndNot(expr string, op string, arg interface{}) *Condition {
 func (c *Condition) AndCond(cond *Condition) *Condition {
 	c = c.clone()
 	if c == cond {
-		tools.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
+		logging.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
 	}
 	if cond != nil {
 		c.params = append(c.params, condValue{cond: cond, isCond: true})
@@ -124,7 +124,7 @@ func (c Condition) OrNot(expr string, op string, arg interface{}) *Condition {
 func (c *Condition) OrCond(cond *Condition) *Condition {
 	c = c.clone()
 	if c == cond {
-		tools.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
+		logging.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
 	}
 	if cond != nil {
 		c.params = append(c.params, condValue{cond: cond, isCond: true, isOr: true})

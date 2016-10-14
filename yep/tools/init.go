@@ -14,7 +14,13 @@
 
 package tools
 
+import (
+	"github.com/inconshreveable/log15"
+	"github.com/npiganeau/yep/yep/tools/logging"
+)
+
+var log log15.Logger
+
 func init() {
-	initConfig()
-	initLogger()
+	log = logging.GetLogger("tools")
 }

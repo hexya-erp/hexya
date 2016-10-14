@@ -24,6 +24,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 type ActionType string
@@ -167,7 +168,7 @@ func LoadActionFromEtree(element *etree.Element) {
 				value, _ := nodeDoc.WriteToString()
 				actionHash[name] = value
 			default:
-				tools.LogAndPanic(log, "Unknown field type", "type", fieldType, "action", actionHash["id"])
+				logging.LogAndPanic(log, "Unknown field type", "type", fieldType, "action", actionHash["id"])
 			}
 		} else {
 			actionHash[name] = fieldNode.Text()
@@ -177,7 +178,7 @@ func LoadActionFromEtree(element *etree.Element) {
 	bytes, _ := json.Marshal(actionHash)
 	var act BaseAction
 	if err := json.Unmarshal(bytes, &act); err != nil {
-		tools.LogAndPanic(log, "Unable to unmarshal action", "actionHash", actionHash, "error", err)
+		logging.LogAndPanic(log, "Unable to unmarshal action", "actionHash", actionHash, "error", err)
 	}
 	ActionsRegistry.AddAction(&act)
 }

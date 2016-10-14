@@ -89,7 +89,7 @@ func TestSearchRecordSet(t *testing.T) {
 		})
 
 		Convey("Testing search all users", func() {
-			usersAll := pool.NewTest__UserSet(env).Read()
+			usersAll := pool.NewTest__UserSet(env).Load()
 			So(usersAll.Len(), ShouldEqual, 3)
 			Convey("Reading first user with getters", func() {
 				So(usersAll.UserName(), ShouldEqual, "John Smith")
@@ -120,7 +120,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			jane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
 			So(jane.Len(), ShouldEqual, 1)
 			jane.Set("UserName", "Jane A. Smith")
-			jane.Read()
+			jane.Load()
 			So(jane.UserName(), ShouldEqual, "Jane A. Smith")
 			So(jane.Email(), ShouldEqual, "jane.smith@example.com")
 
@@ -131,7 +131,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				Nums:  13,
 			}
 			john.Write(&johnValues)
-			john.Read()
+			john.Load()
 			So(john.UserName(), ShouldEqual, "John Smith")
 			So(john.Email(), ShouldEqual, "jsmith2@example.com")
 			So(john.Nums(), ShouldEqual, 13)
@@ -147,7 +147,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			So(userRecs[1].IsActive(), ShouldBeFalse)
 
 			users.SetIsStaff(true)
-			users.Read()
+			users.Load()
 			So(userRecs[0].IsStaff(), ShouldBeTrue)
 			So(userRecs[1].IsStaff(), ShouldBeTrue)
 
@@ -156,7 +156,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				IsActive: true,
 			}
 			users.Write(&uData, pool.Test__User_IsActive, pool.Test__User_IsStaff)
-			users.Read()
+			users.Load()
 			So(userRecs[0].IsStaff(), ShouldBeFalse)
 			So(userRecs[1].IsStaff(), ShouldBeFalse)
 			So(userRecs[0].IsActive(), ShouldBeTrue)

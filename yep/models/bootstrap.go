@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 /*
@@ -26,7 +27,7 @@ with the declared data.
 func BootStrap() {
 	log.Info("Bootstrapping models")
 	if modelRegistry.bootstrapped == true {
-		tools.LogAndPanic(log, "Trying to bootstrap models twice !")
+		logging.LogAndPanic(log, "Trying to bootstrap models twice !")
 	}
 	modelRegistry.Lock()
 	defer modelRegistry.Unlock()
@@ -54,7 +55,7 @@ func createModelLinks() {
 			case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE, tools.ONE2MANY, tools.MANY2MANY:
 				relatedMI, ok = modelRegistry.get(fi.relatedModelName)
 				if !ok {
-					tools.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
+					logging.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
 				}
 			}
 			fi.relatedModel = relatedMI
@@ -196,7 +197,7 @@ func updateDBColumns(mi *modelInfo) {
 // createDBColumn insert the column described by fieldInfo in the database
 func createDBColumn(fi *fieldInfo) {
 	if !fi.isStored() {
-		tools.LogAndPanic(log, "createDBColumn should not be called on non stored fields", "model", fi.mi.name, "field", fi.json)
+		logging.LogAndPanic(log, "createDBColumn should not be called on non stored fields", "model", fi.mi.name, "field", fi.json)
 	}
 	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`

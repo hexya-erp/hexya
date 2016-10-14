@@ -17,7 +17,7 @@ package models
 import (
 	"reflect"
 
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // Call calls the given method name methName on the given RecordCollection
@@ -25,7 +25,7 @@ import (
 func (rc RecordCollection) Call(methName string, args ...interface{}) interface{} {
 	methInfo, ok := rc.mi.methods.get(methName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.mi.name)
+		logging.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.mi.name)
 	}
 	methLayer := methInfo.topLayer
 	return rc.call(methLayer, args...)
@@ -35,7 +35,7 @@ func (rc RecordCollection) Call(methName string, args ...interface{}) interface{
 // This method is meant to be used inside a method layer function to call its parent.
 func (rc RecordCollection) Super(args ...interface{}) interface{} {
 	if len(rc.callStack) == 0 {
-		tools.LogAndPanic(log, "Empty call stack", "model", rc.mi.name)
+		logging.LogAndPanic(log, "Empty call stack", "model", rc.mi.name)
 	}
 	currentLayer := rc.callStack[0]
 	methInfo := currentLayer.methInfo
@@ -52,7 +52,7 @@ func (rc RecordCollection) Super(args ...interface{}) interface{} {
 func (rc RecordCollection) MethodType(methName string) reflect.Type {
 	methInfo, ok := rc.mi.methods.get(methName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown method in model", "model", rc.mi.name, "method", methName)
+		logging.LogAndPanic(log, "Unknown method in model", "model", rc.mi.name, "method", methName)
 	}
 	return methInfo.methodType
 }
@@ -67,7 +67,12 @@ func (rc RecordCollection) call(methLayer *methodLayer, args ...interface{}) int
 		inVals[i+1] = reflect.ValueOf(arg)
 	}
 
-	retVal := methLayer.funcValue.Call(inVals)
+	var retVal []reflect.Value
+	if methLayer.methInfo.methodType.IsVariadic() && len(inVals) == methLayer.methInfo.methodType.NumIn() {
+		retVal = methLayer.funcValue.CallSlice(inVals)
+	} else {
+		retVal = methLayer.funcValue.Call(inVals)
+	}
 
 	if len(retVal) == 0 {
 		return nil

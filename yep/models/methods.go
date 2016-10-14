@@ -17,7 +17,7 @@ package models
 import (
 	"reflect"
 
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // methodsCache is the methodInfo collection
@@ -94,7 +94,7 @@ type methodLayer struct {
 func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodInfo {
 	funcType := val.Type()
 	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-		tools.LogAndPanic(log, "Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
+		logging.LogAndPanic(log, "Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
 	}
 
 	methInfo := methodInfo{
@@ -149,7 +149,7 @@ func CreateMethod(modelName, methodName string, fnct interface{}) {
 	mi := checkMethodAndFnctType(modelName, methodName, fnct)
 	_, exists := mi.methods.get(methodName)
 	if exists {
-		tools.LogAndPanic(log, "Call to CreateMethod with an existing method name", "model", modelName, "method", methodName)
+		logging.LogAndPanic(log, "Call to CreateMethod with an existing method name", "model", modelName, "method", methodName)
 	}
 	mi.methods.set(methodName, newMethodInfo(mi, methodName, reflect.ValueOf(fnct)))
 }
@@ -161,18 +161,22 @@ func ExtendMethod(modelName, methodName string, fnct interface{}) {
 	mi := checkMethodAndFnctType(modelName, methodName, fnct)
 	methInfo, exists := mi.methods.get(methodName)
 	if !exists {
-		tools.LogAndPanic(log, "Call to ExtendMethod on non existant method", "model", modelName, "method", methodName)
+		logging.LogAndPanic(log, "Call to ExtendMethod on non existant method", "model", modelName, "method", methodName)
 	}
 	val := reflect.ValueOf(fnct)
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {
 		if methInfo.methodType.In(i) != val.Type().In(i) {
-			tools.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
+			logging.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
 				"argument", i, "expected", methInfo.methodType.In(i), "received", val.Type().In(i))
 		}
 	}
 	if methInfo.methodType.NumOut() > 0 && methInfo.methodType.Out(0) != val.Type().Out(0) {
-		tools.LogAndPanic(log, "Function return type does not match", "model", modelName, "method", methodName,
+		logging.LogAndPanic(log, "Function return type does not match", "model", modelName, "method", methodName,
 			"expected", methInfo.methodType.Out(0), "received", val.Type().Out(0))
+	}
+	if methInfo.methodType.IsVariadic() != val.Type().IsVariadic() {
+		logging.LogAndPanic(log, "Variadic mismatch", "model", modelName, "method", methodName,
+			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
 	}
 	methInfo.addMethodLayer(val)
 }
@@ -182,15 +186,15 @@ func ExtendMethod(modelName, methodName string, fnct interface{}) {
 func checkMethodAndFnctType(modelName, methodName string, fnct interface{}) *modelInfo {
 	mi, ok := modelRegistry.get(modelName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown model", "model", modelName)
+		logging.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	if mi.methods.bootstrapped {
-		tools.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", modelName, "method", methodName)
+		logging.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", modelName, "method", methodName)
 	}
 
 	val := reflect.ValueOf(fnct)
 	if val.Kind() != reflect.Func {
-		tools.LogAndPanic(log, "fnct parameter must be a function", "model", modelName, "method", methodName, "fnct", fnct)
+		logging.LogAndPanic(log, "fnct parameter must be a function", "model", modelName, "method", methodName, "fnct", fnct)
 	}
 	return mi
 }

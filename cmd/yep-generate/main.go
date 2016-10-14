@@ -154,9 +154,9 @@ func generateTempMethods(fileName string) {
 				Model:      fmt.Sprintf("%sSet", ref.Model),
 				Name:       ref.Method,
 				Params:     params,
-				ReturnType: mData.ReturnType.Type,
+				ReturnType: strings.Replace(mData.ReturnType.Type, "pool.", "", 1),
 			})
-			if mData.ReturnType.ImportPath != "" {
+			if mData.ReturnType.ImportPath != "" && mData.ReturnType.ImportPath != generate.POOL_PATH {
 				data.Imports = append(data.Imports, mData.ReturnType.ImportPath)
 			}
 		}

@@ -40,7 +40,7 @@ func TestComputedNonStoredFields(t *testing.T) {
 			So(users.Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 		})
 		Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-			users := env.Pool("User").OrderBy("UserName").Load()
+			users := env.Pool("User").OrderBy("UserName").Fetch()
 			So(users.Len(), ShouldEqual, 3)
 			userRecs := users.Records()
 			So(userRecs[0].Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
@@ -68,13 +68,13 @@ func TestComputedStoredFields(t *testing.T) {
 			So(jane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
 			jane.Get("Profile").(RecordCollection).Set("Age", 24)
 
-			jane.Read()
-			jane.Get("Profile").(RecordCollection).Read()
+			jane.Load()
+			jane.Get("Profile").(RecordCollection).Load()
 			So(jane.Get("Age"), ShouldEqual, 24)
 		})
 		Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
 			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com")
-			userWill.Read()
+			userWill.Load()
 			So(userWill.Get("UserName"), ShouldEqual, "Will Smith")
 			willProfileData := FieldMap{
 				"Age":   34,
@@ -83,7 +83,7 @@ func TestComputedStoredFields(t *testing.T) {
 			willProfile := env.Pool("Profile").Call("Create", willProfileData)
 			userWill.Set("Profile", willProfile)
 
-			userWill.Read()
+			userWill.Load()
 			So(userWill.Get("Age"), ShouldEqual, 34)
 		})
 		env.cr.Commit()

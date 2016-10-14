@@ -17,8 +17,6 @@ package generate
 import (
 	"bytes"
 	"fmt"
-	"github.com/inconshreveable/log15"
-	"github.com/npiganeau/yep/yep/tools"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -27,6 +25,9 @@ import (
 	"io/ioutil"
 	"strings"
 	"text/template"
+
+	"github.com/inconshreveable/log15"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 const (
@@ -44,12 +45,12 @@ func CreateFileFromTemplate(fileName string, template *template.Template, data i
 	template.Execute(&srcBuffer, data)
 	srcData, err := format.Source(srcBuffer.Bytes())
 	if err != nil {
-		tools.LogAndPanic(log, "Error while formatting generated source file", "error", err, "fileName", fileName, "mData", fmt.Sprintf("%#v", data), "src", srcBuffer.String())
+		logging.LogAndPanic(log, "Error while formatting generated source file", "error", err, "fileName", fileName, "mData", fmt.Sprintf("%#v", data), "src", srcBuffer.String())
 	}
 	// Write to file
 	err = ioutil.WriteFile(fileName, srcData, 0644)
 	if err != nil {
-		tools.LogAndPanic(log, "Error while saving generated source file", "error", err, "fileName", fileName)
+		logging.LogAndPanic(log, "Error while saving generated source file", "error", err, "fileName", fileName)
 	}
 }
 
@@ -292,5 +293,5 @@ func extractDocString(fd *ast.FuncDecl) string {
 }
 
 func init() {
-	log = tools.GetLogger("tools/generate")
+	log = logging.GetLogger("tools/generate")
 }

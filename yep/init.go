@@ -19,12 +19,13 @@ import (
 	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/server"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/config"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 func init() {
-	log := tools.GetLogger("init")
-	models.DBConnect(tools.Config.GetString("DBDriver"), tools.Config.GetString("DBSource"))
+	log := logging.GetLogger("init")
+	models.DBConnect(config.Config.GetString("DBDriver"), config.Config.GetString("DBSource"))
 	models.BootStrap()
 	server.LoadInternalResources()
 	ir.BootStrap()

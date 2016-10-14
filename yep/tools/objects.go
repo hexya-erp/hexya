@@ -19,6 +19,8 @@ import (
 	"reflect"
 	"strings"
 	"unicode"
+
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 /*
@@ -87,7 +89,7 @@ the dst Value. dst must be a pointer Value
 */
 func UnmarshalJSONValue(data, dst reflect.Value) error {
 	if dst.Type().Kind() != reflect.Ptr {
-		LogAndPanic(log, "dst must be a pointer value", "data", data, "dst", dst)
+		logging.LogAndPanic(log, "dst must be a pointer value", "data", data, "dst", dst)
 	}
 	umArgs := []reflect.Value{data, reflect.New(dst.Type().Elem())}
 	res := reflect.ValueOf(json.Unmarshal).Call(umArgs)[0]

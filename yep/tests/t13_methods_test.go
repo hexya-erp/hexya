@@ -70,13 +70,13 @@ func TestComputedStoredFields(t *testing.T) {
 			So(jane.Profile().Money(), ShouldEqual, 12345)
 			jane.Profile().SetAge(24)
 
-			jane.Read()
-			jane.Profile().Read()
+			jane.Load()
+			jane.Profile().Load()
 			So(jane.Age(), ShouldEqual, 24)
 		})
 		Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
 			userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
-			userWill.Read()
+			userWill.Load()
 			So(userWill.UserName(), ShouldEqual, "Will Smith")
 			willProfileData := pool.Test__Profile{
 				Age:   34,
@@ -85,7 +85,7 @@ func TestComputedStoredFields(t *testing.T) {
 			willProfile := pool.NewTest__ProfileSet(env).Create(&willProfileData)
 			userWill.SetProfile(willProfile)
 
-			userWill.Read()
+			userWill.Load()
 			So(userWill.Age(), ShouldEqual, 34)
 		})
 		env.Cr().Commit()

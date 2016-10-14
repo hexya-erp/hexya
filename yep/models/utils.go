@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 const (
@@ -143,14 +144,14 @@ func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 	var res []string
 	fi, ok := mi.fields.get(exprs[0])
 	if !ok {
-		tools.LogAndPanic(log, "Unknown expression for model", "expression", exprs, "model", mi.name)
+		logging.LogAndPanic(log, "Unknown expression for model", "expression", exprs, "model", mi.name)
 	}
 	res = append(res, fi.json)
 	if len(exprs) > 1 {
 		if fi.relatedModel != nil {
 			res = append(res, jsonizeExpr(fi.relatedModel, exprs[1:])...)
 		} else {
-			tools.LogAndPanic(log, "Field is not a relation in model", "field", exprs[0], "model", mi.name)
+			logging.LogAndPanic(log, "Field is not a relation in model", "field", exprs[0], "model", mi.name)
 		}
 	}
 	return res
@@ -171,7 +172,7 @@ func structToMap(structPtr interface{}) FieldMap {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		tools.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
+		logging.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
 	}
 	res := make(FieldMap)
 	for i := 0; i < ind.NumField(); i++ {
@@ -194,14 +195,14 @@ func mapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		tools.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
+		logging.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
 	}
 	for i := 0; i < ind.NumField(); i++ {
 		fVal := ind.Field(i)
 		sf := ind.Type().Field(i)
 		fi, ok := rc.mi.fields.get(sf.Name)
 		if !ok {
-			tools.LogAndPanic(log, "Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
+			logging.LogAndPanic(log, "Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
 		}
 
 		mValue, mValExists := fMap[fi.json]
@@ -283,7 +284,7 @@ func getFieldType(typ reflect.Type) tools.FieldType {
 	case reflect.TypeOf(Date{}):
 		return tools.DATE
 	}
-	tools.LogAndPanic(log, "Unable to match field type with go Type. Please specify 'type()' in struct tag", "type", typ)
+	logging.LogAndPanic(log, "Unable to match field type with go Type. Please specify 'type()' in struct tag", "type", typ)
 	return tools.NO_TYPE
 }
 
@@ -320,7 +321,7 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
 		fi, ok := mi.fields.get(fieldExprs[0])
 		if !ok {
-			tools.LogAndPanic(log, "Unknown Field in model", "field", fieldExprs[0], "model", mi.name)
+			logging.LogAndPanic(log, "Unknown Field in model", "field", fieldExprs[0], "model", mi.name)
 		}
 		var resExprs []string
 		if fi.isStored() {
@@ -335,25 +336,15 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 					resExprs = append(resExprs, subFieldRes[0])
 				}
 			} else {
-				tools.LogAndPanic(log, "Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
+				logging.LogAndPanic(log, "Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
 			}
 		}
 		if len(resExprs) > 0 {
 			res = append(res, strings.Join(resExprs, ExprSep))
 		}
 	}
-	// Check we have "id" else add it to our list
-	var idPresent bool
-	for _, r := range res {
-		if r == "id" {
-			idPresent = true
-			break
-		}
-	}
-	if !idPresent {
-		res = append(res, "id")
-	}
-	return res
+
+	return addIDIfNotPresent(res)
 }
 
 // convertInterfaceToFielMap converts the given data which can be of type:
@@ -370,9 +361,24 @@ func convertInterfaceToFieldMap(data interface{}) FieldMap {
 		fMap = FieldMap(d)
 	default:
 		if err := checkStructPtr(data); err != nil {
-			tools.LogAndPanic(log, err.Error(), "data", data)
+			logging.LogAndPanic(log, err.Error(), "data", data)
 		}
 		fMap = structToMap(data)
 	}
 	return fMap
+}
+
+// addIDIfNotPresent returns a new fields slice including ID if it
+// is not already present. Otherwise returns the original slice.
+func addIDIfNotPresent(fields []string) []string {
+	var hadID bool
+	for _, fName := range fields {
+		if fName == "id" || fName == "ID" {
+			hadID = true
+		}
+	}
+	if !hadID {
+		fields = append(fields, "id")
+	}
+	return fields
 }

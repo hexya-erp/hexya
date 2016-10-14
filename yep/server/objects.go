@@ -16,13 +16,18 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 
+	"github.com/go-stack/stack"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+// CallParams is the arguments' struct for the Execute function.
+// It defines a method to call on a model with the given args and keyword args.
 type CallParams struct {
 	Model  string                     `json:"model"`
 	Method string                     `json:"method"`
@@ -30,62 +35,26 @@ type CallParams struct {
 	KWArgs map[string]json.RawMessage `json:"kwargs"`
 }
 
-/*
-Execute executes a method on an object
-*/
+// Execute executes a method on an object
 func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	var rs models.RecordCollection
 	defer func() {
 		if r := recover(); r != nil {
-			rs.Env().Cr().Rollback()
+			rError = rollbackAndLog(rs.Env(), r)
 			res = nil
-			rError = fmt.Errorf("%s", r)
 			return
 		}
 		rError = rs.Env().Cr().Commit()
 	}()
-	if uid == 0 {
-		tools.LogAndPanic(log, "User must be logged in to call model method", "params", params)
-	}
-	ctxStr, ok := params.KWArgs["context"]
-	var ctx tools.Context
-	if ok {
-		if err := json.Unmarshal(ctxStr, &ctx); err != nil {
-			tools.LogAndPanic(log, "Unable to JSON unmarshal context", "context_string", ctxStr)
-		}
-	}
+
+	checkUser(uid)
 
 	// Create new Environment with new transaction
+	ctx := extractContext(params)
 	env := models.NewEnvironment(uid, ctx)
 
 	// Create RecordSet from Environment
-	model := tools.ConvertModelName(params.Model)
-	rs = env.Pool(model)
-
-	// Try to parse the first argument of Args as id or ids.
-	var single bool
-	var idsParsed bool
-	var ids []float64
-	if len(params.Args) > 0 {
-		if err := json.Unmarshal(params.Args[0], &ids); err != nil {
-			// Unable to unmarshal in a list of IDs, trying with a single id
-			var id float64
-			if err := json.Unmarshal(params.Args[0], &id); err == nil {
-				rs = rs.Filter("ID", "=", id)
-				single = true
-				idsParsed = true
-			}
-		} else {
-			rs = rs.Filter("ID", "in", ids)
-			idsParsed = true
-		}
-	}
-
-	parms := params.Args
-	if idsParsed {
-		// We remove ids already parsed from args
-		parms = parms[1:]
-	}
+	rs, parms, single := createRecordCollection(env, params)
 
 	methodName := tools.ConvertMethodName(params.Method)
 
@@ -96,53 +65,22 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	// - Else:
 	//     * Parse Args as the function args
 	//     * Ignore KWArgs
-	fnArgs := make([]interface{}, rs.MethodType(methodName).NumIn()-1)
+	var fnArgs []interface{}
 	if rs.MethodType(methodName).NumIn() > 1 {
 		fnSecondArgType := rs.MethodType(methodName).In(1)
 		if fnSecondArgType.Kind() == reflect.Struct {
 			// 2nd argument is a struct,
+			fnArgs = make([]interface{}, 1)
 			argStructValue := reflect.New(fnSecondArgType).Elem()
-			for i := 0; i < fnSecondArgType.NumField(); i++ {
-				// We parse parms into the struct
-				if len(parms) <= i {
-					// We have less arguments than the size of the struct
-					break
-				}
-				argsValue := reflect.ValueOf(parms[i])
-				fieldPtrValue := reflect.New(argStructValue.Type().Field(i).Type)
-				if err := tools.UnmarshalJSONValue(argsValue, fieldPtrValue); err != nil {
-					// We deliberately continue here to have default value if there is an error
-					// This is to manage cases where the given data type is inconsistent (such
-					// false instead of [] or object{}).
-					continue
-				}
-				argStructValue.Field(i).Set(fieldPtrValue.Elem())
-			}
-			for k, v := range params.KWArgs {
-				// We parse params.KWArgs into the struct
-				field := tools.GetStructFieldByJSONTag(argStructValue, k)
-				if field.IsValid() {
-					if err := tools.UnmarshalJSONValue(reflect.ValueOf(v), field); err != nil {
-						// Same remark as above
-						continue
-					}
-				}
-			}
+			putParamsValuesInStruct(&argStructValue, parms)
+			putKWValuesInStruct(&argStructValue, params.KWArgs)
 			fnArgs[0] = argStructValue.Interface()
 		} else {
 			// Second argument is not a struct, so we parse directly in the function args
-			for i := 1; i < rs.MethodType(methodName).NumIn(); i++ {
-				if len(parms) <= i-1 {
-					// We have less arguments than the arguments of the method
-					tools.LogAndPanic(log, "Wrong number of args in non-struct function args", "method", methodName, "args", parms, "expected", rs.MethodType(methodName).NumIn())
-				}
-				argsValue := reflect.ValueOf(parms[i-1])
-				resValue := reflect.New(rs.MethodType(methodName).In(i))
-				if err := tools.UnmarshalJSONValue(argsValue, resValue); err != nil {
-					// Same remark as above
-					continue
-				}
-				fnArgs[i-1] = resValue.Elem().Interface()
+			fnArgs = make([]interface{}, len(parms))
+			err := putParamsValuesInArgs(&fnArgs, rs.MethodType(methodName), parms)
+			if err != nil {
+				logging.LogAndPanic(log, err.Error(), "method", methodName, "args", parms)
 			}
 		}
 	}
@@ -150,7 +88,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	res = rs.Call(methodName, fnArgs...)
 
 	resVal := reflect.ValueOf(res)
-	if single && idsParsed && resVal.Kind() == reflect.Slice {
+	if single && resVal.Kind() == reflect.Slice {
 		// Return only the first element of the slice if called with only one id.
 		newRes := reflect.New(resVal.Type().Elem()).Elem()
 		if resVal.Len() > 0 {
@@ -159,7 +97,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 		res = newRes.Interface()
 	}
 	// Return ID(s) if res is a *RecordSet
-	if rec, ok := res.(*models.RecordCollection); ok {
+	if rec, ok := res.(models.RecordCollection); ok {
 		if len(rec.Ids()) == 1 {
 			res = rec.Ids()[0]
 		} else {
@@ -170,27 +108,159 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	return
 }
 
+// putParamsValuesInStruct decodes parms and sets the fields of the structValue
+// with the values of parms, in order.
+func putParamsValuesInStruct(structValue *reflect.Value, parms []json.RawMessage) {
+	argStructValue := *structValue
+	for i := 0; i < argStructValue.NumField(); i++ {
+		if len(parms) <= i {
+			// We have less arguments than the size of the struct
+			break
+		}
+		argsValue := reflect.ValueOf(parms[i])
+		fieldPtrValue := reflect.New(argStructValue.Type().Field(i).Type)
+		if err := tools.UnmarshalJSONValue(argsValue, fieldPtrValue); err != nil {
+			// We deliberately continue here to have default value if there is an error
+			// This is to manage cases where the given data type is inconsistent (such
+			// false instead of [] or object{}).
+			continue
+		}
+		argStructValue.Field(i).Set(fieldPtrValue.Elem())
+	}
+}
+
+// putKWValuesInStruct decodes kwArgs and sets the fields of the structValue
+// with the values of kwArgs, mapping each field with its entry in kwArgs.
+func putKWValuesInStruct(structValue *reflect.Value, kwArgs map[string]json.RawMessage) {
+	argStructValue := *structValue
+	for k, v := range kwArgs {
+		field := tools.GetStructFieldByJSONTag(argStructValue, k)
+		if field.IsValid() {
+			if err := tools.UnmarshalJSONValue(reflect.ValueOf(v), field); err != nil {
+				// We deliberately continue here to have default value if there is an error
+				// This is to manage cases where the given data type is inconsistent (such
+				// false instead of [] or object{}).
+				continue
+			}
+		}
+	}
+}
+
+// putParamsValuesInArgs decodes parms and sets fnArgs with the types of methodType arguments
+// and the values of parms, in order.
+func putParamsValuesInArgs(fnArgs *[]interface{}, methodType reflect.Type, parms []json.RawMessage) error {
+	numArgs := methodType.NumIn() - 1
+	for i := 0; i < len(parms); i++ {
+		if (methodType.IsVariadic() && len(parms) < numArgs-1) ||
+			(!methodType.IsVariadic() && len(parms) < numArgs) {
+			// We have less arguments than the arguments of the method
+			return fmt.Errorf("Wrong number of args in non-struct function args (%d instead of %d)", len(parms), numArgs)
+		}
+		argsValue := reflect.ValueOf(parms[i])
+		resValue := reflect.New(methodType.In(i + 1))
+		if err := tools.UnmarshalJSONValue(argsValue, resValue); err != nil {
+			// Same remark as above
+			log.Debug("Unable to unmarshal argument", "error", err)
+			continue
+		}
+		(*fnArgs)[i] = resValue.Elem().Interface()
+	}
+	return nil
+}
+
+// createRecordCollection creates a RecordCollection instance from the given environment, based
+// on the given params. If the first argument given in params can be parsed as an id or a slice
+// of ids, then it is used to populate the RecordCollection. Otherwise, it returns an empty
+// RecordCollection. This function also returns the remaining arguments after id(s) have been
+// parsed, and a boolean value set to true if the RecordSet has only one ID.
+func createRecordCollection(env models.Environment, params CallParams) (rc models.RecordCollection, remainingParams []json.RawMessage, single bool) {
+	modelName := tools.ConvertModelName(params.Model)
+	rc = env.Pool(modelName)
+
+	// Try to parse the first argument of Args as id or ids.
+	var idsParsed bool
+	var ids []float64
+	if len(params.Args) > 0 {
+		if err := json.Unmarshal(params.Args[0], &ids); err != nil {
+			// Unable to unmarshal in a list of IDs, trying with a single id
+			var id float64
+			if err := json.Unmarshal(params.Args[0], &id); err == nil {
+				rc = rc.Filter("ID", "=", id)
+				single = true
+				idsParsed = true
+			}
+		} else {
+			rc = rc.Filter("ID", "in", ids)
+			idsParsed = true
+		}
+	}
+
+	remainingParams = params.Args
+	if idsParsed {
+		// We remove ids already parsed from args
+		remainingParams = remainingParams[1:]
+	}
+	return
+}
+
+// extractContext extracts the context from the given params and returns it.
+func extractContext(params CallParams) tools.Context {
+	ctxStr, ok := params.KWArgs["context"]
+	var ctx tools.Context
+	if ok {
+		if err := json.Unmarshal(ctxStr, &ctx); err != nil {
+			logging.LogAndPanic(log, "Unable to JSON unmarshal context", "context_string", ctxStr)
+		}
+	}
+	return ctx
+}
+
+// checkUser panics if the given uid is 0 (i.e. no user is logged in).
+func checkUser(uid int64) {
+	if uid == 0 {
+		logging.LogAndPanic(log, "User must be logged in to call model method")
+	}
+}
+
+// rollbackAndLog rolls back the current transaction of the given
+// environment and logs the panic data with stacktrace.
+func rollbackAndLog(env models.Environment, panicData interface{}) error {
+	env.Cr().Rollback()
+	caller := stack.Caller(1)
+	ctx := []interface{}{"caller", fmt.Sprintf("%+n", caller)}
+
+	msg := fmt.Sprintf("%v", panicData)
+	log.Error(msg, ctx...)
+
+	trace := stack.Trace()
+	var traceStr string
+	for _, call := range trace {
+		log.Debug(fmt.Sprintf("%+v", call))
+		log.Debug(fmt.Sprintf(">> %n", call))
+		traceStr += fmt.Sprintf("%+v\n>> %n\n", call, call)
+	}
+
+	fullMsg := fmt.Sprintf("%s, %v\n\n%s", msg, ctx, traceStr)
+	return errors.New(fullMsg)
+}
+
 /*
 GetFieldValue retrieves the given field of the given model and id.
 */
 func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError error) {
-	var rs models.RecordCollection
+	env := models.NewEnvironment(uid)
 	defer func() {
 		if r := recover(); r != nil {
-			if rs.Env().Cr() != nil {
-				rs.Env().Cr().Rollback()
-			}
+			rError = rollbackAndLog(env, r)
 			res = nil
-			rError = fmt.Errorf("%s", r)
 			return
 		}
-		rs.Env().Cr().Commit()
+		env.Cr().Commit()
 	}()
 	if uid == 0 {
-		tools.LogAndPanic(log, "User must be logged in to retrieve field")
+		logging.LogAndPanic(log, "User must be logged in to retrieve field")
 	}
 	model = tools.ConvertModelName(model)
-	env := models.NewEnvironment(uid)
 	res = env.Pool(model).Filter("ID", "=", id).Get(field)
 	return
 }
@@ -217,13 +287,13 @@ func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rErr
 	var rs models.RecordCollection
 	defer func() {
 		if r := recover(); r != nil {
-			rs.Env().Cr().Rollback()
+			rError = rollbackAndLog(rs.Env(), r)
 			res = nil
-			rError = fmt.Errorf("%s", r)
+			return
 		}
 	}()
 	if uid == 0 {
-		tools.LogAndPanic(log, "User must be logged in to search database")
+		logging.LogAndPanic(log, "User must be logged in to search database")
 	}
 	model := tools.ConvertModelName(params.Model)
 	env := models.NewEnvironment(uid)

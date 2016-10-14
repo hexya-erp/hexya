@@ -18,12 +18,13 @@ import (
 	"github.com/inconshreveable/log15"
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 var log log15.Logger
 
 func init() {
-	log = tools.GetLogger("models")
+	log = logging.GetLogger("models")
 	sqlx.NameMapper = tools.SnakeCaseString
 	// DB drivers
 	adapters = make(map[string]dbAdapter)

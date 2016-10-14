@@ -16,5 +16,5 @@ package config
 
 // Import here anonymously all yep addons you need in your application
 import (
-//_ "github.com/npiganeau/yep-addons/web"
+	_ "github.com/npiganeau/yep-addons/web"
 )

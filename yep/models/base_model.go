@@ -22,6 +22,7 @@ import (
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 const (
@@ -46,6 +47,7 @@ func declareBaseMethods(name string) {
 	CreateMethod(name, "ComputeNameGet", ComputeNameGet)
 	CreateMethod(name, "Create", Create)
 	CreateMethod(name, "Read", Read)
+	CreateMethod(name, "Load", Load)
 	CreateMethod(name, "Write", Write)
 	CreateMethod(name, "Unlink", Unlink)
 	CreateMethod(name, "Copy", Copy)
@@ -65,7 +67,7 @@ func declareBaseMethods(name string) {
 	CreateMethod(name, "Filter", Filter)
 	CreateMethod(name, "Exclude", Exclude)
 	CreateMethod(name, "Distinct", Distinct)
-	CreateMethod(name, "Load", Load)
+	CreateMethod(name, "Fetch", Fetch)
 	CreateMethod(name, "GroupBy", GroupBy)
 	CreateMethod(name, "Limit", Limit)
 	CreateMethod(name, "Offset", Offset)
@@ -93,11 +95,11 @@ func Distinct(rc RecordCollection) RecordCollection {
 	return rc.Distinct()
 }
 
-// Load query the database with the current filter and returns a RecordSet
-// with the queries ids. Load is lazy and only return ids. Use Read() instead
+// Fetch query the database with the current filter and returns a RecordSet
+// with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
-func Load(rc RecordCollection) RecordCollection {
-	return rc.Load()
+func Fetch(rc RecordCollection) RecordCollection {
+	return rc.Fetch()
 }
 
 // GroupBy returns a new RecordSet grouped with the given GROUP BY expressions
@@ -140,31 +142,45 @@ func Create(rs RecordCollection, data interface{}) RecordCollection {
 	return rs.create(data)
 }
 
-// Read is the base implementation of the 'Read' method.
-// It reads the database and returns a list of FieldMap
-// of the given model
-func Read(rs RecordCollection, fields ...string) RecordCollection {
-	return rs.Read(fields...)
+// Load query all data of the RecordCollection and store in cache.
+// fields are the fields to retrieve in the expression format,
+// i.e. "User.Profile.Age" or "user_id.profile_id.age".
+// If no fields are given, all DB columns of the RecordCollection's
+// model are retrieved.
+func Load(rc RecordCollection, fields ...string) RecordCollection {
+	return rc.Load(fields...)
+}
 
-	// Postprocessing results
-	// TODO: Put this in lower ORM
-	//for _, line := range res {
-	//	for k, v := range line {
-	//		fi, _ := rs.mi.fields.get(k)
-	//		if fi.relatedModel != nil {
-	//			// Add display name to rel/reverse fields
-	//			id, ok := v.(int64)
-	//			if !ok {
-	//				// We don't have an int64 here, so we assume it is nil
-	//				continue
-	//			}
-	//			relMI := rs.mi.getRelatedModelInfo(k)
-	//			relRS := rs.Env().Pool(relMI.name).withIds([]int64{id})
-	//			line[k] = [2]interface{}{id, relRS.Call("NameGet").(string)}
-	//		}
-	//	}
-	//}
-	//return res
+// Read reads the database and returns a slice of FieldMap of the given model
+func Read(rs RecordCollection, fields []string) []FieldMap {
+	rs.Load(fields...)
+
+	res := make([]FieldMap, rs.Len())
+	// Check if we have id in fields, and add it otherwise
+	fields = addIDIfNotPresent(fields)
+	// Do the actual reading
+	for i, rec := range rs.Records() {
+		res[i] = make(FieldMap)
+		for _, fName := range fields {
+			value := rec.Get(fName)
+			if rc, ok := value.(RecordCollection); ok {
+				rc = rc.Fetch()
+				fi, _ := rs.mi.fields.get(fName)
+				switch fi.fieldType {
+				case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE:
+					if rcId := rc.Get("id"); rcId != 0 {
+						value = [2]interface{}{rcId, rc.Call("NameGet").(string)}
+					} else {
+						value = nil
+					}
+				case tools.ONE2MANY, tools.MANY2MANY:
+					value = rc.Ids()
+				}
+			}
+			res[i][fName] = value
+		}
+	}
+	return res
 }
 
 // Write is the base implementation of the 'Write' method which updates
@@ -191,7 +207,7 @@ func Copy(rc RecordCollection) RecordCollection {
 		}
 	}
 
-	rc.Read(fields...)
+	rc.Load(fields...)
 
 	fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
 	delete(fMap, "ID")
@@ -202,10 +218,8 @@ func Copy(rc RecordCollection) RecordCollection {
 
 // NameGet retrieves the human readable name of this record.
 func NameGet(rc RecordCollection) string {
-	rc.EnsureOne()
-	_, nameExists := rc.mi.fields.get("name")
-	if nameExists {
-		rc.Read("name")
+	if _, nameExists := rc.mi.fields.get("name"); nameExists {
+		rc.Load("name")
 		return rc.Get("name").(string)
 	}
 	return rc.String()
@@ -246,10 +260,9 @@ func NameSearch(rs RecordCollection, params NameSearchParams) []RecordIDWithName
 		searchRs = searchRs.Search(extraCondition)
 	}
 
-	var fValues []FieldMap
-	searchRs.Read("ID", "DisplayName")
+	searchRs.Load("ID", "DisplayName")
 
-	res := make([]RecordIDWithName, len(fValues))
+	res := make([]RecordIDWithName, searchRs.Len())
 	for i, rec := range searchRs.Records() {
 		res[i].ID = rec.Get("id").(int64)
 		res[i].Name = rec.Get("display_name").(string)
@@ -276,7 +289,7 @@ func GetFormviewAction(rs RecordCollection) *ir.BaseAction {
 		ViewMode:    "form",
 		Views:       []ir.ViewRef{{viewID, string(ir.VIEW_TYPE_FORM)}},
 		Target:      "current",
-		ResID:       rs.ids[0],
+		ResID:       rs.Get("id").(int64),
 		Context:     rs.Env().Context(),
 	}
 }
@@ -334,7 +347,7 @@ func FieldsViewGet(rs RecordCollection, args FieldsViewGetParams) *FieldsViewDat
 	for i, f := range view.Fields {
 		fi, ok := rs.mi.fields.get(f)
 		if !ok {
-			tools.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
 		}
 		cols[i] = fi.json
 	}
@@ -359,7 +372,7 @@ func ProcessView(rs RecordCollection, arch string, fieldInfos map[string]*FieldI
 	// Load arch as etree
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(arch); err != nil {
-		tools.LogAndPanic(log, "Unable to parse view arch", "arch", arch, "error", err)
+		logging.LogAndPanic(log, "Unable to parse view arch", "arch", arch, "error", err)
 	}
 	// Apply changes
 	rs.Call("UpdateFieldNames", doc)
@@ -367,7 +380,7 @@ func ProcessView(rs RecordCollection, arch string, fieldInfos map[string]*FieldI
 	// Dump xml to string and return
 	res, err := doc.WriteToString()
 	if err != nil {
-		tools.LogAndPanic(log, "Unable to render XML", "error", err)
+		logging.LogAndPanic(log, "Unable to render XML", "error", err)
 	}
 	return res
 }
@@ -396,7 +409,7 @@ func UpdateFieldNames(rs RecordCollection, doc *etree.Document) {
 		fieldName := fieldTag.SelectAttr("name").Value
 		fi, ok := rs.mi.fields.get(fieldName)
 		if !ok {
-			tools.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
 		}
 		fieldTag.RemoveAttr("name")
 		fieldTag.CreateAttr("name", fi.json)
@@ -405,7 +418,7 @@ func UpdateFieldNames(rs RecordCollection, doc *etree.Document) {
 		fieldName := labelTag.SelectAttr("for").Value
 		fi, ok := rs.mi.fields.get(fieldName)
 		if !ok {
-			tools.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
 		}
 		labelTag.RemoveAttr("for")
 		labelTag.CreateAttr("for", fi.json)
@@ -437,7 +450,7 @@ func FieldsGet(rs RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 	for _, f := range fields {
 		fInfo, ok := rs.mi.fields.get(f)
 		if !ok {
-			tools.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
 		}
 		var relation string
 		if fInfo.relatedModel != nil {
@@ -485,7 +498,7 @@ func SearchRead(rs RecordCollection, params SearchParams) []FieldMap {
 		rs = rs.OrderBy(strings.Split(params.Order, ",")...)
 	}
 
-	rSet := rs.Load()
+	rSet := rs.Fetch()
 	return rSet.Call("Read", params.Fields).([]FieldMap)
 }
 

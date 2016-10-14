@@ -52,3 +52,4 @@ Modules
 - [X] Add support for internal resources XML data files
 - [ ] Add support for data & demo XML files
 - [ ] Add support for CSV data files
+- [ ] Business logic testing framework

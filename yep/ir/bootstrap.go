@@ -18,7 +18,7 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 /*
@@ -39,7 +39,7 @@ func computeViews() {
 	for _, v := range ViewsRegistry.views {
 		doc := etree.NewDocument()
 		if err := doc.ReadFromString(v.Arch); err != nil {
-			tools.LogAndPanic(log, "Unable to read view", "view", v.ID, "error", err)
+			logging.LogAndPanic(log, "Unable to read view", "view", v.ID, "error", err)
 		}
 
 		// Set view type

@@ -19,6 +19,7 @@ import (
 
 	"database/sql"
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 type postgresAdapter struct{}
@@ -94,7 +95,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 	typ, ok := pgTypes[fi.fieldType]
 	res = typ
 	if !ok {
-		tools.LogAndPanic(log, "Unknown column type", "type", fi.fieldType, "model", fi.mi.name, "field", fi.name)
+		logging.LogAndPanic(log, "Unknown column type", "type", fi.fieldType, "model", fi.mi.name, "field", fi.name)
 	}
 	switch fi.fieldType {
 	case tools.CHAR:
@@ -145,7 +146,7 @@ func (d *postgresAdapter) tables() map[string]bool {
 	var resList []string
 	query := "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE' AND table_schema NOT IN ('pg_catalog', 'information_schema')"
 	if err := db.Select(&resList, query); err != nil {
-		tools.LogAndPanic(log, "Unable to get list of tables from database", "error", err)
+		logging.LogAndPanic(log, "Unable to get list of tables from database", "error", err)
 	}
 	res := make(map[string]bool, len(resList))
 	for _, tableName := range resList {
@@ -175,7 +176,7 @@ func (d *postgresAdapter) columns(tableName string) map[string]ColumnData {
 	`, tableName)
 	var colData []ColumnData
 	if err := db.Select(&colData, query); err != nil {
-		tools.LogAndPanic(log, "Unable to get list of columns for table", "table", tableName, "error", err)
+		logging.LogAndPanic(log, "Unable to get list of columns for table", "table", tableName, "error", err)
 	}
 	res := make(map[string]ColumnData, len(colData))
 	for _, col := range colData {

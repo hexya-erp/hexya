@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 type SQLParams []interface{}
@@ -53,7 +53,7 @@ func (q *Query) sqlWhereClause() (string, SQLParams) {
 	}
 	sql, args, err := sqlx.In(sql, args...)
 	if err != nil {
-		tools.LogAndPanic(log, "Unable to expand 'IN' statement", "error", err, "sql", sql, "args", args)
+		logging.LogAndPanic(log, "Unable to expand 'IN' statement", "error", err, "sql", sql, "args", args)
 	}
 	return sql, args
 }
@@ -167,7 +167,7 @@ func (q *Query) deleteQuery() (string, SQLParams) {
 func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	if len(data) == 0 {
-		tools.LogAndPanic(log, "No data given for insert")
+		logging.LogAndPanic(log, "No data given for insert")
 	}
 	cols := make([]string, len(data))
 	vals := make(SQLParams, len(data))
@@ -178,7 +178,7 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	for k, v := range data {
 		fi, ok := q.recordSet.mi.fields.get(k)
 		if !ok {
-			tools.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
 		}
 		cols[i] = fi.json
 		vals[i] = v
@@ -236,7 +236,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	if len(data) == 0 {
-		tools.LogAndPanic(log, "No data given for update")
+		logging.LogAndPanic(log, "No data given for update")
 	}
 	cols := make([]string, len(data))
 	vals := make(SQLParams, len(data))
@@ -247,7 +247,7 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	for k, v := range data {
 		fi, ok := q.recordSet.mi.fields.get(k)
 		if !ok {
-			tools.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
 		}
 		cols[i] = fmt.Sprintf("%s = ?", fi.json)
 		vals[i] = v
@@ -308,7 +308,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	for i, expr := range fieldExprs {
 		fi, ok := curMI.fields.get(expr)
 		if !ok {
-			tools.LogAndPanic(log, "Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
+			logging.LogAndPanic(log, "Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
 		}
 		if fi.relatedModel == nil || i == exprsLen-1 {
 			// Don't create an extra join if our field is not a relation field

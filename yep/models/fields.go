@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 /*
@@ -272,7 +273,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 
 	fk, ok := tags["fk"]
 	if typ == tools.ONE2MANY && !ok {
-		tools.LogAndPanic(log, "'one2many' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
+		logging.LogAndPanic(log, "'one2many' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
 	}
 
 	if inherits && typ != tools.MANY2ONE && typ != tools.ONE2ONE {
@@ -284,7 +285,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	if !ok && (typ == tools.MANY2ONE || typ == tools.ONE2ONE || typ == tools.REV2ONE ||
 		typ == tools.ONE2MANY || typ == tools.MANY2MANY) {
 		if sf.Type == reflect.TypeOf(RecordCollection{}) {
-			tools.LogAndPanic(log, "Undefined comodel on related field", "model", mi.name, "field", sf.Name, "type", typ)
+			logging.LogAndPanic(log, "Undefined comodel on related field", "model", mi.name, "field", sf.Name, "type", typ)
 		}
 		relModelName = sf.Type.Name()[:len(sf.Type.Name())-3]
 	}
@@ -376,7 +377,7 @@ func processDepends() {
 					refModelInfo := mi.getRelatedModelInfo(path)
 					refField, ok := refModelInfo.fields.get(refName)
 					if !ok {
-						tools.LogAndPanic(log, "Unknown field in model", "model", refModelInfo.name, "field", refField)
+						logging.LogAndPanic(log, "Unknown field in model", "model", refModelInfo.name, "field", refField)
 					}
 					refField.dependencies = append(refField.dependencies, targetComputeData)
 				}

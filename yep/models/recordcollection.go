@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // RecordCollection is a generic struct representing several
@@ -187,14 +187,14 @@ func (rs RecordCollection) Distinct() RecordCollection {
 	return rs
 }
 
-// Load query the database with the current filter and returns a RecordSet
-// with the queries ids. Load is lazy and only return ids. Use Read() instead
+// Fetch query the database with the current filter and returns a RecordSet
+// with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
-func (rs RecordCollection) Load() RecordCollection {
+func (rs RecordCollection) Fetch() RecordCollection {
 	if len(rs.Ids()) == 0 && !rs.query.isEmpty() {
 		// We do not load empty queries to keep empty record sets empty
-		// Call Read instead to load all the records of the table
-		return rs.Read("id")
+		// Call Load instead to load all the records of the table
+		return rs.Load("id")
 	}
 	return rs
 }
@@ -210,12 +210,12 @@ func (rs RecordCollection) SearchCount() int {
 	return res
 }
 
-// Read query all data of the RecordCollection and store in cache.
+// Load query all data of the RecordCollection and store in cache.
 // fields are the fields to retrieve in the expression format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
 // If no fields are given, all DB columns of the RecordCollection's
 // model are retrieved.
-func (rc RecordCollection) Read(fields ...string) RecordCollection {
+func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	var results []FieldMap
 	if len(fields) == 0 {
 		fields = rc.mi.fields.storedFieldNames()
@@ -231,7 +231,7 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 		err := rc.mi.scanToFieldMap(rows, &line)
 		line.SubstituteKeys(substs)
 		if err != nil {
-			tools.LogAndPanic(log, err.Error(), "model", rc.ModelName(), "fields", fields)
+			logging.LogAndPanic(log, err.Error(), "model", rc.ModelName(), "fields", fields)
 		}
 		results = append(results, line)
 		rc.env.cache.addRecord(rc.mi, line["id"].(int64), line)
@@ -245,34 +245,37 @@ func (rc RecordCollection) Read(fields ...string) RecordCollection {
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc RecordCollection) Get(fieldName string) interface{} {
-	rSet := rc.Load()
+	rSet := rc.Fetch()
 	fi, ok := rSet.mi.fields.get(fieldName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown field in model", "model", rSet.ModelName(), "field", fieldName)
+		logging.LogAndPanic(log, "Unknown field in model", "model", rSet.ModelName(), "field", fieldName)
 	}
 	var res interface{}
 	if rSet.IsEmpty() {
 		res = reflect.Zero(fi.structField.Type).Interface()
 	} else if fi.isComputedField() && !fi.isStored() {
 		fMap := make(FieldMap)
-		rSet.computeFieldValues(&fMap, fieldName)
-		res = fMap[jsonizePath(rSet.mi, fieldName)]
+		rSet.computeFieldValues(&fMap, fi.json)
+		res = fMap[fi.json]
 	} else if fi.isRelatedField() && !fi.isStored() {
-		rSet.Read(fi.relatedPath)
+		rSet.Load(fi.relatedPath)
 		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.relatedPath)
 	} else {
-		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fieldName}) {
+		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.json}) {
 			// If value is not in cache we fetch the whole model to speed up
 			// later calls to Get. The user can call Read with fields beforehand
 			// in order not to have this behaviour.
-			rSet.Read()
+			rSet.Load()
 		}
-		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fieldName)
+		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.json)
 	}
 	if fi.isRelationField() {
 		switch r := res.(type) {
 		case int64:
-			res = newRecordCollection(rSet.Env(), fi.relatedModel.name).withIds([]int64{r})
+			res = newRecordCollection(rSet.Env(), fi.relatedModel.name)
+			if r != 0 {
+				res = res.(RecordCollection).withIds([]int64{r})
+			}
 		case []int64:
 			res = newRecordCollection(rSet.Env(), fi.relatedModel.name).withIds(r)
 		}
@@ -284,9 +287,9 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 // Records, all of them will be updated. Each call to Set makes an update query in the
 // database. It panics if it is called on an empty RecordSet.
 func (rc RecordCollection) Set(fieldName string, value interface{}) {
-	rSet := rc.Load()
+	rSet := rc.Fetch()
 	if rSet.IsEmpty() {
-		tools.LogAndPanic(log, "Call to Set on empty RecordSet", "model", rSet.ModelName(), "field", fieldName, "value", value)
+		logging.LogAndPanic(log, "Call to Set on empty RecordSet", "model", rSet.ModelName(), "field", fieldName, "value", value)
 	}
 	fMap := make(FieldMap)
 	fMap[fieldName] = value
@@ -296,9 +299,9 @@ func (rc RecordCollection) Set(fieldName string, value interface{}) {
 // First populates structPtr with a copy of the first Record of the RecordCollection.
 // structPtr must a pointer to a struct.
 func (rc RecordCollection) First(structPtr interface{}) {
-	rSet := rc.Load()
+	rSet := rc.Fetch()
 	if err := checkStructPtr(structPtr); err != nil {
-		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structPtr)
+		logging.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structPtr)
 	}
 	if rSet.IsEmpty() {
 		return
@@ -308,7 +311,7 @@ func (rc RecordCollection) First(structPtr interface{}) {
 	for i := 0; i < typ.NumField(); i++ {
 		fields[i] = typ.Field(i).Name
 	}
-	rSet.Read(fields...)
+	rSet.Load(fields...)
 	fMap := rSet.env.cache.getRecord(rSet.ModelName(), rSet.ids[0])
 	mapToStruct(rSet, structPtr, fMap)
 }
@@ -316,9 +319,9 @@ func (rc RecordCollection) First(structPtr interface{}) {
 // All Returns a copy of all records of the RecordCollection.
 // It returns an empty slice if the RecordSet is empty.
 func (rc RecordCollection) All(structSlicePtr interface{}) {
-	rSet := rc.Load()
+	rSet := rc.Fetch()
 	if err := checkStructSlicePtr(structSlicePtr); err != nil {
-		tools.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structSlicePtr)
+		logging.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structSlicePtr)
 	}
 	val := reflect.ValueOf(structSlicePtr)
 	// sspType is []*struct
@@ -338,12 +341,12 @@ func (rc RecordCollection) All(structSlicePtr interface{}) {
 // Records returns the slice of RecordCollection singletons that constitute this
 // RecordCollection.
 func (rc RecordCollection) Records() []RecordCollection {
-	rSet := rc.Load()
+	rSet := rc.Fetch()
 	res := make([]RecordCollection, len(rSet.Ids()))
 	if rSet.IsEmpty() {
 		return res
 	}
-	rSet.Read()
+	rSet.Load()
 	for i, id := range rSet.Ids() {
 		newRC := newRecordCollection(rSet.Env(), rSet.ModelName())
 		res[i] = newRC.withIds([]int64{id})
@@ -354,7 +357,7 @@ func (rc RecordCollection) Records() []RecordCollection {
 // EnsureOne panics if rc is not a singleton
 func (rc RecordCollection) EnsureOne() {
 	if rc.Len() != 1 {
-		tools.LogAndPanic(log, "Expected singleton", "model", rc.ModelName(), "received", rc)
+		logging.LogAndPanic(log, "Expected singleton", "model", rc.ModelName(), "received", rc)
 	}
 }
 
@@ -365,7 +368,7 @@ func (rc RecordCollection) IsEmpty() bool {
 
 // Len returns the number of records in this RecordCollection
 func (rc RecordCollection) Len() int {
-	rSet := rc.Load()
+	rSet := rc.Fetch()
 	return len(rSet.ids)
 }
 
@@ -387,7 +390,7 @@ var _ RecordSet = RecordCollection{}
 func newRecordCollection(env Environment, modelName string) RecordCollection {
 	mi, ok := modelRegistry.get(modelName)
 	if !ok {
-		tools.LogAndPanic(log, "Unknown model", "model", modelName)
+		logging.LogAndPanic(log, "Unknown model", "model", modelName)
 	}
 	rc := RecordCollection{
 		mi:    mi,

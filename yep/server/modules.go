@@ -23,7 +23,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/ir"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 var symlinkDirs = []string{"static", "templates", "data", "views"}
@@ -52,7 +52,7 @@ server directory.
 func createModuleSymlinks(mod *Module) {
 	_, fileName, _, ok := runtime.Caller(2)
 	if !ok {
-		tools.LogAndPanic(log, "Unable to find caller", "module", mod.Name)
+		logging.LogAndPanic(log, "Unable to find caller", "module", mod.Name)
 	}
 	for _, dir := range symlinkDirs {
 		srcPath := fmt.Sprintf(path.Dir(fileName)+"/%s", dir)
@@ -98,7 +98,7 @@ loadData loads the data defined in the given data directory.
 func loadData(dataDir string) {
 	dataFiles, err := filepath.Glob(dataDir + "/*")
 	if err != nil {
-		tools.LogAndPanic(log, "Unable to scan directory for data files", "dir", dataDir)
+		logging.LogAndPanic(log, "Unable to scan directory for data files", "dir", dataDir)
 	}
 	for _, dataFile := range dataFiles {
 		if path.Ext(dataFile) == ".xml" {
@@ -115,7 +115,7 @@ loadXMLDataFile loads the data from an XML data file into memory.
 func loadXMLDataFile(fileName string) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromFile(fileName); err != nil {
-		tools.LogAndPanic(log, "Error loading XML data file", "file", fileName, "error", err)
+		logging.LogAndPanic(log, "Error loading XML data file", "file", fileName, "error", err)
 	}
 	//var noupdate bool
 	for _, dataTag := range doc.FindElements("yep/data") {
@@ -133,7 +133,7 @@ func loadXMLDataFile(fileName string) {
 				ir.LoadMenuFromEtree(object)
 			case "record":
 			default:
-				tools.LogAndPanic(log, "Unknown XML tag", "tag", object.Tag)
+				logging.LogAndPanic(log, "Unknown XML tag", "tag", object.Tag)
 			}
 		}
 	}
