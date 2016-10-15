@@ -205,6 +205,7 @@ func (q *Query) countQuery() (string, SQLParams) {
 // expression pointing at the field, either as names or columns
 // (e.g. 'User.Name' or 'user_id.name')
 func (q *Query) selectQuery(fields []string) (string, SQLParams) {
+	addNameSearchesToCondition(q.recordSet.mi, q.cond)
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {

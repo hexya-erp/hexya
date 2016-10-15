@@ -68,11 +68,7 @@ func (rc RecordCollection) call(methLayer *methodLayer, args ...interface{}) int
 	}
 
 	var retVal []reflect.Value
-	if methLayer.methInfo.methodType.IsVariadic() && len(inVals) == methLayer.methInfo.methodType.NumIn() {
-		retVal = methLayer.funcValue.CallSlice(inVals)
-	} else {
-		retVal = methLayer.funcValue.Call(inVals)
-	}
+	retVal = methLayer.funcValue.Call(inVals)
 
 	if len(retVal) == 0 {
 		return nil

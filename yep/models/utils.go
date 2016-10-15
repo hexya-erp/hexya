@@ -157,6 +157,39 @@ func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 	return res
 }
 
+// addNameSearchesToCondition recursively modifies the given condition to search
+// on the name of the related records if they point to a relation field.
+func addNameSearchesToCondition(mi *modelInfo, cond *Condition) {
+	for i, cv := range cond.params {
+		switch cv.arg.(type) {
+		case bool:
+			cond.params[i].arg = int64(0)
+		case string:
+			cond.params[i].exprs = addNameSearchToExprs(mi, cv.exprs)
+		}
+		if cv.cond != nil {
+			addNameSearchesToCondition(mi, cv.cond)
+		}
+	}
+}
+
+// addNameSearchToExprs modifies the given exprs to search on the name of the related record
+// if it points to a relation field.
+func addNameSearchToExprs(mi *modelInfo, exprs []string) []string {
+	if len(exprs) == 0 {
+		return exprs
+	}
+	path := strings.Join(exprs, ExprSep)
+	fi := mi.getRelatedFieldInfo(path)
+	if fi.isRelationField() {
+		_, exists := fi.relatedModel.fields.get("name")
+		if exists {
+			exprs = append(exprs, "name")
+		}
+	}
+	return exprs
+}
+
 // jsonizePath returns a path with field names changed to the field json names
 // Computation is made relatively to the given modelInfo
 // e.g. User.Profile.Name -> user_id.profile_id.name

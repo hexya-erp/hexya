@@ -72,7 +72,8 @@ func LogAndPanic(log log15.Logger, msg string, ctx ...interface{}) {
 	ctx = append(ctx, "caller", fmt.Sprintf("%+n", caller))
 	log.Error(msg, ctx...)
 
-	panic(msg)
+	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctx)
+	panic(fullMsg)
 }
 
 // Log15ForGin returns a gin.HandlerFunc (middleware) that logs requests using log15.
