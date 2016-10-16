@@ -31,6 +31,7 @@ type RecordCollection struct {
 	query     *Query
 	env       *Environment
 	ids       []int64
+	fetched   bool
 }
 
 // String returns the string representation of a RecordSet
@@ -191,7 +192,7 @@ func (rs RecordCollection) Distinct() RecordCollection {
 // with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
 func (rs RecordCollection) Fetch() RecordCollection {
-	if len(rs.Ids()) == 0 && !rs.query.isEmpty() {
+	if !rs.fetched && !rs.query.isEmpty() {
 		// We do not load empty queries to keep empty record sets empty
 		// Call Load instead to load all the records of the table
 		return rs.Load("id")
@@ -258,7 +259,9 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		rSet.computeFieldValues(&fMap, fi.json)
 		res = fMap[fi.json]
 	} else if fi.isRelatedField() && !fi.isStored() {
-		rSet.Load(fi.relatedPath)
+		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.relatedPath}) {
+			rSet.Load(fi.relatedPath)
+		}
 		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.relatedPath)
 	} else {
 		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.json}) {
@@ -341,12 +344,8 @@ func (rc RecordCollection) All(structSlicePtr interface{}) {
 // Records returns the slice of RecordCollection singletons that constitute this
 // RecordCollection.
 func (rc RecordCollection) Records() []RecordCollection {
-	rSet := rc.Fetch()
-	res := make([]RecordCollection, len(rSet.Ids()))
-	if rSet.IsEmpty() {
-		return res
-	}
-	rSet.Load()
+	rSet := rc.Load()
+	res := make([]RecordCollection, rSet.Len())
 	for i, id := range rSet.Ids() {
 		newRC := newRecordCollection(rSet.Env(), rSet.ModelName())
 		res[i] = newRC.withIds([]int64{id})
@@ -377,7 +376,11 @@ func (rc RecordCollection) Len() int {
 func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 	rSet := rc
 	rSet.ids = ids
+	rSet.fetched = true
 	if len(ids) > 0 {
+		for _, id := range rSet.ids {
+			rSet.env.cache.addEntry(rSet.mi, id, "id", id)
+		}
 		rSet.query.cond = NewCondition().And("ID", "in", ids)
 	}
 	return rSet

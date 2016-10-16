@@ -153,8 +153,6 @@ func Load(rc RecordCollection, fields ...string) RecordCollection {
 
 // Read reads the database and returns a slice of FieldMap of the given model
 func Read(rs RecordCollection, fields []string) []FieldMap {
-	rs.Load(fields...)
-
 	res := make([]FieldMap, rs.Len())
 	// Check if we have id in fields, and add it otherwise
 	fields = addIDIfNotPresent(fields)
@@ -219,7 +217,9 @@ func Copy(rc RecordCollection) RecordCollection {
 // NameGet retrieves the human readable name of this record.
 func NameGet(rc RecordCollection) string {
 	if _, nameExists := rc.mi.fields.get("name"); nameExists {
-		rc.Load("name")
+		if !rc.env.cache.checkIfInCache(rc.mi, rc.ids, []string{"name"}) {
+			rc.Load("name")
+		}
 		return rc.Get("name").(string)
 	}
 	return rc.String()

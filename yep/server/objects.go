@@ -291,6 +291,7 @@ func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rErr
 			res = nil
 			return
 		}
+		rs.Env().Cr().Commit()
 	}()
 	if uid == 0 {
 		logging.LogAndPanic(log, "User must be logged in to search database")
