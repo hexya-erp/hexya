@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
-
-// Import here anonymously all yep addons you need in your application
-import (
-//_ "github.com/npiganeau/yep-addons/web"
-)
+/*
+tests is a testing package for models with the generated API
+*/
+package tests
