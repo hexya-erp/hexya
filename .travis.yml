@@ -10,14 +10,14 @@ addons:
 
 services:
   - postgresql
-#  - mysql
-#  - sqlite3
+
+before_install:
+  - go get -t github.com/npiganeau/yep/cmd/yep-generate
+  - go install github.com/npiganeau/yep/cmd/yep-generate
+  - yep-generate
 
 before_script:
   - psql -c 'create database yep_test;' -U postgres
-#  - mysql -e 'create database yep_test;'
 
 env:
 - YEP_DB_DRIVER=postgres YEP_DB_SOURCE="dbname=yep_test sslmode=disable user=postgres"
-#- ORM_DRIVER=mysql ORM_SOURCE="root:@/yep_test?charset=utf8"
-#- ORM_DRIVER=sqlite3 ORM_SOURCE='file:yep_test?mode=memory'
