@@ -49,6 +49,21 @@ func TestCreateRecordSet(t *testing.T) {
 			userJane := pool.NewTest__UserSet(env).Create(&userJaneData)
 			So(userJane.Len(), ShouldEqual, 1)
 			So(userJane.Profile().ID(), ShouldEqual, profile.ID())
+			post1Data := pool.Test__Post{
+				User:    userJane,
+				Title:   "1st Post",
+				Content: "Content of first post",
+			}
+			post1 := pool.NewTest__PostSet(env).Create(&post1Data)
+			So(post1.Len(), ShouldEqual, 1)
+			post2Data := pool.Test__Post{
+				User:    userJane,
+				Title:   "2nd Post",
+				Content: "Content of second post",
+			}
+			post2 := pool.NewTest__PostSet(env).Create(&post2Data)
+			So(post2.Len(), ShouldEqual, 1)
+			So(userJane.Posts().Len(), ShouldEqual, 2)
 		})
 		Convey("Creating a user Will Smith", func() {
 			userWillData := pool.Test__User{
@@ -79,6 +94,9 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Email(), ShouldEqual, "jane.smith@example.com")
 				So(userJane.Profile().Age(), ShouldEqual, 23)
 				So(userJane.Profile().Money(), ShouldEqual, 12345)
+				recs := userJane.Posts().Records()
+				So(recs[0].Title(), ShouldEqual, "1st Post")
+				So(recs[1].Title(), ShouldEqual, "2nd Post")
 			})
 			Convey("Reading Jane with ReadFirst", func() {
 				userJaneStruct := userJane.First()

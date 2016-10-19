@@ -32,7 +32,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(users.Len(), ShouldEqual, 1)
 			So(users.Get("ID"), ShouldBeGreaterThan, 0)
 		})
-		Convey("Creating user Jane with related Profile", func() {
+		Convey("Creating user Jane with related Profile and Posts", func() {
 			userJaneProfileData := FieldMap{
 				"Age":   23,
 				"Money": 12345,
@@ -47,6 +47,22 @@ func TestCreateRecordSet(t *testing.T) {
 			userJane := env.Pool("User").Call("Create", userJaneData).(RecordCollection)
 			So(userJane.Len(), ShouldEqual, 1)
 			So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.Get("ID"))
+			post1Data := FieldMap{
+				"User":    userJane,
+				"Title":   "1st Post",
+				"Content": "Content of first post",
+			}
+			post1 := env.Pool("Post").Call("Create", post1Data).(RecordCollection)
+			So(post1.Len(), ShouldEqual, 1)
+			post2Data := FieldMap{
+				"User":    userJane,
+				"Title":   "2nd Post",
+				"Content": "Content of second post",
+			}
+			post2 := env.Pool("Post").Call("Create", post2Data).(RecordCollection)
+			So(post2.Len(), ShouldEqual, 1)
+			janePosts := userJane.Get("Posts").(RecordCollection)
+			So(janePosts.Len(), ShouldEqual, 2)
 		})
 		Convey("Creating a user Will Smith", func() {
 			userWillData := FieldMap{
@@ -77,6 +93,9 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				So(userJane.Get("Profile").(RecordCollection).Get("Age"), ShouldEqual, 23)
 				So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
+				recs := userJane.Get("Posts").(RecordCollection).Records()
+				So(recs[0].Get("Title"), ShouldEqual, "1st Post")
+				So(recs[1].Get("Title"), ShouldEqual, "2nd Post")
 			})
 			Convey("Reading Jane with ReadFirst", func() {
 				var userJaneStruct UserStruct

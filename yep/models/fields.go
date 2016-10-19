@@ -272,8 +272,8 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	}
 
 	fk, ok := tags["fk"]
-	if typ == tools.ONE2MANY && !ok {
-		logging.LogAndPanic(log, "'one2many' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
+	if (typ == tools.ONE2MANY || typ == tools.REV2ONE) && !ok {
+		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
 	}
 
 	if inherits && typ != tools.MANY2ONE && typ != tools.ONE2ONE {

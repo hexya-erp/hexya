@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -240,7 +241,34 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	}
 
 	rSet := rc.withIds(ids)
+	rSet.loadRelationFields(fields)
 	return rSet
+}
+
+// loadRelationFields loads one2many, many2many and rev2one fields from the given fields
+// names in this RecordCollection into the cache. fields of other types given in fields
+// are ignored.
+func (rc RecordCollection) loadRelationFields(fields []string) {
+	for _, id := range rc.ids {
+		for _, fieldName := range fields {
+			fi := rc.mi.getRelatedFieldInfo(fieldName)
+			switch fi.fieldType {
+			case tools.ONE2MANY:
+				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
+				rc.env.cache.addEntry(rc.mi, id, fieldName, relRC.ids)
+			case tools.MANY2MANY:
+			case tools.REV2ONE:
+				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
+				var relID int64
+				if len(relRC.ids) > 0 {
+					relID = relRC.ids[0]
+				}
+				rc.env.cache.addEntry(rc.mi, id, fieldName, relID)
+			default:
+				continue
+			}
+		}
+	}
 }
 
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
@@ -266,9 +294,13 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 	} else {
 		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.json}) {
 			// If value is not in cache we fetch the whole model to speed up
-			// later calls to Get. The user can call Read with fields beforehand
-			// in order not to have this behaviour.
-			rSet.Load()
+			// later calls to Get, except for the case of relation fields.
+			if fi.fieldType == tools.ONE2MANY || fi.fieldType == tools.MANY2MANY ||
+				fi.fieldType == tools.REV2ONE {
+				rSet.Load(fieldName)
+			} else {
+				rSet.Load()
+			}
 		}
 		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.json)
 	}

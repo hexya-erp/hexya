@@ -7,8 +7,8 @@ ORM
 - [X] Add methods to ORM models
 - [X] Many2One relations
 - [X] One2One relations
-- [ ] One2Many relations
-- [ ] Rev2One relations
+- [X] One2Many relations
+- [X] Rev2One relations
 - [ ] Many2many relations
 - [X] ReadOnly related fields
 - [ ] ReadWrite related fields
@@ -21,7 +21,7 @@ ORM
 - [ ] CRUD permissions to models and fields
 - [ ] i18n and l10n support to ORM models
 - [ ] Database foreign keys to related fields
-- [ ] Cache to RecordSets
+- [X] Cache to RecordSets
 - [X] Support for schema modification (ALTER TABLE)
 - [ ] Implement "group by" queries
 - [X] Type safe API

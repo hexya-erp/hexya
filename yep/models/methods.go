@@ -161,7 +161,7 @@ func ExtendMethod(modelName, methodName string, fnct interface{}) {
 	mi := checkMethodAndFnctType(modelName, methodName, fnct)
 	methInfo, exists := mi.methods.get(methodName)
 	if !exists {
-		logging.LogAndPanic(log, "Call to ExtendMethod on non existant method", "model", modelName, "method", methodName)
+		logging.LogAndPanic(log, "Call to ExtendMethod on non existent method", "model", modelName, "method", methodName)
 	}
 	val := reflect.ValueOf(fnct)
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {
