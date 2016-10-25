@@ -34,6 +34,9 @@ var (
 		"type":           2,
 		"fk":             2,
 		"comodel":        2,
+		"m2m_relmodel":   2,
+		"m2m_ours":       2,
+		"m2m_theirs":     2,
 		"selection":      2,
 		"size":           2,
 		"digits":         2,
@@ -321,30 +324,6 @@ func getFieldType(typ reflect.Type) tools.FieldType {
 	return tools.NO_TYPE
 }
 
-// filterFields returns the fields slice with only the fields that appear in
-// the filters slice or all fields if filters is an empty slice.
-// Fields or Filters can contain field names or JSON names.
-// The result has only JSON names
-func filterFields(mi *modelInfo, fields, filters []string) []string {
-	var res []string
-	for _, field := range fields {
-		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
-		field = strings.Join(fieldExprs, ExprSep)
-		if len(filters) == 0 {
-			res = append(res, field)
-			continue
-		}
-		for _, filter := range filters {
-			filterExprs := jsonizeExpr(mi, strings.Split(filter, ExprSep))
-			filter = strings.Join(filterExprs, ExprSep)
-			if field == filter {
-				res = append(res, field)
-			}
-		}
-	}
-	return res
-}
-
 // filterOnDBFields returns the given fields slice with only stored fields
 // This function also adds the "id" field to the list if not present
 func filterOnDBFields(mi *modelInfo, fields []string) []string {
@@ -378,6 +357,18 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 	}
 
 	return addIDIfNotPresent(res)
+}
+
+// filterMapOnStoredFields returns a new FieldMap from fMap
+// with only stored fields keys.
+func filterMapOnStoredFields(mi *modelInfo, fMap FieldMap) FieldMap {
+	newFMap := make(FieldMap)
+	for field, value := range fMap {
+		if fi := mi.getRelatedFieldInfo(field); fi.isStored() {
+			newFMap[field] = value
+		}
+	}
+	return newFMap
 }
 
 // convertInterfaceToFielMap converts the given data which can be of type:

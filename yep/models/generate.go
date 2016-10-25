@@ -81,12 +81,14 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		deps[fDep] = true
 	}
 	// Sanitize the given type
-	sanitizedFieldType := func(typ reflect.Type) string {
+	sanitizedFieldType := func(typ reflect.Type) (string, bool) {
+		var isRC bool
 		typStr := typ.String()
 		if typ == reflect.TypeOf(RecordCollection{}) {
+			isRC = true
 			typStr = fmt.Sprintf("%sSet", mi.name)
 		}
-		return strings.Replace(typStr, "pool.", "", 1)
+		return strings.Replace(typStr, "pool.", "", 1), isRC
 	}
 
 	mData := modelData{
@@ -106,7 +108,7 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 			typStr = fmt.Sprintf("%sSet", fi.relatedModelName)
 			typIsRS = true
 		} else {
-			typStr = sanitizedFieldType(fi.structField.Type)
+			typStr, _ = sanitizedFieldType(fi.structField.Type)
 		}
 		mData.Fields = append(mData.Fields, fieldData{
 			Name:     fieldName,
@@ -133,15 +135,22 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		params := make([]string, methType.NumIn()-1)
 		paramsType := make([]string, methType.NumIn()-1)
 		for i := 0; i < methType.NumIn()-1; i++ {
-			var pType string
+			var (
+				varArgType, pType string
+				isRC              bool
+			)
 			if methType.IsVariadic() && i == methType.NumIn()-2 {
-				varArgType := sanitizedFieldType(methType.In(i + 1).Elem())
+				varArgType, isRC = sanitizedFieldType(methType.In(i + 1).Elem())
 				pType = fmt.Sprintf("...%s", varArgType)
 			} else {
-				pType = sanitizedFieldType(methType.In(i + 1))
+				pType, isRC = sanitizedFieldType(methType.In(i + 1))
 			}
 			paramsType[i] = fmt.Sprintf("%s %s", dParams.Params[i], pType)
-			params[i] = dParams.Params[i]
+			if isRC {
+				params[i] = fmt.Sprintf("%s.RecordCollection", dParams.Params[i])
+			} else {
+				params[i] = dParams.Params[i]
+			}
 			addDependency(&mData, methType.In(i+1))
 		}
 
@@ -150,11 +159,8 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 			returnsIsRS bool
 		)
 		if methType.NumOut() > 0 {
-			returns = sanitizedFieldType(methType.Out(0))
+			returns, returnsIsRS = sanitizedFieldType(methType.Out(0))
 			addDependency(&mData, methType.Out(0))
-			if methType.Out(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-				returnsIsRS = true
-			}
 		}
 
 		methData := methodData{

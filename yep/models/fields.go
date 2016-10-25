@@ -15,7 +15,9 @@
 package models
 
 import (
+	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -182,6 +184,9 @@ type fieldInfo struct {
 	relatedModelName string
 	relatedModel     *modelInfo
 	reverseFK        string
+	m2mRelModel      *modelInfo
+	m2mOurField      *fieldInfo
+	m2mTheirField    *fieldInfo
 	selection        Selection
 	fieldType        tools.FieldType
 	groupOperator    string
@@ -281,13 +286,42 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		inherits = false
 	}
 
-	relModelName, ok := tags["comodel"]
+	relatedModelName, ok := tags["comodel"]
 	if !ok && (typ == tools.MANY2ONE || typ == tools.ONE2ONE || typ == tools.REV2ONE ||
 		typ == tools.ONE2MANY || typ == tools.MANY2MANY) {
 		if sf.Type == reflect.TypeOf(RecordCollection{}) {
 			logging.LogAndPanic(log, "Undefined comodel on related field", "model", mi.name, "field", sf.Name, "type", typ)
 		}
-		relModelName = sf.Type.Name()[:len(sf.Type.Name())-3]
+		relatedModelName = sf.Type.Name()[:len(sf.Type.Name())-3]
+	}
+
+	var (
+		m2mRelModel                *modelInfo
+		m2mOurField, m2mTheirField *fieldInfo
+	)
+	if typ == tools.MANY2MANY {
+		our, ok := tags["m2m_ours"]
+		if !ok {
+			our = mi.name
+		}
+
+		their, ok := tags["m2m_theirs"]
+		if !ok {
+			their = relatedModelName
+		}
+
+		if our == their {
+			logging.LogAndPanic(log, "Many2many relation must have different 'm2m_ours' and 'm2m_theirs'",
+				"model", mi.name, "field", sf.Name, "ours", our, "theirs", their)
+		}
+
+		modelNames := []string{our, their}
+		sort.Strings(modelNames)
+		m2mRelModName, ok := tags["m2m_relmodel"]
+		if !ok {
+			m2mRelModName = fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1])
+		}
+		m2mRelModel, m2mOurField, m2mTheirField = createM2MRelModelInfo(m2mRelModName, modelNames[0], modelNames[1])
 	}
 
 	if typ == tools.MANY2ONE || typ == tools.ONE2ONE {
@@ -350,10 +384,71 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		inherits:         inherits,
 		noCopy:           noCopy,
 		reverseFK:        fk,
-		relatedModelName: relModelName,
+		m2mRelModel:      m2mRelModel,
+		m2mOurField:      m2mOurField,
+		m2mTheirField:    m2mTheirField,
+		relatedModelName: relatedModelName,
 		selection:        selection,
 	}
 	return &fInfo
+}
+
+// createM2MRelModelInfo creates a modelInfo relModelName (if it does not exist)
+// for the m2m relation defined between model1 and model2.
+// It returns the modelInfo of the intermediate model, the fieldInfo of that model
+// pointing to our model, and the fieldInfo pointing to the other model.
+func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fieldInfo, *fieldInfo) {
+	if relMI, exists := modelRegistry.get(relModelName); exists {
+		var m1, m2 *fieldInfo
+		for fName, fi := range relMI.fields.registryByName {
+			if fName == model1 {
+				m1 = fi
+			} else if fName == model2 {
+				m2 = fi
+			}
+		}
+		return relMI, m1, m2
+	}
+
+	newMI := &modelInfo{
+		name:      relModelName,
+		tableName: tools.SnakeCaseString(relModelName),
+		fields:    newFieldsCollection(),
+		methods:   newMethodsCollection(),
+	}
+	ourField := &fieldInfo{
+		name:             model1,
+		json:             tools.SnakeCaseString(model1) + "_id",
+		mi:               newMI,
+		required:         true,
+		noCopy:           true,
+		fieldType:        tools.MANY2ONE,
+		relatedModelName: model1,
+		index:            true,
+		structField: reflect.StructField{
+			Name: model1,
+			Type: reflect.TypeOf(int64(0)),
+		},
+	}
+	newMI.fields.add(ourField)
+
+	theirField := &fieldInfo{
+		name:             model2,
+		json:             tools.SnakeCaseString(model2) + "_id",
+		mi:               newMI,
+		required:         true,
+		noCopy:           true,
+		fieldType:        tools.MANY2ONE,
+		relatedModelName: model2,
+		index:            true,
+		structField: reflect.StructField{
+			Name: model2,
+			Type: reflect.TypeOf(int64(0)),
+		},
+	}
+	newMI.fields.add(theirField)
+	modelRegistry.add(newMI)
+	return newMI, ourField, theirField
 }
 
 /*

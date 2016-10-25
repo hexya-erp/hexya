@@ -44,7 +44,7 @@ func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 			res = nil
 			return
 		}
-		rError = rs.Env().Cr().Commit()
+		rs.Env().Commit()
 	}()
 
 	checkUser(uid)
@@ -225,7 +225,7 @@ func checkUser(uid int64) {
 // rollbackAndLog rolls back the current transaction of the given
 // environment and logs the panic data with stacktrace.
 func rollbackAndLog(env models.Environment, panicData interface{}) error {
-	env.Cr().Rollback()
+	env.Rollback()
 	caller := stack.Caller(1)
 	ctx := []interface{}{"caller", fmt.Sprintf("%+n", caller)}
 
@@ -255,7 +255,7 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 			res = nil
 			return
 		}
-		env.Cr().Commit()
+		env.Commit()
 	}()
 	if uid == 0 {
 		logging.LogAndPanic(log, "User must be logged in to retrieve field")
@@ -291,7 +291,7 @@ func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rErr
 			res = nil
 			return
 		}
-		rs.Env().Cr().Commit()
+		rs.Env().Commit()
 	}()
 	if uid == 0 {
 		logging.LogAndPanic(log, "User must be logged in to search database")

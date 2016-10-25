@@ -57,18 +57,19 @@ func (rs RecordCollection) ModelName() string {
 	return rs.mi.name
 }
 
-// Ids returns the ids of the RecordSet
-func (rs RecordCollection) Ids() []int64 {
-	return rs.ids
+// Ids returns the ids of the RecordSet, fetching from db if necessary.
+func (rc RecordCollection) Ids() []int64 {
+	rSet := rc.Fetch()
+	return rSet.ids
 }
 
 // create inserts a new record in the database with the given data.
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Create(), rs.Call("Create") or env.Create()
-func (rs RecordCollection) create(data interface{}) RecordCollection {
+func (rc RecordCollection) create(data interface{}) RecordCollection {
 	fMap := convertInterfaceToFieldMap(data)
-	rs.mi.convertValuesToFieldType(&fMap)
+	rc.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	if idl, ok := fMap["id"]; ok && idl.(int64) == 0 {
 		delete(fMap, "id")
@@ -77,18 +78,16 @@ func (rs RecordCollection) create(data interface{}) RecordCollection {
 		delete(fMap, "ID")
 	}
 
-	for _, cf := range rs.mi.fields.registryByJSON {
-		if !cf.isStored() {
-			delete(fMap, cf.name)
-			delete(fMap, cf.json)
-		}
-	}
+	storedFieldMap := filterMapOnStoredFields(rc.mi, fMap)
 	// insert in DB
-	sql, args := rs.query.insertQuery(fMap)
 	var createdId int64
-	DBGet(rs.env.cr, &createdId, sql, args...)
+	sql, args := rc.query.insertQuery(storedFieldMap)
+	rc.env.cr.Get(&createdId, sql, args...)
+
+	rSet := rc.withIds([]int64{createdId})
+	// update reverse relation fields
+	rSet.updateRelationFields(fMap)
 	// compute stored fields
-	rSet := rs.withIds([]int64{createdId})
 	rSet.updateStoredFields(fMap)
 	return rSet
 }
@@ -97,10 +96,10 @@ func (rs RecordCollection) create(data interface{}) RecordCollection {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
-func (rc RecordCollection) update(data interface{}, fieldsToUpdate ...string) bool {
+func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) bool {
 	fMap := convertInterfaceToFieldMap(data)
 	if _, ok := data.(FieldMap); !ok {
-		for _, f := range fieldsToUpdate {
+		for _, f := range fieldsToUnset {
 			if _, exists := fMap[f]; !exists {
 				fMap[f] = nil
 			}
@@ -110,12 +109,7 @@ func (rc RecordCollection) update(data interface{}, fieldsToUpdate ...string) bo
 	// clean our fMap from ID and non stored fields
 	delete(fMap, "id")
 	delete(fMap, "ID")
-	for fName := range fMap {
-		if fi := rc.mi.getRelatedFieldInfo(fName); !fi.isStored() {
-			delete(fMap, fi.name)
-			delete(fMap, fi.json)
-		}
-	}
+	storedFieldMap := filterMapOnStoredFields(rc.mi, fMap)
 	// invalidate cache
 	// We do it before the actual write on purpose so that we are sure it
 	// is invalidated, even in case of error.
@@ -123,11 +117,38 @@ func (rc RecordCollection) update(data interface{}, fieldsToUpdate ...string) bo
 		rc.env.cache.invalidateRecord(rc.mi, id)
 	}
 	// update DB
-	sql, args := rc.query.updateQuery(fMap)
-	DBExecute(rc.env.cr, sql, args...)
+	if len(storedFieldMap) > 0 {
+		sql, args := rc.query.updateQuery(storedFieldMap)
+		rc.env.cr.Execute(sql, args...)
+	}
+	// write reverse relation fields
+	rc.updateRelationFields(fMap)
 	// compute stored fields
 	rc.updateStoredFields(fMap)
 	return true
+}
+
+// updateRelationFields updates reverse relations fields of the
+// given fMap.
+func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
+	rSet := rc.Fetch()
+	for field, value := range fMap {
+		fi := rc.mi.getRelatedFieldInfo(field)
+		switch fi.fieldType {
+		case tools.ONE2MANY:
+		case tools.REV2ONE:
+		case tools.MANY2MANY:
+			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
+			rc.env.cr.Execute(delQuery, rSet.ids)
+			for _, id := range rSet.ids {
+				query := fmt.Sprintf(`INSERT INTO %s (%s, %s) VALUES (?, ?)`, fi.m2mRelModel.tableName,
+					fi.m2mOurField.json, fi.m2mTheirField.json)
+				for _, relId := range value.([]int64) {
+					rc.env.cr.Execute(query, id, relId)
+				}
+			}
+		}
+	}
 }
 
 // delete deletes the database record of this RecordSet and returns the number of deleted rows.
@@ -135,7 +156,7 @@ func (rc RecordCollection) update(data interface{}, fieldsToUpdate ...string) bo
 // Instead use rs.Unlink() or rs.Call("Unlink")
 func (rs RecordCollection) delete() int64 {
 	sql, args := rs.query.deleteQuery()
-	res := DBExecute(rs.env.cr, sql, args...)
+	res := rs.env.cr.Execute(sql, args...)
 	num, _ := res.RowsAffected()
 	return num
 }
@@ -208,7 +229,7 @@ It panics in case of error
 func (rs RecordCollection) SearchCount() int {
 	sql, args := rs.query.countQuery()
 	var res int
-	DBGet(rs.env.cr, &res, sql, args...)
+	rs.env.cr.Get(&res, sql, args...)
 	return res
 }
 
@@ -216,7 +237,8 @@ func (rs RecordCollection) SearchCount() int {
 // fields are the fields to retrieve in the expression format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
 // If no fields are given, all DB columns of the RecordCollection's
-// model are retrieved.
+// model are retrieved. Non-DB fields must be explicitly given in
+// fields to be retrieved.
 func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	var results []FieldMap
 	if len(fields) == 0 {
@@ -225,7 +247,7 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	subFields, substs := rc.substituteRelatedFields(fields)
 	dbFields := filterOnDBFields(rc.mi, subFields)
 	sql, args := rc.query.selectQuery(dbFields)
-	rows := DBQuery(rc.env.cr, sql, args...)
+	rows := dbQuery(rc.env.cr.tx, sql, args...)
 	defer rows.Close()
 	var ids []int64
 	for rows.Next() {
@@ -257,6 +279,11 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
 				rc.env.cache.addEntry(rc.mi, id, fieldName, relRC.ids)
 			case tools.MANY2MANY:
+				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
+					fi.m2mRelModel.tableName, fi.m2mOurField.json)
+				var ids []int64
+				rc.env.cr.Select(&ids, query, id)
+				rc.env.cache.addEntry(rc.mi, id, fieldName, ids)
 			case tools.REV2ONE:
 				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
 				var relID int64
@@ -293,10 +320,9 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.relatedPath)
 	} else {
 		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.json}) {
-			// If value is not in cache we fetch the whole model to speed up
-			// later calls to Get, except for the case of relation fields.
-			if fi.fieldType == tools.ONE2MANY || fi.fieldType == tools.MANY2MANY ||
-				fi.fieldType == tools.REV2ONE {
+			// If value is not in cache we fetch the whole model to speed up later calls to Get,
+			// except for the case of reverse relation fields, where we only load the requested field.
+			if fi.fieldType == tools.ONE2MANY || fi.fieldType == tools.MANY2MANY || fi.fieldType == tools.REV2ONE {
 				rSet.Load(fieldName)
 			} else {
 				rSet.Load()
@@ -401,6 +427,32 @@ func (rc RecordCollection) IsEmpty() bool {
 func (rc RecordCollection) Len() int {
 	rSet := rc.Fetch()
 	return len(rSet.ids)
+}
+
+// Union returns a new RecordCollection that is the union of this RecordCollection
+// and the given `other` RecordCollection. The result is guaranteed to be a
+// set of unique records.
+func (rc RecordCollection) Union(other RecordCollection) RecordCollection {
+	if rc.ModelName() != other.ModelName() {
+		logging.LogAndPanic(log, "Unable to union RecordCollections of different models", "this", rc.ModelName(),
+			"other", other.ModelName())
+	}
+	thisRC := rc.Fetch()
+	otherRC := other.Fetch()
+	idMap := make(map[int64]bool)
+	for _, id := range thisRC.ids {
+		idMap[id] = true
+	}
+	for _, id := range otherRC.ids {
+		idMap[id] = true
+	}
+	ids := make([]int64, len(idMap))
+	i := 0
+	for id := range idMap {
+		ids[i] = id
+		i++
+	}
+	return newRecordCollection(rc.Env(), rc.ModelName()).withIds(ids)
 }
 
 // withIdMap returns a new RecordCollection pointing to the given ids.

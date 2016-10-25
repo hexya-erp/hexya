@@ -67,6 +67,6 @@ func TestDomains(t *testing.T) {
 			So(dom3Users.Len(), ShouldEqual, 1)
 			So(dom3Users.Get("UserName"), ShouldEqual, "Jane A. Smith")
 		})
-		env.cr.Rollback()
+		env.Rollback()
 	})
 }

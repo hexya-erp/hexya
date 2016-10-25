@@ -34,7 +34,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(userJohn.Len(), ShouldEqual, 1)
 			So(userJohn.ID(), ShouldBeGreaterThan, 0)
 		})
-		Convey("Creating user Jane with related Profile", func() {
+		Convey("Creating user Jane with related Profile and Posts and Tags", func() {
 			profileData := pool.Test__Profile{
 				Age:   23,
 				Money: 12345,
@@ -64,6 +64,26 @@ func TestCreateRecordSet(t *testing.T) {
 			post2 := pool.NewTest__PostSet(env).Create(&post2Data)
 			So(post2.Len(), ShouldEqual, 1)
 			So(userJane.Posts().Len(), ShouldEqual, 2)
+
+			tag1 := pool.NewTest__TagSet(env).Create(&pool.Test__Tag{
+				Name: "Trending",
+			})
+			tag2 := pool.NewTest__TagSet(env).Create(&pool.Test__Tag{
+				Name: "Books",
+			})
+			tag3 := pool.NewTest__TagSet(env).Create(&pool.Test__Tag{
+				Name: "Jane's",
+			})
+			post1.SetTags(tag1.Union(tag3))
+			post2.SetTags(tag2.Union(tag3))
+			post1Tags := post1.Tags()
+			So(post1Tags.Len(), ShouldEqual, 2)
+			So(post1Tags.Records()[0].Name(), ShouldBeIn, "Trending", "Jane's")
+			So(post1Tags.Records()[1].Name(), ShouldBeIn, "Trending", "Jane's")
+			post2Tags := post2.Tags()
+			So(post2Tags.Len(), ShouldEqual, 2)
+			So(post2Tags.Records()[0].Name(), ShouldBeIn, "Books", "Jane's")
+			So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
 		})
 		Convey("Creating a user Will Smith", func() {
 			userWillData := pool.Test__User{
@@ -74,7 +94,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(userWill.Len(), ShouldEqual, 1)
 			So(userWill.ID(), ShouldBeGreaterThan, 0)
 		})
-		env.Cr().Commit()
+		env.Commit()
 	})
 }
 
@@ -127,7 +147,7 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
 			})
 		})
-		env.Cr().Rollback()
+		env.Rollback()
 	})
 }
 
@@ -180,7 +200,20 @@ func TestUpdateRecordSet(t *testing.T) {
 			So(userRecs[0].IsActive(), ShouldBeTrue)
 			So(userRecs[1].IsActive(), ShouldBeTrue)
 		})
-		env.Cr().Commit()
+		Convey("Updating many2many fields", func() {
+			post1 := pool.NewTest__PostSet(env).Filter("title", "=", "1st Post")
+			tagBooks := pool.NewTest__TagSet(env).Filter("name", "=", "Books")
+			post1.SetTags(tagBooks)
+
+			post1Tags := post1.Tags()
+			So(post1Tags.Len(), ShouldEqual, 1)
+			So(post1Tags.Name(), ShouldEqual, "Books")
+			post2Tags := pool.NewTest__PostSet(env).Filter("title", "=", "2nd Post").Tags()
+			So(post2Tags.Len(), ShouldEqual, 2)
+			So(post2Tags.Records()[0].Name(), ShouldBeIn, "Books", "Jane's")
+			So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
+		})
+		env.Commit()
 	})
 }
 
@@ -193,5 +226,5 @@ func TestDeleteRecordSet(t *testing.T) {
 			So(num, ShouldEqual, 1)
 		})
 	})
-	env.Cr().Rollback()
+	env.Rollback()
 }

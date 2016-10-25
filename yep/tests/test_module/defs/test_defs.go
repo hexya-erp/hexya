@@ -46,6 +46,7 @@ func init() {
 		Email2    string
 		IsPremium bool
 	}))
+
 	models.CreateModel("Test__Profile")
 	models.ExtendModel("Test__Profile", new(struct {
 		Age      int16
@@ -57,18 +58,22 @@ func init() {
 		City    string
 		Country string
 	}))
+
 	models.CreateModel("Test__Post")
 	models.ExtendModel("Test__Post", new(struct {
 		User    pool.Test__UserSet `yep:"type(many2one)"`
 		Title   string
-		Content string `yep:"type(text)"`
+		Content string            `yep:"type(text)"`
+		Tags    pool.Test__TagSet `yep:"type(many2many)"`
 	}))
+
 	models.CreateModel("Test__Tag")
 	models.ExtendModel("Test__Tag", new(struct {
 		Name     string
 		BestPost pool.Test__PostSet `yep:"type(many2one)"`
 		Posts    pool.Test__PostSet `yep:"type(many2many)"`
 	}))
+
 	models.ExtendModel("Test__Tag", new(struct {
 		Description string
 	}))

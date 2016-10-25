@@ -15,7 +15,6 @@
 package models
 
 import (
-	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/tools"
 )
 
@@ -25,14 +24,14 @@ import (
 // - the current context (for storing arbitrary metadata).
 // The Environment also stores caches.
 type Environment struct {
-	cr      *sqlx.Tx
+	cr      *Cursor
 	uid     int64
 	context *tools.Context
 	cache   *cache
 }
 
-// Cr returns a pointer to the transaction of the Environment
-func (env Environment) Cr() *sqlx.Tx {
+// Cr returns a pointer to the Cursor of the Environment
+func (env Environment) Cr() *Cursor {
 	return env.cr
 }
 
@@ -73,11 +72,29 @@ func (env Environment) Sudo(userId ...int64) Environment {
 	return env
 }
 
+// Commit the transaction of this environment.
+//
+// WARNING: Do NOT call Commit on Environment instances that you
+// did not create yourself with NewEnvironment. The framework will
+// automatically commit the Environment.
+func (env Environment) Commit() {
+	env.cr.tx.Commit()
+}
+
+// Rollback the transaction of this environment.
+//
+// WARNING: Do NOT call Rollback on Environment instances that you
+// did not create yourself with NewEnvironment. Just panic instead
+// for the framework to roll back automatically for you.
+func (env Environment) Rollback() {
+	env.cr.tx.Rollback()
+}
+
 // NewEnvironment returns a new Environment with the given parameters
 // in a new DB transaction.
 //
-// WARNING: Callers to NewEnvironment should ensure to either commit
-// or rollback the returned Environment.Cr() after operation to release
+// WARNING: Callers to NewEnvironment should ensure to either call Commit()
+// or Rollback() on the returned Environment after operation to release
 // the database connection.
 func NewEnvironment(uid int64, context ...tools.Context) Environment {
 	var ctx tools.Context
@@ -85,7 +102,7 @@ func NewEnvironment(uid int64, context ...tools.Context) Environment {
 		ctx = context[0]
 	}
 	env := Environment{
-		cr:      db.MustBegin(),
+		cr:      newCursor(db),
 		uid:     uid,
 		context: &ctx,
 		cache:   newCache(),

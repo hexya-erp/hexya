@@ -275,6 +275,10 @@ sortable value on which the RecordSet will be sorted.
 +
 The Sort is not guaranteed to be stable.
 
+`*Union(other RecordSetType) RecordSetType*`::
+Returns a new RecordSet that is the union of this RecordSet and the given
+`other` RecordSet. The result is guaranteed to be a set of unique records.
+
 == Environment
 
 The Environment stores various contextual data used by the ORM: the database
@@ -373,6 +377,26 @@ Special string types::
 
 `fk(__value__)`::
 Set the foreign key field name in the related model for `one2many` relations.
+
+`comodel(__value__)`::
+Set the other model for a relation field. This tag is used only in low level
+API. The comodel is normally deduced from the type of the struct field.
+
+`m2m_relmodel(__value__)`::
+Set the name of the intermediate model for a `many2many` relation. This tag
+is mandatory only if there are several `many2many` relations between the two
+models.
+
+`m2m_ours(__value__)`::
+In a `many2many` relation, set the name of the field of the intermediate model
+that points to this (our) model. This tag is mandatory only if the `many2many`
+relation is pointing to the same model.
+
+`m2m_theirs(__value__)`::
+In a `many2many` relation, set the name of the field of the intermediate model
+that points to the other (their) model, i.e. the model defined by `comodel`.
+This tag is mandatory only if the `many2many` relation is pointing to the
+same model.
 
 `selection(__value__)`::
 Comma separated list of tuples `__key__|__DisplayString__` for `selection`

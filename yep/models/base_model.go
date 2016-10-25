@@ -72,6 +72,7 @@ func declareBaseMethods(name string) {
 	CreateMethod(name, "Limit", Limit)
 	CreateMethod(name, "Offset", Offset)
 	CreateMethod(name, "OrderBy", OrderBy)
+	CreateMethod(name, "Union", Union)
 }
 
 // Search returns a new RecordSet filtering on the current one with the
@@ -184,8 +185,8 @@ func Read(rs RecordCollection, fields []string) []FieldMap {
 // Write is the base implementation of the 'Write' method which updates
 // records in the database with the given data.
 // Data can be either a struct pointer or a FieldMap.
-func Write(rs RecordCollection, data interface{}, fieldsToUpdate ...string) bool {
-	return rs.update(data, fieldsToUpdate...)
+func Write(rs RecordCollection, data interface{}, fieldsToUnset ...string) bool {
+	return rs.update(data, fieldsToUnset...)
 }
 
 // Unlink deletes the given records in the database.
@@ -212,6 +213,12 @@ func Copy(rc RecordCollection) RecordCollection {
 	delete(fMap, "id")
 	newRs := rc.Call("Create", fMap).(RecordCollection)
 	return newRs
+}
+
+// Union returns a new RecordSet that is the union of this RecordSet and the given
+// `other` RecordSet. The result is guaranteed to be a set of unique records.
+func Union(rc RecordCollection, other RecordCollection) RecordCollection {
+	return rc.Union(other)
 }
 
 // NameGet retrieves the human readable name of this record.

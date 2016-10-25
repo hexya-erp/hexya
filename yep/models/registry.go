@@ -27,6 +27,7 @@ import (
 
 var modelRegistry *modelCollection
 
+// Option describes a optional feature of a model
 type Option int
 
 type modelCollection struct {
@@ -90,25 +91,34 @@ func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
 }
 
 // getRelatedModelInfo returns the modelInfo of the related model when
-// following path. If the last part of path is a non relational field,
-// it is simply ignored. Path can be formed from field names or JSON names.
-func (mi *modelInfo) getRelatedModelInfo(path string) *modelInfo {
+// following path.
+// - If skipLast is true, getRelatedModelInfo does not follow the last part of the path
+// - If the last part of path is a non relational field, it is simply ignored, whatever
+// the value of skipLast.
+//
+// Paths can be formed from field names or JSON names.
+func (mi *modelInfo) getRelatedModelInfo(path string, skipLast ...bool) *modelInfo {
 	if path == "" {
 		return mi
 	}
+	var skip bool
+	if len(skipLast) > 0 {
+		skip = skipLast[0]
+	}
+
 	exprs := strings.Split(path, ExprSep)
 	jsonizeExpr(mi, exprs)
 	fi, ok := mi.fields.get(exprs[0])
 	if !ok {
 		logging.LogAndPanic(log, "Unknown field in model", "field", exprs[0], "model", mi.name)
 	}
-	if fi.relatedModel == nil {
+	if fi.relatedModel == nil || (len(exprs) == 1 && skip) {
 		// The field is a non relational field, so we are already
-		// on the related modelInfo.
+		// on the related modelInfo. Or we have only 1 exprs and we skip the last one.
 		return mi
 	}
 	if len(exprs) > 1 {
-		return fi.relatedModel.getRelatedModelInfo(strings.Join(exprs[1:], ExprSep))
+		return fi.relatedModel.getRelatedModelInfo(strings.Join(exprs[1:], ExprSep), skipLast...)
 	}
 	return fi.relatedModel
 }
@@ -120,7 +130,7 @@ func (mi *modelInfo) getRelatedFieldInfo(path string) *fieldInfo {
 	var rmi *modelInfo
 	num := len(colExprs)
 	if len(colExprs) > 1 {
-		rmi = mi.getRelatedModelInfo(path)
+		rmi = mi.getRelatedModelInfo(path, true)
 	} else {
 		rmi = mi
 	}

@@ -136,8 +136,8 @@ type Profile struct {
 type Post struct {
 	User    RecordCollection `yep:"type(many2one);comodel(User)"`
 	Title   string
-	Content string `yep:"type(text)"`
-	//Tags    RecordCollection `yep:"type(many2many);comodel(Tag)"`
+	Content string           `yep:"type(text)"`
+	Tags    RecordCollection `yep:"type(many2many);comodel(Tag)"`
 }
 
 type Tag struct {

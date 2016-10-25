@@ -5,20 +5,24 @@ ORM
 ---
 - [X] Rewrite ORM from scratch
 - [X] Add methods to ORM models
-- [X] Many2One relations
-- [X] One2One relations
-- [X] One2Many relations
-- [X] Rev2One relations
-- [ ] Many2many relations
-- [X] ReadOnly related fields
-- [ ] ReadWrite related fields
-- [ ] Searchable related fields
+- [X] Relation fields
+    - [X] Many2One relations
+    - [X] One2One relations
+    - [X] One2Many relations
+    - [X] Rev2One relations
+    - [X] Many2many relations
+- [ ] Related fields
+    - [X] ReadOnly related fields
+    - [ ] ReadWrite related fields
+    - [ ] Searchable related fields
 - [X] 'Inherits' model inheritance (Odoo-like)
 - [ ] Computed fields to ORM:
     - [X] Fields computed by ERP after retrieval of computation vars
     - [X] Fields computed by ERP and stored in DB column
     - [ ] Fields computed by DB by SQL function when reading DB
-- [ ] CRUD permissions to models and fields
+- [ ] Security
+    - [ ] CRUD permissions to models and fields
+    - [ ] Record rules on models
 - [ ] i18n and l10n support to ORM models
 - [ ] Database foreign keys to related fields
 - [X] Cache to RecordSets

@@ -32,7 +32,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(users.Len(), ShouldEqual, 1)
 			So(users.Get("ID"), ShouldBeGreaterThan, 0)
 		})
-		Convey("Creating user Jane with related Profile and Posts", func() {
+		Convey("Creating user Jane with related Profile and Posts and Tags", func() {
 			userJaneProfileData := FieldMap{
 				"Age":   23,
 				"Money": 12345,
@@ -63,6 +63,26 @@ func TestCreateRecordSet(t *testing.T) {
 			So(post2.Len(), ShouldEqual, 1)
 			janePosts := userJane.Get("Posts").(RecordCollection)
 			So(janePosts.Len(), ShouldEqual, 2)
+
+			tag1 := env.Pool("Tag").Call("Create", FieldMap{
+				"Name": "Trending",
+			}).(RecordCollection)
+			tag2 := env.Pool("Tag").Call("Create", FieldMap{
+				"Name": "Books",
+			}).(RecordCollection)
+			tag3 := env.Pool("Tag").Call("Create", FieldMap{
+				"Name": "Jane's",
+			}).(RecordCollection)
+			post1.Set("Tags", tag1.Union(tag3))
+			post2.Set("Tags", tag2.Union(tag3))
+			post1Tags := post1.Get("Tags").(RecordCollection)
+			So(post1Tags.Len(), ShouldEqual, 2)
+			So(post1Tags.Records()[0].Get("Name"), ShouldBeIn, "Trending", "Jane's")
+			So(post1Tags.Records()[1].Get("Name"), ShouldBeIn, "Trending", "Jane's")
+			post2Tags := post2.Get("Tags").(RecordCollection)
+			So(post2Tags.Len(), ShouldEqual, 2)
+			So(post2Tags.Records()[0].Get("Name"), ShouldBeIn, "Books", "Jane's")
+			So(post2Tags.Records()[1].Get("Name"), ShouldBeIn, "Books", "Jane's")
 		})
 		Convey("Creating a user Will Smith", func() {
 			userWillData := FieldMap{
@@ -73,7 +93,7 @@ func TestCreateRecordSet(t *testing.T) {
 			So(userWill.Len(), ShouldEqual, 1)
 			So(userWill.Get("ID"), ShouldBeGreaterThan, 0)
 		})
-		env.cr.Commit()
+		env.Commit()
 	})
 }
 
@@ -128,7 +148,7 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
 			})
 		})
-		env.cr.Rollback()
+		env.Rollback()
 	})
 }
 
@@ -181,7 +201,20 @@ func TestUpdateRecordSet(t *testing.T) {
 			So(userRecs[0].Get("IsActive").(bool), ShouldBeTrue)
 			So(userRecs[1].Get("IsActive").(bool), ShouldBeTrue)
 		})
-		env.cr.Commit()
+		Convey("Updating many2many fields", func() {
+			post1 := env.Pool("Post").Filter("title", "=", "1st Post")
+			tagBooks := env.Pool("Tag").Filter("name", "=", "Books")
+			post1.Set("Tags", tagBooks)
+
+			post1Tags := post1.Get("Tags").(RecordCollection)
+			So(post1Tags.Len(), ShouldEqual, 1)
+			So(post1Tags.Get("Name"), ShouldEqual, "Books")
+			post2Tags := env.Pool("Post").Filter("title", "=", "2nd Post").Get("Tags").(RecordCollection)
+			So(post2Tags.Len(), ShouldEqual, 2)
+			So(post2Tags.Records()[0].Get("Name"), ShouldBeIn, "Books", "Jane's")
+			So(post2Tags.Records()[1].Get("Name"), ShouldBeIn, "Books", "Jane's")
+		})
+		env.Commit()
 	})
 }
 
@@ -194,5 +227,5 @@ func TestDeleteRecordSet(t *testing.T) {
 			So(num, ShouldEqual, 1)
 		})
 	})
-	env.cr.Rollback()
+	env.Rollback()
 }

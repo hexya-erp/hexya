@@ -30,7 +30,7 @@ func TestMethods(t *testing.T) {
 			res := users.PrefixedUser("Prefix")
 			So(res[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 		})
-		env.Cr().Rollback()
+		env.Rollback()
 	})
 }
 
@@ -49,7 +49,7 @@ func TestComputedNonStoredFields(t *testing.T) {
 			So(userRecs[1].DecoratedName(), ShouldEqual, "User: John Smith [<jsmith2@example.com>]")
 			So(userRecs[2].DecoratedName(), ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
 		})
-		env.Cr().Rollback()
+		env.Rollback()
 	})
 }
 
@@ -88,7 +88,7 @@ func TestComputedStoredFields(t *testing.T) {
 			userWill.Load()
 			So(userWill.Age(), ShouldEqual, 34)
 		})
-		env.Cr().Commit()
+		env.Commit()
 	})
 }
 
@@ -99,7 +99,7 @@ func TestRelatedNonStoredFields(t *testing.T) {
 			userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
 			So(userJane.PMoney(), ShouldEqual, 12345)
 		})
-		env.Cr().Rollback()
+		env.Rollback()
 	})
 }
 
@@ -120,6 +120,6 @@ func TestInheritedModels(t *testing.T) {
 			So(userJane.LastPost().Title(), ShouldEqual, "This is my title")
 			So(userJane.LastPost().Content(), ShouldEqual, "Here we have some content")
 		})
-		env.Cr().Commit()
+		env.Commit()
 	})
 }

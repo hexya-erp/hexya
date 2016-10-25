@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -50,10 +49,6 @@ func (q *Query) sqlWhereClause() (string, SQLParams) {
 	sql, args := q.conditionSQLClause(q.cond)
 	if sql != "" {
 		sql = "WHERE " + sql
-	}
-	sql, args, err := sqlx.In(sql, args...)
-	if err != nil {
-		logging.LogAndPanic(log, "Unable to expand 'IN' statement", "error", err, "sql", sql, "args", args)
 	}
 	return sql, args
 }

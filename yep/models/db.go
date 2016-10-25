@@ -55,6 +55,36 @@ func registerDBAdapter(name string, adapter dbAdapter) {
 	adapters[name] = adapter
 }
 
+// Cursor is a wrapper around a database transaction
+type Cursor struct {
+	tx *sqlx.Tx
+}
+
+// Execute a query without returning any rows. It panics in case of error.
+// The args are for any placeholder parameters in the query.
+func (c *Cursor) Execute(query string, args ...interface{}) sql.Result {
+	return dbExecute(c.tx, query, args...)
+}
+
+// Get queries a row into the database and maps the result into dest.
+// The query must return only one row. Get panics on errors
+func (c *Cursor) Get(dest interface{}, query string, args ...interface{}) {
+	dbGet(c.tx, dest, query, args...)
+}
+
+// Select queries multiple rows and map the result into dest which must be a slice.
+// Select panics on errors.
+func (c *Cursor) Select(dest interface{}, query string, args ...interface{}) {
+	dbSelect(c.tx, dest, query, args...)
+}
+
+// newCursor returns a new db cursor on the given database
+func newCursor(db *sqlx.DB) *Cursor {
+	return &Cursor{
+		tx: db.MustBegin(),
+	}
+}
+
 // DBConnect is a wrapper around sqlx.MustConnect
 // It connects to a database using the given driver and
 // connection data.
@@ -63,64 +93,83 @@ func DBConnect(driver, connData string) {
 	log.Info("Connected to database", "driver", driver, "connData", connData)
 }
 
-// DBExecute is a wrapper around sqlx.MustExec
+// dbExecute is a wrapper around sqlx.MustExec
 // It executes a query that returns no row
-func DBExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
-	query = cr.Rebind(query)
+func dbExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
+	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	res := cr.MustExec(query, args...)
-	log.Debug("Query Executed", "query", query, "args", args, "duration", time.Now().Sub(t))
+	logSQLResult(nil, t, query, args...)
 	return res
 }
 
 // dbExecuteNoTx simply executes the given query in the database without any transaction
 func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
-	query = db.Rebind(query)
+	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	res := db.MustExec(query, args...)
-	log.Debug("Query Executed", "query", query, "args", args, "duration", time.Now().Sub(t))
+	logSQLResult(nil, t, query, args...)
 	return res
 }
 
-// DBGet is a wrapper around sqlx.Get
+// dbGet is a wrapper around sqlx.Get
 // It gets the value of a single row found by the given query and arguments
 // It panics in case of error
-func DBGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
-	query = cr.Rebind(query)
+func dbGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
+	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	err := cr.Get(dest, query, args...)
-	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
-	if err != nil {
-		logging.LogAndPanic(logCtx, "Error while executing query", "error", err)
-	}
-	logCtx.Debug("Query executed")
+	logSQLResult(err, t, query, args)
 }
 
 // dbGetNoTx is a wrapper around sqlx.Get outside a transaction
 // It gets the value of a single row found by the
 // given query and arguments
 func dbGetNoTx(dest interface{}, query string, args ...interface{}) {
-	query = db.Rebind(query)
+	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	err := db.Get(dest, query, args...)
-	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
-	if err != nil {
-		logging.LogAndPanic(logCtx, "Error while executing query", "error", err)
-	}
-	logCtx.Debug("Query executed")
+	logSQLResult(err, t, query, args)
 }
 
-// DBQuery is a wrapper around sqlx.Queryx
+// dbSelect is a wrapper around sqlx.Select
+// It gets the value of a multiple rows found by the given query and arguments
+// dest must be a slice. It panics in case of error
+func dbSelect(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
+	query, args = sanitizeQuery(query, args...)
+	t := time.Now()
+	err := cr.Select(dest, query, args...)
+	logSQLResult(err, t, query, args)
+}
+
+// dbQuery is a wrapper around sqlx.Queryx
 // It returns a sqlx.Rowsx found by the given query and arguments
 // It panics in case of error
-func DBQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
-	query = cr.Rebind(query)
+func dbQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
+	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	rows, err := cr.Queryx(query, args...)
-	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(t))
+	logSQLResult(err, t, query, args)
+	return rows
+}
+
+// sanitizeQuery calls 'In' expansion and 'Rebind' on the given query and
+// returns the new values to use. It panics in case of error
+func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
+	query, args, err := sqlx.In(query, args...)
+	if err != nil {
+		logging.LogAndPanic(log, "Unable to expand 'IN' statement", "error", err, "query", query, "args", args)
+	}
+	query = sqlx.Rebind(sqlx.BindType(db.DriverName()), query)
+	return query, args
+}
+
+// Log the result of the given sql query started at start time with the
+// given args, and error. This function panics after logging if error is not nil.
+func logSQLResult(err error, start time.Time, query string, args ...interface{}) {
+	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(start))
 	if err != nil {
 		logging.LogAndPanic(logCtx, "Error while executing query", "error", err)
 	}
 	logCtx.Debug("Query executed")
-	return rows
 }
