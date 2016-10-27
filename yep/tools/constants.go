@@ -15,5 +15,6 @@
 package tools
 
 const (
-	SUPERUSER_ID int64 = 1
+	// SuperUserID is the UID of the yep administrator
+	SuperUserID int64 = 1
 )

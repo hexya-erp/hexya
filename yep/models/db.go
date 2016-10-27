@@ -27,6 +27,14 @@ var (
 	adapters map[string]dbAdapter
 )
 
+// A ColumnData holds information from the db schema about one column
+type ColumnData struct {
+	ColumnName    string
+	DataType      string
+	IsNullable    string
+	ColumnDefault sql.NullString
+}
+
 type dbAdapter interface {
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
 	operatorSQL(DomainOperator, interface{}) (string, interface{})

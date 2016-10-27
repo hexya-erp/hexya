@@ -48,7 +48,7 @@ func GeneratePool(dir string) {
 func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[generate.MethodRef]generate.MethodASTData) {
 	// Generate model data
 	deps := map[string]bool{
-		generate.POOL_PATH: true,
+		generate.PoolPath: true,
 	}
 	type fieldData struct {
 		Name     string
@@ -93,7 +93,7 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 
 	mData := modelData{
 		Name: mi.name,
-		Deps: []string{generate.MODELS_PATH},
+		Deps: []string{generate.ModelsPath},
 	}
 	// We need to simulate bootstrapping to get inherits'ed fields
 	createModelLinks()

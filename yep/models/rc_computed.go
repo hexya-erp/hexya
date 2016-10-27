@@ -17,16 +17,16 @@ package models
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
 // Returned fieldMap keys are field's JSON name
-func (rs RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
-	for _, fInfo := range rs.mi.fields.getComputedFields(fields...) {
+func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
+	for _, fInfo := range rc.mi.fields.getComputedFields(fields...) {
 		if _, exists := (*params)[fInfo.name]; exists {
 			// We already have the value we need in params
 			// probably because it was computed with another field
 			continue
 		}
-		newParams := rs.Call(fInfo.compute).(FieldMap)
+		newParams := rc.Call(fInfo.compute).(FieldMap)
 		for k, v := range newParams {
-			key, _ := rs.mi.fields.get(k)
+			key, _ := rc.mi.fields.get(k)
 			(*params)[key.json] = v
 		}
 	}

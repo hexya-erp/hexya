@@ -15,19 +15,21 @@
 package ir
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 
-	"database/sql"
-	"database/sql/driver"
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+// A ViewType defines the type of a view
 type ViewType string
 
+// View types
 const (
 	VIEW_TYPE_TREE     ViewType = "tree"
 	VIEW_TYPE_LIST     ViewType = "list"
@@ -41,15 +43,19 @@ const (
 	VIEW_TYPE_QWEB     ViewType = "qweb"
 )
 
+// ViewInheritanceMode defines if this is a primary or an extension view
 type ViewInheritanceMode string
 
+// View inheritance modes
 const (
 	VIEW_PRIMARY   ViewInheritanceMode = "primary"
 	VIEW_EXTENSION ViewInheritanceMode = "extension"
 )
 
+// ViewsRegistry is the views collection of the application
 var ViewsRegistry *ViewsCollection
 
+// MakeViewRef creates a ViewRef from a view id
 func MakeViewRef(id string) ViewRef {
 	view := ViewsRegistry.GetViewById(id)
 	if view == nil {
@@ -58,6 +64,9 @@ func MakeViewRef(id string) ViewRef {
 	return ViewRef{id, view.Name}
 }
 
+// ViewRef is an array of two strings representing a view:
+// - The first one is the ID of the view
+// - The second one is the name of the view
 type ViewRef [2]string
 
 func (e *ViewRef) String() string {
@@ -89,6 +98,7 @@ func (vr *ViewRef) Scan(src interface{}) error {
 var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
 
+// A ViewsCollection is a view collection
 type ViewsCollection struct {
 	sync.RWMutex
 	views        map[string]*View
@@ -127,9 +137,7 @@ func (vc *ViewsCollection) GetViewById(id string) *View {
 	return vc.views[id]
 }
 
-/*
-GetFirstViewForModel returns the first view of type viewType for the given model
-*/
+// GetFirstViewForModel returns the first view of type viewType for the given model
 func (vc *ViewsCollection) GetFirstViewForModel(model string, viewType ViewType) *View {
 	for _, view := range vc.orderedViews[model] {
 		if view.Type == viewType {
@@ -140,6 +148,7 @@ func (vc *ViewsCollection) GetFirstViewForModel(model string, viewType ViewType)
 	return nil
 }
 
+// A View is a definition of a view in the application
 type View struct {
 	ID                 string              `json:"id"`
 	Name               string              `json:"name"`
@@ -155,10 +164,8 @@ type View struct {
 	//GroupsID []*Group
 }
 
-/*
-LoadViewFromEtree reads the view given etree.Element, creates or updates the view
-and adds it to the view registry if it not already.
-*/
+// LoadViewFromEtree reads the view given etree.Element, creates or updates the view
+// and adds it to the view registry if it not already.
 func LoadViewFromEtree(element *etree.Element) {
 	// We populate a viewHash from XML data fields
 	viewHash := make(map[string]interface{})

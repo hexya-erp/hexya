@@ -17,7 +17,6 @@ package models
 import (
 	"fmt"
 
-	"database/sql"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -43,32 +42,32 @@ var pgOperators = map[DomainOperator]string{
 }
 
 var pgTypes = map[tools.FieldType]string{
-	tools.BOOLEAN:   "bool",
-	tools.CHAR:      "varchar",
-	tools.TEXT:      "text",
-	tools.DATE:      "date",
-	tools.DATETIME:  "timestamp without time zone",
-	tools.INTEGER:   "integer",
-	tools.FLOAT:     "double precision",
+	tools.Boolean:   "bool",
+	tools.Char:      "varchar",
+	tools.Text:      "text",
+	tools.Date:      "date",
+	tools.DateTime:  "timestamp without time zone",
+	tools.Integer:   "integer",
+	tools.Float:     "double precision",
 	tools.HTML:      "text",
-	tools.BINARY:    "bytea",
-	tools.SELECTION: "varchar",
+	tools.Binary:    "bytea",
+	tools.Selection: "varchar",
 	//tools.REFERENCE: "varchar",
-	tools.MANY2ONE: "integer",
-	tools.ONE2ONE:  "integer",
+	tools.Many2One: "integer",
+	tools.One2One:  "integer",
 }
 
 var pgDefaultValues = map[tools.FieldType]string{
-	tools.BOOLEAN:   "FALSE",
-	tools.CHAR:      "''",
-	tools.TEXT:      "''",
-	tools.DATE:      "'0001-01-01'",
-	tools.DATETIME:  "'0001-01-01 00:00:00'",
-	tools.INTEGER:   "0",
-	tools.FLOAT:     "0.0",
+	tools.Boolean:   "FALSE",
+	tools.Char:      "''",
+	tools.Text:      "''",
+	tools.Date:      "'0001-01-01'",
+	tools.DateTime:  "'0001-01-01 00:00:00'",
+	tools.Integer:   "0",
+	tools.Float:     "0.0",
 	tools.HTML:      "''",
-	tools.BINARY:    "''",
-	tools.SELECTION: "''",
+	tools.Binary:    "''",
+	tools.Selection: "''",
 	//tools.REFERENCE: "''",
 }
 
@@ -98,11 +97,11 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 		logging.LogAndPanic(log, "Unknown column type", "type", fi.fieldType, "model", fi.mi.name, "field", fi.name)
 	}
 	switch fi.fieldType {
-	case tools.CHAR:
+	case tools.Char:
 		if fi.size > 0 {
 			res = fmt.Sprintf("%s(%d)", res, fi.size)
 		}
-	case tools.FLOAT:
+	case tools.Float:
 		emptyD := tools.Digits{}
 		if fi.digits != emptyD {
 			res = fmt.Sprintf("numeric(%d, %d)", (fi.digits)[0], (fi.digits)[1])
@@ -117,7 +116,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 		res += fmt.Sprintf(" DEFAULT %v", defValue)
 	}
 
-	if fi.unique || fi.fieldType == tools.ONE2ONE {
+	if fi.unique || fi.fieldType == tools.One2One {
 		res += " UNIQUE"
 	}
 	return res
@@ -126,7 +125,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 // fieldIsNull returns true if the given fieldInfo results in a
 // NOT NULL column in database.
 func (d *postgresAdapter) fieldIsNotNull(fi *fieldInfo) bool {
-	if fi.fieldType == tools.MANY2ONE || fi.fieldType == tools.ONE2ONE {
+	if fi.fieldType == tools.Many2One || fi.fieldType == tools.One2One {
 		if fi.required {
 			return true
 		}
@@ -158,13 +157,6 @@ func (d *postgresAdapter) tables() map[string]bool {
 // quoteTableName returns the given table name with sql quotes
 func (d *postgresAdapter) quoteTableName(tableName string) string {
 	return fmt.Sprintf(`"%s"`, tableName)
-}
-
-type ColumnData struct {
-	ColumnName    string
-	DataType      string
-	IsNullable    string
-	ColumnDefault sql.NullString
 }
 
 // columns returns a list of ColumnData for the given tableName

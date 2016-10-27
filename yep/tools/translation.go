@@ -14,13 +14,18 @@
 
 package tools
 
+// A LangDirection defines the direction of a language
+// either left-to-right or right-to-left
 type LangDirection string
 
 const (
-	LANG_DIRECTION_LTR LangDirection = "ltr"
-	LANG_DIRECTION_RTL LangDirection = "rtl"
+	// LangDirectionLTR defines a language written from left to right
+	LangDirectionLTR LangDirection = "ltr"
+	// LangDirectionRTL defines a language written from right to left
+	LangDirectionRTL LangDirection = "rtl"
 )
 
+// LangParameters defines the parameters of a language locale
 type LangParameters struct {
 	DateFormat   string        `json:"date_format"`
 	Direction    LangDirection `json:"lang_direction"`

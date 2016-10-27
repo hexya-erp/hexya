@@ -26,9 +26,12 @@ import (
 )
 
 const (
-	TRANSIENT_MODEL Option = 1 << iota
+	// TransientModel means that the records of this model will be automatically
+	// removed periodically. Transient models are mainly used for wizards.
+	TransientModel Option = 1 << iota
 )
 
+// BaseModel is the base implementation  of all non transient models
 type BaseModel struct {
 	ID          int64
 	CreateDate  time.Time `yep:"type(datetime);nocopy"`
@@ -38,10 +41,12 @@ type BaseModel struct {
 	DisplayName string    `yep:"compute(ComputeNameGet)"`
 }
 
+// BaseTransientModel is the base implementation of all transient models
 type BaseTransientModel struct {
 	ID int64 `orm:"column(id)"`
 }
 
+// declareBaseMethods creates all the necessary base methods of a model
 func declareBaseMethods(name string) {
 	CreateMethod(name, "ComputeWriteDate", ComputeWriteDate)
 	CreateMethod(name, "ComputeNameGet", ComputeNameGet)
@@ -123,24 +128,20 @@ func OrderBy(rc RecordCollection, exprs ...string) RecordCollection {
 	return rc.OrderBy(exprs...)
 }
 
-/*
-ComputeWriteDate updates the WriteDate field with the current datetime.
-*/
-func ComputeWriteDate(rs RecordCollection) FieldMap {
+// ComputeWriteDate updates the WriteDate field with the current datetime.
+func ComputeWriteDate(rc RecordCollection) FieldMap {
 	return FieldMap{"WriteDate": time.Now()}
 }
 
-/*
-ComputeNameGet updates the DisplayName field with the result of NameGet.
-*/
-func ComputeNameGet(rs RecordCollection) FieldMap {
-	return FieldMap{"DisplayName": rs.Call("NameGet").(string)}
+// ComputeNameGet updates the DisplayName field with the result of NameGet.
+func ComputeNameGet(rc RecordCollection) FieldMap {
+	return FieldMap{"DisplayName": rc.Call("NameGet").(string)}
 }
 
 // Create inserts a record in the database from the given data.
 // Returns the created RecordCollection.
-func Create(rs RecordCollection, data interface{}) RecordCollection {
-	return rs.create(data)
+func Create(rc RecordCollection, data interface{}) RecordCollection {
+	return rc.create(data)
 }
 
 // Load query all data of the RecordCollection and store in cache.
@@ -153,26 +154,26 @@ func Load(rc RecordCollection, fields ...string) RecordCollection {
 }
 
 // Read reads the database and returns a slice of FieldMap of the given model
-func Read(rs RecordCollection, fields []string) []FieldMap {
-	res := make([]FieldMap, rs.Len())
+func Read(rc RecordCollection, fields []string) []FieldMap {
+	res := make([]FieldMap, rc.Len())
 	// Check if we have id in fields, and add it otherwise
 	fields = addIDIfNotPresent(fields)
 	// Do the actual reading
-	for i, rec := range rs.Records() {
+	for i, rec := range rc.Records() {
 		res[i] = make(FieldMap)
 		for _, fName := range fields {
 			value := rec.Get(fName)
 			if rc, ok := value.(RecordCollection); ok {
 				rc = rc.Fetch()
-				fi, _ := rs.mi.fields.get(fName)
+				fi, _ := rc.mi.fields.get(fName)
 				switch fi.fieldType {
-				case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE:
+				case tools.Many2One, tools.One2One, tools.Rev2One:
 					if rcId := rc.Get("id"); rcId != 0 {
 						value = [2]interface{}{rcId, rc.Call("NameGet").(string)}
 					} else {
 						value = nil
 					}
-				case tools.ONE2MANY, tools.MANY2MANY:
+				case tools.One2Many, tools.Many2Many:
 					value = rc.Ids()
 				}
 			}
@@ -185,13 +186,13 @@ func Read(rs RecordCollection, fields []string) []FieldMap {
 // Write is the base implementation of the 'Write' method which updates
 // records in the database with the given data.
 // Data can be either a struct pointer or a FieldMap.
-func Write(rs RecordCollection, data interface{}, fieldsToUnset ...string) bool {
-	return rs.update(data, fieldsToUnset...)
+func Write(rc RecordCollection, data interface{}, fieldsToUnset ...string) bool {
+	return rc.update(data, fieldsToUnset...)
 }
 
 // Unlink deletes the given records in the database.
-func Unlink(rs RecordCollection) int64 {
-	return rs.delete()
+func Unlink(rc RecordCollection) int64 {
+	return rc.delete()
 }
 
 // Copy duplicates the given record
@@ -261,8 +262,8 @@ type NameSearchParams struct {
 // This is used for example to provide suggestions based on a partial
 // value for a relational field. Sometimes be seen as the inverse
 // function of NameGet but it is not guaranteed to be.
-func NameSearch(rs RecordCollection, params NameSearchParams) []RecordIDWithName {
-	searchRs := rs.Filter("Name", params.Operator, params.Name).Limit(convertLimitToInt(params.Limit))
+func NameSearch(rc RecordCollection, params NameSearchParams) []RecordIDWithName {
+	searchRs := rc.Filter("Name", params.Operator, params.Name).Limit(convertLimitToInt(params.Limit))
 	if extraCondition := ParseDomain(params.Args); extraCondition != nil {
 		searchRs = searchRs.Search(extraCondition)
 	}
@@ -280,24 +281,24 @@ func NameSearch(rs RecordCollection, params NameSearchParams) []RecordIDWithName
 // GetFormviewId returns an view id to open the document with.
 // This method is meant to be overridden in addons that want
 // to give specific view ids for example.
-func GetFormviewId(rs RecordCollection) string {
+func GetFormviewId(rc RecordCollection) string {
 	return ""
 }
 
 // GetFormviewAction returns an action to open the document.
 // This method is meant to be overridden in addons that want
 // to give specific view ids for example.
-func GetFormviewAction(rs RecordCollection) *ir.BaseAction {
-	viewID := rs.Call("GetFormviewId").(string)
+func GetFormviewAction(rc RecordCollection) *ir.BaseAction {
+	viewID := rc.Call("GetFormviewId").(string)
 	return &ir.BaseAction{
-		Type:        ir.ACTION_ACT_WINDOW,
-		Model:       rs.ModelName(),
-		ActViewType: ir.ACTION_VIEW_TYPE_FORM,
+		Type:        ir.ActionActWindow,
+		Model:       rc.ModelName(),
+		ActViewType: ir.ActionViewTypeForm,
 		ViewMode:    "form",
 		Views:       []ir.ViewRef{{viewID, string(ir.VIEW_TYPE_FORM)}},
 		Target:      "current",
-		ResID:       rs.Get("id").(int64),
-		Context:     rs.Env().Context(),
+		ResID:       rc.Get("id").(int64),
+		Context:     rc.Env().Context(),
 	}
 }
 
@@ -308,7 +309,7 @@ type FieldsViewGetParams struct {
 	Toolbar  bool   `json:"toolbar"`
 }
 
-// Return type string for the FieldsViewGet function
+// FieldsViewData is the return type string for the FieldsViewGet function
 type FieldsViewData struct {
 	Name        string                `json:"name"`
 	Arch        string                `json:"arch"`
@@ -320,7 +321,7 @@ type FieldsViewData struct {
 	FieldParent string                `json:"field_parent"`
 }
 
-// Exportable field information struct
+// FieldInfo is the exportable field information struct
 type FieldInfo struct {
 	ChangeDefault    bool                   `json:"change_default"`
 	Help             string                 `json:"help"`
@@ -340,26 +341,24 @@ type FieldInfo struct {
 	Relation         string                 `json:"relation"`
 }
 
-/*
-FieldsViewGet is the base implementation of the 'FieldsViewGet' method which
-gets the detailed composition of the requested view like fields, model,
-view architecture.
-*/
-func FieldsViewGet(rs RecordCollection, args FieldsViewGetParams) *FieldsViewData {
+// FieldsViewGet is the base implementation of the 'FieldsViewGet' method which
+// gets the detailed composition of the requested view like fields, model,
+// view architecture.
+func FieldsViewGet(rc RecordCollection, args FieldsViewGetParams) *FieldsViewData {
 	view := ir.ViewsRegistry.GetViewById(args.ViewID)
 	if view == nil {
-		view = ir.ViewsRegistry.GetFirstViewForModel(rs.ModelName(), ir.ViewType(args.ViewType))
+		view = ir.ViewsRegistry.GetFirstViewForModel(rc.ModelName(), ir.ViewType(args.ViewType))
 	}
 	cols := make([]string, len(view.Fields))
 	for i, f := range view.Fields {
-		fi, ok := rs.mi.fields.get(f)
+		fi, ok := rc.mi.fields.get(f)
 		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rc.mi.name)
 		}
 		cols[i] = fi.json
 	}
-	fInfos := rs.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
-	arch := rs.Call("ProcessView", view.Arch, fInfos).(string)
+	fInfos := rc.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
+	arch := rc.Call("ProcessView", view.Arch, fInfos).(string)
 	res := FieldsViewData{
 		Name:   view.Name,
 		Arch:   arch,
@@ -371,19 +370,17 @@ func FieldsViewGet(rs RecordCollection, args FieldsViewGetParams) *FieldsViewDat
 	return &res
 }
 
-/*
-Process view makes all the necessary modifications to the view
-arch and returns the new xml string.
-*/
-func ProcessView(rs RecordCollection, arch string, fieldInfos map[string]*FieldInfo) string {
+// ProcessView makes all the necessary modifications to the view
+// arch and returns the new xml string.
+func ProcessView(rc RecordCollection, arch string, fieldInfos map[string]*FieldInfo) string {
 	// Load arch as etree
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(arch); err != nil {
 		logging.LogAndPanic(log, "Unable to parse view arch", "arch", arch, "error", err)
 	}
 	// Apply changes
-	rs.Call("UpdateFieldNames", doc)
-	rs.Call("AddModifiers", doc, fieldInfos)
+	rc.Call("UpdateFieldNames", doc)
+	rc.Call("AddModifiers", doc, fieldInfos)
 	// Dump xml to string and return
 	res, err := doc.WriteToString()
 	if err != nil {
@@ -392,10 +389,8 @@ func ProcessView(rs RecordCollection, arch string, fieldInfos map[string]*FieldI
 	return res
 }
 
-/*
-AddModifiers adds the modifiers attribute nodes to given xml doc.
-*/
-func AddModifiers(rs RecordCollection, doc *etree.Document, fieldInfos map[string]*FieldInfo) {
+// AddModifiers adds the modifiers attribute nodes to given xml doc.
+func AddModifiers(rc RecordCollection, doc *etree.Document, fieldInfos map[string]*FieldInfo) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
 		var mods []string
@@ -407,47 +402,43 @@ func AddModifiers(rs RecordCollection, doc *etree.Document, fieldInfos map[strin
 	}
 }
 
-/*
-UpdateFieldNames changes the field names in the view to the column names.
-If a field name is already column names then it does nothing.
-*/
-func UpdateFieldNames(rs RecordCollection, doc *etree.Document) {
+// UpdateFieldNames changes the field names in the view to the column names.
+// If a field name is already column names then it does nothing.
+func UpdateFieldNames(rc RecordCollection, doc *etree.Document) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
-		fi, ok := rs.mi.fields.get(fieldName)
+		fi, ok := rc.mi.fields.get(fieldName)
 		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rc.mi.name)
 		}
 		fieldTag.RemoveAttr("name")
 		fieldTag.CreateAttr("name", fi.json)
 	}
 	for _, labelTag := range doc.FindElements("//label") {
 		fieldName := labelTag.SelectAttr("for").Value
-		fi, ok := rs.mi.fields.get(fieldName)
+		fi, ok := rc.mi.fields.get(fieldName)
 		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rc.mi.name)
 		}
 		labelTag.RemoveAttr("for")
 		labelTag.CreateAttr("for", fi.json)
 	}
 }
 
-// Args for the FieldsGet function
+// FieldsGetArgs is the args struct for the FieldsGet method
 type FieldsGetArgs struct {
 	// list of fields to document, all if empty or not provided
 	AllFields []string `json:"allfields"`
 }
 
-/*
-FieldsGet returns the definition of each field.
-The _inherits'd fields are included.
-TODO The string, help, and selection (if present) attributes are translated.
-*/
-func FieldsGet(rs RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
+// FieldsGet returns the definition of each field.
+// The _inherits'd fields are included.
+// TODO The string, help, and selection (if present) attributes are translated.
+func FieldsGet(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 	res := make(map[string]*FieldInfo)
 	fields := args.AllFields
 	if len(args.AllFields) == 0 {
-		for jName := range rs.mi.fields.registryByJSON {
+		for jName := range rc.mi.fields.registryByJSON {
 			//if fi.fieldType != tools.MANY2MANY {
 			// We don't want Many2Many as it points to the link table
 			fields = append(fields, jName)
@@ -455,9 +446,9 @@ func FieldsGet(rs RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 		}
 	}
 	for _, f := range fields {
-		fInfo, ok := rs.mi.fields.get(f)
+		fInfo, ok := rc.mi.fields.get(f)
 		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rs.mi.name)
+			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rc.mi.name)
 		}
 		var relation string
 		if fInfo.relatedModel != nil {
@@ -477,6 +468,7 @@ func FieldsGet(rs RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 	return res
 }
 
+// SearchParams is the args struct for the SearchRead method
 type SearchParams struct {
 	Domain Domain      `json:"domain"`
 	Fields []string    `json:"fields"`
@@ -485,48 +477,44 @@ type SearchParams struct {
 	Order  string      `json:"order"`
 }
 
-/*
-SearchRead retrieves database records according to the filters defined in params.
-*/
-func SearchRead(rs RecordCollection, params SearchParams) []FieldMap {
+// SearchRead retrieves database records according to the filters defined in params.
+func SearchRead(rc RecordCollection, params SearchParams) []FieldMap {
 	if searchCond := ParseDomain(params.Domain); searchCond != nil {
-		rs = rs.Search(searchCond)
+		rc = rc.Search(searchCond)
 	}
 	// Limit
-	rs = rs.Limit(convertLimitToInt(params.Limit))
+	rc = rc.Limit(convertLimitToInt(params.Limit))
 
 	// Offset
 	if params.Offset != 0 {
-		rs = rs.Offset(params.Offset)
+		rc = rc.Offset(params.Offset)
 	}
 
 	// Order
 	if params.Order != "" {
-		rs = rs.OrderBy(strings.Split(params.Order, ",")...)
+		rc = rc.OrderBy(strings.Split(params.Order, ",")...)
 	}
 
-	rSet := rs.Fetch()
+	rSet := rc.Fetch()
 	return rSet.Call("Read", params.Fields).([]FieldMap)
 }
 
-/*
-DefaultGet returns a Params map with the default values for the model.
-*/
-func DefaultGet(rs RecordCollection) FieldMap {
+// DefaultGet returns a Params map with the default values for the model.
+func DefaultGet(rc RecordCollection) FieldMap {
 	// TODO Implement DefaultGet
 	return make(FieldMap)
 }
 
+// OnChangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
 	Values   FieldMap          `json:"values"`
 	Fields   []string          `json:"field_name"`
 	Onchange map[string]string `json:"field_onchange"`
 }
 
-/*
-Onchange returns the values that must be modified in the pseudo-record given as params.Values
-*/
-func Onchange(rs RecordCollection, params OnchangeParams) FieldMap {
+// Onchange returns the values that must be modified in the pseudo-record
+// given as params.Values
+func Onchange(rc RecordCollection, params OnchangeParams) FieldMap {
 	// TODO Implement Onchange
 	return make(FieldMap)
 }

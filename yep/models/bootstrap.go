@@ -52,7 +52,7 @@ func createModelLinks() {
 				ok        bool
 			)
 			switch fi.fieldType {
-			case tools.MANY2ONE, tools.ONE2ONE, tools.REV2ONE, tools.ONE2MANY, tools.MANY2MANY:
+			case tools.Many2One, tools.One2One, tools.Rev2One, tools.One2Many, tools.Many2Many:
 				relatedMI, ok = modelRegistry.get(fi.relatedModelName)
 				if !ok {
 					logging.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)

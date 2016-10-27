@@ -236,7 +236,7 @@ func CreateModel(name string, options ...Option) {
 		opts |= o
 	}
 	var model interface{}
-	if opts&TRANSIENT_MODEL > 0 {
+	if opts&TransientModel > 0 {
 		model = new(BaseTransientModel)
 	} else {
 		model = new(BaseModel)
@@ -271,7 +271,7 @@ func createModelInfo(name string, model interface{}) {
 		mi:        mi,
 		required:  true,
 		noCopy:    true,
-		fieldType: tools.INTEGER,
+		fieldType: tools.Integer,
 		structField: reflect.TypeOf(
 			struct {
 				ID int64

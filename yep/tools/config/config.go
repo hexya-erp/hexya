@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Config holds the configuration of the yep server
 var Config *viper.Viper
 
 func init() {

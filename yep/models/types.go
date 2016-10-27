@@ -108,7 +108,7 @@ type KeySubstitution struct {
 	Keep bool
 }
 
-// substituteKeys changes the column names of the given field map with the
+// SubstituteKeys changes the column names of the given field map with the
 // given substitutions.
 func (fm *FieldMap) SubstituteKeys(substs []KeySubstitution) {
 	for _, subs := range substs {

@@ -27,22 +27,28 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+// An ActionType defines the type of action
 type ActionType string
 
+// Action types
 const (
-	ACTION_ACT_WINDOW ActionType = "ir.actions.act_window"
-	ACTION_SERVER     ActionType = "ir.actions.server"
+	ActionActWindow ActionType = "ir.actions.act_window"
+	ActionServer    ActionType = "ir.actions.server"
 )
 
+// ActionViewType defines the type of view of an action
 type ActionViewType string
 
+// Action view types
 const (
-	ACTION_VIEW_TYPE_FORM ActionViewType = "form"
-	ACTION_VIEW_TYPE_TREE ActionViewType = "tree"
+	ActionViewTypeForm ActionViewType = "form"
+	ActionViewTypeTree ActionViewType = "tree"
 )
 
+// ActionsRegistry is the action collection of the application
 var ActionsRegistry *ActionsCollection
 
+// MakeActionRef creates an ActionRef from an action id
 func MakeActionRef(id string) ActionRef {
 	action := ActionsRegistry.GetActionById(id)
 	if action == nil {
@@ -85,12 +91,13 @@ func (ar *ActionRef) Scan(src interface{}) error {
 var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
 
+// An ActionsCollection is a collection of actions
 type ActionsCollection struct {
 	sync.RWMutex
 	actions map[string]*BaseAction
 }
 
-// NewActionCollection returns a pointer to a new
+// NewActionsCollection returns a pointer to a new
 // ActionsCollection instance
 func NewActionsCollection() *ActionsCollection {
 	res := ActionsCollection{
@@ -111,19 +118,20 @@ func (ar *ActionsCollection) GetActionById(id string) *BaseAction {
 	return ar.actions[id]
 }
 
+// A BaseAction is the definition of an action. Actions define the
+// behavior of the system in response to user actions.
 type BaseAction struct {
-	ID         string     `json:"id"`
-	Type       ActionType `json:"type"`
-	Name       string     `json:"name"`
-	Model      string     `json:"res_model"`
-	ResID      int64      `json:"res_id"`
-	Groups     []string   `json:"groups_id"`
-	Domain     string     `json:"domain"`
-	Help       string     `json:"help"`
-	SearchView ViewRef    `json:"search_view_id"`
-	SrcModel   string     `json:"src_model"`
-	Usage      string     `json:"usage"`
-	//Flags interface{}`json:"flags"`
+	ID           string         `json:"id"`
+	Type         ActionType     `json:"type"`
+	Name         string         `json:"name"`
+	Model        string         `json:"res_model"`
+	ResID        int64          `json:"res_id"`
+	Groups       []string       `json:"groups_id"`
+	Domain       string         `json:"domain"`
+	Help         string         `json:"help"`
+	SearchView   ViewRef        `json:"search_view_id"`
+	SrcModel     string         `json:"src_model"`
+	Usage        string         `json:"usage"`
 	Views        []ViewRef      `json:"views"`
 	View         ViewRef        `json:"view_id"`
 	AutoRefresh  bool           `json:"auto_refresh"`
@@ -134,22 +142,22 @@ type BaseAction struct {
 	Multi        bool           `json:"multi"`
 	Target       string         `json:"target"`
 	AutoSearch   bool           `json:"auto_search"`
+	Filter       bool           `json:"filter"`
+	Limit        int64          `json:"limit"`
+	Context      tools.Context  `json:"context"`
+	//Flags interface{}`json:"flags"`
 	//SearchView  string         `json:"search_view"`
-	Filter  bool          `json:"filter"`
-	Limit   int64         `json:"limit"`
-	Context tools.Context `json:"context"`
 }
 
+// A Toolbar holds the actions in the toolbar of the action manager
 type Toolbar struct {
 	Print  []*BaseAction `json:"print"`
 	Action []*BaseAction `json:"action"`
 	Relate []*BaseAction `json:"relate"`
 }
 
-/*
-LoadActionFromEtree reads the action given etree.Element, creates or updates the action
-and adds it to the action registry if it not already.
-*/
+// LoadActionFromEtree reads the action given etree.Element, creates or updates the action
+// and adds it to the action registry if it not already.
 func LoadActionFromEtree(element *etree.Element) {
 	// We populate an actionHash from XML data fields
 	actionHash := make(map[string]interface{})

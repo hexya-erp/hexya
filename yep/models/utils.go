@@ -298,30 +298,30 @@ func getFieldType(typ reflect.Type) tools.FieldType {
 	k := typ.Kind()
 	switch {
 	case k == reflect.Bool:
-		return tools.BOOLEAN
+		return tools.Boolean
 	case k >= reflect.Int && k <= reflect.Uint64:
-		return tools.INTEGER
+		return tools.Integer
 	case k == reflect.Float32 || k == reflect.Float64:
-		return tools.FLOAT
+		return tools.Float
 	case k == reflect.String:
-		return tools.CHAR
+		return tools.Char
 	case k == reflect.Ptr:
 		indTyp := typ.Elem()
 		switch indTyp.Kind() {
 		case reflect.Struct:
-			return tools.MANY2ONE
+			return tools.Many2One
 		case reflect.Slice:
-			return tools.ONE2MANY
+			return tools.One2Many
 		}
 	}
 	switch typ {
 	case reflect.TypeOf(DateTime{}):
-		return tools.DATETIME
+		return tools.DateTime
 	case reflect.TypeOf(Date{}):
-		return tools.DATE
+		return tools.Date
 	}
 	logging.LogAndPanic(log, "Unable to match field type with go Type. Please specify 'type()' in struct tag", "type", typ)
-	return tools.NO_TYPE
+	return tools.NoType
 }
 
 // filterOnDBFields returns the given fields slice with only stored fields

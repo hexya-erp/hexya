@@ -49,8 +49,8 @@ YEP Generate
 Loading program...
 Warnings may appear here, just ignore them if yep-generate doesn't crash
 `)
-	conf.Import(generate.CONFIG_PATH)
-	conf.Import(generate.TEST_MODULE_PATH)
+	conf.Import(generate.ConfigPath)
+	conf.Import(generate.TestModulePath)
 	program, _ := conf.Load()
 	fmt.Println("Ok")
 	fmt.Print("Identifying modules...")
@@ -73,7 +73,7 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 4: Generating final methods...")
-	generateFromModelRegistry(POOL_DIR, []string{generate.CONFIG_PATH, generate.TEST_MODULE_PATH})
+	generateFromModelRegistry(POOL_DIR, []string{generate.ConfigPath, generate.TestModulePath})
 	os.Remove(path.Join(POOL_DIR, TEMP_METHODS))
 	fmt.Println("Ok")
 
@@ -156,7 +156,7 @@ func generateTempMethods(fileName string) {
 				Params:     params,
 				ReturnType: strings.Replace(mData.ReturnType.Type, "pool.", "", 1),
 			})
-			if mData.ReturnType.ImportPath != "" && mData.ReturnType.ImportPath != generate.POOL_PATH {
+			if mData.ReturnType.ImportPath != "" && mData.ReturnType.ImportPath != generate.PoolPath {
 				data.Imports = append(data.Imports, mData.ReturnType.ImportPath)
 			}
 		}
@@ -169,7 +169,7 @@ func generateTempMethods(fileName string) {
 func filterDefsModules(modules []*generate.ModuleInfo) []string {
 	var modulesList []string
 	for _, modInfo := range modules {
-		if modInfo.ModType == generate.DEFS {
+		if modInfo.ModType == generate.Defs {
 			modulesList = append(modulesList, modInfo.String())
 		}
 	}
@@ -189,7 +189,7 @@ func generateFromModelRegistry(dirName string, modules []string) {
 	}{
 		Imports:    modules,
 		DirName:    dirName,
-		ModelsPath: generate.MODELS_PATH,
+		ModelsPath: generate.ModelsPath,
 	}
 	generate.CreateFileFromTemplate(generatorFileName, buildTemplate, data)
 

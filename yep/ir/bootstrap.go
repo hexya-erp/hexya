@@ -67,7 +67,7 @@ func computeActions() {
 		}
 		a.AutoSearch = !a.ManualSearch
 		if a.ActViewType == "" {
-			a.ActViewType = ACTION_VIEW_TYPE_FORM
+			a.ActViewType = ActionViewTypeForm
 		}
 
 		// Add View to Views if not already present
@@ -124,7 +124,7 @@ in ActionViewType 'form' and 'tree' when in ActionViewType 'tree'.
 fixViewModes makes the necessary changes to the given action.
 */
 func fixViewModes(a *BaseAction) {
-	if a.ActViewType == ACTION_VIEW_TYPE_FORM {
+	if a.ActViewType == ActionViewTypeForm {
 		for i, v := range a.Views {
 			vType := ViewType(v[1])
 			if vType == VIEW_TYPE_TREE {

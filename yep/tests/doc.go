@@ -13,6 +13,6 @@
 // limitations under the License.
 
 /*
-tests is a testing package for models with the generated API
+Package tests is a testing package for models with the generated API
 */
 package tests

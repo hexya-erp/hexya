@@ -218,9 +218,9 @@ func (fi *fieldInfo) isRelationField() bool {
 
 // isStored returns true if this field is stored in database
 func (fi *fieldInfo) isStored() bool {
-	if fi.fieldType == tools.ONE2MANY ||
-		fi.fieldType == tools.MANY2MANY ||
-		fi.fieldType == tools.REV2ONE {
+	if fi.fieldType == tools.One2Many ||
+		fi.fieldType == tools.Many2Many ||
+		fi.fieldType == tools.Rev2One {
 		// reverse fields are not stored
 		return false
 	}
@@ -277,18 +277,18 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	}
 
 	fk, ok := tags["fk"]
-	if (typ == tools.ONE2MANY || typ == tools.REV2ONE) && !ok {
+	if (typ == tools.One2Many || typ == tools.Rev2One) && !ok {
 		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
 	}
 
-	if inherits && typ != tools.MANY2ONE && typ != tools.ONE2ONE {
+	if inherits && typ != tools.Many2One && typ != tools.One2One {
 		log.Warn("'inherits' should be set only on many2one or one2one fields", "model", mi.name, "field", sf.Name, "type", typ)
 		inherits = false
 	}
 
 	relatedModelName, ok := tags["comodel"]
-	if !ok && (typ == tools.MANY2ONE || typ == tools.ONE2ONE || typ == tools.REV2ONE ||
-		typ == tools.ONE2MANY || typ == tools.MANY2MANY) {
+	if !ok && (typ == tools.Many2One || typ == tools.One2One || typ == tools.Rev2One ||
+		typ == tools.One2Many || typ == tools.Many2Many) {
 		if sf.Type == reflect.TypeOf(RecordCollection{}) {
 			logging.LogAndPanic(log, "Undefined comodel on related field", "model", mi.name, "field", sf.Name, "type", typ)
 		}
@@ -299,7 +299,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		m2mRelModel                *modelInfo
 		m2mOurField, m2mTheirField *fieldInfo
 	)
-	if typ == tools.MANY2MANY {
+	if typ == tools.Many2Many {
 		our, ok := tags["m2m_ours"]
 		if !ok {
 			our = mi.name
@@ -324,9 +324,9 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		m2mRelModel, m2mOurField, m2mTheirField = createM2MRelModelInfo(m2mRelModName, modelNames[0], modelNames[1])
 	}
 
-	if typ == tools.MANY2ONE || typ == tools.ONE2ONE {
+	if typ == tools.Many2One || typ == tools.One2One {
 		sf.Type = reflect.TypeOf(int64(0))
-	} else if typ == tools.ONE2MANY || typ == tools.MANY2MANY || typ == tools.REV2ONE {
+	} else if typ == tools.One2Many || typ == tools.Many2Many || typ == tools.Rev2One {
 		sf.Type = reflect.TypeOf([]int64{})
 	}
 
@@ -334,7 +334,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	var selection Selection
 	if ok {
 		if sf.Type.Kind() == reflect.String {
-			typ = tools.SELECTION
+			typ = tools.Selection
 			selection = make(Selection)
 			for _, sel := range strings.Split(sels, defaultTagDataDelim) {
 				selParts := strings.Split(sel, "|")
@@ -351,9 +351,9 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	json, ok := tags["json"]
 	if !ok {
 		json = tools.SnakeCaseString(sf.Name)
-		if typ == tools.MANY2ONE || typ == tools.ONE2ONE || typ == tools.REV2ONE {
+		if typ == tools.Many2One || typ == tools.One2One || typ == tools.Rev2One {
 			json += "_id"
-		} else if typ == tools.ONE2MANY || typ == tools.MANY2MANY {
+		} else if typ == tools.One2Many || typ == tools.Many2Many {
 			json += "_ids"
 		}
 	}
@@ -422,7 +422,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		mi:               newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        tools.MANY2ONE,
+		fieldType:        tools.Many2One,
 		relatedModelName: model1,
 		index:            true,
 		structField: reflect.StructField{
@@ -438,7 +438,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		mi:               newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        tools.MANY2ONE,
+		fieldType:        tools.Many2One,
 		relatedModelName: model2,
 		index:            true,
 		structField: reflect.StructField{

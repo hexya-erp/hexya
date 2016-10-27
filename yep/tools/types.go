@@ -14,10 +14,8 @@
 
 package tools
 
-/*
-Context is a map of objects that is passed along from function to function
-during a transaction.
-*/
+// A Context is a map of objects that is passed along from function to function
+// during a transaction.
 type Context map[string]interface{}
 
 // Digits is a tuple of 2 ints specifying respectively:
@@ -26,24 +24,26 @@ type Context map[string]interface{}
 // (PostgresSQL definitions)
 type Digits [2]int
 
+// A FieldType defines a type of a model's field
 type FieldType string
 
+// Types for model fields
 const (
-	NO_TYPE   FieldType = ""
-	BINARY    FieldType = "binary"
-	BOOLEAN   FieldType = "boolean"
-	CHAR      FieldType = "char"
-	DATE      FieldType = "date"
-	DATETIME  FieldType = "datetime"
-	FLOAT     FieldType = "float"
+	NoType    FieldType = ""
+	Binary    FieldType = "binary"
+	Boolean   FieldType = "boolean"
+	Char      FieldType = "char"
+	Date      FieldType = "date"
+	DateTime  FieldType = "datetime"
+	Float     FieldType = "float"
 	HTML      FieldType = "html"
-	INTEGER   FieldType = "integer"
-	MANY2MANY FieldType = "many2many"
-	MANY2ONE  FieldType = "many2one"
-	ONE2MANY  FieldType = "one2many"
-	ONE2ONE   FieldType = "one2one"
-	REV2ONE   FieldType = "rev2one"
-	REFERENCE FieldType = "reference"
-	SELECTION FieldType = "selection"
-	TEXT      FieldType = "text"
+	Integer   FieldType = "integer"
+	Many2Many FieldType = "many2many"
+	Many2One  FieldType = "many2one"
+	One2Many  FieldType = "one2many"
+	One2One   FieldType = "one2one"
+	Rev2One   FieldType = "rev2one"
+	Reference FieldType = "reference"
+	Selection FieldType = "selection"
+	Text      FieldType = "text"
 )

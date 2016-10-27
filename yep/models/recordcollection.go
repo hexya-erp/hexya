@@ -36,25 +36,25 @@ type RecordCollection struct {
 }
 
 // String returns the string representation of a RecordSet
-func (rs RecordCollection) String() string {
-	idsStr := make([]string, len(rs.ids))
-	for i, id := range rs.ids {
+func (rc RecordCollection) String() string {
+	idsStr := make([]string, len(rc.ids))
+	for i, id := range rc.ids {
 		idsStr[i] = strconv.Itoa(int(id))
 		i++
 	}
 	rsIds := strings.Join(idsStr, ",")
-	return fmt.Sprintf("%s(%s)", rs.mi.name, rsIds)
+	return fmt.Sprintf("%s(%s)", rc.mi.name, rsIds)
 }
 
 // Env returns the RecordSet's Environment
-func (rs RecordCollection) Env() Environment {
-	res := *rs.env
+func (rc RecordCollection) Env() Environment {
+	res := *rc.env
 	return res
 }
 
 // ModelName returns the model name of the RecordSet
-func (rs RecordCollection) ModelName() string {
-	return rs.mi.name
+func (rc RecordCollection) ModelName() string {
+	return rc.mi.name
 }
 
 // Ids returns the ids of the RecordSet, fetching from db if necessary.
@@ -135,9 +135,9 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 	for field, value := range fMap {
 		fi := rc.mi.getRelatedFieldInfo(field)
 		switch fi.fieldType {
-		case tools.ONE2MANY:
-		case tools.REV2ONE:
-		case tools.MANY2MANY:
+		case tools.One2Many:
+		case tools.Rev2One:
+		case tools.Many2Many:
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
 			rc.env.cr.Execute(delQuery, rSet.ids)
 			for _, id := range rSet.ids {
@@ -154,82 +154,82 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 // delete deletes the database record of this RecordSet and returns the number of deleted rows.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Unlink() or rs.Call("Unlink")
-func (rs RecordCollection) delete() int64 {
-	sql, args := rs.query.deleteQuery()
-	res := rs.env.cr.Execute(sql, args...)
+func (rc RecordCollection) delete() int64 {
+	sql, args := rc.query.deleteQuery()
+	res := rc.env.cr.Execute(sql, args...)
 	num, _ := res.RowsAffected()
 	return num
 }
 
 // Filter returns a new RecordSet filtered on records matching the given additional condition.
-func (rs RecordCollection) Filter(fieldName, op string, data interface{}) RecordCollection {
-	rs.query.cond = rs.query.cond.And(fieldName, op, data)
-	return rs
+func (rc RecordCollection) Filter(fieldName, op string, data interface{}) RecordCollection {
+	rc.query.cond = rc.query.cond.And(fieldName, op, data)
+	return rc
 }
 
 // Exclude returns a new RecordSet filtered on records NOT matching the given additional condition.
-func (rs RecordCollection) Exclude(fieldName, op string, data interface{}) RecordCollection {
-	rs.query.cond = rs.query.cond.AndNot(fieldName, op, data)
-	return rs
+func (rc RecordCollection) Exclude(fieldName, op string, data interface{}) RecordCollection {
+	rc.query.cond = rc.query.cond.AndNot(fieldName, op, data)
+	return rc
 }
 
 // Search returns a new RecordSet filtering on the current one with the
 // additional given Condition
-func (rs RecordCollection) Search(cond *Condition) RecordCollection {
-	rs.query.cond = rs.query.cond.AndCond(cond)
-	return rs
+func (rc RecordCollection) Search(cond *Condition) RecordCollection {
+	rc.query.cond = rc.query.cond.AndCond(cond)
+	return rc
 }
 
 // Limit returns a new RecordSet with only the first 'limit' records.
-func (rs RecordCollection) Limit(limit int) RecordCollection {
-	rs.query.limit = limit
-	return rs
+func (rc RecordCollection) Limit(limit int) RecordCollection {
+	rc.query.limit = limit
+	return rc
 }
 
 // Offset returns a new RecordSet with only the records starting at offset
-func (rs RecordCollection) Offset(offset int) RecordCollection {
-	rs.query.offset = offset
-	return rs
+func (rc RecordCollection) Offset(offset int) RecordCollection {
+	rc.query.offset = offset
+	return rc
 }
 
 // OrderBy returns a new RecordSet ordered by the given ORDER BY expressions
-func (rs RecordCollection) OrderBy(exprs ...string) RecordCollection {
-	rs.query.orders = append(rs.query.orders, exprs...)
-	return rs
+func (rc RecordCollection) OrderBy(exprs ...string) RecordCollection {
+	rc.query.orders = append(rc.query.orders, exprs...)
+	return rc
 }
 
 // GroupBy returns a new RecordSet grouped with the given GROUP BY expressions
-func (rs RecordCollection) GroupBy(exprs ...string) RecordCollection {
-	rs.query.groups = append(rs.query.groups, exprs...)
-	return rs
+func (rc RecordCollection) GroupBy(exprs ...string) RecordCollection {
+	rc.query.groups = append(rc.query.groups, exprs...)
+	return rc
 }
 
 // Distinct returns a new RecordSet without duplicates
-func (rs RecordCollection) Distinct() RecordCollection {
-	rs.query.distinct = true
-	return rs
+func (rc RecordCollection) Distinct() RecordCollection {
+	rc.query.distinct = true
+	return rc
 }
 
 // Fetch query the database with the current filter and returns a RecordSet
 // with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
-func (rs RecordCollection) Fetch() RecordCollection {
-	if !rs.fetched && !rs.query.isEmpty() {
+func (rc RecordCollection) Fetch() RecordCollection {
+	if !rc.fetched && !rc.query.isEmpty() {
 		// We do not load empty queries to keep empty record sets empty
 		// Call Load instead to load all the records of the table
-		return rs.Load("id")
+		return rc.Load("id")
 	}
-	return rs
+	return rc
 }
 
 /*
 SearchCount fetch from the database the number of records that match the RecordSet conditions
 It panics in case of error
 */
-func (rs RecordCollection) SearchCount() int {
-	sql, args := rs.query.countQuery()
+func (rc RecordCollection) SearchCount() int {
+	sql, args := rc.query.countQuery()
 	var res int
-	rs.env.cr.Get(&res, sql, args...)
+	rc.env.cr.Get(&res, sql, args...)
 	return res
 }
 
@@ -275,16 +275,16 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 		for _, fieldName := range fields {
 			fi := rc.mi.getRelatedFieldInfo(fieldName)
 			switch fi.fieldType {
-			case tools.ONE2MANY:
+			case tools.One2Many:
 				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
 				rc.env.cache.addEntry(rc.mi, id, fieldName, relRC.ids)
-			case tools.MANY2MANY:
+			case tools.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
 				var ids []int64
 				rc.env.cr.Select(&ids, query, id)
 				rc.env.cache.addEntry(rc.mi, id, fieldName, ids)
-			case tools.REV2ONE:
+			case tools.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
 				var relID int64
 				if len(relRC.ids) > 0 {
@@ -322,7 +322,7 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.json}) {
 			// If value is not in cache we fetch the whole model to speed up later calls to Get,
 			// except for the case of reverse relation fields, where we only load the requested field.
-			if fi.fieldType == tools.ONE2MANY || fi.fieldType == tools.MANY2MANY || fi.fieldType == tools.REV2ONE {
+			if fi.fieldType == tools.One2Many || fi.fieldType == tools.Many2Many || fi.fieldType == tools.Rev2One {
 				rSet.Load(fieldName)
 			} else {
 				rSet.Load()
