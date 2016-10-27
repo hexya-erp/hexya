@@ -70,7 +70,7 @@ func MakeViewRef(id string) ViewRef {
 type ViewRef [2]string
 
 func (vr *ViewRef) String() string {
-	sl := []string{e[0], e[1]}
+	sl := []string{vr[0], vr[1]}
 	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
 }
 
