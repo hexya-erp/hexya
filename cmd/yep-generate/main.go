@@ -21,25 +21,25 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"text/template"
 
-	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/generate"
-	"strings"
 )
 
 const (
-	POOL_DIR     string = "pool"
-	TEMP_STRUCTS string = "temp_structs.go"
-	TEMP_METHODS string = "temp_methods.go"
-	STRUCT_GEN   string = "yep-temp.go"
+	// PoolDir is the name of the generated pool directory
+	PoolDir string = "pool"
+	// TempStructs is the name of the temporary go file in the pool directory used in stage 1
+	TempStructs string = "temp_structs.go"
+	// TempMethods is the name of the temporary go file in the pool directory used in stage 3
+	TempMethods string = "temp_methods.go"
+	// StructGen is the name of the generated script of stage 4
+	StructGen string = "yep-temp.go"
 )
 
 func main() {
-	// TODO Set this through flags
-	models.Testing = true
-
-	cleanPoolDir(POOL_DIR)
+	cleanPoolDir(PoolDir)
 	conf := loader.Config{
 		AllowErrors: true,
 	}
@@ -59,22 +59,22 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash
 
 	fmt.Print("Stage 1: Generating temporary structs...")
 	missingDecls := getMissingDeclarations(modules)
-	generateTempStructs(path.Join(POOL_DIR, TEMP_STRUCTS), missingDecls)
+	generateTempStructs(path.Join(PoolDir, TempStructs), missingDecls)
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 2: Generating final structs...")
 	defsModules := filterDefsModules(modules)
-	generateFromModelRegistry(POOL_DIR, defsModules)
-	os.Remove(path.Join(POOL_DIR, TEMP_STRUCTS))
+	generateFromModelRegistry(PoolDir, defsModules)
+	os.Remove(path.Join(PoolDir, TempStructs))
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 3: Generating temporary methods...")
-	generateTempMethods(path.Join(POOL_DIR, TEMP_METHODS))
+	generateTempMethods(path.Join(PoolDir, TempMethods))
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 4: Generating final methods...")
-	generateFromModelRegistry(POOL_DIR, []string{generate.ConfigPath, generate.TestModulePath})
-	os.Remove(path.Join(POOL_DIR, TEMP_METHODS))
+	generateFromModelRegistry(PoolDir, []string{generate.ConfigPath, generate.TestModulePath})
+	os.Remove(path.Join(PoolDir, TempMethods))
 	fmt.Println("Ok")
 
 	fmt.Println("Pool successfully generated")
@@ -179,8 +179,8 @@ func filterDefsModules(modules []*generate.ModuleInfo) []string {
 // generateFromModelRegistry will generate the structs in the pool from the data
 // in the model registry that will be created by importing the given modules.
 func generateFromModelRegistry(dirName string, modules []string) {
-	generatorFileName := path.Join(os.TempDir(), STRUCT_GEN)
-	//defer os.Remove(generatorFileName)
+	generatorFileName := path.Join(os.TempDir(), StructGen)
+	defer os.Remove(generatorFileName)
 
 	data := struct {
 		Imports    []string

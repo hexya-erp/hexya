@@ -28,27 +28,26 @@ import (
 
 var symlinkDirs = []string{"static", "templates", "data", "views"}
 
+// A Module is a go package that implements business features.
+// This struct is used to register modules.
 type Module struct {
 	Name     string
 	PostInit func()
 }
 
+// Modules is the list of activated modules in the application
 var Modules []*Module
 
-/*
-RegisterModules registers the given module in the server
-This function should be called in the init() function of
-all YEP Addons.
-*/
+// RegisterModule registers the given module in the server
+// This function should be called in the init() function of
+// all YEP Addons.
 func RegisterModule(mod *Module) {
 	createModuleSymlinks(mod)
 	Modules = append(Modules, mod)
 }
 
-/*
-createModuleSymlinks create the symlinks of the given module in the
-server directory.
-*/
+// createModuleSymlinks create the symlinks of the given module in the
+// server directory.
 func createModuleSymlinks(mod *Module) {
 	_, fileName, _, ok := runtime.Caller(2)
 	if !ok {
@@ -63,10 +62,8 @@ func createModuleSymlinks(mod *Module) {
 	}
 }
 
-/*
-cleanModuleSymlinks removes all symlinks in the server symlink directories.
-Note that this function actually removes and recreates the symlink directories.
-*/
+// cleanModuleSymlinks removes all symlinks in the server symlink directories.
+// Note that this function actually removes and recreates the symlink directories.
 func cleanModuleSymlinks() {
 	for _, dir := range symlinkDirs {
 		dirPath := fmt.Sprintf("yep/server/%s", dir)
@@ -75,12 +72,10 @@ func cleanModuleSymlinks() {
 	}
 }
 
-/*
-LoadInternalResources loads all data in the 'views' directory, that are
-- views,
-- actions,
-- menu items,
-*/
+// LoadInternalResources loads all data in the 'views' directory, that are
+// - views,
+// - actions,
+// - menu items,
 func LoadInternalResources() {
 	for _, mod := range Modules {
 		dataDir := fmt.Sprintf("yep/server/views/%s", mod.Name)
@@ -92,9 +87,7 @@ func LoadInternalResources() {
 	}
 }
 
-/*
-loadData loads the data defined in the given data directory.
-*/
+// loadData loads the data defined in the given data directory.
 func loadData(dataDir string) {
 	dataFiles, err := filepath.Glob(dataDir + "/*")
 	if err != nil {
@@ -109,9 +102,7 @@ func loadData(dataDir string) {
 	}
 }
 
-/*
-loadXMLDataFile loads the data from an XML data file into memory.
-*/
+// loadXMLDataFile loads the data from an XML data file into memory.
 func loadXMLDataFile(fileName string) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromFile(fileName); err != nil {
@@ -139,9 +130,7 @@ func loadXMLDataFile(fileName string) {
 	}
 }
 
-/*
-loadCSVDataFile loads the data from a CSV data file into memory.
-*/
+// loadCSVDataFile loads the data from a CSV data file into memory.
 func loadCSVDataFile(fileName string) {
 	// TODO
 }

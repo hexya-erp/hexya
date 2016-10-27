@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test_module
+package testmodule
 
 import (
 	"fmt"
+
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
 )

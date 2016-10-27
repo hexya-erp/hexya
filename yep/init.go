@@ -15,6 +15,7 @@
 package yep
 
 import (
+	// Load DB driver
 	_ "github.com/lib/pq"
 	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/models"

@@ -69,7 +69,7 @@ func MakeViewRef(id string) ViewRef {
 // - The second one is the name of the view
 type ViewRef [2]string
 
-func (e *ViewRef) String() string {
+func (vr *ViewRef) String() string {
 	sl := []string{e[0], e[1]}
 	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
 }
@@ -105,7 +105,7 @@ type ViewsCollection struct {
 	orderedViews map[string][]*View
 }
 
-// NewViewCollection returns a pointer to a new
+// NewViewsCollection returns a pointer to a new
 // ViewsCollection instance
 func NewViewsCollection() *ViewsCollection {
 	res := ViewsCollection{

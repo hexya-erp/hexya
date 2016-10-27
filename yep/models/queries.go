@@ -21,6 +21,9 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+// An SQLParams is a list of parameters that are passed to the
+// DB server with the query string and that will be used in the
+// placeholders.
 type SQLParams []interface{}
 
 // Extend returns a new SQLParams with both params of this SQLParams and
@@ -32,6 +35,8 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 	return SQLParams(res)
 }
 
+// A Query defines the common part an SQL Query, i.e. all that come
+// after the FROM keyword.
 type Query struct {
 	recordSet *RecordCollection
 	cond      *Condition
@@ -277,9 +282,8 @@ func (q *Query) joinedFieldExpression(exprs []string, withAlias ...bool) string 
 	num := len(joins)
 	if len(withAlias) > 0 && withAlias[0] {
 		return fmt.Sprintf("%s.%s AS %s", joins[num-1].alias, exprs[num-1], strings.Join(exprs, sqlSep))
-	} else {
-		return fmt.Sprintf("%s.%s", joins[num-1].alias, exprs[num-1])
 	}
+	return fmt.Sprintf("%s.%s", joins[num-1].alias, exprs[num-1])
 }
 
 // generateTableJoins transforms a list of fields expression into a list of tableJoins

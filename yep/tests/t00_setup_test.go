@@ -69,5 +69,4 @@ go test -v github.com/npiganeau/yep/yep/tests
 	}
 
 	models.DBConnect(DBARGS.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", DBARGS.DB, DBARGS.User, DBARGS.Password))
-	models.Testing = true
 }

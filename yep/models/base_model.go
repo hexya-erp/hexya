@@ -505,7 +505,7 @@ func DefaultGet(rc RecordCollection) FieldMap {
 	return make(FieldMap)
 }
 
-// OnChangeParams is the args struct of the Onchange function
+// OnchangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
 	Values   FieldMap          `json:"values"`
 	Fields   []string          `json:"field_name"`

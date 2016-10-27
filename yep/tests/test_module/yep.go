@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test_module
+package testmodule
 
+// Import models definition of this module
 import _ "github.com/npiganeau/yep/yep/tests/test_module/defs"
 
 const (

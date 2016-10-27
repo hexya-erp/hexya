@@ -58,7 +58,6 @@ var (
 		"depends":        2,
 		"inherits":       1,
 	}
-	Testing = false
 )
 
 /*

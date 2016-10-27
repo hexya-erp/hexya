@@ -244,9 +244,7 @@ func rollbackAndLog(env models.Environment, panicData interface{}) error {
 	return errors.New(fullMsg)
 }
 
-/*
-GetFieldValue retrieves the given field of the given model and id.
-*/
+// GetFieldValue retrieves the given field of the given model and id.
 func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError error) {
 	env := models.NewEnvironment(uid)
 	defer func() {
@@ -265,6 +263,7 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 	return
 }
 
+// SearchReadParams is the args struct for the SearchRead function.
 type SearchReadParams struct {
 	Context tools.Context `json:"context"`
 	Domain  models.Domain `json:"domain"`
@@ -275,14 +274,13 @@ type SearchReadParams struct {
 	Sort    string        `json:"sort"`
 }
 
+// SearchReadResult is the result struct for the SearchRead function.
 type SearchReadResult struct {
 	Records []models.FieldMap `json:"records"`
 	Length  int               `json:"length"`
 }
 
-/*
-SearchRead retrieves database records according to the filters defined in params.
-*/
+// SearchRead retrieves database records according to the filters defined in params.
 func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rError error) {
 	var rs models.RecordCollection
 	defer func() {

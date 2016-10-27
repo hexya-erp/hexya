@@ -16,24 +16,31 @@ package models
 
 import "github.com/npiganeau/yep/yep/tools/logging"
 
-/*
-Domain is a list of search criteria (DomainTerm) in the form of a tuplet (field_name, operator, value).
-Domain criteria (DomainTerm) can be combined using logical operators in prefix form (DomainPrefixOperator)
-*/
+// A Domain is a list of search criteria (DomainTerm) in the form of
+// a tuplet (field_name, operator, value).
+// Domain criteria (DomainTerm) can be combined using logical operators
+// in prefix form (DomainPrefixOperator)
 type Domain []interface{}
 
+// A DomainTerm is a search criterion in the form of
+// a tuplet (field_name, operator, value).
 type DomainTerm []interface{}
 
+// A DomainPrefixOperator is used to combine DomainTerms
 type DomainPrefixOperator string
 
+// Domain prefix operators
 const (
 	PREFIX_AND DomainPrefixOperator = "&"
 	PREFIX_OR  DomainPrefixOperator = "|"
 	PREFIX_NOT DomainPrefixOperator = "!"
 )
 
+// A DomainOperator is an operator inside a DomainTerm.
+// Each operator can be matched with an equivalent SQL operator.
 type DomainOperator string
 
+// Domain operators
 const (
 	OPERATOR_EQUALS        DomainOperator = "="
 	OPERATOR_NOT_EQUALS    DomainOperator = "!="
@@ -72,7 +79,7 @@ var allowedOperators = map[DomainOperator]bool{
 	OPERATOR_CHILD_OF:      true,
 }
 
-// ParseDomain gets an Odoo domain and parses it into a RecordSet query Condition.
+// ParseDomain gets Domain and parses it into a RecordSet query Condition.
 // Returns nil if the domain is []
 func ParseDomain(dom Domain) *Condition {
 	res := parseDomain(&dom)
@@ -137,10 +144,8 @@ func parseDomain(dom *Domain) *Condition {
 	return res
 }
 
-/*
-addTerm parses the given DomainTerm and adds it to the given condition with the given
-prefix operator. Returns the new condition.
-*/
+// addTerm parses the given DomainTerm and adds it to the given condition with the given
+// prefix operator. Returns the new condition.
 func addTerm(cond *Condition, term DomainTerm, op DomainPrefixOperator) *Condition {
 	if len(term) != 3 {
 		logging.LogAndPanic(log, "Malformed domain term", "term", term)
@@ -153,10 +158,8 @@ func addTerm(cond *Condition, term DomainTerm, op DomainPrefixOperator) *Conditi
 	return cond
 }
 
-/*
-getConditionMethod returns the condition method to use on the given condition
-for the given prefix operator and negation condition.
-*/
+// getConditionMethod returns the condition method to use on the given condition
+// for the given prefix operator and negation condition.
 func getConditionMethod(cond *Condition, op DomainPrefixOperator) func(string, string, interface{}) *Condition {
 	switch op {
 	case PREFIX_AND:
