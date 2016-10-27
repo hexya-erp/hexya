@@ -24,6 +24,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/generate"
 )
 
@@ -39,6 +40,8 @@ const (
 )
 
 func main() {
+	models.Testing = true
+
 	cleanPoolDir(PoolDir)
 	conf := loader.Config{
 		AllowErrors: true,

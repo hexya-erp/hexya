@@ -58,6 +58,8 @@ var (
 		"depends":        2,
 		"inherits":       1,
 	}
+	// Testing is true if we are testing the framework
+	Testing bool
 )
 
 /*
