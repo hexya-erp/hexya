@@ -35,7 +35,7 @@ func BootStrap() {
 	modelRegistry.bootstrapped = true
 
 	createModelLinks()
-	inflateInherits()
+	inflateEmbeddings()
 	syncRelatedFieldInfo()
 	syncDatabase()
 	bootStrapMethods()
@@ -64,12 +64,11 @@ func createModelLinks() {
 	}
 }
 
-// inflateInherits creates related fields for all fields of related-inherits-ed
-// models.
-func inflateInherits() {
+// inflateEmbeddings creates related fields for all fields of embedded models.
+func inflateEmbeddings() {
 	for _, mi := range modelRegistry.registryByName {
 		for _, fi := range mi.fields.registryByName {
-			if !fi.inherits {
+			if !fi.embed {
 				continue
 			}
 			for relName, relFI := range fi.relatedModel.fields.registryByName {

@@ -102,7 +102,7 @@ func TestRelatedNonStoredFields(t *testing.T) {
 }
 
 func TestInheritedModels(t *testing.T) {
-	Convey("Testing inherits-ed models", t, func() {
+	Convey("Testing embedded models", t, func() {
 		env := NewEnvironment(1)
 		Convey("Adding a last post to Jane", func() {
 			postRs := env.Pool("Post").Call("Create", FieldMap{

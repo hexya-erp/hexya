@@ -195,7 +195,7 @@ type fieldInfo struct {
 	structField      reflect.StructField
 	relatedPath      string
 	dependencies     []computeData
-	inherits         bool
+	embed            bool
 	noCopy           bool
 }
 
@@ -244,7 +244,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	_, required := attrs["required"]
 	_, unique := attrs["unique"]
 	_, index := attrs["index"]
-	_, inherits := attrs["inherits"]
+	_, embed := attrs["embed"]
 	_, noCopy := attrs["nocopy"]
 
 	computeName := tags["compute"]
@@ -281,9 +281,9 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
 	}
 
-	if inherits && typ != tools.Many2One && typ != tools.One2One {
-		log.Warn("'inherits' should be set only on many2one or one2one fields", "model", mi.name, "field", sf.Name, "type", typ)
-		inherits = false
+	if embed && typ != tools.Many2One && typ != tools.One2One {
+		log.Warn("'embed' should be set only on many2one or one2one fields", "model", mi.name, "field", sf.Name, "type", typ)
+		embed = false
 	}
 
 	relatedModelName, ok := tags["comodel"]
@@ -381,7 +381,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		size:             size,
 		digits:           digits,
 		relatedPath:      relatedPath,
-		inherits:         inherits,
+		embed:            embed,
 		noCopy:           noCopy,
 		reverseFK:        fk,
 		m2mRelModel:      m2mRelModel,

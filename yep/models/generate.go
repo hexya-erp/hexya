@@ -95,9 +95,9 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		Name: mi.name,
 		Deps: []string{generate.ModelsPath},
 	}
-	// We need to simulate bootstrapping to get inherits'ed fields
+	// We need to simulate bootstrapping to get embedded fields
 	createModelLinks()
-	inflateInherits()
+	inflateEmbeddings()
 	for fieldName, fi := range mi.fields.registryByName {
 		// Add fields
 		var (

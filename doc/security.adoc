@@ -1,0 +1,167 @@
+= Security in YEP
+Author Nicolas Piganeau
+:prewrap!:
+:toc:
+
+== Introduction
+
+Security is implemented in YEP at the ORM level to limit the risks of
+inappropriate privilege elevation.
+
+=== Groups
+It is based on the concept of __group__:
+
+- Permissions are granted or denied to groups
+- Groups can inherit from other groups and get access to these groups
+permissions.
+- A user can belong to one or several groups, and thus inherit from the
+permissions of the groups.
+
+=== Permissions
+
+There are four permissions that can be set on models, fields or records.
+They are defined in the `security` package.
+
+[source,go]
+----
+type Permission uint8
+
+const (
+    security.CREATE = 1 << Permission(iota)
+    security.READ
+    security.WRITE
+    security.UNLINK
+    security.ALL = security.CREATE | security.READ | security.WRITE | security.UNLINK
+)
+----
+Permissions are given to groups by two distinct mechanisms:
+
+Access Control::
+Grant permissions on models and fields
+
+Record Rules::
+Grant permissions on some records of a model only
+
+== Access Control
+
+Access Control defines the permissions for a group on models and fields.
+They apply to all the records of a model.
+
+=== Models Access Control
+
+By default, a model has no access control list defined and is thus not
+accessible by any group. Access Control at the model level can be set with the
+`AllowModelAccess()` and `DenyModelAccess()` functions.
+
+`*AllowModelAccess(model ModelName, group *security.Group, perm security.Permission)*`::
+Grant the given `perm` permission to the given `group` for the given `model`.
+
+[source,go]
+salesManager := models.GroupsRegistry.Get("sale_manager")
+models.AllowModelAccess(pool.ModelResPartner, salesManager, security.CREATE|security.READ)
+
+`*DenyModelAccess(model ModelName, group *security.Group, perm security.Permission)*`::
+Deny the `perm` permission to the given `group` for the given `model`.
+
+Permissions are evaluated in the order of insertion. This means that the
+overriding order of modules is preserved.
+
+TIP: Avoid using `DenyModelAccess` whenever possible. Since no permissions are
+granted by default, prefer granting permissions only to groups who need them.
+This will make the application much easier to debug.
+
+=== Fields Access Control
+
+Only two permissions are applicable to fields: `security.READ` and
+`security.WRITE`. They are set by default according to the following rules:
+
+- `security.READ` is granted on all fields of a model if the group has been
+granted `security.READ` permission on the model.
+- `security.WRITE` is granted on all fields of a model if the group has been
+granted `security.CREATE` or `security.WRITE` permission on the model.
+
+Field permissions can be modified with the following functions:
+
+`*AllowFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
+Grant the given `perm` to the given `group` on the given `field`.
+
+[source,go]
+salesManager := models.GroupsRegistry.Get("sale_manager")
+models.AllowFieldAccess(pool.ResPartner_Function, salesManager, security.READ)
+
+`*DenyFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
+Deny the given `perm` to the given `group` on the given `field`.
+
+When the permissions set on the model and a field differ, the following rules
+apply:
+
+- Setting the `security.READ` permission on a field of a model which does not
+have itself the `security.READ` permission has no effect.
+- Setting the `security.WRITE` permission on a field of a model which does not
+have itself the `security.CREATE` or `security.WRITE` permissions has no effect.
+
+- When reading a record, fields without `security.READ` permission are not
+retrieved.
+- When updating a record, fields without `security.WRITE` permission are not
+updated (silently).
+- When creating a record, fields without `security.WRITE` permission are set to
+their default value.
+
+== Record Rules
+
+Record Rules allow to grant or deny a group some permissions on a selection of
+records. This could be the case for example to allow a salesman only to see his
+own sales.
+
+A Record Rule is a struct with the following definition, in the security
+package:
+
+[source,go]
+----
+type RecordRule struct {
+    Global    bool
+    Group     *Group
+    Condition *models.Condition
+    Perms     Permission
+}
+----
+
+If the `Global` field of a `RecordRule` is set, then the rule applies to all
+groups and the `Group` field is ignored. The `Condition` fields is the
+filter to apply on the model to retrieve the records on which to allow the
+`Perms` permission.
+
+Record Rules are added or removed from the Record Rules Registry with the
+following functions:
+
+`*AddRecordRule(name string, model ModelName, rule RecordRule)*`::
+Register the given `RecordRule` to the registry for the given `model` with the
+given `name`.
+
+[source,go]
+----
+salesman := models.GroupsRegistry.Get("sale_user")
+rule := security.RecordRule {
+    Group:     salesman,
+    Condition: models.NewCondition().And("User.ID", "=", env.Uid),
+    Perms:     security.ALL,
+}
+models.AddRecordRule("salesman_own_partner", pool.ModelResPartner, rule)
+----
+
+`*RemoveRecordRule(name string, model ModelName)*`::
+Removes the Record Rule with the given `name` from the rule registry of the
+given `model`.
+
+[source,go]
+models.RemoveRecordRule("salesman_own_partner", pool.ModelResPartner)
+
+If no record rule is set for a given group, then this group has implicitly
+access to all the records of the model with all permissions. Otherwise, only
+records matching all the Record Rules set for this group can be accessed.
+
+== Effective Permission
+
+To be effective, a permission must be set on the model, the field and the
+record.
+

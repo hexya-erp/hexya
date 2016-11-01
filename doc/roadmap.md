@@ -15,7 +15,10 @@ ORM
     - [X] ReadOnly related fields
     - [ ] ReadWrite related fields
     - [ ] Searchable related fields
-- [X] 'Inherits' model inheritance (Odoo-like)
+- [ ] Models inheritance
+    - [X] 'Extention' model inheritance (ExtendModel)
+    - [X] 'Embedding' model inheritance (embed)
+    - [ ] 'Mix In' model inheritance (MixInModel)
 - [ ] Computed fields to ORM:
     - [X] Fields computed by ERP after retrieval of computation vars
     - [X] Fields computed by ERP and stored in DB column
@@ -25,6 +28,7 @@ ORM
     - [ ] Record rules on models
 - [ ] i18n and l10n support to ORM models
 - [ ] Database foreign keys to related fields
+- [ ] Support for SQL views and materialized views
 - [X] Cache to RecordSets
 - [X] Support for schema modification (ALTER TABLE)
 - [ ] Implement "group by" queries

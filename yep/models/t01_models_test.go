@@ -123,7 +123,7 @@ type User struct {
 	Nums          int
 	unexportBool  bool
 	PMoney        float64          `yep:"related(Profile.Money)"`
-	LastPost      RecordCollection `yep:"inherits;type(many2one);comodel(Post)"`
+	LastPost      RecordCollection `yep:"embed;type(many2one);comodel(Post)"`
 }
 
 type Profile struct {

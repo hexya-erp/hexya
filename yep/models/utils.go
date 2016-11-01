@@ -56,7 +56,7 @@ var (
 		"store":          1,
 		"unstore":        1,
 		"depends":        2,
-		"inherits":       1,
+		"embed":          1,
 	}
 	// Testing is true if we are testing the framework
 	Testing bool

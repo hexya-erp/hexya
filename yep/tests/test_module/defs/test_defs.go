@@ -39,7 +39,7 @@ func init() {
 		Posts         pool.Test__PostSet    `yep:"type(one2many);fk(User)"`
 		Nums          int
 		PMoney        float64            `yep:"related(Profile.Money)"`
-		LastPost      pool.Test__PostSet `yep:"type(many2one);inherits"`
+		LastPost      pool.Test__PostSet `yep:"type(many2one);embed"`
 	}))
 
 	models.ExtendModel("Test__User", new(struct {

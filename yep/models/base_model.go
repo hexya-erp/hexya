@@ -432,7 +432,7 @@ type FieldsGetArgs struct {
 }
 
 // FieldsGet returns the definition of each field.
-// The _inherits'd fields are included.
+// The embedded fields are included.
 // TODO The string, help, and selection (if present) attributes are translated.
 func FieldsGet(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 	res := make(map[string]*FieldInfo)
