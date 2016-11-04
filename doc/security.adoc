@@ -163,5 +163,20 @@ records matching all the Record Rules set for this group can be accessed.
 == Effective Permission
 
 To be effective, a permission must be set on the model, the field and the
-record.
+record. Permissions can be checked with the `CheckPermissions` method of a
+RecordSet.
 
+`*CheckPermissions(group *security.Group, field ...FieldName) security.Permission*`::
+Returns the effective permission(s) of the given `group` on this RecordSet.
++
+If `field` is given (only one field allowed), then the effective permissions
+on the specified field of this RecordSet is returned.
+
+[source,go]
+----
+salesman := models.GroupsRegistry.Get("sale_user")
+saleOrder := pool.NewSaleOrderSet(env).Filter("Name", "=", "SO003")
+if saleOrder.CheckPermissions(salesman) & security.READ > 0 {
+    fmt.Println("Salesman is allowed to read sale order SO003")
+}
+----

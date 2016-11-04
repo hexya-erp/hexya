@@ -18,12 +18,11 @@ import (
 	"fmt"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
+	"reflect"
 )
 
-/*
-BootStrap freezes model, fields and method caches and syncs the database structure
-with the declared data.
-*/
+// BootStrap freezes model, fields and method caches and syncs the database structure
+// with the declared data.
 func BootStrap() {
 	log.Info("Bootstrapping models")
 	if modelRegistry.bootstrapped == true {
@@ -35,6 +34,7 @@ func BootStrap() {
 	modelRegistry.bootstrapped = true
 
 	createModelLinks()
+	inflateMixIns()
 	inflateEmbeddings()
 	syncRelatedFieldInfo()
 	syncDatabase()
@@ -61,6 +61,68 @@ func createModelLinks() {
 			fi.relatedModel = relatedMI
 		}
 		mi.fields.bootstrapped = true
+	}
+}
+
+// inflateMixIns inserts fields and methods of mixed in models.
+func inflateMixIns() {
+	for _, mi := range modelRegistry.registryByName {
+		for _, mixInMI := range mi.mixins {
+			// Add mixIn fields
+			for fName, fi := range mixInMI.fields.registryByName {
+				if _, exists := mi.fields.registryByName[fName]; exists {
+					// We do not add fields that already exist in the targetModel
+					// since the target model should always override mixins.
+					continue
+				}
+				newFI := *fi
+				newFI.mi = mi
+				mi.fields.add(&newFI)
+			}
+			// Add mixIn methods
+			for methName, methInfo := range mixInMI.methods.registry {
+				// Extract all method layers functions by inverse order
+				var layerFuncsInv []reflect.Value
+				for cl := methInfo.topLayer; cl != nil; cl = methInfo.getNextLayer(cl) {
+					layerFuncsInv = append([]reflect.Value{cl.funcValue}, layerFuncsInv...)
+				}
+				if emi, exists := mi.methods.registry[methName]; exists {
+					// The method already exists in our target model.
+					// We insert our new method layers above previous mixins layers
+					// but below the target model implementations.
+					lastImplLayer := emi.topLayer
+					firstMixedLayer := emi.getNextLayer(lastImplLayer)
+					for firstMixedLayer != nil {
+						if firstMixedLayer.mixedIn {
+							break
+						}
+						lastImplLayer = firstMixedLayer
+						firstMixedLayer = emi.getNextLayer(lastImplLayer)
+					}
+					for _, lf := range layerFuncsInv {
+						ml := methodLayer{
+							funcValue: wrapFunctionForMethodLayer(lf),
+							mixedIn:   true,
+							methInfo:  emi,
+						}
+						emi.nextLayer[&ml] = firstMixedLayer
+						firstMixedLayer = &ml
+					}
+					emi.nextLayer[lastImplLayer] = firstMixedLayer
+				} else {
+					newMethInfo := &methodInfo{
+						mi:         mi,
+						name:       methName,
+						methodType: methInfo.methodType,
+						nextLayer:  make(map[*methodLayer]*methodLayer),
+					}
+					for i := 0; i < len(layerFuncsInv); i++ {
+						newMethInfo.addMethodLayer(layerFuncsInv[i])
+					}
+					mi.methods.set(methName, newMethInfo)
+				}
+			}
+		}
 	}
 }
 

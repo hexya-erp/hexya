@@ -59,17 +59,43 @@ func computeAge(rc RecordCollection) FieldMap {
 	return res
 }
 
+func PrintAddress(rc RecordCollection) string {
+	res := rc.Super()
+	return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
+}
+
+func PrintAddressExt(rc RecordCollection) string {
+	res := rc.Super()
+	return fmt.Sprintf("[%s]", res)
+}
+
+func PrintAddressMixInExt(rc RecordCollection) string {
+	res := rc.Super()
+	return fmt.Sprintf("<%s>", res)
+}
+
+func PrintAddressMixIn(rc RecordCollection) string {
+	return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
+}
+
+func SayHello(rc RecordCollection) string {
+	return "Hello !"
+}
+
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
 		CreateModel("User")
 		ExtendModel("User", new(User))
-		ExtendModel("User", new(User_Extension))
+		ExtendModel("User", new(UserExtension))
+		CreateModel("AddressMixIn")
+		ExtendModel("AddressMixIn", new(AddressMixIn))
 		CreateModel("Profile")
-		ExtendModel("Profile", new(Profile), new(Profile_Extension))
+		MixInModel("Profile", "AddressMixIn")
+		ExtendModel("Profile", new(Profile), new(ProfileExtension))
 		CreateModel("Post")
 		ExtendModel("Post", new(Post))
 		CreateModel("Tag")
-		ExtendModel("Tag", new(Tag), new(Tag_Extension))
+		ExtendModel("Tag", new(Tag), new(TagExtension))
 
 		CreateMethod("User", "PrefixedUser", PrefixUser)
 		ExtendMethod("User", "PrefixedUser", PrefixUserEmailExtension)
@@ -77,6 +103,12 @@ func TestCreateDB(t *testing.T) {
 		ExtendMethod("User", "DecorateEmail", DecorateEmailExtension)
 		CreateMethod("User", "computeDecoratedName", computeDecoratedName)
 		CreateMethod("User", "computeAge", computeAge)
+
+		CreateMethod("AddressMixIn", "SayHello", SayHello)
+		CreateMethod("AddressMixIn", "PrintAddress", PrintAddressMixIn)
+		CreateMethod("Profile", "PrintAddress", PrintAddress)
+		ExtendMethod("AddressMixIn", "PrintAddress", PrintAddressMixInExt)
+		ExtendMethod("Profile", "PrintAddress", PrintAddressExt)
 
 		// Creating a dummy table to check that it is correctly removed by Bootstrap
 		db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
@@ -146,16 +178,22 @@ type Tag struct {
 	Posts    RecordCollection `yep:"type(many2many);comodel(Post)"`
 }
 
-type User_Extension struct {
+type UserExtension struct {
 	Email2    string
 	IsPremium bool
 }
 
-type Profile_Extension struct {
+type ProfileExtension struct {
 	City    string
 	Country string
 }
 
-type Tag_Extension struct {
+type TagExtension struct {
 	Description string
+}
+
+type AddressMixIn struct {
+	Street string
+	Zip    string
+	City   string
 }

@@ -95,8 +95,9 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		Name: mi.name,
 		Deps: []string{generate.ModelsPath},
 	}
-	// We need to simulate bootstrapping to get embedded fields
+	// We need to simulate bootstrapping to get embedded and mixed in fields
 	createModelLinks()
+	inflateMixIns()
 	inflateEmbeddings()
 	for fieldName, fi := range mi.fields.registryByName {
 		// Add fields
@@ -119,7 +120,7 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		addDependency(&mData, fi.structField.Type)
 	}
 	// Add methods
-	for methodName, methInfo := range mi.methods.cache {
+	for methodName, methInfo := range mi.methods.registry {
 		if specificMethods[methodName] {
 			continue
 		}
@@ -127,9 +128,21 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		ref := generate.MethodRef{Model: mi.name, Method: methodName}
 		dParams, ok := docParamsMap[ref]
 		if !ok {
-			// Methods generated in 'yep/models' don't have a model set
-			newRef := generate.MethodRef{Model: "", Method: methodName}
-			dParams = docParamsMap[newRef]
+			// Check if we have the method in mixins
+			var mixInMethFound bool
+			for i := len(mi.mixins) - 1; i >= 0; i-- {
+				mixInRef := generate.MethodRef{Model: mi.mixins[i].name, Method: methodName}
+				dParams, ok = docParamsMap[mixInRef]
+				if ok {
+					mixInMethFound = true
+					break
+				}
+			}
+			// Else we suppose it's a method generated in 'yep/models' and doesn't have a model set
+			if !mixInMethFound {
+				newRef := generate.MethodRef{Model: "", Method: methodName}
+				dParams = docParamsMap[newRef]
+			}
 		}
 		methType := methInfo.methodType
 		params := make([]string, methType.NumIn()-1)

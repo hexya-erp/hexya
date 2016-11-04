@@ -77,4 +77,13 @@ func init() {
 	models.ExtendModel("Test__Tag", new(struct {
 		Description string
 	}))
+
+	models.CreateModel("Test__AddressMixIn")
+	models.ExtendModel("Test__AddressMixIn", new(struct {
+		Street string
+		Zip    string
+		City   string
+	}))
+
+	models.MixInModel("Test__Profile", "Test__AddressMixIn")
 }

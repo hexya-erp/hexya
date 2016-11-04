@@ -363,7 +363,7 @@ See also <<Defining methods>> to see how to add or override methods in a model.
 
 ==== Model Mix In
 `*models.MixInModel(targetModel, mixInModel string)*`::
-Extend the `targetName` by importing all fields and methods of `mixInModel`.
+Extend the `targetModel` by importing all fields and methods of `mixInModel`.
 
 If a field name conflicts with an existing field name in the model, then:
 

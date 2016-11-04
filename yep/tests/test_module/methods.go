@@ -42,6 +42,13 @@ func declareMethods() {
 			res["DecoratedName"] = rs.PrefixedUser("User")[0]
 			return res
 		})
+
+	models.CreateMethod("Test__AddressMixIn", "SayHello", SayHello)
+	models.CreateMethod("Test__AddressMixIn", "PrintAddress", PrintAddressMixIn)
+	models.CreateMethod("Test__Profile", "PrintAddress", PrintAddress)
+	models.ExtendMethod("Test__AddressMixIn", "PrintAddress", PrintAddressMixInExt)
+	models.ExtendMethod("Test__Profile", "PrintAddress", PrintAddressExt)
+
 }
 
 func PrefixedUser(rs pool.Test__UserSet, prefix string) []string {
@@ -65,4 +72,27 @@ func ComputeAge(rs pool.Test__UserSet) models.FieldMap {
 	res := make(models.FieldMap)
 	res["Age"] = rs.Profile().Age()
 	return res
+}
+
+func PrintAddress(rs pool.Test__ProfileSet) string {
+	res := rs.Super()
+	return fmt.Sprintf("%s, %s", res, rs.Country())
+}
+
+func PrintAddressExt(rs pool.Test__ProfileSet) string {
+	res := rs.Super()
+	return fmt.Sprintf("[%s]", res)
+}
+
+func PrintAddressMixInExt(rs pool.Test__AddressMixInSet) string {
+	res := rs.Super()
+	return fmt.Sprintf("<%s>", res)
+}
+
+func PrintAddressMixIn(rs pool.Test__AddressMixInSet) string {
+	return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
+}
+
+func SayHello(rs pool.Test__AddressMixInSet) string {
+	return "Hello !"
 }

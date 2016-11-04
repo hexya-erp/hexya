@@ -34,8 +34,12 @@ func TestCreateRecordSet(t *testing.T) {
 		})
 		Convey("Creating user Jane with related Profile and Posts and Tags", func() {
 			userJaneProfileData := FieldMap{
-				"Age":   23,
-				"Money": 12345,
+				"Age":     23,
+				"Money":   12345,
+				"Street":  "165 5th Avenue",
+				"City":    "New York",
+				"Zip":     "0305",
+				"Country": "USA",
 			}
 			profile := env.Pool("Profile").Call("Create", userJaneProfileData).(RecordCollection)
 			So(profile.Len(), ShouldEqual, 1)
@@ -113,6 +117,8 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				So(userJane.Get("Profile").(RecordCollection).Get("Age"), ShouldEqual, 23)
 				So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
+				So(userJane.Get("Profile").(RecordCollection).Get("Country"), ShouldEqual, "USA")
+				So(userJane.Get("Profile").(RecordCollection).Get("Zip"), ShouldEqual, "0305")
 				recs := userJane.Get("Posts").(RecordCollection).Records()
 				So(recs[0].Get("Title"), ShouldEqual, "1st Post")
 				So(recs[1].Get("Title"), ShouldEqual, "2nd Post")

@@ -36,8 +36,12 @@ func TestCreateRecordSet(t *testing.T) {
 		})
 		Convey("Creating user Jane with related Profile and Posts and Tags", func() {
 			profileData := pool.Test__Profile{
-				Age:   23,
-				Money: 12345,
+				Age:     23,
+				Money:   12345,
+				Street:  "165 5th Avenue",
+				City:    "New York",
+				Zip:     "0305",
+				Country: "USA",
 			}
 			profile := pool.NewTest__ProfileSet(env).Create(&profileData)
 			So(profile.Len(), ShouldEqual, 1)
@@ -114,6 +118,8 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Email(), ShouldEqual, "jane.smith@example.com")
 				So(userJane.Profile().Age(), ShouldEqual, 23)
 				So(userJane.Profile().Money(), ShouldEqual, 12345)
+				So(userJane.Profile().Country(), ShouldEqual, "USA")
+				So(userJane.Profile().Zip(), ShouldEqual, "0305")
 				recs := userJane.Posts().Records()
 				So(recs[0].Title(), ShouldEqual, "1st Post")
 				So(recs[1].Title(), ShouldEqual, "2nd Post")

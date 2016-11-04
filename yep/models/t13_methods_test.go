@@ -101,7 +101,7 @@ func TestRelatedNonStoredFields(t *testing.T) {
 	})
 }
 
-func TestInheritedModels(t *testing.T) {
+func TestEmbeddedModels(t *testing.T) {
 	Convey("Testing embedded models", t, func() {
 		env := NewEnvironment(1)
 		Convey("Adding a last post to Jane", func() {
@@ -119,5 +119,17 @@ func TestInheritedModels(t *testing.T) {
 			So(userJane.Get("LastPost").(RecordCollection).Get("Content"), ShouldEqual, "Here we have some content")
 		})
 		env.Commit()
+	})
+}
+
+func TestMixedInModels(t *testing.T) {
+	Convey("Testing mixed in models", t, func() {
+		env := NewEnvironment(1)
+		Convey("Checking that mixed in functions are correctly inherited", func() {
+			janeProfile := env.Pool("User").Filter("Email", "=", "jane.smith@example.com").Get("Profile").(RecordCollection)
+			So(janeProfile.Call("PrintAddress"), ShouldEqual, "[<165 5th Avenue, 0305 New York>, USA]")
+			So(janeProfile.Call("SayHello"), ShouldEqual, "Hello !")
+		})
+		env.Rollback()
 	})
 }

@@ -65,6 +65,7 @@ type modelInfo struct {
 	tableName string
 	fields    *fieldsCollection
 	methods   *methodsCollection
+	mixins    []*modelInfo
 }
 
 // addFieldsFromStruct adds the fields of the given struct to our
@@ -254,6 +255,19 @@ func ExtendModel(name string, structPtrs ...interface{}) {
 	for _, structPtr := range structPtrs {
 		mi.addFieldsFromStruct(structPtr)
 	}
+}
+
+// MixInModel extends targetModel by importing all fields and methods of mixInModel.
+func MixInModel(targetModel, mixInModel string) {
+	mi, ok := modelRegistry.get(targetModel)
+	if !ok {
+		logging.LogAndPanic(log, "Unknown model", "model", targetModel)
+	}
+	mixInMI, ok := modelRegistry.get(mixInModel)
+	if !ok {
+		logging.LogAndPanic(log, "Unknown model", "model", mixInModel)
+	}
+	mi.mixins = append(mi.mixins, mixInMI)
 }
 
 // createModelInfo creates and populates a new modelInfo with the given name

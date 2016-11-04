@@ -22,39 +22,25 @@ import (
 
 // methodsCache is the methodInfo collection
 type methodsCollection struct {
-	cache        map[string]*methodInfo
-	cacheByFunc  map[reflect.Value]*methodLayer
+	registry     map[string]*methodInfo
 	bootstrapped bool
 }
 
 // get returns the methodInfo of the given method.
 func (mc *methodsCollection) get(methodName string) (mi *methodInfo, ok bool) {
-	mi, ok = mc.cache[methodName]
+	mi, ok = mc.registry[methodName]
 	return
 }
 
-// getByFunc returns the methodInfo that includes the given function as a layer.
-func (mc *methodsCollection) getByFunc(fnctPtr interface{}) (ml *methodLayer, ok bool) {
-	ml, ok = mc.cacheByFunc[reflect.ValueOf(fnctPtr).Elem()]
-	return
-}
-
-//set adds the given methodInfo to the methodsCollection.
+// set adds the given methodInfo to the methodsCollection.
 func (mc *methodsCollection) set(methodName string, methInfo *methodInfo) {
-	mc.cache[methodName] = methInfo
-	mc.cacheByFunc[methInfo.topLayer.funcValue] = methInfo.topLayer
-}
-
-// addLayer adds the given function Value in the given methodLayer
-func (mc *methodsCollection) addLayer(fnVal reflect.Value, methLayer *methodLayer) {
-	mc.cacheByFunc[fnVal] = methLayer
+	mc.registry[methodName] = methInfo
 }
 
 // newMethodsCollection returns a pointer to a new methodsCollection
 func newMethodsCollection() *methodsCollection {
 	mc := methodsCollection{
-		cache:       make(map[string]*methodInfo),
-		cacheByFunc: make(map[reflect.Value]*methodLayer),
+		registry: make(map[string]*methodInfo),
 	}
 	return &mc
 }
@@ -76,7 +62,6 @@ func (methInfo *methodInfo) addMethodLayer(val reflect.Value) {
 	}
 	methInfo.nextLayer[&ml] = methInfo.topLayer
 	methInfo.topLayer = &ml
-	methInfo.mi.methods.addLayer(ml.funcValue, &ml)
 }
 
 func (methInfo *methodInfo) getNextLayer(methodLayer *methodLayer) *methodLayer {
@@ -86,6 +71,7 @@ func (methInfo *methodInfo) getNextLayer(methodLayer *methodLayer) *methodLayer 
 // methodLayer is one layer of a method, that is one function defined in a module
 type methodLayer struct {
 	methInfo  *methodInfo
+	mixedIn   bool
 	funcValue reflect.Value
 }
 
