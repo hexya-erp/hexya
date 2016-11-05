@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -84,6 +84,15 @@ func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string
 	}
 	*attrs = attr
 	*tags = tag
+}
+
+// getStringFromMap returns the string at key in sMap, returning defaultValue if not found
+func getStringFromMap(sMap map[string]string, key string, defaultValue string) string {
+	res, ok := sMap[key]
+	if !ok {
+		res = defaultValue
+	}
+	return res
 }
 
 /*
@@ -295,34 +304,34 @@ func nestMap(fMap FieldMap) FieldMap {
 /*
 getFieldType returns the FieldType corresponding to the given reflect.Type.
 */
-func getFieldType(typ reflect.Type) tools.FieldType {
+func getFieldType(typ reflect.Type) types.FieldType {
 	k := typ.Kind()
 	switch {
 	case k == reflect.Bool:
-		return tools.Boolean
+		return types.Boolean
 	case k >= reflect.Int && k <= reflect.Uint64:
-		return tools.Integer
+		return types.Integer
 	case k == reflect.Float32 || k == reflect.Float64:
-		return tools.Float
+		return types.Float
 	case k == reflect.String:
-		return tools.Char
+		return types.Char
 	case k == reflect.Ptr:
 		indTyp := typ.Elem()
 		switch indTyp.Kind() {
 		case reflect.Struct:
-			return tools.Many2One
+			return types.Many2One
 		case reflect.Slice:
-			return tools.One2Many
+			return types.One2Many
 		}
 	}
 	switch typ {
 	case reflect.TypeOf(DateTime{}):
-		return tools.DateTime
+		return types.DateTime
 	case reflect.TypeOf(Date{}):
-		return tools.Date
+		return types.Date
 	}
 	logging.LogAndPanic(log, "Unable to match field type with go Type. Please specify 'type()' in struct tag", "type", typ)
-	return tools.NoType
+	return types.NoType
 }
 
 // filterOnDBFields returns the given fields slice with only stored fields

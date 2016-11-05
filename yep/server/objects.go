@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-stack/stack"
 	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -204,9 +205,9 @@ func createRecordCollection(env models.Environment, params CallParams) (rc model
 }
 
 // extractContext extracts the context from the given params and returns it.
-func extractContext(params CallParams) tools.Context {
+func extractContext(params CallParams) types.Context {
 	ctxStr, ok := params.KWArgs["context"]
-	var ctx tools.Context
+	var ctx types.Context
 	if ok {
 		if err := json.Unmarshal(ctxStr, &ctx); err != nil {
 			logging.LogAndPanic(log, "Unable to JSON unmarshal context", "context_string", ctxStr)
@@ -265,7 +266,7 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 
 // SearchReadParams is the args struct for the SearchRead function.
 type SearchReadParams struct {
-	Context tools.Context `json:"context"`
+	Context types.Context `json:"context"`
 	Domain  models.Domain `json:"domain"`
 	Fields  []string      `json:"fields"`
 	Limit   interface{}   `json:"limit"`

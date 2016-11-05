@@ -16,9 +16,9 @@ package models
 
 import (
 	"fmt"
-	"github.com/npiganeau/yep/yep/tools"
-	"github.com/npiganeau/yep/yep/tools/logging"
 	"reflect"
+
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // BootStrap freezes model, fields and method caches and syncs the database structure
@@ -51,8 +51,7 @@ func createModelLinks() {
 				relatedMI *modelInfo
 				ok        bool
 			)
-			switch fi.fieldType {
-			case tools.Many2One, tools.One2One, tools.Rev2One, tools.One2Many, tools.Many2Many:
+			if fi.fieldType.IsRelationType() {
 				relatedMI, ok = modelRegistry.get(fi.relatedModelName)
 				if !ok {
 					logging.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)

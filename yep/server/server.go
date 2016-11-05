@@ -24,10 +24,13 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+// A Server is the http server of the application
+// It is internally a wrapper around a gin.Engine
 type Server struct {
 	*gin.Engine
 }
 
+// A RequestRPC is the message format expected from a client
 type RequestRPC struct {
 	JsonRPC string          `json:"jsonrpc"`
 	ID      int64           `json:"id"`
@@ -35,27 +38,30 @@ type RequestRPC struct {
 	Params  json.RawMessage `json:"params"`
 }
 
+// A ResponseRPC is the message format sent back to a client
+// in case of success
 type ResponseRPC struct {
 	JsonRPC string      `json:"jsonrpc"`
 	ID      int64       `json:"id"`
 	Result  interface{} `json:"result"`
 }
 
+// A ResponseError is the message format sent back to a
+// client in case of failure
 type ResponseError struct {
 	JsonRPC string       `json:"jsonrpc"`
 	ID      int64        `json:"id"`
 	Error   JSONRPCError `json:"error"`
 }
 
+// JSONRPCError is the format of an Error in a ResponseError
 type JSONRPCError struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
 }
 
-/*
-RPC serializes the given struct as JSON-RPC into the response body.
-*/
+// RPC serializes the given struct as JSON-RPC into the response body.
 func RPC(c *gin.Context, code int, obj interface{}, err ...error) {
 	id, ok := c.Get("id")
 	if !ok {
@@ -89,9 +95,7 @@ func RPC(c *gin.Context, code int, obj interface{}, err ...error) {
 	c.JSON(code, resp)
 }
 
-/*
-BindParams binds the RPC parameters to the given data object.
-*/
+// BindRPCParams binds the RPC parameters to the given data object.
 func BindRPCParams(c *gin.Context, data interface{}) {
 	var req RequestRPC
 	if err := c.BindJSON(&req); err != nil {
@@ -108,9 +112,7 @@ func BindRPCParams(c *gin.Context, data interface{}) {
 var yepServer *Server
 var log log15.Logger
 
-/*
-GetServer return the http server instance
-*/
+// GetServer return the http server instance
 func GetServer() *Server {
 	return yepServer
 }
@@ -127,14 +129,12 @@ func init() {
 	cleanModuleSymlinks()
 }
 
-/*
-PostInit runs all actions that need to be done after all modules have been loaded.
-This is typically all actions that need to be done after bootstrapping the models.
-This function:
-- loads the data from the data files of all modules,
-- runs successively all PostInit() func of all modules,
-- loads html templates from all modules.
-*/
+// PostInit runs all actions that need to be done after all modules have been loaded.
+// This is typically all actions that need to be done after bootstrapping the models.
+// This function:
+// - loads the data from the data files of all modules,
+// - runs successively all PostInit() func of all modules,
+// - loads html templates from all modules.
 func PostInit() {
 	for _, module := range Modules {
 		module.PostInit()

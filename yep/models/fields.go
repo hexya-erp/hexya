@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -188,10 +189,10 @@ type fieldInfo struct {
 	m2mOurField      *fieldInfo
 	m2mTheirField    *fieldInfo
 	selection        Selection
-	fieldType        tools.FieldType
+	fieldType        types.FieldType
 	groupOperator    string
 	size             int
-	digits           tools.Digits
+	digits           types.Digits
 	structField      reflect.StructField
 	relatedPath      string
 	dependencies     []computeData
@@ -218,9 +219,7 @@ func (fi *fieldInfo) isRelationField() bool {
 
 // isStored returns true if this field is stored in database
 func (fi *fieldInfo) isStored() bool {
-	if fi.fieldType == tools.One2Many ||
-		fi.fieldType == tools.Many2Many ||
-		fi.fieldType == tools.Rev2One {
+	if fi.fieldType.IsNonStoredRelationType() {
 		// reverse fields are not stored
 		return false
 	}
@@ -257,111 +256,53 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		depends = strings.Split(depTag, defaultTagDataDelim)
 	}
 
-	var digits tools.Digits
+	var digits types.Digits
 	if dTag, ok := tags["digits"]; ok {
 		dSlice := strings.Split(dTag, defaultTagDataDelim)
 		d0, _ := strconv.Atoi(dSlice[0])
 		d1, _ := strconv.Atoi(dSlice[1])
-		digits = tools.Digits{0: d0, 1: d1}
+		digits = types.Digits{0: d0, 1: d1}
 	}
 
-	desc, ok := tags["string"]
-	if !ok {
-		desc = sf.Name
-	}
+	desc := getStringFromMap(tags, "string", sf.Name)
 
 	typStr, ok := tags["type"]
-	typ := tools.FieldType(typStr)
+	typ := types.FieldType(typStr)
 	if !ok {
 		typ = getFieldType(sf.Type)
 	}
 
-	fk, ok := tags["fk"]
-	if (typ == tools.One2Many || typ == tools.Rev2One) && !ok {
-		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'fk' tag", "model", mi.name, "field", sf.Name, "type", typ)
-	}
+	fk := tags["fk"]
 
-	if embed && typ != tools.Many2One && typ != tools.One2One {
-		log.Warn("'embed' should be set only on many2one or one2one fields", "model", mi.name, "field", sf.Name, "type", typ)
-		embed = false
-	}
-
-	relatedModelName, ok := tags["comodel"]
-	if !ok && (typ == tools.Many2One || typ == tools.One2One || typ == tools.Rev2One ||
-		typ == tools.One2Many || typ == tools.Many2Many) {
-		if sf.Type == reflect.TypeOf(RecordCollection{}) {
-			logging.LogAndPanic(log, "Undefined comodel on related field", "model", mi.name, "field", sf.Name, "type", typ)
-		}
-		relatedModelName = sf.Type.Name()[:len(sf.Type.Name())-3]
-	}
+	relatedModelName := getStringFromMap(tags, "comodel", defaultCoModel(sf, typ))
 
 	var (
 		m2mRelModel                *modelInfo
 		m2mOurField, m2mTheirField *fieldInfo
 	)
-	if typ == tools.Many2Many {
-		our, ok := tags["m2m_ours"]
-		if !ok {
-			our = mi.name
-		}
-
-		their, ok := tags["m2m_theirs"]
-		if !ok {
-			their = relatedModelName
-		}
-
+	if typ == types.Many2Many {
+		our := getStringFromMap(tags, "m2m_ours", mi.name)
+		their := getStringFromMap(tags, "m2m_theirs", relatedModelName)
 		if our == their {
 			logging.LogAndPanic(log, "Many2many relation must have different 'm2m_ours' and 'm2m_theirs'",
 				"model", mi.name, "field", sf.Name, "ours", our, "theirs", their)
 		}
-
 		modelNames := []string{our, their}
 		sort.Strings(modelNames)
-		m2mRelModName, ok := tags["m2m_relmodel"]
-		if !ok {
-			m2mRelModName = fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1])
-		}
+
+		m2mRelModName := getStringFromMap(tags, "m2m_relmodel", fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1]))
 		m2mRelModel, m2mOurField, m2mTheirField = createM2MRelModelInfo(m2mRelModName, modelNames[0], modelNames[1])
 	}
 
-	if typ == tools.Many2One || typ == tools.One2One {
+	if typ.IsStoredRelationType() {
 		sf.Type = reflect.TypeOf(int64(0))
-	} else if typ == tools.One2Many || typ == tools.Many2Many || typ == tools.Rev2One {
+	} else if typ.IsNonStoredRelationType() {
 		sf.Type = reflect.TypeOf([]int64{})
 	}
 
-	sels, ok := tags["selection"]
-	var selection Selection
-	if ok {
-		if sf.Type.Kind() == reflect.String {
-			typ = tools.Selection
-			selection = make(Selection)
-			for _, sel := range strings.Split(sels, defaultTagDataDelim) {
-				selParts := strings.Split(sel, "|")
-				code := strings.TrimSpace(selParts[0])
-				value := strings.TrimSpace(selParts[1])
-				selection[code] = value
-			}
-		} else {
-			log.Warn("'selection' should be set only on string type fields", "model", mi.name, "field", sf.Name, "type", typ)
-			selection = nil
-		}
-	}
-
-	json, ok := tags["json"]
-	if !ok {
-		json = tools.SnakeCaseString(sf.Name)
-		if typ == tools.Many2One || typ == tools.One2One || typ == tools.Rev2One {
-			json += "_id"
-		} else if typ == tools.One2Many || typ == tools.Many2Many {
-			json += "_ids"
-		}
-	}
-
-	groupOp, ok := tags["group_operator"]
-	if !ok {
-		groupOp = "sum"
-	}
+	selection, typ := parseSelection(tags["selection"], typ)
+	json := getStringFromMap(tags, "json", snakeCaseFieldName(sf.Name, typ))
+	groupOp := getStringFromMap(tags, "group_operator", "sum")
 
 	fInfo := fieldInfo{
 		name:             sf.Name,
@@ -390,7 +331,70 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		relatedModelName: relatedModelName,
 		selection:        selection,
 	}
+	checkFieldInfo(&fInfo)
 	return &fInfo
+}
+
+// checkFieldInfo makes sanity checks on the given fieldInfo.
+// It panics in case of severe error and logs recoverable errors.
+func checkFieldInfo(fi *fieldInfo) {
+	if fi.fieldType.IsReverseRelationType() && fi.reverseFK == "" {
+		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'fk' tag", "model",
+			fi.mi.name, "field", fi.name, "type", fi.fieldType)
+	}
+
+	if fi.embed && !fi.fieldType.IsStoredRelationType() {
+		log.Warn("'embed' should be set only on many2one or one2one fields", "model", fi.mi.name, "field", fi.name,
+			"type", fi.fieldType)
+		fi.embed = false
+	}
+
+	if fi.structField.Type == reflect.TypeOf(RecordCollection{}) && fi.relatedModelName == "" {
+		logging.LogAndPanic(log, "Undefined comodel on related field", "model", fi.mi.name, "field", fi.name,
+			"type", fi.fieldType)
+	}
+
+	if fi.selection != nil && fi.structField.Type.Kind() != reflect.String {
+		logging.LogAndPanic(log, "'selection' tag can only be set on string types", "model", fi.mi.name, "field", fi.name)
+	}
+}
+
+// defaultCoModel returns the default comodel name for the given struct field
+// It returns an empty string if this is not a relation field.
+func defaultCoModel(sf reflect.StructField, typ types.FieldType) string {
+	if typ.IsRelationType() && sf.Type != reflect.TypeOf(RecordCollection{}) {
+		return sf.Type.Name()[:len(sf.Type.Name())-3]
+	}
+	return ""
+}
+
+// parseSelection parses the given selection tag into a Selection object or nil
+// if the tag is empty
+func parseSelection(selTag string, typ types.FieldType) (Selection, types.FieldType) {
+	if selTag == "" {
+		return nil, typ
+	}
+
+	selection := make(Selection)
+	for _, sel := range strings.Split(selTag, defaultTagDataDelim) {
+		selParts := strings.Split(sel, "|")
+		code := strings.TrimSpace(selParts[0])
+		value := strings.TrimSpace(selParts[1])
+		selection[code] = value
+	}
+	return selection, types.Selection
+}
+
+// jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
+// relation fields and '_ids' to x2many relation fields.
+func snakeCaseFieldName(fName string, typ types.FieldType) string {
+	res := tools.SnakeCaseString(fName)
+	if typ.Is2OneRelationType() {
+		res += "_id"
+	} else if typ.Is2ManyRelationType() {
+		res += "_ids"
+	}
+	return res
 }
 
 // createM2MRelModelInfo creates a modelInfo relModelName (if it does not exist)
@@ -422,7 +426,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		mi:               newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        tools.Many2One,
+		fieldType:        types.Many2One,
 		relatedModelName: model1,
 		index:            true,
 		structField: reflect.StructField{
@@ -438,7 +442,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		mi:               newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        tools.Many2One,
+		fieldType:        types.Many2One,
 		relatedModelName: model2,
 		index:            true,
 		structField: reflect.StructField{

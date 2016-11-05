@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"github.com/beevik/etree"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -144,7 +144,7 @@ type BaseAction struct {
 	AutoSearch   bool           `json:"auto_search"`
 	Filter       bool           `json:"filter"`
 	Limit        int64          `json:"limit"`
-	Context      tools.Context  `json:"context"`
+	Context      types.Context  `json:"context"`
 	//Flags interface{}`json:"flags"`
 	//SearchView  string         `json:"search_view"`
 }

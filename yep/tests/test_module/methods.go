@@ -46,11 +46,19 @@ func declareMethods() {
 	models.CreateMethod("Test__AddressMixIn", "SayHello", SayHello)
 	models.CreateMethod("Test__AddressMixIn", "PrintAddress", PrintAddressMixIn)
 	models.CreateMethod("Test__Profile", "PrintAddress", PrintAddress)
-	models.ExtendMethod("Test__AddressMixIn", "PrintAddress", PrintAddressMixInExt)
-	models.ExtendMethod("Test__Profile", "PrintAddress", PrintAddressExt)
 
+	models.ExtendMethod("Test__AddressMixIn", "PrintAddress", func(rs pool.Test__AddressMixInSet) string {
+		res := rs.Super()
+		return fmt.Sprintf("<%s>", res)
+	})
+
+	models.ExtendMethod("Test__Profile", "PrintAddress", func(rs pool.Test__ProfileSet) string {
+		res := rs.Super()
+		return fmt.Sprintf("[%s]", res)
+	})
 }
 
+// PrefixedUser is a sample method layer for testing
 func PrefixedUser(rs pool.Test__UserSet, prefix string) []string {
 	var res []string
 	for _, u := range rs.Records() {
@@ -59,40 +67,36 @@ func PrefixedUser(rs pool.Test__UserSet, prefix string) []string {
 	return res
 }
 
+// DecorateEmail is a sample method layer for testing
 func DecorateEmail(rs pool.Test__UserSet, email string) string {
 	return fmt.Sprintf("<%s>", email)
 }
 
+// DecorateEmailExtension is a sample method layer for testing
 func DecorateEmailExtension(rs pool.Test__UserSet, email string) string {
 	res := rs.Super(email).(string)
 	return fmt.Sprintf("[%s]", res)
 }
 
+// ComputeAge is a sample method layer for testing
 func ComputeAge(rs pool.Test__UserSet) models.FieldMap {
 	res := make(models.FieldMap)
 	res["Age"] = rs.Profile().Age()
 	return res
 }
 
+// PrintAddress is a sample method layer for testing
 func PrintAddress(rs pool.Test__ProfileSet) string {
 	res := rs.Super()
 	return fmt.Sprintf("%s, %s", res, rs.Country())
 }
 
-func PrintAddressExt(rs pool.Test__ProfileSet) string {
-	res := rs.Super()
-	return fmt.Sprintf("[%s]", res)
-}
-
-func PrintAddressMixInExt(rs pool.Test__AddressMixInSet) string {
-	res := rs.Super()
-	return fmt.Sprintf("<%s>", res)
-}
-
+// PrintAddressMixIn is a sample method layer for testing
 func PrintAddressMixIn(rs pool.Test__AddressMixInSet) string {
 	return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
 }
 
+// SayHello is a sample method layer for testing
 func SayHello(rs pool.Test__AddressMixInSet) string {
 	return "Hello !"
 }

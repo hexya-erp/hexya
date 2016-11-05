@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -135,9 +135,9 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 	for field, value := range fMap {
 		fi := rc.mi.getRelatedFieldInfo(field)
 		switch fi.fieldType {
-		case tools.One2Many:
-		case tools.Rev2One:
-		case tools.Many2Many:
+		case types.One2Many:
+		case types.Rev2One:
+		case types.Many2Many:
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
 			rc.env.cr.Execute(delQuery, rSet.ids)
 			for _, id := range rSet.ids {
@@ -222,10 +222,8 @@ func (rc RecordCollection) Fetch() RecordCollection {
 	return rc
 }
 
-/*
-SearchCount fetch from the database the number of records that match the RecordSet conditions
-It panics in case of error
-*/
+// SearchCount fetch from the database the number of records that match the RecordSet conditions
+// It panics in case of error
 func (rc RecordCollection) SearchCount() int {
 	sql, args := rc.query.countQuery()
 	var res int
@@ -275,16 +273,16 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 		for _, fieldName := range fields {
 			fi := rc.mi.getRelatedFieldInfo(fieldName)
 			switch fi.fieldType {
-			case tools.One2Many:
+			case types.One2Many:
 				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
 				rc.env.cache.addEntry(rc.mi, id, fieldName, relRC.ids)
-			case tools.Many2Many:
+			case types.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
 				var ids []int64
 				rc.env.cr.Select(&ids, query, id)
 				rc.env.cache.addEntry(rc.mi, id, fieldName, ids)
-			case tools.Rev2One:
+			case types.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName).Filter(fi.reverseFK, "=", id).Fetch()
 				var relID int64
 				if len(relRC.ids) > 0 {
@@ -307,29 +305,23 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		logging.LogAndPanic(log, "Unknown field in model", "model", rSet.ModelName(), "field", fieldName)
 	}
 	var res interface{}
-	if rSet.IsEmpty() {
+
+	switch {
+	case rSet.IsEmpty():
 		res = reflect.Zero(fi.structField.Type).Interface()
-	} else if fi.isComputedField() && !fi.isStored() {
+	case fi.isComputedField() && !fi.isStored():
 		fMap := make(FieldMap)
 		rSet.computeFieldValues(&fMap, fi.json)
 		res = fMap[fi.json]
-	} else if fi.isRelatedField() && !fi.isStored() {
-		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.relatedPath}) {
-			rSet.Load(fi.relatedPath)
-		}
-		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.relatedPath)
-	} else {
-		if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{fi.json}) {
-			// If value is not in cache we fetch the whole model to speed up later calls to Get,
-			// except for the case of reverse relation fields, where we only load the requested field.
-			if fi.fieldType == tools.One2Many || fi.fieldType == tools.Many2Many || fi.fieldType == tools.Rev2One {
-				rSet.Load(fieldName)
-			} else {
-				rSet.Load()
-			}
-		}
-		res = rSet.env.cache.get(rSet.mi, rSet.ids[0], fi.json)
+	case fi.isRelatedField() && !fi.isStored():
+		res = rSet.get(fi.relatedPath, false)
+	default:
+		// If value is not in cache we fetch the whole model to speed up later calls to Get,
+		// except for the case of non stored relation fields, where we only load the requested field.
+		all := !fi.fieldType.IsNonStoredRelationType()
+		res = rSet.get(fieldName, all)
 	}
+
 	if fi.isRelationField() {
 		switch r := res.(type) {
 		case int64:
@@ -342,6 +334,23 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		}
 	}
 	return res
+}
+
+// get returns the value of field for this RecordSet.
+// It loads the cache if necessary before reading.
+// If all is true, all fields of the model are loaded, otherwise only field.
+func (rc RecordCollection) get(field string, all bool) interface{} {
+	rSet := rc.Fetch()
+	if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{field}) {
+		// If value is not in cache we fetch the whole model to speed up later calls to Get,
+		// except for the case of reverse relation fields, where we only load the requested field.
+		if !all {
+			rSet.Load(field)
+		} else {
+			rSet.Load()
+		}
+	}
+	return rSet.env.cache.get(rSet.mi, rSet.ids[0], field)
 }
 
 // Set sets field given by fieldName to the given value. If the RecordSet has several

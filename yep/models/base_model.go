@@ -21,7 +21,7 @@ import (
 
 	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/ir"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -166,14 +166,14 @@ func Read(rc RecordCollection, fields []string) []FieldMap {
 			if rc, ok := value.(RecordCollection); ok {
 				rc = rc.Fetch()
 				fi, _ := rc.mi.fields.get(fName)
-				switch fi.fieldType {
-				case tools.Many2One, tools.One2One, tools.Rev2One:
+				switch {
+				case fi.fieldType.Is2OneRelationType():
 					if rcId := rc.Get("id"); rcId != 0 {
 						value = [2]interface{}{rcId, rc.Call("NameGet").(string)}
 					} else {
 						value = nil
 					}
-				case tools.One2Many, tools.Many2Many:
+				case fi.fieldType.Is2ManyRelationType():
 					value = rc.Ids()
 				}
 			}
@@ -334,7 +334,7 @@ type FieldInfo struct {
 	CompanyDependent bool                   `json:"company_dependent"`
 	Sortable         bool                   `json:"sortable"`
 	Translate        bool                   `json:"translate"`
-	Type             tools.FieldType        `json:"type"`
+	Type             types.FieldType        `json:"type"`
 	Store            bool                   `json:"store"`
 	String           string                 `json:"string"`
 	Domain           Domain                 `json:"domain"`

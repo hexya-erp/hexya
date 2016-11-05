@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -285,7 +286,7 @@ func createModelInfo(name string, model interface{}) {
 		mi:        mi,
 		required:  true,
 		noCopy:    true,
-		fieldType: tools.Integer,
+		fieldType: types.Integer,
 		structField: reflect.TypeOf(
 			struct {
 				ID int64

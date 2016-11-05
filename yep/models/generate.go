@@ -24,6 +24,31 @@ import (
 	"github.com/npiganeau/yep/yep/tools/generate"
 )
 
+// A fieldData describes a field in a RecordSet
+type fieldData struct {
+	Name     string
+	Type     string
+	TypeIsRS bool
+}
+
+// A methodData describes a method in a RecordSet
+type methodData struct {
+	Name           string
+	Doc            string
+	Params         string
+	ParamsWithType string
+	Returns        string
+	ReturnsIsRS    bool
+}
+
+// A modelData describes a RecordSet model
+type modelData struct {
+	Name    string
+	Deps    []string
+	Fields  []fieldData
+	Methods []methodData
+}
+
 // specificMethods are generated according to specific templates and thus
 // must not be wrapped automatically.
 var specificMethods = map[string]bool{
@@ -50,47 +75,6 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 	deps := map[string]bool{
 		generate.PoolPath: true,
 	}
-	type fieldData struct {
-		Name     string
-		Type     string
-		TypeIsRS bool
-	}
-	type methodData struct {
-		Name           string
-		Doc            string
-		Params         string
-		ParamsWithType string
-		Returns        string
-		ReturnsIsRS    bool
-	}
-	type modelData struct {
-		Name    string
-		Deps    []string
-		Fields  []fieldData
-		Methods []methodData
-	}
-	// Add the given type's path as dependency if not already imported
-	addDependency := func(data *modelData, typ reflect.Type) {
-		for typ.Kind() == reflect.Ptr {
-			typ = typ.Elem()
-		}
-		fDep := typ.PkgPath()
-		if fDep != "" && !deps[fDep] {
-			data.Deps = append(data.Deps, fDep)
-		}
-		deps[fDep] = true
-	}
-	// Sanitize the given type
-	sanitizedFieldType := func(typ reflect.Type) (string, bool) {
-		var isRC bool
-		typStr := typ.String()
-		if typ == reflect.TypeOf(RecordCollection{}) {
-			isRC = true
-			typStr = fmt.Sprintf("%sSet", mi.name)
-		}
-		return strings.Replace(typStr, "pool.", "", 1), isRC
-	}
-
 	mData := modelData{
 		Name: mi.name,
 		Deps: []string{generate.ModelsPath},
@@ -99,8 +83,45 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 	createModelLinks()
 	inflateMixIns()
 	inflateEmbeddings()
+	// Add fields
+	addFieldsToModelData(&mData, mi, &deps)
+	// Add methods
+	addMethodsToModelData(&mData, mi, docParamsMap, &deps)
+	// Create file
+	generate.CreateFileFromTemplate(fileName, defsFileTemplate, mData)
+	log.Info("Generated pool source file for model", "model", mi.name, "fileName", fileName)
+}
+
+// sanitizeFieldType returns the sanitizes name of the type
+// and a bool value that is true if the type is a RecordSet
+func sanitizedFieldType(mi *modelInfo, typ reflect.Type) (string, bool) {
+	var isRC bool
+	typStr := typ.String()
+	if typ == reflect.TypeOf(RecordCollection{}) {
+		isRC = true
+		typStr = fmt.Sprintf("%sSet", mi.name)
+	}
+	return strings.Replace(typStr, "pool.", "", 1), isRC
+}
+
+// addDependency adds the given type's path as dependency to the given modelData
+// if not already imported. deps is the map of already imported paths and is updated
+// by this function.
+func addDependency(data *modelData, typ reflect.Type, deps *map[string]bool) {
+	for typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+	fDep := typ.PkgPath()
+	if fDep != "" && !(*deps)[fDep] {
+		data.Deps = append(data.Deps, fDep)
+	}
+	(*deps)[fDep] = true
+}
+
+// addFieldsToModelData adds the fields of the given modelInfo to the given modelData.
+// deps is the map of already imported paths and is updated by this function.
+func addFieldsToModelData(mData *modelData, mi *modelInfo, deps *map[string]bool) {
 	for fieldName, fi := range mi.fields.registryByName {
-		// Add fields
 		var (
 			typStr  string
 			typIsRS bool
@@ -109,7 +130,7 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 			typStr = fmt.Sprintf("%sSet", fi.relatedModelName)
 			typIsRS = true
 		} else {
-			typStr, _ = sanitizedFieldType(fi.structField.Type)
+			typStr, _ = sanitizedFieldType(mi, fi.structField.Type)
 		}
 		mData.Fields = append(mData.Fields, fieldData{
 			Name:     fieldName,
@@ -117,9 +138,14 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 			TypeIsRS: typIsRS,
 		})
 		// Add dependency for this field, if needed and not already imported
-		addDependency(&mData, fi.structField.Type)
+		addDependency(mData, fi.structField.Type, deps)
 	}
-	// Add methods
+}
+
+// addMethodsToModelData adds the methods of the given modelInfo to the given modelData.
+// docParamsMap is a map of MethodASTData from which to get doc strings and params names.
+// deps is the map of already imported paths and is updated by this function.
+func addMethodsToModelData(mData *modelData, mi *modelInfo, docParamsMap map[generate.MethodRef]generate.MethodASTData, deps *map[string]bool) {
 	for methodName, methInfo := range mi.methods.registry {
 		if specificMethods[methodName] {
 			continue
@@ -153,10 +179,10 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 				isRC              bool
 			)
 			if methType.IsVariadic() && i == methType.NumIn()-2 {
-				varArgType, isRC = sanitizedFieldType(methType.In(i + 1).Elem())
+				varArgType, isRC = sanitizedFieldType(mi, methType.In(i+1).Elem())
 				pType = fmt.Sprintf("...%s", varArgType)
 			} else {
-				pType, isRC = sanitizedFieldType(methType.In(i + 1))
+				pType, isRC = sanitizedFieldType(mi, methType.In(i+1))
 			}
 			paramsType[i] = fmt.Sprintf("%s %s", dParams.Params[i], pType)
 			if isRC {
@@ -164,7 +190,7 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 			} else {
 				params[i] = dParams.Params[i]
 			}
-			addDependency(&mData, methType.In(i+1))
+			addDependency(mData, methType.In(i+1), deps)
 		}
 
 		var (
@@ -172,8 +198,8 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 			returnsIsRS bool
 		)
 		if methType.NumOut() > 0 {
-			returns, returnsIsRS = sanitizedFieldType(methType.Out(0))
-			addDependency(&mData, methType.Out(0))
+			returns, returnsIsRS = sanitizedFieldType(mi, methType.Out(0))
+			addDependency(mData, methType.Out(0), deps)
 		}
 
 		methData := methodData{
@@ -186,9 +212,6 @@ func generateModelPoolFile(mi *modelInfo, fileName string, docParamsMap map[gene
 		}
 		mData.Methods = append(mData.Methods, methData)
 	}
-	// Create file
-	generate.CreateFileFromTemplate(fileName, defsFileTemplate, mData)
-	log.Info("Generated pool source file for model", "model", mi.name, "fileName", fileName)
 }
 
 var defsFileTemplate = template.Must(template.New("").Parse(`

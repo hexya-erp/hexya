@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package types
 
 // A Context is a map of objects that is passed along from function to function
 // during a transaction.
@@ -47,3 +47,38 @@ const (
 	Selection FieldType = "selection"
 	Text      FieldType = "text"
 )
+
+// IsRelationType returns true if this type is a relation.
+func (t FieldType) IsRelationType() bool {
+	return t == Many2Many || t == Many2One || t == One2Many || t == One2One || t == Rev2One
+}
+
+// IsStoredRelationType returns true for relation types
+// that are stored in the model's table (i.e. M2O and O2O)
+func (t FieldType) IsStoredRelationType() bool {
+	return t == Many2One || t == One2One
+}
+
+// IsNonStoredRelationType returns true for relation types
+// that are not stored in the model's table (i.e. M2M, O2M and R2O)
+func (t FieldType) IsNonStoredRelationType() bool {
+	return t == Many2Many || t == One2Many || t == Rev2One
+}
+
+// IsReverseRelationType returns true for relation types
+// that are stored in the comodel's table (i.e. O2M and R2O)
+func (t FieldType) IsReverseRelationType() bool {
+	return t == One2Many || t == Rev2One
+}
+
+// Is2OneRelationType returns true for relation types
+// that point to a single comodel record (i.e. M2O, O2O and R2O)
+func (t FieldType) Is2OneRelationType() bool {
+	return t == Many2One || t == One2One || t == Rev2One
+}
+
+// Is2ManyRelationType returns true for relation types
+// that point to multiple comodel records (i.e. M2M and O2M)
+func (t FieldType) Is2ManyRelationType() bool {
+	return t == Many2Many || t == One2Many
+}

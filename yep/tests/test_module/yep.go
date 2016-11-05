@@ -14,9 +14,12 @@
 
 package testmodule
 
-// Import models definition of this module
-import _ "github.com/npiganeau/yep/yep/tests/test_module/defs"
+import (
+	// Import models definition of this module
+	_ "github.com/npiganeau/yep/yep/tests/test_module/defs"
+)
 
+// Module data declaration
 const (
 	MODULE_NAME string = "test_module"
 )

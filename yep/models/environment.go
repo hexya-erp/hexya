@@ -15,7 +15,7 @@
 package models
 
 import (
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/models/types"
 )
 
 // An Environment stores various contextual data used by the models:
@@ -26,7 +26,7 @@ import (
 type Environment struct {
 	cr      *Cursor
 	uid     int64
-	context *tools.Context
+	context *types.Context
 	cache   *cache
 }
 
@@ -41,14 +41,14 @@ func (env Environment) Uid() int64 {
 }
 
 // Context returns the Context of the Environment
-func (env Environment) Context() tools.Context {
+func (env Environment) Context() types.Context {
 	return *env.context
 }
 
 // WithContext returns a new Environment with its context updated by ctx.
 // If replace is true, then the context is replaced by the given ctx instead of
 // being updated.
-func (env Environment) WithContext(ctx tools.Context, replace ...bool) Environment {
+func (env Environment) WithContext(ctx types.Context, replace ...bool) Environment {
 	if len(replace) > 0 && replace[0] {
 		env.context = &ctx
 		return env
@@ -96,8 +96,8 @@ func (env Environment) Rollback() {
 // WARNING: Callers to NewEnvironment should ensure to either call Commit()
 // or Rollback() on the returned Environment after operation to release
 // the database connection.
-func NewEnvironment(uid int64, context ...tools.Context) Environment {
-	var ctx tools.Context
+func NewEnvironment(uid int64, context ...types.Context) Environment {
+	var ctx types.Context
 	if len(context) > 0 {
 		ctx = context[0]
 	}

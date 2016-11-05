@@ -22,28 +22,28 @@ import (
 	"github.com/beevik/etree"
 )
 
+// MenusRegistry is the menu collection of the application
 var MenusRegistry *MenuCollection
 
+// A MenuCollection is a hierarchical and sortable collection of menus
 type MenuCollection struct {
 	sync.RWMutex
-	Menus    []*UiMenu
-	menusMap map[string]*UiMenu
+	Menus    []*Menu
+	menusMap map[string]*Menu
 }
 
-func (mr *MenuCollection) Len() int {
-	return len(mr.Menus)
+func (mc *MenuCollection) Len() int {
+	return len(mc.Menus)
 }
-func (mr *MenuCollection) Swap(i, j int) {
-	mr.Menus[i], mr.Menus[j] = mr.Menus[j], mr.Menus[i]
+func (mc *MenuCollection) Swap(i, j int) {
+	mc.Menus[i], mc.Menus[j] = mc.Menus[j], mc.Menus[i]
 }
-func (mr *MenuCollection) Less(i, j int) bool {
-	return mr.Menus[i].Sequence < mr.Menus[j].Sequence
+func (mc *MenuCollection) Less(i, j int) bool {
+	return mc.Menus[i].Sequence < mc.Menus[j].Sequence
 }
 
-/*
-AddMenu adds a menu to the menu registry
-*/
-func (mc *MenuCollection) AddMenu(m *UiMenu) {
+// AddMenu adds a menu to the menu collection
+func (mc *MenuCollection) AddMenu(m *Menu) {
 	if m.Action != nil {
 		m.HasAction = true
 	}
@@ -72,7 +72,7 @@ func (mc *MenuCollection) AddMenu(m *UiMenu) {
 }
 
 // GetMenuById returns the Menu with the given id
-func (mc *MenuCollection) GetMenuById(id string) *UiMenu {
+func (mc *MenuCollection) GetMenuById(id string) *Menu {
 	return mc.menusMap[id]
 }
 
@@ -80,15 +80,16 @@ func (mc *MenuCollection) GetMenuById(id string) *UiMenu {
 // MenuCollection instance
 func NewMenuCollection() *MenuCollection {
 	res := MenuCollection{
-		menusMap: make(map[string]*UiMenu),
+		menusMap: make(map[string]*Menu),
 	}
 	return &res
 }
 
-type UiMenu struct {
+// A Menu is the representation of a single menu item
+type Menu struct {
 	ID               string
 	Name             string
-	Parent           *UiMenu
+	Parent           *Menu
 	ParentCollection *MenuCollection
 	Children         *MenuCollection
 	Sequence         uint8
@@ -97,12 +98,10 @@ type UiMenu struct {
 	HasAction        bool
 }
 
-/*
-LoadMenuFromEtree reads the menu given etree.Element, creates or updates the menu
-and adds it to the menu registry if it not already.
-*/
+// LoadMenuFromEtree reads the menu given etree.Element, creates or updates the menu
+// and adds it to the menu registry if it not already.
 func LoadMenuFromEtree(element *etree.Element) {
-	menu := new(UiMenu)
+	menu := new(Menu)
 	menu.ID = element.SelectAttrValue("id", "NO_ID")
 	actionID := element.SelectAttrValue("action", "")
 	defaultName := "No name"
