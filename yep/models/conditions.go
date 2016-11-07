@@ -158,11 +158,11 @@ func (c Condition) getAllExpressions(mi *modelInfo) [][]string {
 
 // substituteExprs recursively replaces condition exprs that match substs keys
 // with the corresponding substs values.
-func (cond *Condition) substituteExprs(mi *modelInfo, substs map[string][]string) {
-	for i, cv := range cond.params {
+func (c *Condition) substituteExprs(mi *modelInfo, substs map[string][]string) {
+	for i, cv := range c.params {
 		for k, v := range substs {
 			if len(cv.exprs) > 0 && jsonizeExpr(mi, cv.exprs)[0] == k {
-				cond.params[i].exprs = v
+				c.params[i].exprs = v
 			}
 		}
 		if cv.cond != nil {
