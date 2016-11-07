@@ -49,10 +49,8 @@ type fieldsCollection struct {
 	bootstrapped         bool
 }
 
-/*
-get returns the fieldInfo of the field with the given name.
-name can be either the name of the field or its JSON name.
-*/
+// get returns the fieldInfo of the field with the given name.
+// name can be either the name of the field or its JSON name.
 func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
 	fi, ok = fc.registryByName[name]
 	if !ok {

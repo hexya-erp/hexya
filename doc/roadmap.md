@@ -23,14 +23,16 @@ ORM
     - [X] Fields computed by ERP and stored in DB column
 - [ ] Related fields
     - [X] ReadOnly related fields
-    - [ ] ReadWrite related fields
-    - [ ] Searchable related fields
+    - [X] ReadWrite related fields
+    - [X] Searchable related fields
     - [ ] Related stored fields
 - [ ] Security
     - [ ] CRUD permissions to models and fields
     - [ ] Record rules on models
+- [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Support for SQL views and materialized views
 - [ ] Implement "group by" queries
+- [ ] Implement efficient 'child_of' domain operator
 - [ ] Database foreign keys to related fields
 - [ ] i18n and l10n support to ORM models
 

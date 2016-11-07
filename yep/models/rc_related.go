@@ -14,31 +14,47 @@
 
 package models
 
-// substituteRelatedFields returns a copy of the given fields slice with
-// related fields substituted by their related field path. It also returns
-// the list of substitutions to be given to resetRelatedFields.
-func (rs *RecordCollection) substituteRelatedFields(fields []string) ([]string, []KeySubstitution) {
-	// We create a map to check if the substituted field already exists
-	duplMap := make(map[string]bool, len(fields))
+import (
+	"fmt"
+	"strings"
+)
+
+// substituteRelatedFields returns :
+// - a copy of the given fields slice with related fields substituted by their related
+// field path. It also adds the fk and pk fields of all records in the related paths.
+// - a new RecordCollection with substitution of related fields in the query.
+//
+// This function removes duplicates and change all field names to their json names.
+func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, RecordCollection) {
+	// Create a keys map with our fields
+	keys := make(map[string]bool)
 	for _, field := range fields {
-		duplMap[jsonizePath(rs.mi, field)] = true
-	}
-	// Now we go for the substitution
-	res := make([]string, len(fields))
-	var substs []KeySubstitution
-	for i, field := range fields {
-		fi, ok := rs.mi.fields.get(field)
-		if ok && fi.isRelatedField() {
-			res[i] = fi.relatedPath
-			relatedJSONPath := jsonizePath(rs.mi, fi.relatedPath)
-			substs = append(substs, KeySubstitution{
-				Orig: relatedJSONPath,
-				New:  fi.json,
-				Keep: duplMap[relatedJSONPath],
-			})
+		fi := rc.mi.getRelatedFieldInfo(field)
+		if fi.isRelatedField() {
+			keys[fi.relatedPath] = true
+			var curPath string
+			for _, expr := range strings.Split(fi.relatedPath, ExprSep) {
+				curPath = strings.TrimLeft(fmt.Sprintf("%s.%s", curPath, expr), ".")
+				keys[curPath] = true
+			}
 			continue
 		}
-		res[i] = field
+		keys[jsonizePath(rc.mi, field)] = true
 	}
-	return res, substs
+	// extract keys from our map to res
+	res := make([]string, len(keys))
+	var i int
+	for key := range keys {
+		res[i] = key
+		i++
+	}
+
+	// Substitute in RecordCollection query
+	substs := make(map[string][]string)
+	for _, fi := range rc.mi.fields.relatedFields {
+		substs[fi.json] = strings.Split(fi.relatedPath, ExprSep)
+	}
+	rc.query.substituteConditionExprs(substs)
+
+	return res, rc
 }

@@ -93,9 +93,46 @@ func TestComputedStoredFields(t *testing.T) {
 func TestRelatedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored related fields", t, func() {
 		env := NewEnvironment(1)
-		Convey("Checking that user Jane PMoney equals is 12345", func() {
+		Convey("Checking that users PMoney is correct", func() {
+			userJohn := env.Pool("User").Filter("UserName", "=", "John Smith")
+			So(userJohn.Len(), ShouldEqual, 1)
+			So(userJohn.Get("PMoney"), ShouldEqual, 0)
 			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 			So(userJane.Get("PMoney"), ShouldEqual, 12345)
+			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com")
+			So(userWill.Get("PMoney"), ShouldEqual, 5100)
+		})
+		Convey("Checking that PMoney is correct after update of Profile", func() {
+			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
+			So(userJane.Get("PMoney"), ShouldEqual, 12345)
+			userJane.Get("Profile").(RecordCollection).Set("Money", 54321)
+			So(userJane.Get("PMoney"), ShouldEqual, 54321)
+		})
+		Convey("Checking that we can update PMoney directly", func() {
+			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
+			So(userJane.Get("PMoney"), ShouldEqual, 12345)
+			userJane.Set("PMoney", 67890)
+			So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 67890)
+			So(userJane.Get("PMoney"), ShouldEqual, 67890)
+			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com")
+			So(userWill.Get("PMoney"), ShouldEqual, 5100)
+
+			userJane.Union(userWill).Set("PMoney", 100)
+			So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 100)
+			So(userJane.Get("PMoney"), ShouldEqual, 100)
+			So(userWill.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 100)
+			So(userWill.Get("PMoney"), ShouldEqual, 100)
+		})
+		Convey("Checking that we can search PMoney directly", func() {
+			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
+			userWill := env.Pool("User").Filter("Email", "=", "will.smith@example.com")
+			pmoneyUser := env.Pool("User").Filter("PMoney", "=", 12345)
+			So(pmoneyUser.Len(), ShouldEqual, 1)
+			So(pmoneyUser.Ids()[0], ShouldEqual, userJane.Ids()[0])
+			pUsers := env.Pool("User").Search(NewCondition().And("PMoney", "=", 12345).Or("PMoney", "=", 5100))
+			So(pUsers.Len(), ShouldEqual, 2)
+			So(pUsers.Ids(), ShouldContain, userJane.Ids()[0])
+			So(pUsers.Ids(), ShouldContain, userWill.Ids()[0])
 		})
 		env.Rollback()
 	})

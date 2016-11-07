@@ -382,6 +382,12 @@ func (q *Query) isEmpty() bool {
 	return true
 }
 
+// substituteConditionExprs substitutes all occurrences of each substMap keys in
+// its conditions 1st exprs with the corresponding substMap value.
+func (q *Query) substituteConditionExprs(substMap map[string][]string) {
+	q.cond.substituteExprs(q.recordSet.mi, substMap)
+}
+
 // newQuery returns a new empty query
 // If rs is given, bind this query to the given RecordSet.
 func newQuery(rs ...*RecordCollection) *Query {

@@ -71,13 +71,7 @@ func (rc RecordCollection) create(data interface{}) RecordCollection {
 	fMap := convertInterfaceToFieldMap(data)
 	rc.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
-	if idl, ok := fMap["id"]; ok && idl.(int64) == 0 {
-		delete(fMap, "id")
-	}
-	if idu, ok := fMap["ID"]; ok && idu.(int64) == 0 {
-		delete(fMap, "ID")
-	}
-
+	fMap.RemovePKIfZero()
 	storedFieldMap := filterMapOnStoredFields(rc.mi, fMap)
 	// insert in DB
 	var createdId int64
@@ -107,25 +101,32 @@ func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) boo
 	}
 	rc.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
-	delete(fMap, "id")
-	delete(fMap, "ID")
+	fMap.RemovePK()
 	storedFieldMap := filterMapOnStoredFields(rc.mi, fMap)
-	// invalidate cache
-	// We do it before the actual write on purpose so that we are sure it
-	// is invalidated, even in case of error.
-	for _, id := range rc.Ids() {
-		rc.env.cache.invalidateRecord(rc.mi, id)
-	}
-	// update DB
-	if len(storedFieldMap) > 0 {
-		sql, args := rc.query.updateQuery(storedFieldMap)
-		rc.env.cr.Execute(sql, args...)
-	}
+	rc.doUpdate(storedFieldMap)
 	// write reverse relation fields
 	rc.updateRelationFields(fMap)
+	// write related fields
+	rc.updateRelatedFields(fMap)
 	// compute stored fields
 	rc.updateStoredFields(fMap)
 	return true
+}
+
+// doUpdate just updates the database records pointed at by
+// this RecordCollection with the given fieldMap. It also
+// invalidates the cache for the record
+func (rc RecordCollection) doUpdate(fMap FieldMap) {
+	defer func() {
+		for _, id := range rc.Ids() {
+			rc.env.cache.invalidateRecord(rc.mi, id)
+		}
+	}()
+	// update DB
+	if len(fMap) > 0 {
+		sql, args := rc.query.updateQuery(fMap)
+		rc.env.cr.Execute(sql, args...)
+	}
 }
 
 // updateRelationFields updates reverse relations fields of the
@@ -148,6 +149,49 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 				}
 			}
 		}
+	}
+}
+
+// updateRelatedFields updates related non stored fields of the
+// given fMap.
+func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
+	rSet := rc.Fetch()
+	var toLoad []string
+	toSubstitute := make(map[string]string)
+	for field := range fMap {
+		fi, ok := rSet.mi.fields.get(field)
+		if !ok {
+			logging.LogAndPanic(log, "Unknown field in model", "field", field, "model", rc.ModelName())
+		}
+		if fi.relatedPath == "" {
+			continue
+		}
+
+		toSubstitute[field] = fi.relatedPath
+		if !rSet.env.cache.checkIfInCache(rSet.mi, rSet.ids, []string{fi.relatedPath}) {
+			toLoad = append(toLoad, field)
+		}
+	}
+	// Load related paths if not loaded already
+	if len(toLoad) > 0 {
+		rSet = rSet.Load(toLoad...)
+	}
+	// Create an update map for each record to update
+	updateMap := make(map[RecordRef]FieldMap)
+	for _, rec := range rSet.Records() {
+		for field, subst := range toSubstitute {
+			ref, relField, _ := rec.env.cache.getRelatedRef(rec.mi, rec.ids[0], subst)
+			if _, exists := updateMap[ref]; !exists {
+				updateMap[ref] = make(FieldMap)
+			}
+			updateMap[ref][relField] = fMap[field]
+		}
+	}
+
+	// Make the update for each record
+	for ref, upMap := range updateMap {
+		rs := rc.env.Pool(ref.ModelName).withIds([]int64{ref.ID})
+		rs.doUpdate(upMap)
 	}
 }
 
@@ -242,7 +286,7 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	if len(fields) == 0 {
 		fields = rc.mi.fields.storedFieldNames()
 	}
-	subFields, substs := rc.substituteRelatedFields(fields)
+	subFields, rc := rc.substituteRelatedFields(fields)
 	dbFields := filterOnDBFields(rc.mi, subFields)
 	sql, args := rc.query.selectQuery(dbFields)
 	rows := dbQuery(rc.env.cr.tx, sql, args...)
@@ -251,7 +295,6 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	for rows.Next() {
 		line := make(FieldMap)
 		err := rc.mi.scanToFieldMap(rows, &line)
-		line.SubstituteKeys(substs)
 		if err != nil {
 			logging.LogAndPanic(log, err.Error(), "model", rc.ModelName(), "fields", fields)
 		}
@@ -342,8 +385,6 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 func (rc RecordCollection) get(field string, all bool) interface{} {
 	rSet := rc.Fetch()
 	if !rSet.env.cache.checkIfInCache(rSet.mi, []int64{rSet.ids[0]}, []string{field}) {
-		// If value is not in cache we fetch the whole model to speed up later calls to Get,
-		// except for the case of reverse relation fields, where we only load the requested field.
 		if !all {
 			rSet.Load(field)
 		} else {

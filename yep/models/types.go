@@ -101,6 +101,24 @@ func (fm FieldMap) Values() (res []interface{}) {
 	return
 }
 
+// RemovePK removes the entries of our FieldMap which
+// references the ID field.
+func (fm *FieldMap) RemovePK() {
+	delete(*fm, "id")
+	delete(*fm, "ID")
+}
+
+// RemovePKIfZero removes the entries of our FieldMap which
+// references the ID field if the referenced id is 0.
+func (fm *FieldMap) RemovePKIfZero() {
+	if idl, ok := (*fm)["id"]; ok && idl.(int64) == 0 {
+		delete(*fm, "id")
+	}
+	if idu, ok := (*fm)["ID"]; ok && idu.(int64) == 0 {
+		delete(*fm, "ID")
+	}
+}
+
 // KeySubstitution defines a key substitution in a FieldMap
 type KeySubstitution struct {
 	Orig string
