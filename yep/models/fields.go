@@ -352,6 +352,12 @@ func checkFieldInfo(fi *fieldInfo) {
 			"type", fi.fieldType)
 	}
 
+	if fi.stored && !fi.isComputedField() {
+		log.Warn("'store' should be set only on computed fields", "model", fi.mi.name, "field", fi.name,
+			"type", fi.fieldType)
+		fi.stored = false
+	}
+
 	if fi.selection != nil && fi.structField.Type.Kind() != reflect.String {
 		logging.LogAndPanic(log, "'selection' tag can only be set on string types", "model", fi.mi.name, "field", fi.name)
 	}

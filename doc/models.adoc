@@ -524,12 +524,11 @@ related field starting from the current RecordSet
 (e.g. `"Customer.Country.Name"`).
 
 `store`::
-For a `computed` or `related` field, if `store` tag is set, then the field
-will be stored into the database. For `computed` fields, recomputation will
-be triggered by the data in the `depends` tag.
+For a `computed`, if `store` tag is set, then the field will be stored into
+the database. Recomputation will be triggered by the data in the `depends` tag.
 +
-Storing a computed or related field allows to make queries on their values and
-speeds up reading of the RecordSet. However, the updates can be slowed down,
+Storing a computed field allows to make queries on its value and speeds up
+reading of the RecordSet. However, the updates can be slowed down,
 especially when multiple triggers are fired at the same time.
 
 `unstore`::

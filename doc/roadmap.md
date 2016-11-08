@@ -25,7 +25,6 @@ ORM
     - [X] ReadOnly related fields
     - [X] ReadWrite related fields
     - [X] Searchable related fields
-    - [ ] Related stored fields
 - [ ] Security
     - [ ] CRUD permissions to models and fields
     - [ ] Record rules on models

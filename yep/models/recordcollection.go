@@ -163,7 +163,7 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 		if !ok {
 			logging.LogAndPanic(log, "Unknown field in model", "field", field, "model", rc.ModelName())
 		}
-		if fi.relatedPath == "" {
+		if !fi.isRelatedField() {
 			continue
 		}
 
