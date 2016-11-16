@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -68,7 +69,9 @@ func (rc RecordCollection) Ids() []int64 {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Create(), rs.Call("Create") or env.Create()
 func (rc RecordCollection) create(data interface{}) RecordCollection {
+	mustCheckModelPermission(rc.mi, rc.env.uid, security.Create)
 	fMap := convertInterfaceToFieldMap(data)
+	fMap = filterMapOnAuthorizedFields(rc.mi, fMap, rc.env.uid, security.Create)
 	rc.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
@@ -91,6 +94,7 @@ func (rc RecordCollection) create(data interface{}) RecordCollection {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
 func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) bool {
+	mustCheckModelPermission(rc.mi, rc.env.uid, security.Write)
 	fMap := convertInterfaceToFieldMap(data)
 	if _, ok := data.(FieldMap); !ok {
 		for _, f := range fieldsToUnset {
@@ -122,6 +126,7 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 			rc.env.cache.invalidateRecord(rc.mi, id)
 		}
 	}()
+	fMap = filterMapOnAuthorizedFields(rc.mi, fMap, rc.env.uid, security.Write)
 	// update DB
 	if len(fMap) > 0 {
 		sql, args := rc.query.updateQuery(fMap)
@@ -135,6 +140,9 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 	rSet := rc.Fetch()
 	for field, value := range fMap {
 		fi := rc.mi.getRelatedFieldInfo(field)
+		if !checkFieldPermission(fi, rc.env.uid, security.Write) {
+			continue
+		}
 		switch fi.fieldType {
 		case types.One2Many:
 		case types.Rev2One:
@@ -159,11 +167,11 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 	var toLoad []string
 	toSubstitute := make(map[string]string)
 	for field := range fMap {
-		fi, ok := rSet.mi.fields.get(field)
-		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", field, "model", rc.ModelName())
-		}
+		fi := rSet.mi.fields.mustGet(field)
 		if !fi.isRelatedField() {
+			continue
+		}
+		if !checkFieldPermission(fi, rc.env.uid, security.Write) {
 			continue
 		}
 
@@ -199,6 +207,7 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Unlink() or rs.Call("Unlink")
 func (rc RecordCollection) delete() int64 {
+	mustCheckModelPermission(rc.mi, rc.env.uid, security.Unlink)
 	sql, args := rc.query.deleteQuery()
 	res := rc.env.cr.Execute(sql, args...)
 	num, _ := res.RowsAffected()
@@ -282,10 +291,12 @@ func (rc RecordCollection) SearchCount() int {
 // model are retrieved. Non-DB fields must be explicitly given in
 // fields to be retrieved.
 func (rc RecordCollection) Load(fields ...string) RecordCollection {
+	mustCheckModelPermission(rc.mi, rc.env.uid, security.Read)
 	var results []FieldMap
 	if len(fields) == 0 {
 		fields = rc.mi.fields.storedFieldNames()
 	}
+	fields = filterOnAuthorizedFields(rc.mi, rc.env.uid, fields, security.Read)
 	subFields, rc := rc.substituteRelatedFields(fields)
 	dbFields := filterOnDBFields(rc.mi, subFields)
 	sql, args := rc.query.selectQuery(dbFields)
@@ -343,10 +354,7 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc RecordCollection) Get(fieldName string) interface{} {
 	rSet := rc.Fetch()
-	fi, ok := rSet.mi.fields.get(fieldName)
-	if !ok {
-		logging.LogAndPanic(log, "Unknown field in model", "model", rSet.ModelName(), "field", fieldName)
-	}
+	fi := rSet.mi.fields.mustGet(fieldName)
 	var res interface{}
 
 	switch {
@@ -363,6 +371,12 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		// except for the case of non stored relation fields, where we only load the requested field.
 		all := !fi.fieldType.IsNonStoredRelationType()
 		res = rSet.get(fieldName, all)
+	}
+
+	if res == nil {
+		// res is nil if we do not have access rights on the field.
+		// then return the field's type zero value
+		return reflect.Zero(fi.structField.Type).Interface()
 	}
 
 	if fi.isRelationField() {
@@ -525,10 +539,7 @@ var _ RecordSet = RecordCollection{}
 // newRecordCollection returns a new empty RecordCollection in the
 // given environment for the given modelName
 func newRecordCollection(env Environment, modelName string) RecordCollection {
-	mi, ok := modelRegistry.get(modelName)
-	if !ok {
-		logging.LogAndPanic(log, "Unknown model", "model", modelName)
-	}
+	mi := modelRegistry.mustGet(modelName)
 	rc := RecordCollection{
 		mi:    mi,
 		query: newQuery(),

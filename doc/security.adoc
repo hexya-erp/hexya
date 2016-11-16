@@ -27,11 +27,11 @@ They are defined in the `security` package.
 type Permission uint8
 
 const (
-    security.CREATE = 1 << Permission(iota)
-    security.READ
-    security.WRITE
-    security.UNLINK
-    security.ALL = security.CREATE | security.READ | security.WRITE | security.UNLINK
+    Create = 1 << Permission(iota)
+    Read
+    Write
+    Unlink
+    All = Create | Read | Write | Unlink
 )
 ----
 Permissions are given to groups by two distinct mechanisms:
@@ -49,16 +49,16 @@ They apply to all the records of a model.
 
 === Models Access Control
 
-By default, a model has no access control list defined and is thus not
-accessible by any group. Access Control at the model level can be set with the
-`AllowModelAccess()` and `DenyModelAccess()` functions.
+By default, a model has an access control list that only allows the members
+of the AdminGroup to access it. Access Control at the model level can be set
+with the `AllowModelAccess()` and `DenyModelAccess()` functions.
 
 `*AllowModelAccess(model ModelName, group *security.Group, perm security.Permission)*`::
 Grant the given `perm` permission to the given `group` for the given `model`.
 
 [source,go]
 salesManager := models.GroupsRegistry.Get("sale_manager")
-models.AllowModelAccess(pool.ModelResPartner, salesManager, security.CREATE|security.READ)
+models.AllowModelAccess(pool.ModelResPartner, salesManager, security.Create|security.Read)
 
 `*DenyModelAccess(model ModelName, group *security.Group, perm security.Permission)*`::
 Deny the `perm` permission to the given `group` for the given `model`.
@@ -72,40 +72,34 @@ This will make the application much easier to debug.
 
 === Fields Access Control
 
-Only two permissions are applicable to fields: `security.READ` and
-`security.WRITE`. They are set by default according to the following rules:
+Only three permissions are applicable to fields: `security.Read`,
+`security.Write` and 'security.Create'.
 
-- `security.READ` is granted on all fields of a model if the group has been
-granted `security.READ` permission on the model.
-- `security.WRITE` is granted on all fields of a model if the group has been
-granted `security.CREATE` or `security.WRITE` permission on the model.
+They are set by default on all fields of models which are granted
+the respective permission.
 
 Field permissions can be modified with the following functions:
 
-`*AllowFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
-Grant the given `perm` to the given `group` on the given `field`.
+`*AllowFieldAccess(model ModelName, field FieldName, group *security.Group, perm security.Permission)*`::
+Grant the given `perm` to the given `group` on the given `field` of `model`.
 
 [source,go]
 salesManager := models.GroupsRegistry.Get("sale_manager")
-models.AllowFieldAccess(pool.ResPartner_Function, salesManager, security.READ)
+models.AllowFieldAccess(pool.ResPartner_Function, salesManager, security.Read)
 
 `*DenyFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
 Deny the given `perm` to the given `group` on the given `field`.
 
-When the permissions set on the model and a field differ, the following rules
-apply:
+Generally speaking, the permission on the model and on the fields must match
+for the action to be performed. In particular:
 
-- Setting the `security.READ` permission on a field of a model which does not
-have itself the `security.READ` permission has no effect.
-- Setting the `security.WRITE` permission on a field of a model which does not
-have itself the `security.CREATE` or `security.WRITE` permissions has no effect.
-
-- When reading a record, fields without `security.READ` permission are not
-retrieved.
-- When updating a record, fields without `security.WRITE` permission are not
+- When reading a record, fields without `security.Read` permission are not
+retrieved and equal to their go zero value.
+- When creating a record, fields without `security.Create` permission are
+set to their go zero value.
+- When updating a record, fields without `security.Write` permission are not
 updated (silently).
-- When creating a record, fields without `security.WRITE` permission are set to
-their default value.
+- When deleting a record, fields permissions are not evaluated.
 
 == Record Rules
 
@@ -144,7 +138,7 @@ salesman := models.GroupsRegistry.Get("sale_user")
 rule := security.RecordRule {
     Group:     salesman,
     Condition: models.NewCondition().And("User.ID", "=", env.Uid),
-    Perms:     security.ALL,
+    Perms:     security.All,
 }
 models.AddRecordRule("salesman_own_partner", pool.ModelResPartner, rule)
 ----
@@ -159,24 +153,3 @@ models.RemoveRecordRule("salesman_own_partner", pool.ModelResPartner)
 If no record rule is set for a given group, then this group has implicitly
 access to all the records of the model with all permissions. Otherwise, only
 records matching all the Record Rules set for this group can be accessed.
-
-== Effective Permission
-
-To be effective, a permission must be set on the model, the field and the
-record. Permissions can be checked with the `CheckPermissions` method of a
-RecordSet.
-
-`*CheckPermissions(group *security.Group, field ...FieldName) security.Permission*`::
-Returns the effective permission(s) of the given `group` on this RecordSet.
-+
-If `field` is given (only one field allowed), then the effective permissions
-on the specified field of this RecordSet is returned.
-
-[source,go]
-----
-salesman := models.GroupsRegistry.Get("sale_user")
-saleOrder := pool.NewSaleOrderSet(env).Filter("Name", "=", "SO003")
-if saleOrder.CheckPermissions(salesman) & security.READ > 0 {
-    fmt.Println("Salesman is allowed to read sale order SO003")
-}
-----

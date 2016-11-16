@@ -14,11 +14,17 @@
 
 package models
 
+import "github.com/npiganeau/yep/yep/models/security"
+
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
 // Returned fieldMap keys are field's JSON name
 func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
 	for _, fInfo := range rc.mi.fields.getComputedFields(fields...) {
+		if !checkFieldPermission(fInfo, rc.env.uid, security.Read) {
+			// We do not have the access rights on this field, so we skip it.
+			continue
+		}
 		if _, exists := (*params)[fInfo.name]; exists {
 			// We already have the value we need in params
 			// probably because it was computed with another field

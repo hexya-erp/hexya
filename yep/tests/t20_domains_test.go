@@ -19,12 +19,13 @@ import (
 
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestDomains(t *testing.T) {
 	Convey("Testing Domains", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Creating an extra user", func() {
 			profile := pool.NewTest__ProfileSet(env).Create(&pool.Test__Profile{Age: 45})
 			userData := pool.Test__User{

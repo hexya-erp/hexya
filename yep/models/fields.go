@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -57,6 +58,21 @@ func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
 		fi, ok = fc.registryByJSON[name]
 	}
 	return
+}
+
+// mustGet returns the fieldInfo of the field with the given name or panics
+// name can be either the name of the field or its JSON name.
+func (fc *fieldsCollection) mustGet(name string) *fieldInfo {
+	fi, ok := fc.get(name)
+	if !ok {
+		var model string
+		for _, f := range fc.registryByName {
+			model = f.mi.name
+			break
+		}
+		logging.LogAndPanic(log, "Unknown field in model", "model", model, "field", name)
+	}
+	return fi
 }
 
 // storedFieldNames returns a slice with the names of all the stored fields
@@ -169,6 +185,7 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 // fieldInfo holds the meta information about a field
 type fieldInfo struct {
 	mi               *modelInfo
+	acl              *security.AccessControlList
 	name             string
 	json             string
 	description      string
@@ -304,6 +321,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 
 	fInfo := fieldInfo{
 		name:             sf.Name,
+		acl:              security.NewAccessControlList(),
 		json:             json,
 		mi:               mi,
 		compute:          computeName,
@@ -420,6 +438,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 
 	newMI := &modelInfo{
 		name:      relModelName,
+		acl:       security.NewAccessControlList(),
 		tableName: tools.SnakeCaseString(relModelName),
 		fields:    newFieldsCollection(),
 		methods:   newMethodsCollection(),
@@ -427,6 +446,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 	ourField := &fieldInfo{
 		name:             model1,
 		json:             tools.SnakeCaseString(model1) + "_id",
+		acl:              security.NewAccessControlList(),
 		mi:               newMI,
 		required:         true,
 		noCopy:           true,
@@ -443,6 +463,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 	theirField := &fieldInfo{
 		name:             model2,
 		json:             tools.SnakeCaseString(model2) + "_id",
+		acl:              security.NewAccessControlList(),
 		mi:               newMI,
 		required:         true,
 		noCopy:           true,
@@ -478,10 +499,7 @@ func processDepends() {
 						path:      path,
 					}
 					refModelInfo := mi.getRelatedModelInfo(path)
-					refField, ok := refModelInfo.fields.get(refName)
-					if !ok {
-						logging.LogAndPanic(log, "Unknown field in model", "model", refModelInfo.name, "field", refField)
-					}
+					refField := refModelInfo.fields.mustGet(refName)
 					refField.dependencies = append(refField.dependencies, targetComputeData)
 				}
 			}

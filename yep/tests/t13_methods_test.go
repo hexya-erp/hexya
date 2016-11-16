@@ -19,12 +19,13 @@ import (
 
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestMethods(t *testing.T) {
 	Convey("Testing simple methods", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Getting all users and calling `PrefixedUser`", func() {
 			users := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
 			res := users.PrefixedUser("Prefix")
@@ -36,7 +37,7 @@ func TestMethods(t *testing.T) {
 
 func TestComputedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored computed fields", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Getting one user (Jane) and checking DisplayName", func() {
 			users := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
 			So(users.DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
@@ -55,7 +56,7 @@ func TestComputedNonStoredFields(t *testing.T) {
 
 func TestComputedStoredFields(t *testing.T) {
 	Convey("Testing stored computed fields", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Checking that user Jane is 23", func() {
 			userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
 			So(userJane.Age(), ShouldEqual, 23)
@@ -94,7 +95,7 @@ func TestComputedStoredFields(t *testing.T) {
 
 func TestRelatedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored related fields", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Checking that user Jane PMoney equals is 12345", func() {
 		})
 		Convey("Checking that users PMoney is correct", func() {
@@ -144,7 +145,7 @@ func TestRelatedNonStoredFields(t *testing.T) {
 
 func TestEmbeddedModels(t *testing.T) {
 	Convey("Testing embedded models", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Adding a last post to Jane", func() {
 			postRs := pool.NewTest__PostSet(env).Create(&pool.Test__Post{
 				Title:   "This is my title",
@@ -165,7 +166,7 @@ func TestEmbeddedModels(t *testing.T) {
 
 func TestMixedInModels(t *testing.T) {
 	Convey("Testing mixed in models", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Checking that mixed in functions are correctly inherited", func() {
 			janeProfile := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com").Profile()
 			So(janeProfile.PrintAddress(), ShouldEqual, "[<165 5th Avenue, 0305 New York>, USA]")

@@ -17,12 +17,13 @@ package models
 import (
 	"testing"
 
+	"github.com/npiganeau/yep/yep/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestDomains(t *testing.T) {
 	Convey("Testing Domains", t, func() {
-		env := NewEnvironment(1)
+		env := NewEnvironment(security.SuperUserID)
 		Convey("Creating an extra user", func() {
 			profile := env.Pool("Profile").Call("Create", FieldMap{"Age": 45})
 			userData := FieldMap{

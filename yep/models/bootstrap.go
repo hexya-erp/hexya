@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -40,6 +41,7 @@ func BootStrap() {
 	syncDatabase()
 	bootStrapMethods()
 	processDepends()
+	setupSecurity()
 }
 
 // createModelLinks create links with related modelInfo
@@ -141,6 +143,7 @@ func inflateEmbeddings() {
 				fInfo := fieldInfo{
 					name:        relName,
 					json:        relFI.json,
+					acl:         security.NewAccessControlList(),
 					mi:          mi,
 					stored:      fi.stored,
 					structField: relFI.structField,
@@ -350,5 +353,12 @@ func createColumnIndex(tableName, colName string) {
 func bootStrapMethods() {
 	for _, mi := range modelRegistry.registryByName {
 		mi.methods.bootstrapped = true
+	}
+}
+
+// setupSecurity adds all permissions to the admin group for all models
+func setupSecurity() {
+	for modelName := range modelRegistry.registryByName {
+		AllowModelAccess(ModelName(modelName), security.AdminGroup, security.All)
 	}
 }

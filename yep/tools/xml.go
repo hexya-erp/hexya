@@ -17,8 +17,9 @@ package tools
 import (
 	"crypto/sha1"
 	"encoding/xml"
-	"github.com/npiganeau/yep/yep/tools/logging"
 	"io/ioutil"
+
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 type basicXML struct {
@@ -26,11 +27,10 @@ type basicXML struct {
 	Data    string `xml:",innerxml"`
 }
 
-/*
-ConcatXML concatenates the XML content of the files given by fileNames
-into a valid XML by importing all children of the root node into the
-root node of the first file.
-*/
+// ConcatXML concatenates the XML content of the files given by fileNames
+// into a valid XML by importing all children of the root node into the
+// root node of the first file. This function also returns the sha1sum of
+// the result.
 func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte) {
 	var reStruct basicXML
 	for _, fileName := range fileNames {

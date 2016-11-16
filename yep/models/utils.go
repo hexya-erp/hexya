@@ -155,10 +155,7 @@ func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 		return []string{}
 	}
 	var res []string
-	fi, ok := mi.fields.get(exprs[0])
-	if !ok {
-		logging.LogAndPanic(log, "Unknown expression for model", "expression", exprs, "model", mi.name)
-	}
+	fi := mi.fields.mustGet(exprs[0])
 	res = append(res, fi.json)
 	if len(exprs) > 1 {
 		if fi.relatedModel != nil {
@@ -341,10 +338,7 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 	// Check if fields are stored
 	for _, field := range fields {
 		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
-		fi, ok := mi.fields.get(fieldExprs[0])
-		if !ok {
-			logging.LogAndPanic(log, "Unknown Field in model", "field", fieldExprs[0], "model", mi.name)
-		}
+		fi := mi.fields.mustGet(fieldExprs[0])
 		var resExprs []string
 		if fi.isStored() {
 			resExprs = append(resExprs, fi.json)

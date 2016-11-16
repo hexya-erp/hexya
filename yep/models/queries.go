@@ -176,10 +176,7 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 		sql string
 	)
 	for k, v := range data {
-		fi, ok := q.recordSet.mi.fields.get(k)
-		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
-		}
+		fi := q.recordSet.mi.fields.mustGet(k)
 		cols[i] = fi.json
 		vals[i] = v
 		i++
@@ -246,10 +243,7 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 		sql string
 	)
 	for k, v := range data {
-		fi, ok := q.recordSet.mi.fields.get(k)
-		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", k, "model", q.recordSet.mi.name)
-		}
+		fi := q.recordSet.mi.fields.mustGet(k)
 		cols[i] = fmt.Sprintf("%s = ?", fi.json)
 		vals[i] = v
 		i++

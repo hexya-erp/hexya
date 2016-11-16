@@ -351,10 +351,7 @@ func FieldsViewGet(rc RecordCollection, args FieldsViewGetParams) *FieldsViewDat
 	}
 	cols := make([]string, len(view.Fields))
 	for i, f := range view.Fields {
-		fi, ok := rc.mi.fields.get(f)
-		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rc.mi.name)
-		}
+		fi := rc.mi.fields.mustGet(f)
 		cols[i] = fi.json
 	}
 	fInfos := rc.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
@@ -407,19 +404,13 @@ func AddModifiers(rc RecordCollection, doc *etree.Document, fieldInfos map[strin
 func UpdateFieldNames(rc RecordCollection, doc *etree.Document) {
 	for _, fieldTag := range doc.FindElements("//field") {
 		fieldName := fieldTag.SelectAttr("name").Value
-		fi, ok := rc.mi.fields.get(fieldName)
-		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rc.mi.name)
-		}
+		fi := rc.mi.fields.mustGet(fieldName)
 		fieldTag.RemoveAttr("name")
 		fieldTag.CreateAttr("name", fi.json)
 	}
 	for _, labelTag := range doc.FindElements("//label") {
 		fieldName := labelTag.SelectAttr("for").Value
-		fi, ok := rc.mi.fields.get(fieldName)
-		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", fieldName, "model", rc.mi.name)
-		}
+		fi := rc.mi.fields.mustGet(fieldName)
 		labelTag.RemoveAttr("for")
 		labelTag.CreateAttr("for", fi.json)
 	}
@@ -446,10 +437,7 @@ func FieldsGet(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 		}
 	}
 	for _, f := range fields {
-		fInfo, ok := rc.mi.fields.get(f)
-		if !ok {
-			logging.LogAndPanic(log, "Unknown field in model", "field", f, "model", rc.mi.name)
-		}
+		fInfo := rc.mi.fields.mustGet(f)
 		var relation string
 		if fInfo.relatedModel != nil {
 			relation = fInfo.relatedModel.name

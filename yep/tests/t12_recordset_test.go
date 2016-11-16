@@ -19,12 +19,13 @@ import (
 
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCreateRecordSet(t *testing.T) {
 	Convey("Test record creation", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Creating simple user John with no relations and checking ID", func() {
 			userJohnData := pool.Test__User{
 				UserName: "John Smith",
@@ -100,6 +101,53 @@ func TestCreateRecordSet(t *testing.T) {
 		})
 		env.Commit()
 	})
+	Convey("Testing access control list on creation (create only)", t, func() {
+		env := models.NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot create records", func() {
+			userTomData := pool.Test__User{
+				UserName: "Tom Smith",
+				Email:    "tsmith@example.com",
+			}
+			So(func() { pool.NewTest__UserSet(env).Create(&userTomData) }, ShouldPanic)
+		})
+		Convey("Adding model access rights to user 2 and check creation", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Create)
+			userTomData := pool.Test__User{
+				UserName: "Tom Smith",
+				Email:    "tsmith@example.com",
+			}
+			userTom := pool.NewTest__UserSet(env).Create(&userTomData)
+			So(func() { userTom.UserName() }, ShouldPanic)
+		})
+		Convey("Checking creation again with read rights too", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Create|security.Read)
+			userTomData := pool.Test__User{
+				UserName: "Tom Smith",
+				Email:    "tsmith@example.com",
+			}
+			userTom := pool.NewTest__UserSet(env).Create(&userTomData)
+			So(userTom.UserName(), ShouldEqual, "Tom Smith")
+			So(userTom.Email(), ShouldEqual, "tsmith@example.com")
+		})
+		Convey("Removing Create right on Email field", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Create|security.Read)
+			models.DenyFieldAccess(pool.ModelTest__User, pool.Test__User_Email, group1, security.Create)
+			userTomData := pool.Test__User{
+				UserName: "Tom Smith",
+				Email:    "tsmith@example.com",
+			}
+			userTom := pool.NewTest__UserSet(env).Create(&userTomData)
+			So(userTom.UserName(), ShouldEqual, "Tom Smith")
+			So(userTom.Email(), ShouldBeBlank)
+			models.DenyModelAccess(pool.ModelTest__User, group1, security.Create|security.Read)
+		})
+		env.Rollback()
+	})
 }
 
 func TestSearchRecordSet(t *testing.T) {
@@ -109,7 +157,7 @@ func TestSearchRecordSet(t *testing.T) {
 			UserName string
 			Email    string
 		}
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Searching User Jane", func() {
 			userJane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
 			So(userJane.Len(), ShouldEqual, 1)
@@ -155,11 +203,45 @@ func TestSearchRecordSet(t *testing.T) {
 		})
 		env.Rollback()
 	})
+	Convey("Testing access control list while searching", t, func() {
+		env := models.NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot access records", func() {
+			userJane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
+			So(func() { userJane.Load() }, ShouldPanic)
+		})
+		Convey("Adding model access rights to user 2 and checking access", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read)
+
+			userJane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
+			So(func() { userJane.Load() }, ShouldNotPanic)
+			So(userJane.UserName(), ShouldEqual, "Jane Smith")
+			So(userJane.Email(), ShouldEqual, "jane.smith@example.com")
+			So(userJane.Age(), ShouldEqual, 23)
+			So(func() { userJane.Profile().Age() }, ShouldPanic)
+		})
+		Convey("Adding field access rights to user 2 and checking access", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read)
+			models.DenyFieldAccess(pool.ModelTest__User, pool.Test__User_Email, group1, security.Read)
+			models.DenyFieldAccess(pool.ModelTest__User, pool.Test__User_Age, group1, security.Read)
+
+			userJane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
+			So(func() { userJane.Load() }, ShouldNotPanic)
+			So(userJane.UserName(), ShouldEqual, "Jane Smith")
+			So(userJane.Email(), ShouldBeBlank)
+			So(userJane.Age(), ShouldEqual, 0)
+		})
+		env.Rollback()
+	})
 }
 
 func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
-		env := models.NewEnvironment(1)
+		env := models.NewEnvironment(security.SuperUserID)
 		Convey("Update on users Jane and John with Write and Set", func() {
 			jane := pool.NewTest__UserSet(env).Filter("UserName", "=", "Jane Smith")
 			So(jane.Len(), ShouldEqual, 1)
@@ -221,16 +303,84 @@ func TestUpdateRecordSet(t *testing.T) {
 		})
 		env.Commit()
 	})
+	Convey("Testing access control list on update (write only)", t, func() {
+		env := models.NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot update records", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read)
+			john := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := pool.Test__User{
+				Email: "jsmith3@example.com",
+				Nums:  13,
+			}
+			So(func() { john.Write(&johnValues) }, ShouldPanic)
+		})
+		Convey("Adding model access rights to user 2 and check update", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read|security.Write)
+			john := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := pool.Test__User{
+				Email: "jsmith3@example.com",
+				Nums:  13,
+			}
+			john.Write(&johnValues)
+			john.Load()
+			So(john.UserName(), ShouldEqual, "John Smith")
+			So(john.Email(), ShouldEqual, "jsmith3@example.com")
+			So(john.Nums(), ShouldEqual, 13)
+		})
+		Convey("Removing Update right on Email field", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Write|security.Read)
+			models.DenyFieldAccess(pool.ModelTest__User, pool.Test__User_Email, group1, security.Write)
+			john := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := pool.Test__User{
+				Email: "jsmith3@example.com",
+				Nums:  13,
+			}
+			john.Write(&johnValues)
+			john.Load()
+			So(john.UserName(), ShouldEqual, "John Smith")
+			So(john.Email(), ShouldEqual, "jsmith2@example.com")
+			So(john.Nums(), ShouldEqual, 13)
+		})
+		env.Rollback()
+	})
 }
 
 func TestDeleteRecordSet(t *testing.T) {
-	env := models.NewEnvironment(1)
 	Convey("Delete user John Smith", t, func() {
+		env := models.NewEnvironment(security.SuperUserID)
 		users := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
 		num := users.Unlink()
 		Convey("Number of deleted record should be 1", func() {
 			So(num, ShouldEqual, 1)
 		})
+		env.Rollback()
 	})
-	env.Rollback()
+	Convey("Checking unlink access permissions", t, func() {
+		env := models.NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot delete records", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read)
+			users := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+			So(func() { users.Unlink() }, ShouldPanic)
+		})
+		Convey("Adding unlink permission to user2", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read|security.Unlink)
+			users := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+			num := users.Unlink()
+			So(num, ShouldEqual, 1)
+		})
+		env.Rollback()
+	})
 }

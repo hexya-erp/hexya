@@ -170,10 +170,7 @@ func ExtendMethod(modelName, methodName string, fnct interface{}) {
 // checkMethodAndFnctType checks whether the given arguments are valid for
 // CreateMethod or ExtendMethod
 func checkMethodAndFnctType(modelName, methodName string, fnct interface{}) *modelInfo {
-	mi, ok := modelRegistry.get(modelName)
-	if !ok {
-		logging.LogAndPanic(log, "Unknown model", "model", modelName)
-	}
+	mi := modelRegistry.mustGet(modelName)
 	if mi.methods.bootstrapped {
 		logging.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", modelName, "method", methodName)
 	}

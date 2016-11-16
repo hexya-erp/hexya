@@ -17,12 +17,13 @@ package models
 import (
 	"testing"
 
+	"github.com/npiganeau/yep/yep/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCreateRecordSet(t *testing.T) {
 	Convey("Test record creation", t, func() {
-		env := NewEnvironment(1)
+		env := NewEnvironment(security.SuperUserID)
 		Convey("Creating simple user John with no relations and checking ID", func() {
 			userJohnData := FieldMap{
 				"UserName": "John Smith",
@@ -99,6 +100,53 @@ func TestCreateRecordSet(t *testing.T) {
 		})
 		env.Commit()
 	})
+	Convey("Testing access control list on creation (create only)", t, func() {
+		env := NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot create records", func() {
+			userTomData := FieldMap{
+				"UserName": "Tom Smith",
+				"Email":    "tsmith@example.com",
+			}
+			So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
+		})
+		Convey("Adding model access rights to user 2 and check creation", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Create)
+			userTomData := FieldMap{
+				"UserName": "Tom Smith",
+				"Email":    "tsmith@example.com",
+			}
+			userTom := env.Pool("User").Call("Create", userTomData).(RecordCollection)
+			So(func() { userTom.Get("UserName") }, ShouldPanic)
+		})
+		Convey("Checking creation again with read rights too", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Create|security.Read)
+			userTomData := FieldMap{
+				"UserName": "Tom Smith",
+				"Email":    "tsmith@example.com",
+			}
+			userTom := env.Pool("User").Call("Create", userTomData).(RecordCollection)
+			So(userTom.Get("UserName"), ShouldEqual, "Tom Smith")
+			So(userTom.Get("Email"), ShouldEqual, "tsmith@example.com")
+		})
+		Convey("Removing Create right on Email field", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Create|security.Read)
+			DenyFieldAccess(ModelName("User"), FieldName("Email"), group1, security.Create)
+			userTomData := FieldMap{
+				"UserName": "Tom Smith",
+				"Email":    "tsmith@example.com",
+			}
+			userTom := env.Pool("User").Call("Create", userTomData).(RecordCollection)
+			So(userTom.Get("UserName"), ShouldEqual, "Tom Smith")
+			So(userTom.Get("Email").(string), ShouldBeBlank)
+			DenyModelAccess(ModelName("User"), group1, security.Create|security.Read)
+		})
+		env.Rollback()
+	})
 }
 
 func TestSearchRecordSet(t *testing.T) {
@@ -108,7 +156,7 @@ func TestSearchRecordSet(t *testing.T) {
 			UserName string
 			Email    string
 		}
-		env := NewEnvironment(1)
+		env := NewEnvironment(security.SuperUserID)
 		Convey("Searching User Jane", func() {
 			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith")
 			So(userJane.Len(), ShouldEqual, 1)
@@ -156,11 +204,45 @@ func TestSearchRecordSet(t *testing.T) {
 		})
 		env.Rollback()
 	})
+	Convey("Testing access control list while searching", t, func() {
+		env := NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot access records", func() {
+			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith")
+			So(func() { userJane.Load() }, ShouldPanic)
+		})
+		Convey("Adding model access rights to user 2 and checking access", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Read)
+
+			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith")
+			So(func() { userJane.Load() }, ShouldNotPanic)
+			So(userJane.Get("UserName").(string), ShouldEqual, "Jane Smith")
+			So(userJane.Get("Email").(string), ShouldEqual, "jane.smith@example.com")
+			So(userJane.Get("Age"), ShouldEqual, 23)
+			So(func() { userJane.Get("Profile").(RecordCollection).Get("Age") }, ShouldPanic)
+		})
+		Convey("Adding field access rights to user 2 and checking access", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Read)
+			DenyFieldAccess(ModelName("User"), FieldName("Email"), group1, security.Read)
+			DenyFieldAccess(ModelName("User"), FieldName("Age"), group1, security.Read)
+
+			userJane := env.Pool("User").Filter("UserName", "=", "Jane Smith")
+			So(func() { userJane.Load() }, ShouldNotPanic)
+			So(userJane.Get("UserName").(string), ShouldEqual, "Jane Smith")
+			So(userJane.Get("Email").(string), ShouldBeBlank)
+			So(userJane.Get("Age"), ShouldEqual, 0)
+		})
+		env.Rollback()
+	})
 }
 
 func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
-		env := NewEnvironment(1)
+		env := NewEnvironment(security.SuperUserID)
 		Convey("Update on users Jane and John with Write and Set", func() {
 			jane := env.Pool("User").Filter("UserName", "=", "Jane Smith")
 			So(jane.Len(), ShouldEqual, 1)
@@ -222,16 +304,84 @@ func TestUpdateRecordSet(t *testing.T) {
 		})
 		env.Commit()
 	})
+	Convey("Testing access control list on update (write only)", t, func() {
+		env := NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot update records", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Read)
+			john := env.Pool("User").Filter("UserName", "=", "John Smith")
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := FieldMap{
+				"Email": "jsmith3@example.com",
+				"Nums":  13,
+			}
+			So(func() { john.Call("Write", johnValues) }, ShouldPanic)
+		})
+		Convey("Adding model access rights to user 2 and check update", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Read|security.Write)
+			john := env.Pool("User").Filter("UserName", "=", "John Smith")
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := FieldMap{
+				"Email": "jsmith3@example.com",
+				"Nums":  13,
+			}
+			john.Call("Write", johnValues)
+			john.Load()
+			So(john.Get("UserName"), ShouldEqual, "John Smith")
+			So(john.Get("Email"), ShouldEqual, "jsmith3@example.com")
+			So(john.Get("Nums"), ShouldEqual, 13)
+		})
+		Convey("Removing Update right on Email field", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Write|security.Read)
+			DenyFieldAccess(ModelName("User"), FieldName("Email"), group1, security.Write)
+			john := env.Pool("User").Filter("UserName", "=", "John Smith")
+			So(john.Len(), ShouldEqual, 1)
+			johnValues := FieldMap{
+				"Email": "jsmith3@example.com",
+				"Nums":  13,
+			}
+			john.Call("Write", johnValues)
+			john.Load()
+			So(john.Get("UserName"), ShouldEqual, "John Smith")
+			So(john.Get("Email"), ShouldEqual, "jsmith2@example.com")
+			So(john.Get("Nums"), ShouldEqual, 13)
+		})
+		env.Rollback()
+	})
 }
 
 func TestDeleteRecordSet(t *testing.T) {
-	env := NewEnvironment(1)
 	Convey("Delete user John Smith", t, func() {
+		env := NewEnvironment(security.SuperUserID)
 		users := env.Pool("User").Filter("UserName", "=", "John Smith")
 		num := users.Call("Unlink")
 		Convey("Number of deleted record should be 1", func() {
 			So(num, ShouldEqual, 1)
 		})
+		env.Rollback()
 	})
-	env.Rollback()
+	Convey("Checking unlink access permissions", t, func() {
+		env := NewEnvironment(2)
+		group1 := security.NewGroup("Group1")
+		gmBackend := make(security.GroupMapBackend)
+		security.AuthenticationRegistry.RegisterBackend(gmBackend)
+		gmBackend[2] = []*security.Group{group1}
+
+		Convey("Checking that user 2 cannot delete records", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Read)
+			users := env.Pool("User").Filter("UserName", "=", "John Smith")
+			So(func() { users.Call("Unlink") }, ShouldPanic)
+		})
+		Convey("Adding unlink permission to user2", func() {
+			AllowModelAccess(ModelName("User"), group1, security.Read|security.Unlink)
+			users := env.Pool("User").Filter("UserName", "=", "John Smith")
+			num := users.Call("Unlink")
+			So(num, ShouldEqual, 1)
+		})
+		env.Rollback()
+	})
 }

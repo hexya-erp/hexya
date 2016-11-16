@@ -21,12 +21,12 @@ ORM
 - [X] Computed fields to ORM:
     - [X] Fields computed by ERP after retrieval of computation vars
     - [X] Fields computed by ERP and stored in DB column
-- [ ] Related fields
+- [X] Related fields
     - [X] ReadOnly related fields
     - [X] ReadWrite related fields
     - [X] Searchable related fields
 - [ ] Security
-    - [ ] CRUD permissions to models and fields
+    - [X] CRUD permissions to models and fields
     - [ ] Record rules on models
 - [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Support for SQL views and materialized views

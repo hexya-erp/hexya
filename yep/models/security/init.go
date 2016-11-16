@@ -12,9 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package security
 
-const (
-	// SuperUserID is the UID of the yep administrator
-	SuperUserID int64 = 1
+import (
+	"github.com/inconshreveable/log15"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
+
+var log log15.Logger
+
+func init() {
+	log = logging.GetLogger("security")
+
+	GroupRegistry = NewGroupCollection()
+	AdminGroup = NewGroup(AdminGroupName)
+	GroupRegistry.RegisterGroup(AdminGroup)
+
+	AuthenticationRegistry = new(AuthBackendRegistry)
+	AuthenticationRegistry.RegisterBackend(AdminOnlyBackend(true))
+}

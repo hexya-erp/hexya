@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -47,6 +48,16 @@ func (mc *modelCollection) get(nameOrJSON string) (mi *modelInfo, ok bool) {
 	return
 }
 
+// mustGet the given modelInfo by name or by table name.
+// It panics if the modelInfo does not exist
+func (mc *modelCollection) mustGet(nameOrJSON string) *modelInfo {
+	mi, ok := mc.get(nameOrJSON)
+	if !ok {
+		logging.LogAndPanic(log, "Unknwon model", nameOrJSON)
+	}
+	return mi
+}
+
 // add the given modelInfo to the modelCollection
 func (mc *modelCollection) add(mi *modelInfo) {
 	mc.registryByName[mi.name] = mi
@@ -63,6 +74,7 @@ func newModelCollection() *modelCollection {
 
 type modelInfo struct {
 	name      string
+	acl       *security.AccessControlList
 	tableName string
 	fields    *fieldsCollection
 	methods   *methodsCollection
@@ -110,10 +122,7 @@ func (mi *modelInfo) getRelatedModelInfo(path string, skipLast ...bool) *modelIn
 
 	exprs := strings.Split(path, ExprSep)
 	jsonizeExpr(mi, exprs)
-	fi, ok := mi.fields.get(exprs[0])
-	if !ok {
-		logging.LogAndPanic(log, "Unknown field in model", "field", exprs[0], "model", mi.name)
-	}
+	fi := mi.fields.mustGet(exprs[0])
 	if fi.relatedModel == nil || (len(exprs) == 1 && skip) {
 		// The field is a non relational field, so we are already
 		// on the related modelInfo. Or we have only 1 exprs and we skip the last one.
@@ -136,10 +145,7 @@ func (mi *modelInfo) getRelatedFieldInfo(path string) *fieldInfo {
 	} else {
 		rmi = mi
 	}
-	fi, ok := rmi.fields.get(colExprs[num-1])
-	if !ok {
-		logging.LogAndPanic(log, "Unknown field in model", "field", colExprs[num-1], "model", rmi.name)
-	}
+	fi := rmi.fields.mustGet(colExprs[num-1])
 	return fi
 }
 
@@ -249,10 +255,7 @@ func CreateModel(name string, options ...Option) {
 
 // ExtendModel extends the model given by its name with the given struct pointers
 func ExtendModel(name string, structPtrs ...interface{}) {
-	mi, ok := modelRegistry.get(name)
-	if !ok {
-		logging.LogAndPanic(log, "Unknown model", "model", name)
-	}
+	mi := modelRegistry.mustGet(name)
 	for _, structPtr := range structPtrs {
 		mi.addFieldsFromStruct(structPtr)
 	}
@@ -260,14 +263,8 @@ func ExtendModel(name string, structPtrs ...interface{}) {
 
 // MixInModel extends targetModel by importing all fields and methods of mixInModel.
 func MixInModel(targetModel, mixInModel string) {
-	mi, ok := modelRegistry.get(targetModel)
-	if !ok {
-		logging.LogAndPanic(log, "Unknown model", "model", targetModel)
-	}
-	mixInMI, ok := modelRegistry.get(mixInModel)
-	if !ok {
-		logging.LogAndPanic(log, "Unknown model", "model", mixInModel)
-	}
+	mi := modelRegistry.mustGet(targetModel)
+	mixInMI := modelRegistry.mustGet(mixInModel)
 	mi.mixins = append(mi.mixins, mixInMI)
 }
 
@@ -276,6 +273,7 @@ func MixInModel(targetModel, mixInModel string) {
 func createModelInfo(name string, model interface{}) {
 	mi := &modelInfo{
 		name:      name,
+		acl:       security.NewAccessControlList(),
 		tableName: tools.SnakeCaseString(name),
 		fields:    newFieldsCollection(),
 		methods:   newMethodsCollection(),
@@ -283,6 +281,7 @@ func createModelInfo(name string, model interface{}) {
 	pk := &fieldInfo{
 		name:      "ID",
 		json:      "id",
+		acl:       security.NewAccessControlList(),
 		mi:        mi,
 		required:  true,
 		noCopy:    true,
