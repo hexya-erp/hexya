@@ -14,6 +14,7 @@
 
 package security
 
+// AuthenticationRegistry is the authentication registry of the application
 var AuthenticationRegistry *AuthBackendRegistry
 
 // An AuthBackend is an interface that is capable of authenticating a

@@ -53,7 +53,7 @@ func (mc *modelCollection) get(nameOrJSON string) (mi *modelInfo, ok bool) {
 func (mc *modelCollection) mustGet(nameOrJSON string) *modelInfo {
 	mi, ok := mc.get(nameOrJSON)
 	if !ok {
-		logging.LogAndPanic(log, "Unknwon model", nameOrJSON)
+		logging.LogAndPanic(log, "Unknown model", nameOrJSON)
 	}
 	return mi
 }

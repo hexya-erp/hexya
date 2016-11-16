@@ -56,7 +56,7 @@ func DenyModelAccess(model ModelName, group *security.Group, perm security.Permi
 	}
 }
 
-// RemoveFieldAccess denies the given perm to the given group on the given field of model.
+// DenyFieldAccess denies the given perm to the given group on the given field of model.
 // Only security.Read and security.Write permissions are taken into account by
 // this function, others are discarded.
 func DenyFieldAccess(model ModelName, field FieldName, group *security.Group, perm security.Permission) {

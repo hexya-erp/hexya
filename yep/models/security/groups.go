@@ -17,14 +17,16 @@ package security
 import "sync"
 
 const (
-	SuperUserID    int64  = 1
+	// SuperUserID is the uid of the administrator
+	SuperUserID int64 = 1
+	// AdminGroupName is the name of the group with all permissions
 	AdminGroupName string = "Admin"
 )
 
-// The GroupRegistry of the application
+// GroupRegistry of the application
 var GroupRegistry *GroupCollection
 
-// The AdminGroup which has all permissions
+// AdminGroup which has all permissions
 var AdminGroup *Group
 
 // A Group defines a role which can be granted or denied permissions.
@@ -67,7 +69,7 @@ func (gc *GroupCollection) UnregisterGroup(group *Group) {
 	delete(gc.groups, group.Name)
 }
 
-// MustGet returns the group with the given groupName or nil if
+// Get returns the group with the given groupName or nil if
 // not found
 func (gc *GroupCollection) Get(groupName string) *Group {
 	return gc.groups[groupName]
