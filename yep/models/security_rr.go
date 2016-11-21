@@ -61,7 +61,7 @@ func (rrr *recordRuleRegistry) removeRule(name string) {
 	defer rrr.Unlock()
 	rule, exists := rrr.rulesByName[name]
 	if !exists {
-		log.Warn("Trying to remove non-existant record rule", "name", name)
+		log.Warn("Trying to remove non-existent record rule", "name", name)
 		return
 	}
 	delete(rrr.rulesByName, name)
