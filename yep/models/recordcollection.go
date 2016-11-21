@@ -34,6 +34,7 @@ type RecordCollection struct {
 	env       *Environment
 	ids       []int64
 	fetched   bool
+	filtered  bool
 }
 
 // String returns the string representation of a RecordSet
@@ -95,6 +96,7 @@ func (rc RecordCollection) create(data interface{}) RecordCollection {
 // Instead use rs.Write() or rs.Call("Write")
 func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) bool {
 	mustCheckModelPermission(rc.mi, rc.env.uid, security.Write)
+	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
 	fMap := convertInterfaceToFieldMap(data)
 	if _, ok := data.(FieldMap); !ok {
 		for _, f := range fieldsToUnset {
@@ -103,17 +105,17 @@ func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) boo
 			}
 		}
 	}
-	rc.mi.convertValuesToFieldType(&fMap)
+	rSet.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
-	storedFieldMap := filterMapOnStoredFields(rc.mi, fMap)
-	rc.doUpdate(storedFieldMap)
+	storedFieldMap := filterMapOnStoredFields(rSet.mi, fMap)
+	rSet.doUpdate(storedFieldMap)
 	// write reverse relation fields
-	rc.updateRelationFields(fMap)
+	rSet.updateRelationFields(fMap)
 	// write related fields
-	rc.updateRelatedFields(fMap)
+	rSet.updateRelatedFields(fMap)
 	// compute stored fields
-	rc.updateStoredFields(fMap)
+	rSet.updateStoredFields(fMap)
 	return true
 }
 
@@ -130,7 +132,10 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 	// update DB
 	if len(fMap) > 0 {
 		sql, args := rc.query.updateQuery(fMap)
-		rc.env.cr.Execute(sql, args...)
+		res := rc.env.cr.Execute(sql, args...)
+		if num, _ := res.RowsAffected(); num == 0 {
+			logging.LogAndPanic(log, "Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
+		}
 	}
 }
 
@@ -208,8 +213,9 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 // Instead use rs.Unlink() or rs.Call("Unlink")
 func (rc RecordCollection) delete() int64 {
 	mustCheckModelPermission(rc.mi, rc.env.uid, security.Unlink)
-	sql, args := rc.query.deleteQuery()
-	res := rc.env.cr.Execute(sql, args...)
+	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Unlink)
+	sql, args := rSet.query.deleteQuery()
+	res := rSet.env.cr.Execute(sql, args...)
 	num, _ := res.RowsAffected()
 	return num
 }
@@ -292,29 +298,30 @@ func (rc RecordCollection) SearchCount() int {
 // fields to be retrieved.
 func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	mustCheckModelPermission(rc.mi, rc.env.uid, security.Read)
+	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
 	var results []FieldMap
 	if len(fields) == 0 {
-		fields = rc.mi.fields.storedFieldNames()
+		fields = rSet.mi.fields.storedFieldNames()
 	}
-	fields = filterOnAuthorizedFields(rc.mi, rc.env.uid, fields, security.Read)
-	subFields, rc := rc.substituteRelatedFields(fields)
-	dbFields := filterOnDBFields(rc.mi, subFields)
-	sql, args := rc.query.selectQuery(dbFields)
-	rows := dbQuery(rc.env.cr.tx, sql, args...)
+	fields = filterOnAuthorizedFields(rSet.mi, rSet.env.uid, fields, security.Read)
+	subFields, rSet := rSet.substituteRelatedFields(fields)
+	dbFields := filterOnDBFields(rSet.mi, subFields)
+	sql, args := rSet.query.selectQuery(dbFields)
+	rows := dbQuery(rSet.env.cr.tx, sql, args...)
 	defer rows.Close()
 	var ids []int64
 	for rows.Next() {
 		line := make(FieldMap)
-		err := rc.mi.scanToFieldMap(rows, &line)
+		err := rSet.mi.scanToFieldMap(rows, &line)
 		if err != nil {
-			logging.LogAndPanic(log, err.Error(), "model", rc.ModelName(), "fields", fields)
+			logging.LogAndPanic(log, err.Error(), "model", rSet.ModelName(), "fields", fields)
 		}
 		results = append(results, line)
-		rc.env.cache.addRecord(rc.mi, line["id"].(int64), line)
+		rSet.env.cache.addRecord(rSet.mi, line["id"].(int64), line)
 		ids = append(ids, line["id"].(int64))
 	}
 
-	rSet := rc.withIds(ids)
+	rSet = rSet.withIds(ids)
 	rSet.loadRelationFields(fields)
 	return rSet
 }
@@ -412,13 +419,9 @@ func (rc RecordCollection) get(field string, all bool) interface{} {
 // Records, all of them will be updated. Each call to Set makes an update query in the
 // database. It panics if it is called on an empty RecordSet.
 func (rc RecordCollection) Set(fieldName string, value interface{}) {
-	rSet := rc.Fetch()
-	if rSet.IsEmpty() {
-		logging.LogAndPanic(log, "Call to Set on empty RecordSet", "model", rSet.ModelName(), "field", fieldName, "value", value)
-	}
 	fMap := make(FieldMap)
 	fMap[fieldName] = value
-	rSet.Call("Write", fMap)
+	rc.Call("Write", fMap)
 }
 
 // First populates structPtr with a copy of the first Record of the RecordCollection.
@@ -525,6 +528,7 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 	rSet := rc
 	rSet.ids = ids
 	rSet.fetched = true
+	rSet.filtered = false
 	if len(ids) > 0 {
 		for _, id := range rSet.ids {
 			rSet.env.cache.addEntry(rSet.mi, id, "id", id)
@@ -546,6 +550,6 @@ func newRecordCollection(env Environment, modelName string) RecordCollection {
 		env:   &env,
 		ids:   make([]int64, 0),
 	}
-	rc.query.recordSet = &rc
+	rc.query.recordSet = rc
 	return rc
 }

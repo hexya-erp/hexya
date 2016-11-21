@@ -73,20 +73,3 @@ func NewAccessControlList() *AccessControlList {
 	}
 	return &acl
 }
-
-/*
-
-type RecordRule struct {
-}
-
-// A Registry holds information about permissions that have been granted
-// to groups. It is meant to be attached to a model on which the
-// permissions will apply.
-//
-// Two types of security data is registered in the Registry:
-// - Access Control lists, which defines which group is allowed to access
-// which field of the model.
-// - Record Rules, which defines which records of the model can be accessed
-type Registry struct {
-}
-*/

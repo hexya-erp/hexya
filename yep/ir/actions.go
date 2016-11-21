@@ -144,7 +144,7 @@ type BaseAction struct {
 	AutoSearch   bool           `json:"auto_search"`
 	Filter       bool           `json:"filter"`
 	Limit        int64          `json:"limit"`
-	Context      types.Context  `json:"context"`
+	Context      *types.Context `json:"context"`
 	//Flags interface{}`json:"flags"`
 	//SearchView  string         `json:"search_view"`
 }

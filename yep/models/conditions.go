@@ -15,6 +15,7 @@
 package models
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -168,5 +169,33 @@ func (c *Condition) substituteExprs(mi *modelInfo, substs map[string][]string) {
 		if cv.cond != nil {
 			cv.cond.substituteExprs(mi, substs)
 		}
+	}
+}
+
+// evaluateArgFunctions recursively evaluates all args in the queries that are
+// functions and substitute it with the result.
+func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
+	for i, cv := range c.params {
+		if cv.cond != nil {
+			cv.cond.evaluateArgFunctions(rc)
+		}
+
+		fnctVal := reflect.ValueOf(cv.arg)
+		if fnctVal.Kind() != reflect.Func {
+			continue
+		}
+
+		firstArgType := fnctVal.Type().In(0)
+		if !firstArgType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+			continue
+		}
+		argValue := reflect.ValueOf(rc)
+		if firstArgType != reflect.TypeOf(RecordCollection{}) {
+			argValue = reflect.New(firstArgType).Elem()
+			argValue.FieldByName("RecordCollection").Set(argValue)
+		}
+
+		res := fnctVal.Call([]reflect.Value{argValue})
+		c.params[i].arg = res[0].Interface()
 	}
 }

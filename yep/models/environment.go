@@ -41,35 +41,8 @@ func (env Environment) Uid() int64 {
 }
 
 // Context returns the Context of the Environment
-func (env Environment) Context() types.Context {
-	return *env.context
-}
-
-// WithContext returns a new Environment with its context updated by ctx.
-// If replace is true, then the context is replaced by the given ctx instead of
-// being updated.
-func (env Environment) WithContext(ctx types.Context, replace ...bool) Environment {
-	if len(replace) > 0 && replace[0] {
-		env.context = &ctx
-		return env
-	}
-	newCtx := *env.context
-	for key, value := range ctx {
-		newCtx[key] = value
-	}
-	env.context = &newCtx
-	return env
-}
-
-// Sudo returns a new Environment with the given userId
-// or the superuser id if not specified
-func (env Environment) Sudo(userId ...int64) Environment {
-	if len(userId) > 0 {
-		env.uid = userId[0]
-	} else {
-		env.uid = 1
-	}
-	return env
+func (env Environment) Context() *types.Context {
+	return env.context
 }
 
 // Commit the transaction of this environment.

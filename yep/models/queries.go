@@ -38,7 +38,7 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 // A Query defines the common part an SQL Query, i.e. all that come
 // after the FROM keyword.
 type Query struct {
-	recordSet *RecordCollection
+	recordSet RecordCollection
 	cond      *Condition
 	related   []string
 	limit     int
@@ -51,6 +51,7 @@ type Query struct {
 // sqlWhereClause returns the sql string and parameters corresponding to the
 // WHERE clause of this Query
 func (q *Query) sqlWhereClause() (string, SQLParams) {
+	q.evaluateConditionArgFunctions()
 	sql, args := q.conditionSQLClause(q.cond)
 	if sql != "" {
 		sql = "WHERE " + sql
@@ -192,8 +193,8 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 // the rows pointed at by this Query object.
 func (q *Query) countQuery() (string, SQLParams) {
 	sql, args := q.selectQuery([]string{"id"})
-	delQuery := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) foo`, sql)
-	return delQuery, args
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) foo`, sql)
+	return countQuery, args
 }
 
 // selectQuery returns the SQL query string and parameters to retrieve
@@ -382,10 +383,16 @@ func (q *Query) substituteConditionExprs(substMap map[string][]string) {
 	q.cond.substituteExprs(q.recordSet.mi, substMap)
 }
 
+// evaluateConditionArgFunctions evaluates all args in the queries that are functions and
+// substitute it with the result.
+func (q *Query) evaluateConditionArgFunctions() {
+	q.cond.evaluateArgFunctions(q.recordSet)
+}
+
 // newQuery returns a new empty query
 // If rs is given, bind this query to the given RecordSet.
-func newQuery(rs ...*RecordCollection) *Query {
-	var rset *RecordCollection
+func newQuery(rs ...RecordCollection) *Query {
+	var rset RecordCollection
 	if len(rs) > 0 {
 		rset = rs[0]
 	}

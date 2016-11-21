@@ -73,12 +73,13 @@ func newModelCollection() *modelCollection {
 }
 
 type modelInfo struct {
-	name      string
-	acl       *security.AccessControlList
-	tableName string
-	fields    *fieldsCollection
-	methods   *methodsCollection
-	mixins    []*modelInfo
+	name          string
+	acl           *security.AccessControlList
+	rulesRegistry *recordRuleRegistry
+	tableName     string
+	fields        *fieldsCollection
+	methods       *methodsCollection
+	mixins        []*modelInfo
 }
 
 // addFieldsFromStruct adds the fields of the given struct to our
@@ -272,11 +273,12 @@ func MixInModel(targetModel, mixInModel string) {
 // by parsing the given struct pointer.
 func createModelInfo(name string, model interface{}) {
 	mi := &modelInfo{
-		name:      name,
-		acl:       security.NewAccessControlList(),
-		tableName: tools.SnakeCaseString(name),
-		fields:    newFieldsCollection(),
-		methods:   newMethodsCollection(),
+		name:          name,
+		acl:           security.NewAccessControlList(),
+		rulesRegistry: newRecordRuleRegistry(),
+		tableName:     tools.SnakeCaseString(name),
+		fields:        newFieldsCollection(),
+		methods:       newMethodsCollection(),
 	}
 	pk := &fieldInfo{
 		name:      "ID",

@@ -25,9 +25,10 @@ ORM
     - [X] ReadOnly related fields
     - [X] ReadWrite related fields
     - [X] Searchable related fields
-- [ ] Security
+- [X] Security
     - [X] CRUD permissions to models and fields
-    - [ ] Record rules on models
+    - [X] Record rules on models
+- [ ] Manage errors the go way in RecordSet methods instead of panicking
 - [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Support for SQL views and materialized views
 - [ ] Implement "group by" queries
@@ -63,6 +64,6 @@ Modules
     - [X] Odoo like schema
     - [ ] New schema for internal resources XML
     - [ ] Make yep-generate create XSD for XML autocompletion
-- [ ] Add support for data & demo XML files
+- [ ] Add support for data & demo JSON files
 - [ ] Add support for CSV data files
 - [ ] Business logic testing framework

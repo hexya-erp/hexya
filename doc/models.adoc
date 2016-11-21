@@ -191,6 +191,19 @@ users := NewResUsersSet(env).Search(cond)
 * `Or(field models.FieldName, operator string, value interface{})`
 * `OrNot(field models.FieldName, operator string, value interface{})`
 * `OrCond(condition *models.Condition)`
+
+The `value` parameter of the above function can be any of the following:
+
+* A standard type (int, string, etc.)
+* A type that implements `driver.Valuer`
+* A function whose first argument is a RecordSet of the same type as the
+RecordSet we are querying and that returns a value that matches one of the two
+above conditions.
++
+eg. `func(rs pool.ResPartnerSet) int64`
++
+The function will be evaluated at the time of the query by passing it the
+RecordSet we are querying and the result will be substituted in the query.
 ====
 
 `*Filter(field models.FieldName, operator string, value interface{}) RecordSetType*`::
@@ -287,6 +300,62 @@ checking) and the current context (storing arbitrary metadata).
 
 The usual way to get the current Environment is to call `Env()` on a RecordSet.
 
+=== Environment Methods
+
+The following methods are available on the Environment.
+
+`*Cr() *Cursor*`::
+Returns the cursor to the database. The cursor is a wrapper around the current
+database transaction that can be used for <<Direct Database Access>>.
+
+`*Uid() int64*`::
+Returns the user ID of the current user.
+
+`*Context() *types.Context()*`::
+Returns the context of this Environment. The context is a
+read only map for storing arbitrary metadata. See <<Context Methods>>.
+
+`*Commit()*`::
+`*Rollback()*`::
+Commits (respectively rolls back) the current transaction.
+
+WARNING: Do NOT call `Commit()` or `Rollback()` on Environment instances that
+you did not create yourself with `NewEnvironment()`. The framework will
+automatically commit the Environment.
+
+=== Context Methods
+
+The Context of an Environment is a read only map for storing arbitrary
+metadata. To modify the context, you need to modify the Environment
+(see <<Modifying the Environment>>).
+
+`*HasKey(key string) bool*`::
+Returns true if the Context has a value for the given key.
+
+`*Get(key string) interface{}*`::
+Returns the value of the Context for the given key. It returns nil if the
+Context does not contain this key.
+
+`*SetEntry(key string, value interface{}) *Context*`::
+Returns a copy of this Context with the given key set to the given value.
+
+A pointer to a new empty Context can be created with `types.NewContext()`
+
+=== Creating a new Environment
+
+`*NewEnvironment()*`::
+NewEnvironment returns a new Environment with the given parameters in a new DB
+transaction.
+
+WARNING: Callers to `NewEnvironment()` should ensure to either call `Commit()`
+or `Rollback()` on the returned Environment after operation to release
+the database connection.
+
+NOTE: Except for launching asynchronous jobs, there is usually no need to call
+`NewEnvironment()`. Check <<Modifying the Environment>> instead.
+
+=== Modifying the Environment
+
 The Environment is immutable. It can be customized with the following methods
 to be applied on the RecordSet.
 
@@ -302,16 +371,51 @@ partners := pool.NewResPartnerSet(env).Filter("Name", "ilike", "John")
 partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
 ----
 
-`*WithEnv(env *Environment) RecordSetType*`::
+`*WithEnv(env Environment) RecordSetType*`::
 Returns a copy of the current RecordSet with the given Environment.
 
 `*WithContext(key string, value interface{}) RecordSetType*`::
 Returns a copy of the current RecordSet with its context extended by the
 given key and value.
 
-`*WithNewContext(context *tools.Context) RecordSetType*`::
+`*WithNewContext(context types.Context) RecordSetType*`::
 Returns a copy of the current RecordSet with its context replaced by the
 given one.
+
+=== Direct Database Access
+
+Direct database access is possible through the Cursor of the Environment. The
+Cursor provides the following methods for accessing the database. All methods
+operate inside the current transaction.
+
+`*Execute(query string, args ...interface{}) sql.Result*`::
+Execute a query without returning any rows. It panics in case of error.
+The args are for any placeholder parameters in the query. Whatever the database
+backend used, the placeholder is `?`.
+
+`*Get(dest interface{}, query string, args ...interface{})*`::
+Queries a row into the database and maps the result into dest.
+The query must return only one row. It panics on errors.
+
+`*Select(dest interface{}, query string, args ...interface{})*`::
+Queries multiple rows and map the result into dest which must be a slice.
+Select panics on errors.
+
+[source,go]
+----
+type dbStruct struct {
+    Name: string
+    Age:  int
+}
+var single dbStruct
+var data []dbStruct
+
+rc.env.Cr().Get(&single, "SELECT name, age FROM partner WHERE id = ?", 12)
+rc.env.Cr().Select(&data, "SELECT name, age FROM partner WHERE age > ?", 25)
+----
+
+NOTE: Direct database access should be avoided whenever possible because it
+by-passes all security restrictions. Use the RecordSet API instead.
 
 == Creating / extending models
 
@@ -324,7 +428,7 @@ After creating or modifying a model, you must run `yep-generate` to
 generate the types in the `pool` package before starting the YEP server.
 
 Running `yep-generate` will also allow you to obtain code completion and
-inspection on the newly created types.
+inspections on the newly created types.
 ====
 
 === Creating a new model

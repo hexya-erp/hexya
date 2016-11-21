@@ -177,7 +177,7 @@ func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
 func logSQLResult(err error, start time.Time, query string, args ...interface{}) {
 	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(start))
 	if err != nil {
-		logging.LogAndPanic(logCtx, "Error while executing query", "error", err)
+		logging.LogAndPanic(logCtx, "Error while executing query", "error", err, "query", query, "args", args)
 	}
 	logCtx.Debug("Query executed")
 }

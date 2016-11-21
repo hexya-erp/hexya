@@ -15,8 +15,53 @@
 package types
 
 // A Context is a map of objects that is passed along from function to function
-// during a transaction.
-type Context map[string]interface{}
+// during a transaction. A Context is read only.
+type Context struct {
+	values map[string]interface{}
+}
+
+// Copy returns a shallow copy of the Context
+func (c Context) Copy() *Context {
+	newCtx := NewContext()
+	for k, v := range c.values {
+		newCtx.values[k] = v
+	}
+	return newCtx
+}
+
+// Get returns the value of this Context for the given key
+func (c *Context) Get(key string) interface{} {
+	value := c.values[key]
+	return value
+}
+
+// HasKey returns true if this Context has the given key
+func (c *Context) HasKey(key string) bool {
+	_, exists := c.values[key]
+	return exists
+}
+
+// SetEntry returns a copy of this context with the given key/value.
+// If key already exists, it is overwritten.
+func (c Context) SetEntry(key string, value interface{}) *Context {
+	c.values[key] = value
+	return &c
+}
+
+// IsEmpty returns true if this Context has no entries.
+func (c Context) IsEmpty() bool {
+	if len(c.values) == 0 {
+		return true
+	}
+	return false
+}
+
+// NewContext returns a new Context instance
+func NewContext() *Context {
+	return &Context{
+		values: make(map[string]interface{}),
+	}
+}
 
 // Digits is a tuple of 2 ints specifying respectively:
 // - The precision: the total number of digits

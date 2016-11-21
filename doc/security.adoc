@@ -103,16 +103,17 @@ updated (silently).
 
 == Record Rules
 
+=== Definition
 Record Rules allow to grant or deny a group some permissions on a selection of
 records. This could be the case for example to allow a salesman only to see his
 own sales.
 
-A Record Rule is a struct with the following definition, in the security
-package:
+A Record Rule is a struct with the following definition, in the models package:
 
 [source,go]
 ----
 type RecordRule struct {
+    Name      string
     Global    bool
     Group     *Group
     Condition *models.Condition
@@ -122,34 +123,60 @@ type RecordRule struct {
 
 If the `Global` field of a `RecordRule` is set, then the rule applies to all
 groups and the `Group` field is ignored. The `Condition` fields is the
-filter to apply on the model to retrieve the records on which to allow the
-`Perms` permission.
+filter to apply on the model to retrieve the records. `Perms` define on which
+operation the rule will be called. For example, if `security.Read` is set then
+the rule will be applied only on reading operations. Condition value may be
+functions just like any other Condition. This may be particularly useful to
+get the current user.
+
+NOTE: Setting the `security.Create` on the RecordRule has no effect since
+there is no record yet during creation.
+
+=== Adding or removing Record Rules
 
 Record Rules are added or removed from the Record Rules Registry with the
 following functions:
 
-`*AddRecordRule(name string, model ModelName, rule RecordRule)*`::
-Register the given `RecordRule` to the registry for the given `model` with the
-given `name`.
+`*AddRecordRule(model ModelName, rule RecordRule)*`::
+Register the given `RecordRule` to the registry for the given `model`. If the
+rule's `Name` already exists, then the rule is overwritten.
 
 [source,go]
 ----
 salesman := models.GroupsRegistry.Get("sale_user")
-rule := security.RecordRule {
+
+func getUserID(rs pool.ResPartnerSet) interface{} {
+    return rs.Env().Uid()
+}
+
+cond := models.NewCondition().And("User.ID", "=", getUserID)
+
+rule := models.RecordRule {
+    Name:      "salesman_own_partner",
     Group:     salesman,
-    Condition: models.NewCondition().And("User.ID", "=", env.Uid),
+    Condition: cond,
     Perms:     security.All,
 }
-models.AddRecordRule("salesman_own_partner", pool.ModelResPartner, rule)
+models.AddRecordRule(pool.ModelResPartner, rule)
 ----
 
-`*RemoveRecordRule(name string, model ModelName)*`::
+`*RemoveRecordRule(model ModelName, name string)*`::
 Removes the Record Rule with the given `name` from the rule registry of the
 given `model`.
 
 [source,go]
-models.RemoveRecordRule("salesman_own_partner", pool.ModelResPartner)
+models.RemoveRecordRule(pool.ModelResPartner, "salesman_own_partner")
 
-If no record rule is set for a given group, then this group has implicitly
-access to all the records of the model with all permissions. Otherwise, only
-records matching all the Record Rules set for this group can be accessed.
+=== Record Rules combination
+
+Global rules and group rules (rules restricted to specific groups versus groups
+applying to all users) are used quite differently:
+
+* Global rules are subtractive, they must all be matched for a record to be
+accessible
+* Group rules are additive, if any of them matches (and all global rules match)
+then the record is accessible
+
+This means the first group rule restricts access, but any further group rule
+expands it, while global rules can only ever restrict access (or have no
+effect).

@@ -235,6 +235,34 @@ func TestSearchRecordSet(t *testing.T) {
 			So(userJane.Email(), ShouldBeBlank)
 			So(userJane.Age(), ShouldEqual, 0)
 		})
+		Convey("Checking record rules", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read)
+			users := pool.NewTest__UserSet(env).Load()
+			So(users.Len(), ShouldEqual, 3)
+
+			rule := models.RecordRule{
+				Name:      "jOnly",
+				Group:     group1,
+				Condition: models.NewCondition().And("UserName", "ilike", "j"),
+				Perms:     security.Read,
+			}
+			models.AddRecordRule(pool.ModelTest__User, &rule)
+
+			notUsedRule := models.RecordRule{
+				Name:      "writeRule",
+				Group:     group1,
+				Condition: models.NewCondition().And("UserName", "=", "Nobody"),
+				Perms:     security.Write,
+			}
+			models.AddRecordRule(pool.ModelTest__User, &notUsedRule)
+
+			users = pool.NewTest__UserSet(env).Load()
+			So(users.Len(), ShouldEqual, 2)
+			So(users.Records()[0].UserName(), ShouldBeIn, []string{"Jane Smith", "John Smith"})
+			models.DenyModelAccess(pool.ModelTest__User, group1, security.Read)
+			models.RemoveRecordRule(pool.ModelTest__User, "jOnly")
+			models.RemoveRecordRule(pool.ModelTest__User, "writeRule")
+		})
 		env.Rollback()
 	})
 }
@@ -349,6 +377,40 @@ func TestUpdateRecordSet(t *testing.T) {
 			So(john.Email(), ShouldEqual, "jsmith2@example.com")
 			So(john.Nums(), ShouldEqual, 13)
 		})
+		Convey("Checking record rules", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read|security.Write)
+			userJane := pool.NewTest__UserSet(env).Load()
+			So(userJane.Len(), ShouldEqual, 3)
+
+			rule := models.RecordRule{
+				Name:      "jOnly",
+				Group:     group1,
+				Condition: models.NewCondition().And("UserName", "ilike", "j"),
+				Perms:     security.Write,
+			}
+			models.AddRecordRule(pool.ModelTest__User, &rule)
+
+			notUsedRule := models.RecordRule{
+				Name:      "unlinkRule",
+				Group:     group1,
+				Condition: models.NewCondition().And("UserName", "=", "Nobody"),
+				Perms:     security.Unlink,
+			}
+			models.AddRecordRule(pool.ModelTest__User, &notUsedRule)
+
+			userJane = pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			So(userJane.Len(), ShouldEqual, 1)
+			So(userJane.UserName(), ShouldEqual, "Jane A. Smith")
+			userJane.SetUserName("Jane B. Smith")
+			So(userJane.UserName(), ShouldEqual, "Jane B. Smith")
+
+			userWill := pool.NewTest__UserSet(env).Filter("UserName", "=", "Will Smith")
+			So(func() { userWill.SetUserName("Will Jr. Smith") }, ShouldPanic)
+
+			models.DenyModelAccess(pool.ModelTest__User, group1, security.Read|security.Write)
+			models.RemoveRecordRule(pool.ModelTest__User, "jOnly")
+			models.RemoveRecordRule(pool.ModelTest__User, "unlinkRule")
+		})
 		env.Rollback()
 	})
 }
@@ -380,6 +442,36 @@ func TestDeleteRecordSet(t *testing.T) {
 			users := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
 			num := users.Unlink()
 			So(num, ShouldEqual, 1)
+		})
+		Convey("Checking record rules", func() {
+			models.AllowModelAccess(pool.ModelTest__User, group1, security.Read|security.Unlink)
+
+			rule := models.RecordRule{
+				Name:      "jOnly",
+				Group:     group1,
+				Condition: models.NewCondition().And("UserName", "ilike", "j"),
+				Perms:     security.Unlink,
+			}
+			models.AddRecordRule(pool.ModelTest__User, &rule)
+
+			notUsedRule := models.RecordRule{
+				Name:      "writeRule",
+				Group:     group1,
+				Condition: models.NewCondition().And("UserName", "=", "Nobody"),
+				Perms:     security.Write,
+			}
+			models.AddRecordRule(pool.ModelTest__User, &notUsedRule)
+
+			userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+			So(userJane.Len(), ShouldEqual, 1)
+			So(userJane.Unlink(), ShouldEqual, 1)
+
+			userWill := pool.NewTest__UserSet(env).Filter("UserName", "=", "Will Smith")
+			So(userWill.Unlink(), ShouldEqual, 0)
+
+			models.DenyModelAccess(pool.ModelTest__User, group1, security.Read|security.Unlink)
+			models.RemoveRecordRule(pool.ModelTest__User, "jOnly")
+			models.RemoveRecordRule(pool.ModelTest__User, "writeRule")
 		})
 		env.Rollback()
 	})

@@ -17,6 +17,8 @@ package models
 import (
 	"testing"
 
+	"fmt"
+	"github.com/npiganeau/yep/yep/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -37,6 +39,18 @@ func TestConditions(t *testing.T) {
 				sql, args := rs.query.selectQuery(fields)
 				So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
 				So(args, ShouldContain, "foo")
+			})
+			Convey("Simple query with args inflation", func() {
+				getUserID := func(rc RecordCollection) int64 {
+					return rc.Env().Uid()
+				}
+				rs2 := env.Pool("User").Filter("Nums", "=", getUserID)
+				fields := []string{"UserName"}
+				sql, args := rs2.query.selectQuery(fields)
+				So(sql, ShouldEqual, `SELECT "user".user_name AS user_name FROM "user" "user"  WHERE "user".nums = ? `)
+				So(len(args), ShouldEqual, 1)
+				fmt.Println("args", args)
+				So(args, ShouldContain, security.SuperUserID)
 			})
 			Convey("Check WHERE clause with additionnal filter", func() {
 				rs = rs.Filter("Profile.Age", ">=", 12)
