@@ -61,6 +61,8 @@ func MakeActionRef(id string) ActionRef {
 // - The second one is the name of the action
 type ActionRef [2]string
 
+// MarshalJSON is the JSON marshalling method of ActionRef
+// It marshals empty ActionRef into null instead of ["", ""].
 func (ar ActionRef) MarshalJSON() ([]byte, error) {
 	if ar[0] == "" {
 		return json.Marshal(nil)

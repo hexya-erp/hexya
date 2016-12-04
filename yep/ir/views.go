@@ -68,6 +68,8 @@ func MakeViewRef(id string) ViewRef {
 // - The second one is the name of the view
 type ViewRef [2]string
 
+// MarshalJSON is the JSON marshalling method of ViewRef.
+// It marshals empty ViewRef into null instead of ["", ""].
 func (vr ViewRef) MarshalJSON() ([]byte, error) {
 	if vr[0] == "" {
 		return json.Marshal(nil)
@@ -75,6 +77,8 @@ func (vr ViewRef) MarshalJSON() ([]byte, error) {
 	return json.Marshal([2]string{vr[0], vr[1]})
 }
 
+// UnmarshalJSON is the JSON unmarshalling method of ViewRef.
+// It unmarshals null into an empty ViewRef.
 func (vr *ViewRef) UnmarshalJSON(data []byte) error {
 	var dst interface{}
 	if err := json.Unmarshal(data, &dst); err == nil && dst == nil {

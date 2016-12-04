@@ -51,7 +51,7 @@ func (d Date) Value() (driver.Value, error) {
 	return driver.Value(d), nil
 }
 
-// Today() returns the current date
+// Today returns the current date
 func Today() Date {
 	return Date(time.Now())
 }
@@ -67,7 +67,7 @@ func (d DateTime) IsNull() bool {
 	return false
 }
 
-// Now() returns the current date/time
+// Now returns the current date/time
 func Now() DateTime {
 	return DateTime(time.Now())
 }
