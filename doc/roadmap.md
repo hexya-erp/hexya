@@ -29,6 +29,7 @@ ORM
     - [X] CRUD permissions to models and fields
     - [X] Record rules on models
 - [ ] Manage errors the go way in RecordSet methods instead of panicking
+- [ ] Add more type safety in the condition builder
 - [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Support for SQL views and materialized views
 - [ ] Implement "group by" queries
@@ -50,12 +51,12 @@ Server
 - [X] Create controllers for using Odoo web client with YEP Server
 - [X] Recover from orm methods' panics
 - [X] Unified logging system
-- [ ] Automate routing and include for `static` dir in modules
+- [X] Automate routing and include for `static` dir in modules
 
 Client
 ------
 - [X] Adapt Odoo web client to be used in YEP (V8)
-- [ ] Adapt Odoo web client to be used in YEP (V9)
+- [X] Adapt Odoo web client to be used in YEP (V9)
 
 Modules
 -------

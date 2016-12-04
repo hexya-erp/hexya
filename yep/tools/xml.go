@@ -35,10 +35,13 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte) {
 	var reStruct basicXML
 	for _, fileName := range fileNames {
 		var content basicXML
-		cnt, _ := ioutil.ReadFile(fileName)
-		err := xml.Unmarshal(cnt, &content)
+		cnt, err := ioutil.ReadFile(fileName)
 		if err != nil {
-			logging.LogAndPanic(log, "Unable to parse file", "file", fileName)
+			logging.LogAndPanic(log, "Unable to open file", "file", fileName, "error", err)
+		}
+		err = xml.Unmarshal(cnt, &content)
+		if err != nil {
+			logging.LogAndPanic(log, "Unable to parse file", "file", fileName, "error", err)
 		}
 		if reStruct.XMLName.Local == "" {
 			reStruct.XMLName = content.XMLName

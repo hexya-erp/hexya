@@ -35,8 +35,20 @@ type Module struct {
 	PostInit func()
 }
 
+// A ModulesList is a list of Module objects
+type ModulesList []*Module
+
+// Names returns a list of all module names in this ModuleList.
+func (ml *ModulesList) Names() []string {
+	res := make([]string, len(*ml))
+	for i, module := range *ml {
+		res[i] = module.Name
+	}
+	return res
+}
+
 // Modules is the list of activated modules in the application
-var Modules []*Module
+var Modules ModulesList
 
 // RegisterModule registers the given module in the server
 // This function should be called in the init() function of

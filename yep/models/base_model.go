@@ -34,11 +34,12 @@ const (
 // BaseModel is the base implementation  of all non transient models
 type BaseModel struct {
 	ID          int64
-	CreateDate  time.Time `yep:"type(datetime);nocopy"`
-	CreateUid   int64     `yep:"nocopy"`
-	WriteDate   time.Time `yep:"type(datetime);compute(ComputeWriteDate);store;depends(ID);nocopy"`
-	WriteUid    int64     `yep:"nocopy"`
-	DisplayName string    `yep:"compute(ComputeNameGet)"`
+	CreateDate  DateTime `yep:"nocopy"`
+	CreateUID   int64    `yep:"nocopy"`
+	WriteDate   DateTime `yep:"nocopy"`
+	WriteUID    int64    `yep:"nocopy"`
+	LastUpdate  DateTime `yep:"compute(ComputeLastUpdate);json(__last_update)"`
+	DisplayName string   `yep:"compute(ComputeNameGet)"`
 }
 
 // BaseTransientModel is the base implementation of all transient models
@@ -49,6 +50,7 @@ type BaseTransientModel struct {
 // declareBaseMethods creates all the necessary base methods of a model
 func declareBaseMethods(name string) {
 	CreateMethod(name, "ComputeWriteDate", ComputeWriteDate)
+	CreateMethod(name, "ComputeLastUpdate", ComputeLastUpdate)
 	CreateMethod(name, "ComputeNameGet", ComputeNameGet)
 	CreateMethod(name, "Create", Create)
 	CreateMethod(name, "Read", Read)
@@ -130,7 +132,20 @@ func OrderBy(rc RecordCollection, exprs ...string) RecordCollection {
 
 // ComputeWriteDate updates the WriteDate field with the current datetime.
 func ComputeWriteDate(rc RecordCollection) FieldMap {
-	return FieldMap{"WriteDate": time.Now()}
+	return FieldMap{"WriteDate": DateTime(time.Now())}
+}
+
+// ComputeLastUpdate returns the last datetime at which the record has been updated.
+func ComputeLastUpdate(rc RecordCollection) FieldMap {
+	lastUpdate := DateTime(time.Now())
+	if !rc.Get("WriteDate").(DateTime).IsNull() {
+		lastUpdate = rc.Get("WriteDate").(DateTime)
+	}
+	if !rc.Get("CreateDate").(DateTime).IsNull() {
+		lastUpdate = rc.Get("CreateDate").(DateTime)
+	}
+	fmt.Println("last_update", rc.Get("WriteDate").(DateTime), rc.Get("CreateDate").(DateTime), lastUpdate)
+	return FieldMap{"LastUpdate": lastUpdate}
 }
 
 // ComputeNameGet updates the DisplayName field with the result of NameGet.
@@ -163,18 +178,18 @@ func Read(rc RecordCollection, fields []string) []FieldMap {
 		res[i] = make(FieldMap)
 		for _, fName := range fields {
 			value := rec.Get(fName)
-			if rc, ok := value.(RecordCollection); ok {
-				rc = rc.Fetch()
-				fi, _ := rc.mi.fields.get(fName)
+			if relRC, ok := value.(RecordCollection); ok {
+				relRC = relRC.Fetch()
+				fi := rc.mi.fields.mustGet(fName)
 				switch {
 				case fi.fieldType.Is2OneRelationType():
-					if rcId := rc.Get("id"); rcId != 0 {
-						value = [2]interface{}{rcId, rc.Call("NameGet").(string)}
+					if rcId := relRC.Get("id"); rcId != 0 {
+						value = [2]interface{}{rcId, relRC.Call("NameGet").(string)}
 					} else {
 						value = nil
 					}
 				case fi.fieldType.Is2ManyRelationType():
-					value = rc.Ids()
+					value = relRC.Ids()
 				}
 			}
 			res[i][fName] = value
@@ -448,7 +463,7 @@ func FieldsGet(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 			Depends:    fInfo.depends,
 			Sortable:   true,
 			Type:       fInfo.fieldType,
-			Store:      fInfo.stored,
+			Store:      fInfo.isStored(),
 			String:     fInfo.description,
 			Relation:   relation,
 		}

@@ -21,14 +21,22 @@ import (
 
 // ListStaticFiles get all file names of the static files that are in
 // the "server/static/*/<subDir>" directories.
-func ListStaticFiles(subDir string, modules []string) []string {
+// Returned
+// If diskPath is true, returned file names are relative to the yep directory
+// (e.g. yep/server/static/src/js/foo.js) otherwise file names are relative
+// to the http root (e.g. /static/src/js/foo.js)
+func ListStaticFiles(subDir string, modules []string, diskPath bool) []string {
 	var res []string
 	for _, module := range modules {
 		dirName := fmt.Sprintf("yep/server/static/%s/%s", module, subDir)
 		fileInfos, _ := ioutil.ReadDir(dirName)
 		for _, fi := range fileInfos {
 			if !fi.IsDir() {
-				res = append(res, fmt.Sprintf("%s/%s", dirName, fi.Name()))
+				path := fmt.Sprintf("/static/%s/%s/%s", module, subDir, fi.Name())
+				if diskPath {
+					path = fmt.Sprintf("yep/server/%s", path)
+				}
+				res = append(res, path)
 			}
 		}
 	}

@@ -25,7 +25,7 @@ import (
 func TestEnvironment(t *testing.T) {
 	Convey("Testing Environment Modifications", t, func() {
 		env := NewEnvironment(security.SuperUserID)
-		env.context = types.NewContext().SetEntry("key", "context value")
+		env.context = types.NewContext().WithKey("key", "context value")
 		userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
 		Convey("Checking WithEnv", func() {
 			env2 := NewEnvironment(2)
@@ -48,7 +48,7 @@ func TestEnvironment(t *testing.T) {
 			So(userJane.Env().Uid(), ShouldEqual, security.SuperUserID)
 		})
 		Convey("Checking WithNewContext", func() {
-			newCtx := types.NewContext().SetEntry("newKey", "This is a different key")
+			newCtx := types.NewContext().WithKey("newKey", "This is a different key")
 			userJane1 := userJane.WithNewContext(newCtx)
 			So(userJane1.Env().Context().HasKey("key"), ShouldBeFalse)
 			So(userJane1.Env().Context().HasKey("newKey"), ShouldBeTrue)

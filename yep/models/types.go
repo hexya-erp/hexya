@@ -51,6 +51,11 @@ func (d Date) Value() (driver.Value, error) {
 	return driver.Value(d), nil
 }
 
+// Today() returns the current date
+func Today() Date {
+	return Date(time.Now())
+}
+
 // DateTime type that JSON marshals and unmarshals as "YYYY-MM-DD HH:MM:SS"
 type DateTime time.Time
 
@@ -60,6 +65,11 @@ func (d DateTime) IsNull() bool {
 		return true
 	}
 	return false
+}
+
+// Now() returns the current date/time
+func Now() DateTime {
+	return DateTime(time.Now())
 }
 
 // MarshalJSON for DateTime type

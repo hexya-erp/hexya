@@ -19,6 +19,8 @@ import (
 	"reflect"
 	"strings"
 
+	"database/sql/driver"
+	"fmt"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -302,7 +304,21 @@ func nestMap(fMap FieldMap) FieldMap {
 getFieldType returns the FieldType corresponding to the given reflect.Type.
 */
 func getFieldType(typ reflect.Type) types.FieldType {
+	switch typ {
+	case reflect.TypeOf(DateTime{}):
+		return types.DateTime
+	case reflect.TypeOf(Date{}):
+		return types.Date
+	}
+
 	k := typ.Kind()
+	if typ.Implements(reflect.TypeOf((*driver.Valuer)(nil)).Elem()) {
+		// If this is a driver.Valuer then we want to check the result type of Value()
+		val := reflect.New(typ)
+		retVals := val.MethodByName("Value").Call([]reflect.Value{})
+		k = reflect.TypeOf(retVals[0].Interface()).Kind()
+	}
+
 	switch {
 	case k == reflect.Bool:
 		return types.Boolean
@@ -320,12 +336,6 @@ func getFieldType(typ reflect.Type) types.FieldType {
 		case reflect.Slice:
 			return types.One2Many
 		}
-	}
-	switch typ {
-	case reflect.TypeOf(DateTime{}):
-		return types.DateTime
-	case reflect.TypeOf(Date{}):
-		return types.Date
 	}
 	logging.LogAndPanic(log, "Unable to match field type with go Type. Please specify 'type()' in struct tag", "type", typ)
 	return types.NoType

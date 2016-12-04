@@ -73,6 +73,7 @@ func (rc RecordCollection) create(data interface{}) RecordCollection {
 	mustCheckModelPermission(rc.mi, rc.env.uid, security.Create)
 	fMap := convertInterfaceToFieldMap(data)
 	fMap = filterMapOnAuthorizedFields(rc.mi, fMap, rc.env.uid, security.Create)
+	rc.addAccessFieldsCreateData(&fMap)
 	rc.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
@@ -90,6 +91,13 @@ func (rc RecordCollection) create(data interface{}) RecordCollection {
 	return rSet
 }
 
+// addAccessFieldsCreateData adds appropriate CreateDate and CreateUID fields to
+// the given FieldMap.
+func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
+	(*fMap)["CreateDate"] = Now()
+	(*fMap)["CreateUID"] = rc.env.uid
+}
+
 // update updates the database with the given data and returns the number of updated rows.
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
@@ -105,6 +113,7 @@ func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) boo
 			}
 		}
 	}
+	rSet.addAccessFieldsUpdateData(&fMap)
 	rSet.mi.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
@@ -117,6 +126,13 @@ func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) boo
 	// compute stored fields
 	rSet.updateStoredFields(fMap)
 	return true
+}
+
+// addAccessFieldsUpdateData adds appropriate WriteDate and WriteUID fields to
+// the given FieldMap.
+func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
+	(*fMap)["WriteDate"] = Now()
+	(*fMap)["WriteUID"] = rc.env.uid
 }
 
 // doUpdate just updates the database records pointed at by

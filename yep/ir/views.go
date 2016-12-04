@@ -19,7 +19,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/beevik/etree"
@@ -69,9 +68,25 @@ func MakeViewRef(id string) ViewRef {
 // - The second one is the name of the view
 type ViewRef [2]string
 
-func (vr *ViewRef) String() string {
-	sl := []string{vr[0], vr[1]}
-	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
+func (vr ViewRef) MarshalJSON() ([]byte, error) {
+	if vr[0] == "" {
+		return json.Marshal(nil)
+	}
+	return json.Marshal([2]string{vr[0], vr[1]})
+}
+
+func (vr *ViewRef) UnmarshalJSON(data []byte) error {
+	var dst interface{}
+	if err := json.Unmarshal(data, &dst); err == nil && dst == nil {
+		vr = &ViewRef{"", ""}
+		return nil
+	}
+	var dstArray [2]string
+	if err := json.Unmarshal(data, &dstArray); err != nil {
+		return err
+	}
+	*vr = ViewRef(dstArray)
+	return nil
 }
 
 // Value extracts ID of our ViewRef for storing in the database.
@@ -95,8 +110,10 @@ func (vr *ViewRef) Scan(src interface{}) error {
 	return nil
 }
 
-var _ driver.Valuer = ActionRef{}
-var _ sql.Scanner = &ActionRef{}
+var _ driver.Valuer = &ViewRef{}
+var _ sql.Scanner = &ViewRef{}
+var _ json.Marshaler = &ViewRef{}
+var _ json.Unmarshaler = &ViewRef{}
 
 // A ViewsCollection is a view collection
 type ViewsCollection struct {

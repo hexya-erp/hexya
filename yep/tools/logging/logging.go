@@ -90,8 +90,10 @@ func Log15ForGin(logger log15.Logger) gin.HandlerFunc {
 		end := time.Now()
 		latency := end.Sub(start)
 
+		status := c.Writer.Status()
+
 		ctxLogger := logger.New(
-			"status", c.Writer.Status(),
+			"status", status,
 			"method", c.Request.Method,
 			"path", path,
 			"ip", c.ClientIP(),
@@ -102,8 +104,8 @@ func Log15ForGin(logger log15.Logger) gin.HandlerFunc {
 		if len(c.Errors) > 0 {
 			// Append error field if this is an erroneous request.
 			ctxLogger.Error(c.Errors.String())
-		} else {
-			ctxLogger.Info("")
+		} else if status >= 400 {
+			ctxLogger.Warn("HTTP Error")
 		}
 	}
 }

@@ -41,9 +41,9 @@ func (c *Context) HasKey(key string) bool {
 	return exists
 }
 
-// SetEntry returns a copy of this context with the given key/value.
+// WithKey returns a copy of this context with the given key/value.
 // If key already exists, it is overwritten.
-func (c Context) SetEntry(key string, value interface{}) *Context {
+func (c Context) WithKey(key string, value interface{}) *Context {
 	c.values[key] = value
 	return &c
 }
@@ -56,10 +56,25 @@ func (c Context) IsEmpty() bool {
 	return false
 }
 
+// ToMap returns a copy of the map of values of this context
+func (c Context) ToMap() map[string]interface{} {
+	res := make(map[string]interface{})
+	for k, v := range c.values {
+		res[k] = v
+	}
+	return res
+}
+
 // NewContext returns a new Context instance
-func NewContext() *Context {
+func NewContext(data ...map[string]interface{}) *Context {
+	var values map[string]interface{}
+	if len(data) > 0 {
+		values = data[0]
+	} else {
+		values = make(map[string]interface{})
+	}
 	return &Context{
-		values: make(map[string]interface{}),
+		values: values,
 	}
 }
 

@@ -39,20 +39,20 @@ type CallParams struct {
 // Execute executes a method on an object
 func Execute(uid int64, params CallParams) (res interface{}, rError error) {
 	var rs models.RecordCollection
-	defer func() {
-		if r := recover(); r != nil {
-			rError = rollbackAndLog(rs.Env(), r)
-			res = nil
-			return
-		}
-		rs.Env().Commit()
-	}()
 
 	checkUser(uid)
 
 	// Create new Environment with new transaction
 	ctx := extractContext(params)
 	env := models.NewEnvironment(uid, ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			rError = rollbackAndLog(env, r)
+			res = nil
+			return
+		}
+		env.Commit()
+	}()
 
 	// Create RecordSet from Environment
 	rs, parms, single := createRecordCollection(env, params)
@@ -283,21 +283,20 @@ type SearchReadResult struct {
 
 // SearchRead retrieves database records according to the filters defined in params.
 func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rError error) {
-	var rs models.RecordCollection
+	env := models.NewEnvironment(uid)
 	defer func() {
 		if r := recover(); r != nil {
-			rError = rollbackAndLog(rs.Env(), r)
+			rError = rollbackAndLog(env, r)
 			res = nil
 			return
 		}
-		rs.Env().Commit()
+		env.Commit()
 	}()
 	if uid == 0 {
 		logging.LogAndPanic(log, "User must be logged in to search database")
 	}
 	model := tools.ConvertModelName(params.Model)
-	env := models.NewEnvironment(uid)
-	rs = env.Pool(model)
+	rs := env.Pool(model)
 	srp := models.SearchParams{
 		Domain: params.Domain,
 		Fields: params.Fields,

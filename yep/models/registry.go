@@ -53,7 +53,7 @@ func (mc *modelCollection) get(nameOrJSON string) (mi *modelInfo, ok bool) {
 func (mc *modelCollection) mustGet(nameOrJSON string) *modelInfo {
 	mi, ok := mc.get(nameOrJSON)
 	if !ok {
-		logging.LogAndPanic(log, "Unknown model", nameOrJSON)
+		logging.LogAndPanic(log, "Unknown model", "model", nameOrJSON)
 	}
 	return mi
 }
@@ -196,6 +196,10 @@ func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 		}
 		fi := mi.getRelatedFieldInfo(colName)
 		fType := fi.structField.Type
+		if fType == reflect.TypeOf(fMapValue) {
+			// If we already have the good type, don't do anything
+			continue
+		}
 		var val reflect.Value
 		switch {
 		case fMapValue == nil:

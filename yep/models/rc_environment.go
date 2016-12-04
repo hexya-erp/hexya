@@ -28,7 +28,7 @@ func (rc RecordCollection) WithEnv(env Environment) RecordCollection {
 // WithContext returns a copy of the current RecordCollection with
 // its context extended by the given key and value.
 func (rc RecordCollection) WithContext(key string, value interface{}) RecordCollection {
-	newCtx := rc.env.context.Copy().SetEntry(key, value)
+	newCtx := rc.env.context.Copy().WithKey(key, value)
 	newEnv := *rc.env
 	newEnv.context = newCtx
 	return rc.WithEnv(newEnv)

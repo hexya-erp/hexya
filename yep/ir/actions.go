@@ -19,7 +19,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/beevik/etree"
@@ -62,9 +61,11 @@ func MakeActionRef(id string) ActionRef {
 // - The second one is the name of the action
 type ActionRef [2]string
 
-func (ar ActionRef) String() string {
-	sl := []string{ar[0], ar[1]}
-	return fmt.Sprintf(`[%s]`, strings.Join(sl, ","))
+func (ar ActionRef) MarshalJSON() ([]byte, error) {
+	if ar[0] == "" {
+		return json.Marshal(nil)
+	}
+	return json.Marshal([2]string{ar[0], ar[1]})
 }
 
 // Value extracts ID of our ActionRef for storing in the database.
@@ -75,21 +76,20 @@ func (ar ActionRef) Value() (driver.Value, error) {
 // Scan fetches the name of our action from the ID
 // stored in the database to fill the ActionRef.
 func (ar *ActionRef) Scan(src interface{}) error {
-	var source string
 	switch s := src.(type) {
 	case string:
-		source = s
+		*ar = MakeActionRef(s)
 	case []byte:
-		source = string(s)
+		*ar = MakeActionRef(string(s))
 	default:
 		return fmt.Errorf("Invalid type for ActionRef: %T", src)
 	}
-	*ar = MakeActionRef(source)
 	return nil
 }
 
 var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
+var _ json.Marshaler = &ActionRef{}
 
 // An ActionsCollection is a collection of actions
 type ActionsCollection struct {

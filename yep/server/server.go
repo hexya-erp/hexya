@@ -54,6 +54,12 @@ type ResponseError struct {
 	Error   JSONRPCError `json:"error"`
 }
 
+// JSONRPCErrorData is the format of the Data field of an Error Response
+type JSONRPCErrorData struct {
+	Arguments string `json:"arguments"`
+	Debug     string `json:"debug"`
+}
+
 // JSONRPCError is the format of an Error in a ResponseError
 type JSONRPCError struct {
 	Code    int         `json:"code"`
@@ -79,8 +85,9 @@ func RPC(c *gin.Context, code int, obj interface{}, err ...error) {
 			Error: JSONRPCError{
 				Code:    code,
 				Message: "YEP Server Error",
-				Data: map[string]string{
-					"debug": err[0].Error(),
+				Data: JSONRPCErrorData{
+					Arguments: "Internal Server Error",
+					Debug:     err[0].Error(),
 				},
 			},
 		}
