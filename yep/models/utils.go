@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"database/sql/driver"
-	"fmt"
+
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
