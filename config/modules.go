@@ -16,6 +16,6 @@ package config
 
 // Import here anonymously all yep addons you need in your application
 import (
-	// Import webclient module
-	_ "github.com/npiganeau/yep-addons/web"
+// Import webclient module
+//_ "github.com/npiganeau/yep-addons/web"
 )
