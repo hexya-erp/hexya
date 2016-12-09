@@ -144,7 +144,6 @@ func ComputeLastUpdate(rc RecordCollection) FieldMap {
 	if !rc.Get("CreateDate").(DateTime).IsNull() {
 		lastUpdate = rc.Get("CreateDate").(DateTime)
 	}
-	fmt.Println("last_update", rc.Get("WriteDate").(DateTime), rc.Get("CreateDate").(DateTime), lastUpdate)
 	return FieldMap{"LastUpdate": lastUpdate}
 }
 

@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"sync"
 
@@ -123,32 +124,31 @@ func (ar *ActionsCollection) GetActionById(id string) *BaseAction {
 // A BaseAction is the definition of an action. Actions define the
 // behavior of the system in response to user actions.
 type BaseAction struct {
-	ID           string         `json:"id"`
-	Type         ActionType     `json:"type"`
-	Name         string         `json:"name"`
-	Model        string         `json:"res_model"`
-	ResID        int64          `json:"res_id"`
-	Groups       []string       `json:"groups_id"`
-	Domain       string         `json:"domain"`
-	Help         string         `json:"help"`
-	SearchView   ViewRef        `json:"search_view_id"`
-	SrcModel     string         `json:"src_model"`
-	Usage        string         `json:"usage"`
-	Views        []ViewRef      `json:"views"`
-	View         ViewRef        `json:"view_id"`
-	AutoRefresh  bool           `json:"auto_refresh"`
+	ID           string         `json:"id" xml:"id,attr"`
+	Type         ActionType     `json:"type" xml:"type"`
+	Name         string         `json:"name" xml:"name"`
+	Model        string         `json:"res_model" xml:"model"`
+	ResID        int64          `json:"res_id" xml:"res_id"`
+	Groups       []string       `json:"groups_id" xml:"groups"`
+	Domain       string         `json:"domain" xml:"domain"`
+	Help         string         `json:"help" xml:"help"`
+	SearchView   ViewRef        `json:"search_view_id" xml:"search_view_id"`
+	SrcModel     string         `json:"src_model" xml:"src_model"`
+	Usage        string         `json:"usage" xml:"usage"`
+	Views        []ViewRef      `json:"views" xml:"views"`
+	View         ViewRef        `json:"view_id" xml:"view_id"`
+	AutoRefresh  bool           `json:"auto_refresh" xml:"auto_refresh"`
 	ManualSearch bool           `json:"-"`
 	ActViewType  ActionViewType `json:"-"`
-	ViewMode     string         `json:"view_mode"`
-	ViewIds      []string       `json:"view_ids"`
-	Multi        bool           `json:"multi"`
-	Target       string         `json:"target"`
-	AutoSearch   bool           `json:"auto_search"`
-	Filter       bool           `json:"filter"`
-	Limit        int64          `json:"limit"`
-	Context      *types.Context `json:"context"`
+	ViewMode     string         `json:"view_mode" xml:"view_mode"`
+	ViewIds      []string       `json:"view_ids" xml:"view_ids"`
+	Multi        bool           `json:"multi" xml:"multi"`
+	Target       string         `json:"target" xml:"target"`
+	AutoSearch   bool           `json:"auto_search" xml:"auto_search"`
+	Filter       bool           `json:"filter" xml:"filter"`
+	Limit        int64          `json:"limit" xml:"limit"`
+	Context      *types.Context `json:"context" xml:"context"`
 	//Flags interface{}`json:"flags"`
-	//SearchView  string         `json:"search_view"`
 }
 
 // A Toolbar holds the actions in the toolbar of the action manager
@@ -161,34 +161,10 @@ type Toolbar struct {
 // LoadActionFromEtree reads the action given etree.Element, creates or updates the action
 // and adds it to the action registry if it not already.
 func LoadActionFromEtree(element *etree.Element) {
-	// We populate an actionHash from XML data fields
-	actionHash := make(map[string]interface{})
-	actionHash["id"] = element.SelectAttrValue("id", "NO_ID")
-	for _, fieldNode := range element.FindElements("field") {
-		name := fieldNode.SelectAttrValue("name", "NO_NAME")
-		ref := fieldNode.SelectAttrValue("ref", "")
-		if ref != "" && (name == "view_id" || name == "search_view_id") {
-			actionHash[name] = MakeViewRef(ref)
-		} else if len(fieldNode.ChildElements()) > 0 {
-			fieldType := fieldNode.SelectAttrValue("type", "text")
-			switch fieldType {
-			case "html":
-				nodeDoc := etree.NewDocument()
-				nodeDoc.SetRoot(fieldNode.ChildElements()[0].Copy())
-				value, _ := nodeDoc.WriteToString()
-				actionHash[name] = value
-			default:
-				logging.LogAndPanic(log, "Unknown field type", "type", fieldType, "action", actionHash["id"])
-			}
-		} else {
-			actionHash[name] = fieldNode.Text()
-		}
+	xmlBytes := []byte(elementToXML(element))
+	var action BaseAction
+	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
+		logging.LogAndPanic(log, "Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
-	// We marshal viewHash in JSON and then unmarshal into a View struct
-	bytes, _ := json.Marshal(actionHash)
-	var act BaseAction
-	if err := json.Unmarshal(bytes, &act); err != nil {
-		logging.LogAndPanic(log, "Unable to unmarshal action", "actionHash", actionHash, "error", err)
-	}
-	ActionsRegistry.AddAction(&act)
+	ActionsRegistry.AddAction(&action)
 }

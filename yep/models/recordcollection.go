@@ -119,6 +119,8 @@ func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) boo
 	fMap.RemovePK()
 	storedFieldMap := filterMapOnStoredFields(rSet.mi, fMap)
 	rSet.doUpdate(storedFieldMap)
+	// Let's fetch once for all
+	rSet = rSet.Fetch()
 	// write reverse relation fields
 	rSet.updateRelationFields(fMap)
 	// write related fields
@@ -140,7 +142,7 @@ func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 // invalidates the cache for the record
 func (rc RecordCollection) doUpdate(fMap FieldMap) {
 	defer func() {
-		for _, id := range rc.Ids() {
+		for _, id := range rc.ids {
 			rc.env.cache.invalidateRecord(rc.mi, id)
 		}
 	}()

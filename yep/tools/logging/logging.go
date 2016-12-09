@@ -106,6 +106,8 @@ func Log15ForGin(logger log15.Logger) gin.HandlerFunc {
 			ctxLogger.Error(c.Errors.String())
 		} else if status >= 400 {
 			ctxLogger.Warn("HTTP Error")
+		} else {
+			ctxLogger.Info("")
 		}
 	}
 }

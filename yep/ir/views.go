@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"sync"
 
@@ -93,6 +94,17 @@ func (vr *ViewRef) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalXML is the XML unmarshalling method of ViewRef.
+// It unmarshals null into an empty ViewRef.
+func (vr *ViewRef) UnmarshalXML(decoder *xml.Decoder, start xml.StartElement) error {
+	var dst string
+	if err := decoder.DecodeElement(&dst, &start); err != nil {
+		return err
+	}
+	*vr = MakeViewRef(dst)
+	return nil
+}
+
 // Value extracts ID of our ViewRef for storing in the database.
 func (vr ViewRef) Value() (driver.Value, error) {
 	return driver.Value(vr[0]), nil
@@ -118,6 +130,7 @@ var _ driver.Valuer = &ViewRef{}
 var _ sql.Scanner = &ViewRef{}
 var _ json.Marshaler = &ViewRef{}
 var _ json.Unmarshaler = &ViewRef{}
+var _ xml.Unmarshaler = &ViewRef{}
 
 // A ViewsCollection is a view collection
 type ViewsCollection struct {
@@ -169,50 +182,131 @@ func (vc *ViewsCollection) GetFirstViewForModel(model string, viewType ViewType)
 	return nil
 }
 
-// A View is a definition of a view in the application
+// View is the internal definition of a view in the application
 type View struct {
-	ID                 string              `json:"id"`
-	Name               string              `json:"name"`
-	Model              string              `json:"model"`
-	Type               ViewType            `json:"type"`
-	Priority           uint8               `json:"priority"`
-	Arch               string              `json:"arch"`
-	InheritID          *View               `json:"inherit_id"`
-	InheritChildrenIDs []*View             `json:"inherit_children_ids"`
-	FieldParent        string              `json:"field_parent"`
-	InheritanceMode    ViewInheritanceMode `json:"mode"`
-	Fields             []string
-	//GroupsID []*Group
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Model       string   `json:"model"`
+	Type        ViewType `json:"type"`
+	Priority    uint8    `json:"priority"`
+	Arch        string   `json:"arch"`
+	FieldParent string   `json:"field_parent"`
+	Fields      []string
+}
+
+// ViewArch is used to unmarshal the arch node of the XML definition
+// of a View.
+type ViewArch struct {
+	XML string `xml:",innerxml"`
+}
+
+// ViewXML is used to unmarshal the XML definition of a View
+type ViewXML struct {
+	ID              string              `xml:"id,attr"`
+	Name            string              `xml:"name"`
+	Model           string              `xml:"model"`
+	Priority        uint8               `xml:"priority"`
+	ArchData        ViewArch            `xml:"arch"`
+	InheritID       string              `xml:"inherit_id,attr"`
+	FieldParent     string              `xml:"field_parent"`
+	InheritanceMode ViewInheritanceMode `xml:"mode"`
 }
 
 // LoadViewFromEtree reads the view given etree.Element, creates or updates the view
 // and adds it to the view registry if it not already.
 func LoadViewFromEtree(element *etree.Element) {
-	// We populate a viewHash from XML data fields
-	viewHash := make(map[string]interface{})
-	viewHash["id"] = element.SelectAttrValue("id", "NO_ID")
-	for _, fieldNode := range element.FindElements("field") {
-		name := fieldNode.SelectAttrValue("name", "NO_NAME")
-		if len(fieldNode.ChildElements()) > 0 {
-			fieldType := fieldNode.SelectAttrValue("type", "text")
-			switch fieldType {
-			case "xml":
-				nodeDoc := etree.NewDocument()
-				nodeDoc.SetRoot(fieldNode.ChildElements()[0].Copy())
-				value, _ := nodeDoc.WriteToString()
-				viewHash[name] = value
-			default:
-				logging.LogAndPanic(log, "Unknown field type", "type", fieldType, "view", viewHash["id"])
-			}
-		} else {
-			viewHash[name] = fieldNode.Text()
+	xmlBytes := []byte(elementToXML(element))
+	var viewXML ViewXML
+	if err := xml.Unmarshal(xmlBytes, &viewXML); err != nil {
+		logging.LogAndPanic(log, "Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
+	}
+	updateViewRegistry(viewXML)
+}
+
+// updateViewRegistry creates or updates the view in the ViewsRegistry
+// that is defined by the given ViewXML.
+func updateViewRegistry(viewXML ViewXML) {
+	if viewXML.InheritID != "" {
+		// Update an existing view
+		baseView := ViewsRegistry.GetViewById(viewXML.InheritID)
+		baseElem := xmlToElement(baseView.Arch)
+		specDoc := etree.NewDocument()
+		if err := specDoc.ReadFromString(viewXML.ArchData.XML); err != nil {
+			logging.LogAndPanic(log, "Unable to read inheritance specs", "error", err, "arch", viewXML.ArchData.XML)
 		}
+
+		for _, spec := range specDoc.ChildElements() {
+			xpath := getInheritXPathFromSpec(spec)
+			nodeToModify := baseElem.FindElement(xpath)
+			nextNode := findNextSibling(nodeToModify)
+			modifyAction := spec.SelectAttr("position")
+			switch modifyAction.Value {
+			case "before":
+				for _, node := range spec.ChildElements() {
+					nodeToModify.Parent().InsertChild(nodeToModify, node)
+				}
+			case "after":
+				for _, node := range spec.ChildElements() {
+					nodeToModify.Parent().InsertChild(nextNode, node)
+				}
+			case "replace":
+				for _, node := range spec.ChildElements() {
+					nodeToModify.Parent().InsertChild(nodeToModify, node)
+				}
+				nodeToModify.Parent().RemoveChild(nodeToModify)
+			case "inside":
+				for _, node := range spec.ChildElements() {
+					nodeToModify.AddChild(node)
+				}
+			case "attributes":
+				for _, node := range spec.FindElements("./attribute") {
+					attrName := node.SelectAttr("name").Value
+					nodeToModify.RemoveAttr(attrName)
+					nodeToModify.CreateAttr(attrName, node.Text())
+				}
+			}
+			//break
+		}
+		baseView.Arch = elementToXML(baseElem)
+	} else {
+		// Create a new view
+		priority := uint8(16)
+		if viewXML.Priority != 0 {
+			priority = viewXML.Priority
+		}
+		// We check/standardize arch by unmarshalling and marshalling it again
+		arch := elementToXML(xmlToElement(viewXML.ArchData.XML))
+		view := View{
+			ID:          viewXML.ID,
+			Name:        viewXML.Name,
+			Model:       viewXML.Model,
+			Priority:    priority,
+			Arch:        arch,
+			FieldParent: viewXML.FieldParent,
+		}
+		ViewsRegistry.AddView(&view)
 	}
-	// We marshal viewHash in JSON and then unmarshal into a View struct
-	bytes, _ := json.Marshal(viewHash)
-	var view View
-	if err := json.Unmarshal(bytes, &view); err != nil {
-		logging.LogAndPanic(log, "Unable to unmarshal view", "viewHash", viewHash, "error", err)
+}
+
+// getInheritXPathFromSpec returns an XPath string that is suitable for
+// searching the base view and find the node to modify.
+func getInheritXPathFromSpec(spec *etree.Element) string {
+	var xpath string
+	if spec.Tag == "xpath" {
+		// We have an xpath expression, we take it
+		xpath = spec.SelectAttr("expr").Value
+	} else {
+		if len(spec.Attr) < 1 || len(spec.Attr) > 2 {
+			logging.LogAndPanic(log, "Invalid view inherit spec", "spec", elementToXML(spec))
+		}
+		var attrStr string
+		for _, attr := range spec.Attr {
+			if attr.Key != "position" {
+				attrStr = fmt.Sprintf("[@%s='%s']", attr.Key, attr.Value)
+				break
+			}
+		}
+		xpath = fmt.Sprintf("//%s%s", spec.Tag, attrStr)
 	}
-	ViewsRegistry.AddView(&view)
+	return xpath
 }

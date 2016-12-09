@@ -30,6 +30,7 @@ ORM
     - [X] Record rules on models
 - [ ] Manage errors the go way in RecordSet methods instead of panicking
 - [ ] Add more type safety in the condition builder
+- [ ] Pagination API for RecordSets
 - [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Support for SQL views and materialized views
 - [ ] Implement "group by" queries
@@ -40,7 +41,7 @@ ORM
 Views
 -----
 - [X] Basic views
-- [ ] Inherited views
+- [X] Inherited views
 
 Controllers
 -----------
@@ -62,8 +63,7 @@ Modules
 -------
 - [X] Make module registering create necessary symlinks
 - [ ] Internal resource XML data files
-    - [X] Odoo like schema
-    - [ ] New schema for internal resources XML
+    - [X] New schema for internal resources XML
     - [ ] Make yep-generate create XSD for XML autocompletion
 - [ ] Add support for data & demo JSON files
 - [ ] Add support for CSV data files

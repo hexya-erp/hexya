@@ -14,12 +14,7 @@
 
 package ir
 
-import (
-	"strings"
-
-	"github.com/beevik/etree"
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "strings"
 
 /*
 BootStrap computes all views, actions and menus after they have been
@@ -37,10 +32,7 @@ ComputeViews makes the necessary updates to view definitions. In particular:
 */
 func computeViews() {
 	for _, v := range ViewsRegistry.views {
-		doc := etree.NewDocument()
-		if err := doc.ReadFromString(v.Arch); err != nil {
-			logging.LogAndPanic(log, "Unable to read view", "view", v.ID, "error", err)
-		}
+		doc := xmlToElement(v.Arch)
 
 		// Set view type
 		v.Type = ViewType(doc.ChildElements()[0].Tag)
