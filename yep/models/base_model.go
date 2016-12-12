@@ -200,7 +200,7 @@ func Read(rc RecordCollection, fields []string) []FieldMap {
 // Write is the base implementation of the 'Write' method which updates
 // records in the database with the given data.
 // Data can be either a struct pointer or a FieldMap.
-func Write(rc RecordCollection, data interface{}, fieldsToUnset ...string) bool {
+func Write(rc RecordCollection, data interface{}, fieldsToUnset ...FieldName) bool {
 	return rc.update(data, fieldsToUnset...)
 }
 

@@ -32,6 +32,21 @@ func (mc *methodsCollection) get(methodName string) (mi *methodInfo, ok bool) {
 	return
 }
 
+// mustGet returns the methodInfo of the given method. It panics if the
+// method is not found.
+func (mc *methodsCollection) mustGet(methodName string) *methodInfo {
+	methInfo, ok := mc.get(methodName)
+	if !ok {
+		var model string
+		for _, f := range mc.registry {
+			model = f.mi.name
+			break
+		}
+		logging.LogAndPanic(log, "Unknown field in model", "model", model, "method", methodName)
+	}
+	return methInfo
+}
+
 // set adds the given methodInfo to the methodsCollection.
 func (mc *methodsCollection) set(methodName string, methInfo *methodInfo) {
 	mc.registry[methodName] = methInfo
@@ -100,7 +115,12 @@ func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodI
 // func(RecordCollection, args...) function Value suitable for use in a
 // methodLayer.
 func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
-	methodLayerFunction := func(rc RecordCollection, args ...interface{}) interface{} {
+	wrapperType := reflect.TypeOf(func(RecordCollection, ...interface{}) []interface{} { return nil })
+	if fnctVal.Type() == wrapperType {
+		// fnctVal is already wrapped, we just return it
+		return fnctVal
+	}
+	methodLayerFunction := func(rc RecordCollection, args ...interface{}) []interface{} {
 		argZeroType := fnctVal.Type().In(0)
 		argsVals := make([]reflect.Value, len(args)+1)
 		argsVals[0] = reflect.New(argZeroType).Elem()
@@ -113,17 +133,18 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 			argsVals[i+1] = reflect.ValueOf(arg)
 		}
 
-		var res []reflect.Value
+		var retVal []reflect.Value
 		if fnctVal.Type().IsVariadic() && len(argsVals) == fnctVal.Type().NumIn() {
-			res = fnctVal.CallSlice(argsVals)
+			retVal = fnctVal.CallSlice(argsVals)
 		} else {
-			res = fnctVal.Call(argsVals)
+			retVal = fnctVal.Call(argsVals)
 		}
 
-		if len(res) > 0 {
-			return res[0].Interface()
+		res := make([]interface{}, len(retVal))
+		for i, val := range retVal {
+			res[i] = val.Interface()
 		}
-		return nil
+		return res
 	}
 	return reflect.ValueOf(methodLayerFunction)
 }

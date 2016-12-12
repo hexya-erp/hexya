@@ -49,7 +49,6 @@ func TestConditions(t *testing.T) {
 				sql, args := rs2.query.selectQuery(fields)
 				So(sql, ShouldEqual, `SELECT "user".user_name AS user_name FROM "user" "user"  WHERE "user".nums = ? `)
 				So(len(args), ShouldEqual, 1)
-				fmt.Println("args", args)
 				So(args, ShouldContain, security.SuperUserID)
 			})
 			Convey("Check WHERE clause with additionnal filter", func() {

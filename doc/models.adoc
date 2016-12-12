@@ -618,7 +618,7 @@ Record with the values to update and a slice of field names to unset.
 
 [source,go]
 ----
-func (RecordSetType) (RecordType, []models.FieldName)
+func (RecordSetType) (*RecordType, []models.FieldName)
 ----
 
 `related(__path__)`::
@@ -660,7 +660,7 @@ model, not its methods.
 === Defining methods
 
 Models' methods are defined in a module and can be overriden by any other
-module, with the ability to call the original method with `Super`. This way,
+module, with the ability to call the original method with `Super()`. This way,
 methods can be overriden several times by different modules to iteratively
 add new features.
 
@@ -669,7 +669,6 @@ actual implementation. Layer functions must meet the following constraints:
 
 * Its first argument is the method's receiver. It must be of the
 `__RecordSetType__` of the model.
-* It may have at most one return value.
 * It must panic when an error is encountered to force transaction rollback
 (or solve the error directly if possible).
 
@@ -706,9 +705,9 @@ we discourage the use of function literals here.
 Extends the method `methodName` in the model `modelName` with the given
 `layerFunction`.
 +
-The layer function should call the `Super()` method of its first argument to
-call the previous layer, and pass it all the other arguments of the function
-layer.
+The layer function should call the `Super()` or `SuperMulti()` method of its
+first argument to call the previous layer, and pass it all the other arguments
+of the function layer.
 
 [source,go]
 ----
@@ -721,3 +720,12 @@ models.ExtendMethod("ResPartner", "UpdateBirthday",
 
 NOTE: The `functionLayer` passed to `ExtendMethod` must have the same signature
 as that of the first layer passed to `CreateMethod`.
+
+`*Super(args ...interface{}) interface{}*`::
+`*SuperMulti(args ...interface{}) []interface{}*`::
+`Super` and `SuperMulti` are RecordSet methods used to call the previous method
+layer. While `SuperMulti` returns all returned values as a slice of interface{},
+`Super` only returns the first returned value and discards the others.
+
+TIP: Prefer RecordSet methods with only one return value whenever possible, as
+using `Super()` is easier and more intuitive than using `SuperMulti()`.

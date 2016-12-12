@@ -53,7 +53,6 @@ type modelData struct {
 // must not be wrapped automatically.
 var specificMethods = map[string]bool{
 	"Create": true,
-	"Write":  true,
 	"First":  true,
 	"All":    true,
 }
@@ -289,18 +288,6 @@ func (s {{ $.Name }}Set) Create(data *{{ .Name }}) {{ .Name }}Set {
 	return {{ .Name }}Set{
 		RecordCollection: s.Call("Create", data).(models.RecordCollection),
 	}
-}
-
-// Write updates records in the database with the given data.
-// Updates are made with a single SQL query.
-// Fields in 'fieldsToUnset' are first set to their Go zero value, then all
-// non-zero values of data are updated.
-func (s {{ $.Name }}Set) Write(data *{{ .Name }}, fieldsToUnset ...models.FieldName) bool {
-	fStrings := make([]string, len(fieldsToUnset))
-	for i, f := range fieldsToUnset {
-		fStrings[i] = string(f)
-	}
-	return s.Call("Write", data, fStrings).(bool)
 }
 
 {{ range .Fields }}

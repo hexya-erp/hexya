@@ -53,24 +53,24 @@ func computeDecoratedName(rc RecordCollection) FieldMap {
 	return res
 }
 
-func computeAge(rc RecordCollection) FieldMap {
+func computeAge(rc RecordCollection) (FieldMap, []FieldName) {
 	res := make(FieldMap)
 	res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
-	return res
+	return res, []FieldName{}
 }
 
 func PrintAddress(rc RecordCollection) string {
-	res := rc.Super()
+	res := rc.Super().(string)
 	return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
 }
 
 func PrintAddressExt(rc RecordCollection) string {
-	res := rc.Super()
+	res := rc.Super().(string)
 	return fmt.Sprintf("[%s]", res)
 }
 
 func PrintAddressMixInExt(rc RecordCollection) string {
-	res := rc.Super()
+	res := rc.Super().(string)
 	return fmt.Sprintf("<%s>", res)
 }
 

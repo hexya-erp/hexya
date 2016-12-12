@@ -102,14 +102,14 @@ func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Write() or rs.Call("Write")
-func (rc RecordCollection) update(data interface{}, fieldsToUnset ...string) bool {
+func (rc RecordCollection) update(data interface{}, fieldsToUnset ...FieldName) bool {
 	mustCheckModelPermission(rc.mi, rc.env.uid, security.Write)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
 	fMap := convertInterfaceToFieldMap(data)
 	if _, ok := data.(FieldMap); !ok {
 		for _, f := range fieldsToUnset {
-			if _, exists := fMap[f]; !exists {
-				fMap[f] = nil
+			if _, exists := fMap[string(f)]; !exists {
+				fMap[string(f)] = nil
 			}
 		}
 	}

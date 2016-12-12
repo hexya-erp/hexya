@@ -41,6 +41,7 @@ func BootStrap() {
 	syncDatabase()
 	bootStrapMethods()
 	processDepends()
+	checkComputeMethodsSignature()
 	setupSecurity()
 }
 

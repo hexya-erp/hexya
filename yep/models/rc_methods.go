@@ -21,19 +21,39 @@ import (
 )
 
 // Call calls the given method name methName on the given RecordCollection
-// with the given arguments and return the result as interface{}.
+// with the given arguments and returns (only) the first result as interface{}.
 func (rc RecordCollection) Call(methName string, args ...interface{}) interface{} {
+	res := rc.CallMulti(methName, args...)
+	if len(res) == 0 {
+		return nil
+	}
+	return res[0]
+}
+
+// CallMulti calls the given method name methName on the given RecordCollection
+// with the given arguments and return the result as []interface{}.
+func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
 	methInfo, ok := rc.mi.methods.get(methName)
 	if !ok {
 		logging.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.mi.name)
 	}
 	methLayer := methInfo.topLayer
-	return rc.call(methLayer, args...)
+	return rc.callMulti(methLayer, args...)
 }
 
-// Super calls the next method Layer.
+// Super calls the next method Layer and returns (only) the first result.
 // This method is meant to be used inside a method layer function to call its parent.
 func (rc RecordCollection) Super(args ...interface{}) interface{} {
+	res := rc.SuperMulti(args...)
+	if len(res) == 0 {
+		return nil
+	}
+	return res[0]
+}
+
+// SuperMulti calls the next method Layer.
+// This method is meant to be used inside a method layer function to call its parent.
+func (rc RecordCollection) SuperMulti(args ...interface{}) []interface{} {
 	if len(rc.callStack) == 0 {
 		logging.LogAndPanic(log, "Empty call stack", "model", rc.mi.name)
 	}
@@ -45,7 +65,7 @@ func (rc RecordCollection) Super(args ...interface{}) interface{} {
 		return nil
 	}
 
-	return rc.call(methLayer, args...)
+	return rc.callMulti(methLayer, args...)
 }
 
 // MethodType returns the type of the method given by methName
@@ -57,8 +77,8 @@ func (rc RecordCollection) MethodType(methName string) reflect.Type {
 	return methInfo.methodType
 }
 
-// call is a wrapper around reflect.Value.Call() to use with interface{} type.
-func (rc RecordCollection) call(methLayer *methodLayer, args ...interface{}) interface{} {
+// callMulti is a wrapper around reflect.Value.Call() to use with interface{} type.
+func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
 	rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
 
 	inVals := make([]reflect.Value, len(args)+1)
@@ -67,11 +87,11 @@ func (rc RecordCollection) call(methLayer *methodLayer, args ...interface{}) int
 		inVals[i+1] = reflect.ValueOf(arg)
 	}
 
-	var retVal []reflect.Value
-	retVal = methLayer.funcValue.Call(inVals)
+	retVal := methLayer.funcValue.Call(inVals)[0]
 
-	if len(retVal) == 0 {
-		return nil
+	res := make([]interface{}, retVal.Len())
+	for i := 0; i < retVal.Len(); i++ {
+		res[i] = retVal.Index(i).Interface()
 	}
-	return retVal[0].Interface()
+	return res
 }

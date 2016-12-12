@@ -506,3 +506,37 @@ func processDepends() {
 		}
 	}
 }
+
+// checkComputeMethodsSignature checks all methods used in computed
+// fields and check their signature. It panics if it is not the case.
+func checkComputeMethodsSignature() {
+	checkMethType := func(method *methodInfo, stored bool) {
+		methType := method.methodType
+		var msg string
+		switch {
+		case methType.NumIn() != 1:
+			msg = "Compute methods should have no arguments"
+		case methType.NumOut() == 0:
+			msg = "Compute methods should return a value"
+		case methType.NumOut() == 1 && stored:
+			msg = "Compute methods for stored field must return fields to unset as second value"
+		case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldName{}):
+			msg = "Second return value of compute methods must be []models.FieldName"
+		case methType.NumOut() > 2:
+			msg = "Too many return values for compute method"
+		}
+		if msg != "" {
+			logging.LogAndPanic(log, msg, "model", method.mi.name, "method", method.name)
+		}
+	}
+	for _, mi := range modelRegistry.registryByName {
+		for _, fi := range mi.fields.computedFields {
+			method := mi.methods.mustGet(fi.compute)
+			checkMethType(method, false)
+		}
+		for _, fi := range mi.fields.computedStoredFields {
+			method := mi.methods.mustGet(fi.compute)
+			checkMethType(method, true)
+		}
+	}
+}

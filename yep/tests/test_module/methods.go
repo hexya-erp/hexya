@@ -37,10 +37,11 @@ func declareMethods() {
 		})
 
 	models.CreateMethod("Test__User", "computeDecoratedName",
-		func(rs pool.Test__UserSet) models.FieldMap {
-			res := make(models.FieldMap)
-			res["DecoratedName"] = rs.PrefixedUser("User")[0]
-			return res
+		func(rs pool.Test__UserSet) (*pool.Test__User, []models.FieldName) {
+			res := pool.Test__User{
+				DecoratedName: rs.PrefixedUser("User")[0],
+			}
+			return &res, []models.FieldName{pool.Test__User_DecoratedName}
 		})
 
 	models.CreateMethod("Test__AddressMixIn", "SayHello", SayHello)
@@ -79,10 +80,11 @@ func DecorateEmailExtension(rs pool.Test__UserSet, email string) string {
 }
 
 // ComputeAge is a sample method layer for testing
-func ComputeAge(rs pool.Test__UserSet) models.FieldMap {
-	res := make(models.FieldMap)
-	res["Age"] = rs.Profile().Age()
-	return res
+func ComputeAge(rs pool.Test__UserSet) (*pool.Test__User, []models.FieldName) {
+	res := pool.Test__User{
+		Age: rs.Profile().Age(),
+	}
+	return &res, []models.FieldName{pool.Test__User_Age}
 }
 
 // PrintAddress is a sample method layer for testing
