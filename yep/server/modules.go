@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/ir"
+	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 

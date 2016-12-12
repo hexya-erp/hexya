@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/beevik/etree"
+	"github.com/npiganeau/yep/yep/tools/etree"
 )
 
 // MenusRegistry is the menu collection of the application

@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/beevik/etree"
 	"github.com/npiganeau/yep/yep/models/types"
+	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
