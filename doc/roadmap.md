@@ -31,10 +31,10 @@ ORM
 - [ ] Manage errors the go way in RecordSet methods instead of panicking
 - [ ] Add more type safety in the condition builder
 - [ ] Pagination API for RecordSets
-- [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Support for SQL views and materialized views
 - [ ] Implement "group by" queries
 - [ ] Implement efficient 'child_of' domain operator
+- [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Database foreign keys to related fields
 - [ ] i18n and l10n support to ORM models
 
@@ -58,6 +58,7 @@ Client
 ------
 - [X] Adapt Odoo web client to be used in YEP (V8)
 - [X] Adapt Odoo web client to be used in YEP (V9)
+- [ ] Rebrand web client
 
 Modules
 -------

@@ -17,7 +17,6 @@ package models
 import (
 	"testing"
 
-	"fmt"
 	"github.com/npiganeau/yep/yep/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
