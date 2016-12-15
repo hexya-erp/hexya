@@ -15,8 +15,12 @@
 package models
 
 import (
+	"github.com/lib/pq"
 	"github.com/npiganeau/yep/yep/models/types"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
+
+const DBSerializationMaxRetries uint8 = 5
 
 // An Environment stores various contextual data used by the models:
 // - the database cursor (current open transaction),
@@ -28,6 +32,7 @@ type Environment struct {
 	uid     int64
 	context *types.Context
 	cache   *cache
+	retries uint8
 }
 
 // Cr returns a pointer to the Cursor of the Environment
@@ -45,31 +50,31 @@ func (env Environment) Context() *types.Context {
 	return env.context
 }
 
-// Commit the transaction of this environment.
+// commit the transaction of this environment.
 //
 // WARNING: Do NOT call Commit on Environment instances that you
 // did not create yourself with NewEnvironment. The framework will
 // automatically commit the Environment.
-func (env Environment) Commit() {
+func (env Environment) commit() {
 	env.cr.tx.Commit()
 }
 
-// Rollback the transaction of this environment.
+// rollback the transaction of this environment.
 //
 // WARNING: Do NOT call Rollback on Environment instances that you
 // did not create yourself with NewEnvironment. Just panic instead
 // for the framework to roll back automatically for you.
-func (env Environment) Rollback() {
+func (env Environment) rollback() {
 	env.cr.tx.Rollback()
 }
 
-// NewEnvironment returns a new Environment with the given parameters
+// newEnvironment returns a new Environment with the given parameters
 // in a new DB transaction.
 //
 // WARNING: Callers to NewEnvironment should ensure to either call Commit()
 // or Rollback() on the returned Environment after operation to release
 // the database connection.
-func NewEnvironment(uid int64, context ...types.Context) Environment {
+func newEnvironment(uid int64, context ...types.Context) Environment {
 	var ctx types.Context
 	if len(context) > 0 {
 		ctx = context[0]
@@ -81,6 +86,55 @@ func NewEnvironment(uid int64, context ...types.Context) Environment {
 		cache:   newCache(),
 	}
 	return env
+}
+
+// ExecuteInNewEnvironment executes the given fnct in a new Environment
+// within a new transaction.
+//
+// This function commits the transaction if everything went right or
+// rolls it back otherwise, returning an arror. Database serialization
+// errors are automatically retried several times before returning an
+// error if they still occur.
+func ExecuteInNewEnvironment(uid int64, fnct func(Environment)) (rError error) {
+	env := newEnvironment(uid)
+	defer func() {
+		if r := recover(); r != nil {
+			env.rollback()
+			if err, ok := r.(pq.Error); ok && err.Code.Class() == "40" {
+				// Transaction error
+				env.retries++
+				if env.retries < DBSerializationMaxRetries {
+					if ExecuteInNewEnvironment(uid, fnct) == nil {
+						rError = nil
+						return
+					}
+				}
+			}
+			rError = logging.LogPanicData(r)
+			return
+		}
+		env.commit()
+	}()
+	fnct(env)
+	return
+}
+
+// SimulateInNewEnvironment executes the given fnct in a new Environment
+// within a new transaction and rolls back the transaction at the end.
+//
+// This function always rolls back the transaction but returns an error
+// only if fnct panicked during its execution.
+func SimulateInNewEnvironment(uid int64, fnct func(Environment)) (rError error) {
+	env := newEnvironment(uid)
+	defer func() {
+		env.rollback()
+		if r := recover(); r != nil {
+			rError = logging.LogPanicData(r)
+			return
+		}
+	}()
+	fnct(env)
+	return
 }
 
 // Pool returns an empty RecordCollection for the given modelName

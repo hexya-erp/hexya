@@ -185,4 +185,10 @@ func (d *postgresAdapter) indexExists(table string, name string) bool {
 	return cnt > 0
 }
 
+// setTransactionIsolation returns the SQL string to set the
+// transaction isolation level to serializable
+func (d *postgresAdapter) setTransactionIsolation() string {
+	return "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+}
+
 var _ dbAdapter = new(postgresAdapter)

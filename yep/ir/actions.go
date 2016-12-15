@@ -135,7 +135,7 @@ type BaseAction struct {
 	SearchView   ViewRef        `json:"search_view_id" xml:"search_view_id"`
 	SrcModel     string         `json:"src_model" xml:"src_model"`
 	Usage        string         `json:"usage" xml:"usage"`
-	Views        []ViewRef      `json:"views" xml:"views"`
+	Views        []ViewTuple    `json:"views" xml:"views"`
 	View         ViewRef        `json:"view_id" xml:"view_id"`
 	AutoRefresh  bool           `json:"auto_refresh" xml:"auto_refresh"`
 	ManualSearch bool           `json:"-"`

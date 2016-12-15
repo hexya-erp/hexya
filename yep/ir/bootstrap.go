@@ -14,7 +14,9 @@
 
 package ir
 
-import "strings"
+import (
+	"strings"
+)
 
 /*
 BootStrap computes all views, actions and menus after they have been
@@ -32,13 +34,13 @@ ComputeViews makes the necessary updates to view definitions. In particular:
 */
 func computeViews() {
 	for _, v := range ViewsRegistry.views {
-		doc := xmlToElement(v.Arch)
+		archElem := xmlToElement(v.Arch)
 
 		// Set view type
-		v.Type = ViewType(doc.ChildElements()[0].Tag)
+		v.Type = ViewType(archElem.Tag)
 
 		// Populate fields map
-		fieldElems := doc.FindElements("//field")
+		fieldElems := archElem.FindElements("//field")
 		for _, f := range fieldElems {
 			v.Fields = append(v.Fields, f.SelectAttr("name").Value)
 		}
@@ -66,8 +68,8 @@ func computeActions() {
 		var present bool
 		// Check if view is present in Views
 		for _, view := range a.Views {
-			if len(view) > 0 && len(a.View) > 0 {
-				if view[0] == a.View[0] {
+			if view.ID != "" && len(a.View) > 0 {
+				if view.ID == a.View[0] {
 					present = true
 					break
 				}
@@ -76,30 +78,31 @@ func computeActions() {
 		// Add View if not present in Views
 		if !present && len(a.View) > 0 && a.View[0] != "" {
 			vType := ViewsRegistry.GetViewById(a.View[0]).Type
-			newRef := ViewRef{
-				0: a.View[0],
-				1: string(vType),
+			newRef := ViewTuple{
+				ID:   a.View[0],
+				Type: vType,
 			}
 			a.Views = append(a.Views, newRef)
 		}
 
 		// Add views of ViewMode that are not specified
-		modes := strings.Split(a.ViewMode, ",")
-		for i, v := range modes {
-			modes[i] = strings.TrimSpace(v)
+		modesStr := strings.Split(a.ViewMode, ",")
+		modes := make([]ViewType, len(modesStr))
+		for i, v := range modesStr {
+			modes[i] = ViewType(strings.TrimSpace(v))
 		}
 	modeLoop:
 		for _, mode := range modes {
 			for _, vRef := range a.Views {
-				if vRef[1] == mode {
+				if vRef.Type == mode {
 					continue modeLoop
 				}
 			}
 			// No view defined for mode, we need to find it.
 			view := ViewsRegistry.GetFirstViewForModel(a.Model, ViewType(mode))
-			newRef := ViewRef{
-				0: view.ID,
-				1: string(view.Type),
+			newRef := ViewTuple{
+				ID:   view.ID,
+				Type: view.Type,
 			}
 			a.Views = append(a.Views, newRef)
 		}
@@ -118,11 +121,10 @@ fixViewModes makes the necessary changes to the given action.
 func fixViewModes(a *BaseAction) {
 	if a.ActViewType == ActionViewTypeForm {
 		for i, v := range a.Views {
-			vType := ViewType(v[1])
-			if vType == VIEW_TYPE_TREE {
-				vType = VIEW_TYPE_LIST
+			if v.Type == VIEW_TYPE_TREE {
+				v.Type = VIEW_TYPE_LIST
 			}
-			a.Views[i][1] = string(vType)
+			a.Views[i].Type = v.Type
 		}
 	}
 }

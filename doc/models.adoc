@@ -315,14 +315,6 @@ Returns the user ID of the current user.
 Returns the context of this Environment. The context is a
 read only map for storing arbitrary metadata. See <<Context Methods>>.
 
-`*Commit()*`::
-`*Rollback()*`::
-Commits (respectively rolls back) the current transaction.
-
-WARNING: Do NOT call `Commit()` or `Rollback()` on Environment instances that
-you did not create yourself with `NewEnvironment()`. The framework will
-automatically commit the Environment.
-
 === Context Methods
 
 The Context of an Environment is a read only map for storing arbitrary
@@ -341,18 +333,20 @@ Returns a copy of this Context with the given key set to the given value.
 
 A pointer to a new empty Context can be created with `types.NewContext()`
 
-=== Creating a new Environment
+=== Executing in a new Environment
 
-`*NewEnvironment()*`::
-NewEnvironment returns a new Environment with the given parameters in a new DB
-transaction.
+`*models.ExecuteInNewEnvironment(uid int64, fnct func(Environment)) error*`::
+Executes the given `fnct` in a new Environment within a new database
+transaction and commit the transaction on success. In case `fnct` panics, the
+transaction is rolled back instead and the panic data is returned as error.
 
-WARNING: Callers to `NewEnvironment()` should ensure to either call `Commit()`
-or `Rollback()` on the returned Environment after operation to release
-the database connection.
-
-NOTE: Except for launching asynchronous jobs, there is usually no need to call
-`NewEnvironment()`. Check <<Modifying the Environment>> instead.
+`*models.SimulateInNewEnvironment(uid int64, fnct func(Environment)) error*`::
+Executes the given `fnct` in a new Environment within a new database
+transaction but rolls back the transaction at the end. In case `fnct` panics,
+the panic data is returned as error.
++
+This function is mainly useful for testing when database modification must be
+avoided.
 
 === Modifying the Environment
 

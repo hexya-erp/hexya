@@ -132,6 +132,20 @@ var _ json.Marshaler = &ViewRef{}
 var _ json.Unmarshaler = &ViewRef{}
 var _ xml.Unmarshaler = &ViewRef{}
 
+// ViewTuple is an array of two strings representing a view:
+// - The first one is the ID of the view
+// - The second one is the view type corresponding to the view ID
+type ViewTuple struct {
+	ID   string
+	Type ViewType
+}
+
+// MarshalJSON is the JSON marshalling method of ViewTuple.
+// It marshals ViewTuple into a list [id, type].
+func (vt ViewTuple) MarshalJSON() ([]byte, error) {
+	return json.Marshal([2]string{vt.ID, string(vt.Type)})
+}
+
 // A ViewsCollection is a view collection
 type ViewsCollection struct {
 	sync.RWMutex

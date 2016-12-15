@@ -309,7 +309,7 @@ func GetFormviewAction(rc RecordCollection) *ir.BaseAction {
 		Model:       rc.ModelName(),
 		ActViewType: ir.ActionViewTypeForm,
 		ViewMode:    "form",
-		Views:       []ir.ViewRef{{viewID, string(ir.VIEW_TYPE_FORM)}},
+		Views:       []ir.ViewTuple{{ID: viewID, Type: ir.VIEW_TYPE_FORM}},
 		Target:      "current",
 		ResID:       rc.Get("id").(int64),
 		Context:     rc.Env().Context(),

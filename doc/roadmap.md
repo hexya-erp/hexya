@@ -28,13 +28,12 @@ ORM
 - [X] Security
     - [X] CRUD permissions to models and fields
     - [X] Record rules on models
-- [ ] Manage errors the go way in RecordSet methods instead of panicking
+- [X] Handle serialization transaction isolation with appropriate retries
 - [ ] Add more type safety in the condition builder
 - [ ] Pagination API for RecordSets
 - [ ] Support for SQL views and materialized views
 - [ ] Implement "group by" queries
 - [ ] Implement efficient 'child_of' domain operator
-- [ ] Handle serialization transaction isolation with appropriate retries
 - [ ] Database foreign keys to related fields
 - [ ] i18n and l10n support to ORM models
 

@@ -16,11 +16,9 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 
-	"github.com/go-stack/stack"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
@@ -38,73 +36,65 @@ type CallParams struct {
 
 // Execute executes a method on an object
 func Execute(uid int64, params CallParams) (res interface{}, rError error) {
-	var rs models.RecordCollection
-
 	checkUser(uid)
 
 	// Create new Environment with new transaction
-	ctx := extractContext(params)
-	env := models.NewEnvironment(uid, ctx)
-	defer func() {
-		if r := recover(); r != nil {
-			rError = rollbackAndLog(env, r)
-			res = nil
-			return
-		}
-		env.Commit()
-	}()
+	rError = models.ExecuteInNewEnvironment(uid, func(env models.Environment) {
 
-	// Create RecordSet from Environment
-	rs, parms, single := createRecordCollection(env, params)
+		// Create RecordSet from Environment
+		rs, parms, single := createRecordCollection(env, params)
+		ctx := extractContext(params)
+		rs = rs.WithNewContext(&ctx)
 
-	methodName := tools.ConvertMethodName(params.Method)
+		methodName := tools.ConvertMethodName(params.Method)
 
-	// Parse Args and KWArgs using the following logic:
-	// - If 2nd argument of the function is a struct, then:
-	//     * Parse remaining Args in the struct fields
-	//     * Parse KWArgs in the struct fields, possibly overwriting Args
-	// - Else:
-	//     * Parse Args as the function args
-	//     * Ignore KWArgs
-	var fnArgs []interface{}
-	if rs.MethodType(methodName).NumIn() > 1 {
-		fnSecondArgType := rs.MethodType(methodName).In(1)
-		if fnSecondArgType.Kind() == reflect.Struct {
-			// 2nd argument is a struct,
-			fnArgs = make([]interface{}, 1)
-			argStructValue := reflect.New(fnSecondArgType).Elem()
-			putParamsValuesInStruct(&argStructValue, parms)
-			putKWValuesInStruct(&argStructValue, params.KWArgs)
-			fnArgs[0] = argStructValue.Interface()
-		} else {
-			// Second argument is not a struct, so we parse directly in the function args
-			fnArgs = make([]interface{}, len(parms))
-			err := putParamsValuesInArgs(&fnArgs, rs.MethodType(methodName), parms)
-			if err != nil {
-				logging.LogAndPanic(log, err.Error(), "method", methodName, "args", parms)
+		// Parse Args and KWArgs using the following logic:
+		// - If 2nd argument of the function is a struct, then:
+		//     * Parse remaining Args in the struct fields
+		//     * Parse KWArgs in the struct fields, possibly overwriting Args
+		// - Else:
+		//     * Parse Args as the function args
+		//     * Ignore KWArgs
+		var fnArgs []interface{}
+		if rs.MethodType(methodName).NumIn() > 1 {
+			fnSecondArgType := rs.MethodType(methodName).In(1)
+			if fnSecondArgType.Kind() == reflect.Struct {
+				// 2nd argument is a struct,
+				fnArgs = make([]interface{}, 1)
+				argStructValue := reflect.New(fnSecondArgType).Elem()
+				putParamsValuesInStruct(&argStructValue, parms)
+				putKWValuesInStruct(&argStructValue, params.KWArgs)
+				fnArgs[0] = argStructValue.Interface()
+			} else {
+				// Second argument is not a struct, so we parse directly in the function args
+				fnArgs = make([]interface{}, len(parms))
+				err := putParamsValuesInArgs(&fnArgs, rs.MethodType(methodName), parms)
+				if err != nil {
+					logging.LogAndPanic(log, err.Error(), "method", methodName, "args", parms)
+				}
 			}
 		}
-	}
 
-	res = rs.Call(methodName, fnArgs...)
+		res = rs.Call(methodName, fnArgs...)
 
-	resVal := reflect.ValueOf(res)
-	if single && resVal.Kind() == reflect.Slice {
-		// Return only the first element of the slice if called with only one id.
-		newRes := reflect.New(resVal.Type().Elem()).Elem()
-		if resVal.Len() > 0 {
-			newRes.Set(resVal.Index(0))
+		resVal := reflect.ValueOf(res)
+		if single && resVal.Kind() == reflect.Slice {
+			// Return only the first element of the slice if called with only one id.
+			newRes := reflect.New(resVal.Type().Elem()).Elem()
+			if resVal.Len() > 0 {
+				newRes.Set(resVal.Index(0))
+			}
+			res = newRes.Interface()
 		}
-		res = newRes.Interface()
-	}
-	// Return ID(s) if res is a *RecordSet
-	if rec, ok := res.(models.RecordCollection); ok {
-		if len(rec.Ids()) == 1 {
-			res = rec.Ids()[0]
-		} else {
-			res = rec.Ids()
+		// Return ID(s) if res is a *RecordSet
+		if rec, ok := res.(models.RecordCollection); ok {
+			if len(rec.Ids()) == 1 {
+				res = rec.Ids()[0]
+			} else {
+				res = rec.Ids()
+			}
 		}
-	}
+	})
 
 	return
 }
@@ -223,44 +213,14 @@ func checkUser(uid int64) {
 	}
 }
 
-// rollbackAndLog rolls back the current transaction of the given
-// environment and logs the panic data with stacktrace.
-func rollbackAndLog(env models.Environment, panicData interface{}) error {
-	env.Rollback()
-	caller := stack.Caller(1)
-	ctx := []interface{}{"caller", fmt.Sprintf("%+n", caller)}
-
-	msg := fmt.Sprintf("%v", panicData)
-	log.Error(msg, ctx...)
-
-	trace := stack.Trace()
-	var traceStr string
-	for _, call := range trace {
-		log.Debug(fmt.Sprintf("%+v", call))
-		log.Debug(fmt.Sprintf(">> %n", call))
-		traceStr += fmt.Sprintf("%+v\n>> %n\n", call, call)
-	}
-
-	fullMsg := fmt.Sprintf("%s, %v\n\n%s", msg, ctx, traceStr)
-	return errors.New(fullMsg)
-}
-
 // GetFieldValue retrieves the given field of the given model and id.
 func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError error) {
-	env := models.NewEnvironment(uid)
-	defer func() {
-		if r := recover(); r != nil {
-			rError = rollbackAndLog(env, r)
-			res = nil
-			return
-		}
-		env.Commit()
-	}()
-	if uid == 0 {
-		logging.LogAndPanic(log, "User must be logged in to retrieve field")
-	}
-	model = tools.ConvertModelName(model)
-	res = env.Pool(model).Filter("ID", "=", id).Get(field)
+	checkUser(uid)
+	rError = models.ExecuteInNewEnvironment(uid, func(env models.Environment) {
+		model = tools.ConvertModelName(model)
+		res = env.Pool(model).Filter("ID", "=", id).Get(field)
+	})
+
 	return
 }
 
@@ -283,32 +243,23 @@ type SearchReadResult struct {
 
 // SearchRead retrieves database records according to the filters defined in params.
 func SearchRead(uid int64, params SearchReadParams) (res *SearchReadResult, rError error) {
-	env := models.NewEnvironment(uid)
-	defer func() {
-		if r := recover(); r != nil {
-			rError = rollbackAndLog(env, r)
-			res = nil
-			return
+	checkUser(uid)
+	rError = models.ExecuteInNewEnvironment(uid, func(env models.Environment) {
+		model := tools.ConvertModelName(params.Model)
+		rs := env.Pool(model)
+		srp := models.SearchParams{
+			Domain: params.Domain,
+			Fields: params.Fields,
+			Offset: params.Offset,
+			Limit:  params.Limit,
+			Order:  params.Sort,
 		}
-		env.Commit()
-	}()
-	if uid == 0 {
-		logging.LogAndPanic(log, "User must be logged in to search database")
-	}
-	model := tools.ConvertModelName(params.Model)
-	rs := env.Pool(model)
-	srp := models.SearchParams{
-		Domain: params.Domain,
-		Fields: params.Fields,
-		Offset: params.Offset,
-		Limit:  params.Limit,
-		Order:  params.Sort,
-	}
-	records := rs.Call("SearchRead", srp).([]models.FieldMap)
-	length := rs.SearchCount()
-	res = &SearchReadResult{
-		Records: records,
-		Length:  length,
-	}
+		records := rs.Call("SearchRead", srp).([]models.FieldMap)
+		length := rs.SearchCount()
+		res = &SearchReadResult{
+			Records: records,
+			Length:  length,
+		}
+	})
 	return
 }

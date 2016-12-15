@@ -23,51 +23,51 @@ import (
 
 func TestDomains(t *testing.T) {
 	Convey("Testing Domains", t, func() {
-		env := NewEnvironment(security.SuperUserID)
-		Convey("Creating an extra user", func() {
-			profile := env.Pool("Profile").Call("Create", FieldMap{"Age": 45})
-			userData := FieldMap{
-				"UserName": "Martin Weston",
-				"Email":    "mweston@example.com",
-				"Profile":  profile,
-			}
-			user := env.Pool("User").Call("Create", userData).(RecordCollection)
-			So(user.Get("Profile").(RecordCollection).Get("Age"), ShouldEqual, 45)
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			Convey("Creating an extra user", func() {
+				profile := env.Pool("Profile").Call("Create", FieldMap{"Age": 45})
+				userData := FieldMap{
+					"UserName": "Martin Weston",
+					"Email":    "mweston@example.com",
+					"Profile":  profile,
+				}
+				user := env.Pool("User").Call("Create", userData).(RecordCollection)
+				So(user.Get("Profile").(RecordCollection).Get("Age"), ShouldEqual, 45)
+			})
+			Convey("Testing simple [(A), (B)] domain", func() {
+				dom1 := []interface{}{
+					0: []interface{}{"UserName", "like", "Smith"},
+					1: []interface{}{"Age", "=", 24},
+				}
+				dom1Users := env.Pool("User").Search(ParseDomain(dom1))
+				So(dom1Users.Len(), ShouldEqual, 1)
+				So(dom1Users.Get("UserName"), ShouldEqual, "Jane A. Smith")
+			})
+			Convey("Testing ['|', (A), (B)] domain", func() {
+				dom2 := []interface{}{
+					0: "|",
+					1: []interface{}{"UserName", "like", "Will"},
+					2: []interface{}{"Email", "ilike", "Jane.Smith"},
+				}
+				dom2Users := env.Pool("User").Search(ParseDomain(dom2)).OrderBy("UserName")
+				So(dom2Users.Len(), ShouldEqual, 2)
+				userRecs := dom2Users.Records()
+				So(userRecs[0].Get("UserName"), ShouldEqual, "Jane A. Smith")
+				So(userRecs[1].Get("UserName"), ShouldEqual, "Will Smith")
+			})
+			Convey("Testing ['|', (A), '&' , (B), (C), (D)] domain", func() {
+				dom3 := []interface{}{
+					0: "|",
+					1: []interface{}{"UserName", "like", "Will"},
+					2: "&",
+					3: []interface{}{"Age", ">", 0},
+					4: []interface{}{"Age", "<", 25},
+					5: []interface{}{"Email", "not like", "will.smith"},
+				}
+				dom3Users := env.Pool("User").Search(ParseDomain(dom3)).OrderBy("UserName")
+				So(dom3Users.Len(), ShouldEqual, 1)
+				So(dom3Users.Get("UserName"), ShouldEqual, "Jane A. Smith")
+			})
 		})
-		Convey("Testing simple [(A), (B)] domain", func() {
-			dom1 := []interface{}{
-				0: []interface{}{"UserName", "like", "Smith"},
-				1: []interface{}{"Age", "=", 24},
-			}
-			dom1Users := env.Pool("User").Search(ParseDomain(dom1))
-			So(dom1Users.Len(), ShouldEqual, 1)
-			So(dom1Users.Get("UserName"), ShouldEqual, "Jane A. Smith")
-		})
-		Convey("Testing ['|', (A), (B)] domain", func() {
-			dom2 := []interface{}{
-				0: "|",
-				1: []interface{}{"UserName", "like", "Will"},
-				2: []interface{}{"Email", "ilike", "Jane.Smith"},
-			}
-			dom2Users := env.Pool("User").Search(ParseDomain(dom2)).OrderBy("UserName")
-			So(dom2Users.Len(), ShouldEqual, 2)
-			userRecs := dom2Users.Records()
-			So(userRecs[0].Get("UserName"), ShouldEqual, "Jane A. Smith")
-			So(userRecs[1].Get("UserName"), ShouldEqual, "Will Smith")
-		})
-		Convey("Testing ['|', (A), '&' , (B), (C), (D)] domain", func() {
-			dom3 := []interface{}{
-				0: "|",
-				1: []interface{}{"UserName", "like", "Will"},
-				2: "&",
-				3: []interface{}{"Age", ">", 0},
-				4: []interface{}{"Age", "<", 25},
-				5: []interface{}{"Email", "not like", "will.smith"},
-			}
-			dom3Users := env.Pool("User").Search(ParseDomain(dom3)).OrderBy("UserName")
-			So(dom3Users.Len(), ShouldEqual, 1)
-			So(dom3Users.Get("UserName"), ShouldEqual, "Jane A. Smith")
-		})
-		env.Rollback()
 	})
 }

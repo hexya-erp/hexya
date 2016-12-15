@@ -15,6 +15,7 @@
 package logging
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -74,6 +75,29 @@ func LogAndPanic(log log15.Logger, msg string, ctx ...interface{}) {
 
 	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctx)
 	panic(fullMsg)
+}
+
+// LogPanicData logs the panic data with stacktrace and return an
+// error with the panic message. This function is separated from
+// LogAndPanic so that unwanted panics can still be logged with
+// this function.
+func LogPanicData(panicData interface{}) error {
+	caller := stack.Caller(1)
+	ctx := []interface{}{"caller", fmt.Sprintf("%+n", caller)}
+
+	msg := fmt.Sprintf("%v", panicData)
+	log.Error(msg, ctx...)
+
+	trace := stack.Trace()
+	var traceStr string
+	for _, call := range trace {
+		log.Debug(fmt.Sprintf("%+v", call))
+		log.Debug(fmt.Sprintf(">> %n", call))
+		traceStr += fmt.Sprintf("%+v\n>> %n\n", call, call)
+	}
+
+	fullMsg := fmt.Sprintf("%s, %v\n\n%s", msg, ctx, traceStr)
+	return errors.New(fullMsg)
 }
 
 // Log15ForGin returns a gin.HandlerFunc (middleware) that logs requests using log15.

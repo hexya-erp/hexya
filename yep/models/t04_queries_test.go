@@ -24,51 +24,51 @@ import (
 func TestConditions(t *testing.T) {
 	Convey("Testing SQL building for queries", t, func() {
 		if DBARGS.Driver == "postgres" {
-			env := NewEnvironment(1)
-			rs := env.Pool("User").Filter("Profile.BestPost.Title", "=", "foo")
-			fields := []string{"user_name", "profile_id.best_post_id.title"}
-			Convey("Simple query with database field names", func() {
-				rs = env.Pool("User").Filter("profile_id.best_post_id.title", "=", "foo")
-				sql, args := rs.query.selectQuery(fields)
-				So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
-				So(args, ShouldContain, "foo")
+			SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				rs := env.Pool("User").Filter("Profile.BestPost.Title", "=", "foo")
+				fields := []string{"user_name", "profile_id.best_post_id.title"}
+				Convey("Simple query with database field names", func() {
+					rs = env.Pool("User").Filter("profile_id.best_post_id.title", "=", "foo")
+					sql, args := rs.query.selectQuery(fields)
+					So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
+					So(args, ShouldContain, "foo")
+				})
+				Convey("Simple query with struct field names", func() {
+					fields := []string{"UserName", "Profile.BestPost.Title"}
+					sql, args := rs.query.selectQuery(fields)
+					So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
+					So(args, ShouldContain, "foo")
+				})
+				Convey("Simple query with args inflation", func() {
+					getUserID := func(rc RecordCollection) int64 {
+						return rc.Env().Uid()
+					}
+					rs2 := env.Pool("User").Filter("Nums", "=", getUserID)
+					fields := []string{"UserName"}
+					sql, args := rs2.query.selectQuery(fields)
+					So(sql, ShouldEqual, `SELECT "user".user_name AS user_name FROM "user" "user"  WHERE "user".nums = ? `)
+					So(len(args), ShouldEqual, 1)
+					So(args, ShouldContain, security.SuperUserID)
+				})
+				Convey("Check WHERE clause with additionnal filter", func() {
+					rs = rs.Filter("Profile.Age", ">=", 12)
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE "user__profile__post".title = ? AND "user__profile".age >= ? `)
+					So(args, ShouldContain, 12)
+					So(args, ShouldContain, "foo")
+				})
+				Convey("Check full query with all conditions", func() {
+					rs = rs.Filter("Profile.Age", ">=", 12)
+					c2 := NewCondition().And("user_name", "like", "jane").Or("Profile.Money", "<", 1234.56)
+					rs = rs.Search(c2)
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE ? OR "user__profile".money < ? ) `)
+					So(args, ShouldContain, "%jane%")
+					So(args, ShouldContain, 1234.56)
+					sql, _ = rs.query.selectQuery(fields)
+					So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE ? OR "user__profile".money < ? ) `)
+				})
 			})
-			Convey("Simple query with struct field names", func() {
-				fields := []string{"UserName", "Profile.BestPost.Title"}
-				sql, args := rs.query.selectQuery(fields)
-				So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? `)
-				So(args, ShouldContain, "foo")
-			})
-			Convey("Simple query with args inflation", func() {
-				getUserID := func(rc RecordCollection) int64 {
-					return rc.Env().Uid()
-				}
-				rs2 := env.Pool("User").Filter("Nums", "=", getUserID)
-				fields := []string{"UserName"}
-				sql, args := rs2.query.selectQuery(fields)
-				So(sql, ShouldEqual, `SELECT "user".user_name AS user_name FROM "user" "user"  WHERE "user".nums = ? `)
-				So(len(args), ShouldEqual, 1)
-				So(args, ShouldContain, security.SuperUserID)
-			})
-			Convey("Check WHERE clause with additionnal filter", func() {
-				rs = rs.Filter("Profile.Age", ">=", 12)
-				sql, args := rs.query.sqlWhereClause()
-				So(sql, ShouldEqual, `WHERE "user__profile__post".title = ? AND "user__profile".age >= ? `)
-				So(args, ShouldContain, 12)
-				So(args, ShouldContain, "foo")
-			})
-			Convey("Check full query with all conditions", func() {
-				rs = rs.Filter("Profile.Age", ">=", 12)
-				c2 := NewCondition().And("user_name", "like", "jane").Or("Profile.Money", "<", 1234.56)
-				rs = rs.Search(c2)
-				sql, args := rs.query.sqlWhereClause()
-				So(sql, ShouldEqual, `WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE ? OR "user__profile".money < ? ) `)
-				So(args, ShouldContain, "%jane%")
-				So(args, ShouldContain, 1234.56)
-				sql, _ = rs.query.selectQuery(fields)
-				So(sql, ShouldEqual, `SELECT "user".user_name AS user_name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE "user__profile__post".title = ? AND "user__profile".age >= ? AND ("user".user_name LIKE ? OR "user__profile".money < ? ) `)
-			})
-			env.Rollback()
 		}
 	})
 }

@@ -55,6 +55,9 @@ type dbAdapter interface {
 	quoteTableName(string) string
 	// indexExists returns true if an index with the given name exists in the given table
 	indexExists(table string, name string) bool
+	// setTransactionIsolation returns the SQL string to set the transaction isolation
+	// level to serializable
+	setTransactionIsolation() string
 }
 
 // registerDBAdapter adds a adapter to the adapters registry
@@ -88,8 +91,11 @@ func (c *Cursor) Select(dest interface{}, query string, args ...interface{}) {
 
 // newCursor returns a new db cursor on the given database
 func newCursor(db *sqlx.DB) *Cursor {
+	adapter := adapters[db.DriverName()]
+	tx := db.MustBegin()
+	dbExecute(tx, adapter.setTransactionIsolation())
 	return &Cursor{
-		tx: db.MustBegin(),
+		tx: tx,
 	}
 }
 
