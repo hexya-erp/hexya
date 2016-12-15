@@ -20,6 +20,9 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+// DBSerializationMaxRetries defines the number of time a
+// transaction that failed due to serialization error should
+// be retried.
 const DBSerializationMaxRetries uint8 = 5
 
 // An Environment stores various contextual data used by the models:
