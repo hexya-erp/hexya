@@ -168,6 +168,16 @@ func TestMixedInModels(t *testing.T) {
 				So(janeProfile.Call("PrintAddress"), ShouldEqual, "[<165 5th Avenue, 0305 New York>, USA]")
 				So(janeProfile.Call("SayHello"), ShouldEqual, "Hello !")
 			})
+			Convey("Checking mixing in all models", func() {
+				userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
+				userJane.Set("Active", true)
+				So(userJane.Get("Active").(bool), ShouldEqual, true)
+				So(userJane.Call("IsActivated").(bool), ShouldEqual, true)
+				janeProfile := userJane.Get("Profile").(RecordCollection)
+				janeProfile.Set("Active", true)
+				So(janeProfile.Get("Active").(bool), ShouldEqual, true)
+				So(janeProfile.Call("IsActivated").(bool), ShouldEqual, true)
+			})
 		})
 	})
 }

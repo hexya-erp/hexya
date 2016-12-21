@@ -154,9 +154,10 @@ func addMethodsToModelData(mData *modelData, mi *modelInfo, docParamsMap map[gen
 		dParams, ok := docParamsMap[ref]
 		if !ok {
 			// Check if we have the method in mixins
+			allMixIns := append(modelRegistry.commonMixins, mi.mixins...)
 			var mixInMethFound bool
-			for i := len(mi.mixins) - 1; i >= 0; i-- {
-				mixInRef := generate.MethodRef{Model: mi.mixins[i].name, Method: methodName}
+			for i := len(allMixIns) - 1; i >= 0; i-- {
+				mixInRef := generate.MethodRef{Model: allMixIns[i].name, Method: methodName}
 				dParams, ok = docParamsMap[mixInRef]
 				if ok {
 					mixInMethFound = true

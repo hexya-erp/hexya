@@ -35,6 +35,7 @@ type Option int
 type modelCollection struct {
 	sync.RWMutex
 	bootstrapped        bool
+	commonMixins        []*modelInfo
 	registryByName      map[string]*modelInfo
 	registryByTableName map[string]*modelInfo
 }
@@ -267,10 +268,25 @@ func ExtendModel(name string, structPtrs ...interface{}) {
 }
 
 // MixInModel extends targetModel by importing all fields and methods of mixInModel.
+// MixIn methods and fields have a lower priority than those of the model and are
+// overridden by the them when applicable.
 func MixInModel(targetModel, mixInModel string) {
 	mi := modelRegistry.mustGet(targetModel)
 	mixInMI := modelRegistry.mustGet(mixInModel)
 	mi.mixins = append(mi.mixins, mixInMI)
+}
+
+// MixInAllModel extends all models with the given mixInModel.
+// Mixins added with this method have lower priority than MixIns
+// that are directly applied to a model, which have themselves a
+// lower priority than the fields and methods of the model.
+//
+// Note that models extension will be deferred at bootstrap time,
+// which means that all models, including those that are not yet
+// defined at the time this function is called, will be extended.
+func MixInAllModels(mixInModel string) {
+	mixInMI := modelRegistry.mustGet(mixInModel)
+	modelRegistry.commonMixins = append(modelRegistry.commonMixins, mixInMI)
 }
 
 // createModelInfo creates and populates a new modelInfo with the given name

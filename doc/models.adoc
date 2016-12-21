@@ -463,21 +463,29 @@ See also <<Defining methods>> to see how to add or override methods in a model.
 `*models.MixInModel(targetModel, mixInModel string)*`::
 Extend the `targetModel` by importing all fields and methods of `mixInModel`.
 
+`*models.MixInAllModels(mixInModel string)*`::
+Extends all models by importing all fields and methods of `mixInModel`.
+
 If a field name conflicts with an existing field name in the model, then:
 
 .Field overriding rules
-- Fields defined in the target model override fields defined in the mixin model
-- Fields defined in an mixin override fields defined in another mixin imported
-before.
+- Fields defined in the target model override fields defined in any mixin model
+- Fields defined in a specific mixin added with `MixInModel` override fields
+defined in a generic mixin added with `MixInAllModels`.
+- Fields defined in a mixin override fields defined in another mixin of same
+priority (i.e. general or specific) imported before.
 
 If a method name conflicts with an existing method name in the model, then:
 
 .Method overriding rules
-- Methods defined in the target model extend methods of the mixin model. Use
-`Super()` in the target model implementation to access the implementation of
-the mixin.
-- Methods defined in a mixin extend methods defined of another mixin imported
-before.
+- Methods defined in the target model extend methods of the mixin model.
+- Methods defined in a specific mixin added with `MixInModel` extend methods
+defined in a generic mixin added with `MixInAllModels`.
+- Methods defined in a mixin extend methods defined of another mixin of same
+priority (i.e. general or specific) imported before.
+
+Use `Super()` in extending implementation to access the implementation of
+the lower level mixins.
 
 NOTE: When mixing in a model, the database columns are copied into the table of
 the target model, resulting in an independent model. However, all extensions of

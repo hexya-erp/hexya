@@ -69,7 +69,12 @@ func createModelLinks() {
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
 	for _, mi := range modelRegistry.registryByName {
-		for _, mixInMI := range mi.mixins {
+		allMixIns := append(modelRegistry.commonMixins, mi.mixins...)
+		for _, mixInMI := range allMixIns {
+			if mixInMI == mi {
+				// Do not mixin ourselves
+				continue
+			}
 			// Add mixIn fields
 			for fName, fi := range mixInMI.fields.registryByName {
 				if _, exists := mi.fields.registryByName[fName]; exists {

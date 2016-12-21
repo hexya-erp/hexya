@@ -15,9 +15,10 @@
 package defs
 
 import (
+	"os"
+
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
-	"os"
 )
 
 func init() {
@@ -86,4 +87,11 @@ func init() {
 	}))
 
 	models.MixInModel("Test__Profile", "Test__AddressMixIn")
+
+	models.CreateModel("Test__ActiveMixIn")
+	models.ExtendModel("Test__ActiveMixIn", new(struct {
+		Active bool
+	}))
+
+	models.MixInAllModels("Test__ActiveMixIn")
 }

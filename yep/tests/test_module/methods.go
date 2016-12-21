@@ -57,6 +57,10 @@ func declareMethods() {
 		res := rs.Super()
 		return fmt.Sprintf("[%s]", res)
 	})
+
+	models.CreateMethod("Test__ActiveMixIn", "IsActivated", func(rs pool.Test__ActiveMixInSet) bool {
+		return rs.Active()
+	})
 }
 
 // PrefixedUser is a sample method layer for testing

@@ -82,6 +82,10 @@ func SayHello(rc RecordCollection) string {
 	return "Hello !"
 }
 
+func IsActivated(rc RecordCollection) bool {
+	return rc.Get("Active").(bool)
+}
+
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
 		CreateModel("User")
@@ -94,6 +98,9 @@ func TestCreateDB(t *testing.T) {
 		ExtendModel("Profile", new(Profile), new(ProfileExtension))
 		CreateModel("Post")
 		ExtendModel("Post", new(Post))
+		CreateModel("ActiveMixIn")
+		ExtendModel("ActiveMixIn", new(ActiveMixIn))
+		MixInAllModels("ActiveMixIn")
 		CreateModel("Tag")
 		ExtendModel("Tag", new(Tag), new(TagExtension))
 
@@ -103,6 +110,8 @@ func TestCreateDB(t *testing.T) {
 		ExtendMethod("User", "DecorateEmail", DecorateEmailExtension)
 		CreateMethod("User", "computeDecoratedName", computeDecoratedName)
 		CreateMethod("User", "computeAge", computeAge)
+
+		CreateMethod("ActiveMixIn", "IsActivated", IsActivated)
 
 		CreateMethod("AddressMixIn", "SayHello", SayHello)
 		CreateMethod("AddressMixIn", "PrintAddress", PrintAddressMixIn)
@@ -196,4 +205,8 @@ type AddressMixIn struct {
 	Street string
 	Zip    string
 	City   string
+}
+
+type ActiveMixIn struct {
+	Active bool
 }
