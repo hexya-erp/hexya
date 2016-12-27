@@ -63,9 +63,7 @@ export YEP_DB_DRIVER=postgres
 export YEP_DB_USER=postgres
 export YEP_DB_PREFIX=yep_test
 export YEP_DB_PASSWORD=secret
-go test -v github.com/npiganeau/yep/yep/models
-
-`)
+go test -v github.com/npiganeau/yep/yep/models`)
 		os.Exit(2)
 	}
 

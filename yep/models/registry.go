@@ -59,6 +59,16 @@ func (mc *modelCollection) mustGet(nameOrJSON string) *modelInfo {
 	return mi
 }
 
+// mustGetMixInModel returns the modelInfo of the given mixin name.
+// It panics if the given name is not the name of a registered mixin
+func (mc *modelCollection) mustGetMixInModel(name string) *modelInfo {
+	mixInMI := mc.mustGet(name)
+	if !mixInMI.isMixin() {
+		logging.LogAndPanic(log, "Model is not a mixin model", "model", name)
+	}
+	return mixInMI
+}
+
 // add the given modelInfo to the modelCollection
 func (mc *modelCollection) add(mi *modelInfo) {
 	mc.registryByName[mi.name] = mi
@@ -75,6 +85,7 @@ func newModelCollection() *modelCollection {
 
 type modelInfo struct {
 	name          string
+	options       Option
 	acl           *security.AccessControlList
 	rulesRegistry *recordRuleRegistry
 	tableName     string
@@ -241,22 +252,36 @@ func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 	}
 }
 
-// CreateModel creates a new model with the given name
-// Available options are
-// - TRANSIENT_MODEL: each instance of the model will have a limited lifetime in database (used for wizards)
-func CreateModel(name string, options ...Option) {
-	var opts Option
-	for _, o := range options {
-		opts |= o
+// isMixin returns true if this is a mixin model.
+func (mi *modelInfo) isMixin() bool {
+	if mi.options&MixinModel > 0 {
+		return true
 	}
-	var model interface{}
-	if opts&TransientModel > 0 {
-		model = new(BaseTransientModel)
-	} else {
-		model = new(BaseModel)
-	}
-	createModelInfo(name, model)
-	declareBaseMethods(name)
+	return false
+}
+
+// CreateModel creates a new model with the given name and
+// extends it with the given struct pointers.
+func CreateModel(name string, structPtrs ...interface{}) {
+	model := new(BaseModel)
+	createModelInfo(name, model, Option(0))
+	ExtendModel(name, structPtrs...)
+}
+
+// CreateMixinModel creates a new mixin model with the given name and
+// extends it with the given struct pointers.
+func CreateMixinModel(name string, structPtrs ...interface{}) {
+	model := new(BaseModel)
+	createModelInfo(name, model, MixinModel)
+	ExtendModel(name, structPtrs...)
+}
+
+// CreateTransientModel creates a new mixin model with the given name and
+// extends it with the given struct pointers.
+func CreateTransientModel(name string, structPtrs ...interface{}) {
+	model := new(BaseModel)
+	createModelInfo(name, model, MixinModel)
+	ExtendModel(name, structPtrs...)
 }
 
 // ExtendModel extends the model given by its name with the given struct pointers
@@ -272,7 +297,10 @@ func ExtendModel(name string, structPtrs ...interface{}) {
 // overridden by the them when applicable.
 func MixInModel(targetModel, mixInModel string) {
 	mi := modelRegistry.mustGet(targetModel)
-	mixInMI := modelRegistry.mustGet(mixInModel)
+	if mi.isMixin() {
+		logging.LogAndPanic(log, "Trying to mixin a mixin model", "model", targetModel, "mixin", mixInModel)
+	}
+	mixInMI := modelRegistry.mustGetMixInModel(mixInModel)
 	mi.mixins = append(mi.mixins, mixInMI)
 }
 
@@ -285,15 +313,16 @@ func MixInModel(targetModel, mixInModel string) {
 // which means that all models, including those that are not yet
 // defined at the time this function is called, will be extended.
 func MixInAllModels(mixInModel string) {
-	mixInMI := modelRegistry.mustGet(mixInModel)
+	mixInMI := modelRegistry.mustGetMixInModel(mixInModel)
 	modelRegistry.commonMixins = append(modelRegistry.commonMixins, mixInMI)
 }
 
 // createModelInfo creates and populates a new modelInfo with the given name
 // by parsing the given struct pointer.
-func createModelInfo(name string, model interface{}) {
+func createModelInfo(name string, model interface{}, options Option) {
 	mi := &modelInfo{
 		name:          name,
+		options:       options,
 		acl:           security.NewAccessControlList(),
 		rulesRegistry: newRecordRuleRegistry(),
 		tableName:     tools.SnakeCaseString(name),

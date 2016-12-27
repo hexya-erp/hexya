@@ -16,7 +16,7 @@ package models
 
 import (
 	"fmt"
-	"reflect"
+	"strings"
 
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -39,6 +39,7 @@ func BootStrap() {
 	inflateEmbeddings()
 	syncRelatedFieldInfo()
 	syncDatabase()
+	generateMethodsDoc()
 	bootStrapMethods()
 	processDepends()
 	checkComputeMethodsSignature()
@@ -69,12 +70,12 @@ func createModelLinks() {
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
 	for _, mi := range modelRegistry.registryByName {
+		if mi.isMixin() {
+			// We don't mix in mixin models
+			continue
+		}
 		allMixIns := append(modelRegistry.commonMixins, mi.mixins...)
 		for _, mixInMI := range allMixIns {
-			if mixInMI == mi {
-				// Do not mixin ourselves
-				continue
-			}
 			// Add mixIn fields
 			for fName, fi := range mixInMI.fields.registryByName {
 				if _, exists := mi.fields.registryByName[fName]; exists {
@@ -89,10 +90,7 @@ func inflateMixIns() {
 			// Add mixIn methods
 			for methName, methInfo := range mixInMI.methods.registry {
 				// Extract all method layers functions by inverse order
-				var layerFuncsInv []reflect.Value
-				for cl := methInfo.topLayer; cl != nil; cl = methInfo.getNextLayer(cl) {
-					layerFuncsInv = append([]reflect.Value{cl.funcValue}, layerFuncsInv...)
-				}
+				layersInv := methInfo.invertedLayers()
 				if emi, exists := mi.methods.registry[methName]; exists {
 					// The method already exists in our target model.
 					// We insert our new method layers above previous mixins layers
@@ -106,9 +104,9 @@ func inflateMixIns() {
 						lastImplLayer = firstMixedLayer
 						firstMixedLayer = emi.getNextLayer(lastImplLayer)
 					}
-					for _, lf := range layerFuncsInv {
+					for _, lf := range layersInv {
 						ml := methodLayer{
-							funcValue: wrapFunctionForMethodLayer(lf),
+							funcValue: wrapFunctionForMethodLayer(lf.funcValue),
 							mixedIn:   true,
 							methInfo:  emi,
 						}
@@ -123,8 +121,8 @@ func inflateMixIns() {
 						methodType: methInfo.methodType,
 						nextLayer:  make(map[*methodLayer]*methodLayer),
 					}
-					for i := 0; i < len(layerFuncsInv); i++ {
-						newMethInfo.addMethodLayer(layerFuncsInv[i])
+					for i := 0; i < len(layersInv); i++ {
+						newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
 					}
 					mi.methods.set(methName, newMethInfo)
 				}
@@ -188,6 +186,10 @@ func syncDatabase() {
 	dbTables := adapter.tables()
 	// Create or update existing tables
 	for tableName, mi := range modelRegistry.registryByTableName {
+		if mi.isMixin() {
+			// Don't create table for mixin models
+			continue
+		}
 		if _, ok := dbTables[tableName]; !ok {
 			createDBTable(mi.tableName)
 		}
@@ -197,8 +199,12 @@ func syncDatabase() {
 	// Drop DB tables that are not in the models
 	for dbTable := range adapter.tables() {
 		var modelExists bool
-		for tableName := range modelRegistry.registryByTableName {
+		for tableName, mi := range modelRegistry.registryByTableName {
 			if dbTable != tableName {
+				continue
+			}
+			if mi.isMixin() {
+				// We don't want a table for mixin models
 				continue
 			}
 			modelExists = true
@@ -353,6 +359,40 @@ func createColumnIndex(tableName, colName string) {
 		CREATE INDEX %s ON %s (%s)
 	`, fmt.Sprintf("%s_%s_index", tableName, colName), adapter.quoteTableName(tableName), colName)
 	dbExecuteNoTx(query)
+}
+
+// generateMethodsDoc concatenates the doc of each method layer into
+// the methods doc string.
+func generateMethodsDoc() {
+	for _, mi := range modelRegistry.registryByName {
+		for _, methInfo := range mi.methods.registry {
+			for _, ml := range methInfo.invertedLayers() {
+				if ml.doc != "" {
+					if methInfo.doc != "" {
+						methInfo.doc += "\n"
+					}
+					methInfo.doc += formatDocString(ml.doc)
+				}
+			}
+		}
+	}
+}
+
+// formatDocString formats the given string by stripping whitespaces at the
+// beginning of each line and prepend "// ". It also strips empty lines at
+// the beginning.
+func formatDocString(doc string) string {
+	var res string
+	var dataStarted bool
+	for _, line := range strings.Split(doc, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" && !dataStarted {
+			continue
+		}
+		dataStarted = true
+		res += fmt.Sprintf("// %s\n", line)
+	}
+	return strings.TrimRight(res, "\n")
 }
 
 // bootStrapMethods freezes the methods of the models.

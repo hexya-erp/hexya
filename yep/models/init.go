@@ -31,4 +31,6 @@ func init() {
 	registerDBAdapter("postgres", new(postgresAdapter))
 	// model registry
 	modelRegistry = newModelCollection()
+	// declare base mixin
+	declareBaseMixin()
 }

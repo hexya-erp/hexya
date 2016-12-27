@@ -21,103 +21,145 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func PrefixUser(rc RecordCollection, prefix string) []string {
-	var res []string
-	for _, u := range rc.Records() {
-		res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("UserName")))
-	}
-	return res
-}
-
-func PrefixUserEmailExtension(rc RecordCollection, prefix string) []string {
-	res := rc.Super(prefix).([]string)
-	for i, u := range rc.Records() {
-		email := u.Get("Email").(string)
-		res[i] = fmt.Sprintf("%s %s", res[i], rc.Call("DecorateEmail", email))
-	}
-	return res
-}
-
-func DecorateEmail(rc RecordCollection, email string) string {
-	return fmt.Sprintf("<%s>", email)
-}
-
-func DecorateEmailExtension(rc RecordCollection, email string) string {
-	res := rc.Super(email).(string)
-	return fmt.Sprintf("[%s]", res)
-}
-
-func computeDecoratedName(rc RecordCollection) FieldMap {
-	res := make(FieldMap)
-	res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
-	return res
-}
-
-func computeAge(rc RecordCollection) (FieldMap, []FieldName) {
-	res := make(FieldMap)
-	res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
-	return res, []FieldName{}
-}
-
-func PrintAddress(rc RecordCollection) string {
-	res := rc.Super().(string)
-	return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
-}
-
-func PrintAddressExt(rc RecordCollection) string {
-	res := rc.Super().(string)
-	return fmt.Sprintf("[%s]", res)
-}
-
-func PrintAddressMixInExt(rc RecordCollection) string {
-	res := rc.Super().(string)
-	return fmt.Sprintf("<%s>", res)
-}
-
-func PrintAddressMixIn(rc RecordCollection) string {
-	return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
-}
-
-func SayHello(rc RecordCollection) string {
-	return "Hello !"
-}
-
-func IsActivated(rc RecordCollection) bool {
-	return rc.Get("Active").(bool)
-}
-
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
-		CreateModel("User")
-		ExtendModel("User", new(User))
-		ExtendModel("User", new(UserExtension))
-		CreateModel("AddressMixIn")
-		ExtendModel("AddressMixIn", new(AddressMixIn))
+		CreateModel("User", new(struct {
+			ID            int64
+			UserName      string `yep:"unique;string(Name);help(The user's username)"`
+			DecoratedName string `yep:"compute(computeDecoratedName)"`
+			Email         string `yep:"size(100);help(The user's email address);index"`
+			Password      string
+			Status        int16 `yep:"json(status_json)"`
+			IsStaff       bool
+			IsActive      bool
+			Profile       RecordCollection `yep:"type(many2one);comodel(Profile)"` //;on_delete(set_null)"`
+			Age           int16            `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
+			Posts         RecordCollection `yep:"type(one2many);fk(User);comodel(Post)"`
+			Nums          int
+			unexportBool  bool
+			PMoney        float64          `yep:"related(Profile.Money)"`
+			LastPost      RecordCollection `yep:"embed;type(many2one);comodel(Post)"`
+		}))
+
+		ExtendModel("User", new(struct {
+			Email2    string
+			IsPremium bool
+		}))
+
+		CreateMixinModel("AddressMixIn", new(struct {
+			Street string
+			Zip    string
+			City   string
+		}))
+
 		CreateModel("Profile")
 		MixInModel("Profile", "AddressMixIn")
-		ExtendModel("Profile", new(Profile), new(ProfileExtension))
-		CreateModel("Post")
-		ExtendModel("Post", new(Post))
-		CreateModel("ActiveMixIn")
-		ExtendModel("ActiveMixIn", new(ActiveMixIn))
+		ExtendModel("Profile", new(struct {
+			Age      int16
+			Money    float64
+			User     RecordCollection `yep:"type(many2one);comodel(User)"`
+			BestPost RecordCollection `yep:"type(one2one);comodel(Post)"`
+		}), new(struct {
+			City    string
+			Country string
+		}))
+
+		CreateModel("Post", new(struct {
+			User    RecordCollection `yep:"type(many2one);comodel(User)"`
+			Title   string
+			Content string           `yep:"type(text)"`
+			Tags    RecordCollection `yep:"type(many2many);comodel(Tag)"`
+		}))
+
+		CreateMixinModel("ActiveMixIn", new(struct {
+			Active bool
+		}))
 		MixInAllModels("ActiveMixIn")
-		CreateModel("Tag")
-		ExtendModel("Tag", new(Tag), new(TagExtension))
 
-		CreateMethod("User", "PrefixedUser", PrefixUser)
-		ExtendMethod("User", "PrefixedUser", PrefixUserEmailExtension)
-		CreateMethod("User", "DecorateEmail", DecorateEmail)
-		ExtendMethod("User", "DecorateEmail", DecorateEmailExtension)
-		CreateMethod("User", "computeDecoratedName", computeDecoratedName)
-		CreateMethod("User", "computeAge", computeAge)
+		CreateModel("Tag", new(struct {
+			Name     string
+			BestPost RecordCollection `yep:"type(many2one);comodel(Post)"`
+			Posts    RecordCollection `yep:"type(many2many);comodel(Post)"`
+		}), new(struct {
+			Description string
+		}))
 
-		CreateMethod("ActiveMixIn", "IsActivated", IsActivated)
+		CreateMethod("User", "PrefixedUser", "",
+			func(rc RecordCollection, prefix string) []string {
+				var res []string
+				for _, u := range rc.Records() {
+					res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("UserName")))
+				}
+				return res
+			})
 
-		CreateMethod("AddressMixIn", "SayHello", SayHello)
-		CreateMethod("AddressMixIn", "PrintAddress", PrintAddressMixIn)
-		CreateMethod("Profile", "PrintAddress", PrintAddress)
-		ExtendMethod("AddressMixIn", "PrintAddress", PrintAddressMixInExt)
-		ExtendMethod("Profile", "PrintAddress", PrintAddressExt)
+		ExtendMethod("User", "PrefixedUser", "",
+			func(rc RecordCollection, prefix string) []string {
+				res := rc.Super(prefix).([]string)
+				for i, u := range rc.Records() {
+					email := u.Get("Email").(string)
+					res[i] = fmt.Sprintf("%s %s", res[i], rc.Call("DecorateEmail", email))
+				}
+				return res
+			})
+
+		CreateMethod("User", "DecorateEmail", "",
+			func(rc RecordCollection, email string) string {
+				return fmt.Sprintf("<%s>", email)
+			})
+
+		ExtendMethod("User", "DecorateEmail", "",
+			func(rc RecordCollection, email string) string {
+				res := rc.Super(email).(string)
+				return fmt.Sprintf("[%s]", res)
+			})
+
+		CreateMethod("User", "computeDecoratedName", "",
+			func(rc RecordCollection) FieldMap {
+				res := make(FieldMap)
+				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
+				return res
+			})
+
+		CreateMethod("User", "computeAge", "",
+			func(rc RecordCollection) (FieldMap, []FieldName) {
+				res := make(FieldMap)
+				res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
+				return res, []FieldName{}
+			})
+
+		CreateMethod("ActiveMixIn", "IsActivated", "",
+			func(rc RecordCollection) bool {
+				return rc.Get("Active").(bool)
+			})
+
+		CreateMethod("AddressMixIn", "SayHello", "",
+			func(rc RecordCollection) string {
+				return "Hello !"
+			})
+
+		CreateMethod("AddressMixIn", "PrintAddress", "",
+			func(rc RecordCollection) string {
+				return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
+			})
+
+		CreateMethod("Profile", "PrintAddress", "",
+			func(rc RecordCollection) string {
+				res := rc.Super().(string)
+				return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
+			})
+
+		ExtendMethod("AddressMixIn", "PrintAddress", "",
+			func(rc RecordCollection) string {
+				res := rc.Super().(string)
+				return fmt.Sprintf("<%s>", res)
+			})
+
+		ExtendMethod("Profile", "PrintAddress", "",
+			func(rc RecordCollection) string {
+				res := rc.Super().(string)
+				return fmt.Sprintf("[%s]", res)
+			})
 
 		// Creating a dummy table to check that it is correctly removed by Bootstrap
 		db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
@@ -132,7 +174,10 @@ func TestCreateDB(t *testing.T) {
 		})
 		Convey("All models should have a DB table", func() {
 			dbTables := testAdapter.tables()
-			for tableName := range modelRegistry.registryByTableName {
+			for tableName, mi := range modelRegistry.registryByTableName {
+				if mi.isMixin() {
+					continue
+				}
 				So(dbTables[tableName], ShouldBeTrue)
 			}
 		})
@@ -143,70 +188,11 @@ func TestCreateDB(t *testing.T) {
 		})
 	})
 	Convey("Truncating all tables...", t, func() {
-		for tn := range modelRegistry.registryByTableName {
+		for tn, mi := range modelRegistry.registryByTableName {
+			if mi.isMixin() {
+				continue
+			}
 			dbExecuteNoTx(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))
 		}
 	})
-}
-
-type User struct {
-	ID            int64
-	UserName      string `yep:"unique;string(Name);help(The user's username)"`
-	DecoratedName string `yep:"compute(computeDecoratedName)"`
-	Email         string `yep:"size(100);help(The user's email address);index"`
-	Password      string
-	Status        int16 `yep:"json(status_json)"`
-	IsStaff       bool
-	IsActive      bool
-	Profile       RecordCollection `yep:"type(many2one);comodel(Profile)"` //;on_delete(set_null)"`
-	Age           int16            `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
-	Posts         RecordCollection `yep:"type(one2many);fk(User);comodel(Post)"`
-	Nums          int
-	unexportBool  bool
-	PMoney        float64          `yep:"related(Profile.Money)"`
-	LastPost      RecordCollection `yep:"embed;type(many2one);comodel(Post)"`
-}
-
-type Profile struct {
-	Age      int16
-	Money    float64
-	User     RecordCollection `yep:"type(many2one);comodel(User)"`
-	BestPost RecordCollection `yep:"type(one2one);comodel(Post)"`
-}
-
-type Post struct {
-	User    RecordCollection `yep:"type(many2one);comodel(User)"`
-	Title   string
-	Content string           `yep:"type(text)"`
-	Tags    RecordCollection `yep:"type(many2many);comodel(Tag)"`
-}
-
-type Tag struct {
-	Name     string
-	BestPost RecordCollection `yep:"type(many2one);comodel(Post)"`
-	Posts    RecordCollection `yep:"type(many2many);comodel(Post)"`
-}
-
-type UserExtension struct {
-	Email2    string
-	IsPremium bool
-}
-
-type ProfileExtension struct {
-	City    string
-	Country string
-}
-
-type TagExtension struct {
-	Description string
-}
-
-type AddressMixIn struct {
-	Street string
-	Zip    string
-	City   string
-}
-
-type ActiveMixIn struct {
-	Active bool
 }

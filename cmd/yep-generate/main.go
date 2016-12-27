@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 	"go/types"
-	"golang.org/x/tools/go/loader"
 	"os"
 	"os/exec"
 	"path"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/generate"
+	"golang.org/x/tools/go/loader"
 )
 
 const (
@@ -145,12 +145,12 @@ func generateTempMethods(fileName string) {
 		Imports []string
 	}
 
-	astData := generate.GetMethodsASTData()
+	astData := generate.GetMethodsASTData([]string{generate.ConfigPath, generate.TestModulePath})
 	var data templData
 	for ref, mData := range astData {
 		params := strings.Join(mData.Params, " interface{}, ") + " interface{}"
-		if ref.Model == "" {
-			// RecordCollection methods have already been generated in previous step
+		if ref.Model == "BaseMixin" {
+			// BaseMixin methods have already been generated in previous step
 			continue
 		} else {
 			data.Methods = append(data.Methods, methData{
@@ -183,21 +183,23 @@ func filterDefsModules(modules []*generate.ModuleInfo) []string {
 // in the model registry that will be created by importing the given modules.
 func generateFromModelRegistry(dirName string, modules []string) {
 	generatorFileName := path.Join(os.TempDir(), StructGen)
-	defer os.Remove(generatorFileName)
+	//defer os.Remove(generatorFileName)
 
 	data := struct {
-		Imports    []string
-		DirName    string
-		ModelsPath string
+		Imports      []string
+		DirName      string
+		ModelsPath   string
+		GeneratePath string
 	}{
-		Imports:    modules,
-		DirName:    dirName,
-		ModelsPath: generate.ModelsPath,
+		Imports:      modules,
+		DirName:      dirName,
+		ModelsPath:   generate.ModelsPath,
+		GeneratePath: generate.GeneratePath,
 	}
 	generate.CreateFileFromTemplate(generatorFileName, buildTemplate, data)
 
-	cmd := exec.Command("go", "run", generatorFileName)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	output, err := exec.Command("go", "run", generatorFileName).CombinedOutput()
+	if err != nil {
 		panic(string(output))
 	}
 }
@@ -246,11 +248,13 @@ package main
 
 import (
 	"{{ .ModelsPath }}"
+	"{{ .GeneratePath }}"
 {{ range .Imports }} 	_ "{{ . }}"
 {{ end }}
 )
 
 func main() {
-	models.GeneratePool("{{ .DirName }}")
+	astData := generate.GetMethodsASTData({{ printf "%#v" .Imports }})
+	models.GeneratePool("{{ .DirName }}", astData)
 }
 `))

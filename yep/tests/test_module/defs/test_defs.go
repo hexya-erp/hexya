@@ -15,18 +15,12 @@
 package defs
 
 import (
-	"os"
-
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
 )
 
 func init() {
-	if os.Getenv("YEP_DB_DRIVER") == "" {
-		return
-	}
-	models.CreateModel("Test__User")
-	models.ExtendModel("Test__User", new(struct {
+	models.CreateModel("Test__User", new(struct {
 		ID            int64
 		UserName      string `yep:"unique;string(Name);help(The user's username)"`
 		DecoratedName string `yep:"compute(computeDecoratedName)"`
@@ -48,8 +42,7 @@ func init() {
 		IsPremium bool
 	}))
 
-	models.CreateModel("Test__Profile")
-	models.ExtendModel("Test__Profile", new(struct {
+	models.CreateModel("Test__Profile", new(struct {
 		Age      int16
 		Money    float64
 		User     pool.Test__UserSet `yep:"type(many2one)"`
@@ -60,16 +53,14 @@ func init() {
 		Country string
 	}))
 
-	models.CreateModel("Test__Post")
-	models.ExtendModel("Test__Post", new(struct {
+	models.CreateModel("Test__Post", new(struct {
 		User    pool.Test__UserSet `yep:"type(many2one)"`
 		Title   string
 		Content string            `yep:"type(text)"`
 		Tags    pool.Test__TagSet `yep:"type(many2many)"`
 	}))
 
-	models.CreateModel("Test__Tag")
-	models.ExtendModel("Test__Tag", new(struct {
+	models.CreateModel("Test__Tag", new(struct {
 		Name     string
 		BestPost pool.Test__PostSet `yep:"type(many2one)"`
 		Posts    pool.Test__PostSet `yep:"type(many2many)"`
@@ -79,8 +70,7 @@ func init() {
 		Description string
 	}))
 
-	models.CreateModel("Test__AddressMixIn")
-	models.ExtendModel("Test__AddressMixIn", new(struct {
+	models.CreateMixinModel("Test__AddressMixIn", new(struct {
 		Street string
 		Zip    string
 		City   string
@@ -88,8 +78,7 @@ func init() {
 
 	models.MixInModel("Test__Profile", "Test__AddressMixIn")
 
-	models.CreateModel("Test__ActiveMixIn")
-	models.ExtendModel("Test__ActiveMixIn", new(struct {
+	models.CreateMixinModel("Test__ActiveMixIn", new(struct {
 		Active bool
 	}))
 

@@ -416,6 +416,12 @@ by-passes all security restrictions. Use the RecordSet API instead.
 When developing a YEP module, you can create your own models and/or
 extend in place existing models created by other modules.
 
+All models and fields definitions MUST be made in the `init()` of a package
+called `defs` inside the module's main package.
+
+All methods definitions MUST be made in the `init()` of a package called by
+the modules main package.
+
 [IMPORTANT]
 ====
 After creating or modifying a model, you must run `yep-generate` to
@@ -426,19 +432,29 @@ inspections on the newly created types.
 ====
 
 === Creating a new model
-`*models.CreateModel(modelName string, options ...Option)*`::
+`*models.CreateModel(modelName string, dataStructPtr ...interface{})*`::
 
-Creates a new model with the given `modelName`.
+Creates a new model with the given `modelName`. if dataStructPtr is given,
+add all its fields to the model.
 
 [source,go]
 ----
-models.CreateModel("Course")
+models.CreateModel("Course", new(struct {
+        Name      string             `yep:"string(Name);help(This is the name of the course);required"`
+        Date      models.DateTime    `yep:"string(Date of the Course)"`
+        Teacher   pool.ResPartnerSet `yep:"string(Teacher);type(many2one)"`
+        Date      models.DateTime    `yep:"required"`
+        Attendees pool.ResPartnerSet `yep:"string(Attendees);type(many2many)"`
+    }))
 ----
-Available options are:
 
-- `models.TransientModel`: set this model as transient. Transient models
-records are periodically removed from the database. They are mainly used
-for wizards.
+`*models.CreateMixInModel(modelName string, dataStructPtr ...interface{})*`::
+
+Creates a new mixin model with the given name and adds all fields of the given
+`dataStructPtr` to the model. Mixin model are not be accessible like a regular
+model but are meant to be mixed in other models.
++
+See <<Model Mix In>>
 
 === Extending a model
 Models can be extended by 3 different ways:
@@ -454,7 +470,7 @@ Allow direct access to all fields of another model. Embedding only applies to
 fields, not methods.
 
 ==== Model Extension
-`*models.ExtendModel(modelName string, dataStructPtr interface{})*`::
+`*models.ExtendModel(modelName string, dataStructPtr ...interface{})*`::
 Extend a model by adding fields of `dataStructPtr` to the model.
 
 See also <<Defining methods>> to see how to add or override methods in a model.
@@ -462,9 +478,12 @@ See also <<Defining methods>> to see how to add or override methods in a model.
 ==== Model Mix In
 `*models.MixInModel(targetModel, mixInModel string)*`::
 Extend the `targetModel` by importing all fields and methods of `mixInModel`.
+`MixInModel` must have been created by `models.CreateMixInModel()` and
+`targetModel` must not be a mixin model itself.
 
 `*models.MixInAllModels(mixInModel string)*`::
 Extends all models by importing all fields and methods of `mixInModel`.
+`MixInModel` must have been created by `models.CreateMixInModel()`
 
 If a field name conflicts with an existing field name in the model, then:
 
@@ -508,7 +527,7 @@ example below:
 
 [source,go]
 ----
-models.ExtendModel("Course", new(struct {
+models.CreateModel("Course", new(struct {
     Name      string             `yep:"string(Name);help(This is the name of the course);required"`
     Date      models.DateTime    `yep:"string(Date of the Course)"`
     Teacher   pool.ResPartnerSet `yep:"string(Teacher);type(many2one)"`
@@ -661,9 +680,9 @@ model, not its methods.
 
 === Defining methods
 
-Models' methods are defined in a module and can be overriden by any other
+Models' methods are defined in a module and can be overridden by any other
 module, with the ability to call the original method with `Super()`. This way,
-methods can be overriden several times by different modules to iteratively
+methods can be overridden several times by different modules to iteratively
 add new features.
 
 Each override of a method is declared by a so-called "layer function" with the
@@ -676,18 +695,21 @@ actual implementation. Layer functions must meet the following constraints:
 
 --
 
-`*models.CreateMethod(modelName, methodName string, layerFunction interface{})*`::
+`*models.CreateMethod(modelName, methodName, doc string, layerFunction interface{})*`::
 Creates a new method on the given `modelName` with the given `methodName` and
-apply the given `layerFunction` as first "layer function".
+apply the given `layerFunction` as first "layer function". `doc` is the
+documentation of the method.
 
 [source,go]
 ----
 // PartnerUpdateBirthday updates this partner birthday.
-func PartnerUpdateBirthday(rs ResPartnerSet, birthday time.Time) {
-    rs.SetBirthday(Date(birthDay))
-})
+models.CreateMethod("ResPartner", "UpdateBirthday",
+    `PartnerUpdateBirthday updates this partner birthday.`,
+    func (rs ResPartnerSet, birthday time.Time) {
+        rs.SetBirthday(Date(birthDay))
+    })
 
-models.CreateMethod("ResPartner", "UpdateBirthday", PartnerUpdateBirthday)
+PartnerUpdateBirthday)
 ----
 
 [IMPORTANT]
@@ -699,13 +721,10 @@ constants here.
 This limitation may be removed in a future version.
 ====
 
-NOTE: Documentation string of the `layerFunction` passed to `CreateMethod` will
-be used automatically as documentation string of the created method. Therefore,
-we discourage the use of function literals here.
-
-`*models.ExtendMethod(modelName, methodName string, layerFunction interface{})*`::
+`*models.ExtendMethod(modelName, methodName, doc string, layerFunction interface{})*`::
 Extends the method `methodName` in the model `modelName` with the given
-`layerFunction`.
+`layerFunction`. If `doc` is not the empty string, it is appended to the
+documentation of the method.
 +
 The layer function should call the `Super()` or `SuperMulti()` method of its
 first argument to call the previous layer, and pass it all the other arguments
@@ -714,6 +733,7 @@ of the function layer.
 [source,go]
 ----
 models.ExtendMethod("ResPartner", "UpdateBirthday",
+    `Extended in myModule to compute age at the same time.`,
     func(rs ResPartnerSet, birthday time.Time) {
         rs.Super(birthday)
         rs.SetAge(Time.Now().Year() - birthday.Year())

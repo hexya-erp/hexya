@@ -64,16 +64,18 @@ func newMethodsCollection() *methodsCollection {
 type methodInfo struct {
 	name       string
 	mi         *modelInfo
+	doc        string
 	methodType reflect.Type
 	topLayer   *methodLayer
 	nextLayer  map[*methodLayer]*methodLayer
 }
 
 // addMethodLayer adds the given layer to this methodInfo.
-func (methInfo *methodInfo) addMethodLayer(val reflect.Value) {
+func (methInfo *methodInfo) addMethodLayer(val reflect.Value, doc string) {
 	ml := methodLayer{
 		funcValue: wrapFunctionForMethodLayer(val),
 		methInfo:  methInfo,
+		doc:       doc,
 	}
 	methInfo.nextLayer[&ml] = methInfo.topLayer
 	methInfo.topLayer = &ml
@@ -83,16 +85,27 @@ func (methInfo *methodInfo) getNextLayer(methodLayer *methodLayer) *methodLayer 
 	return methInfo.nextLayer[methodLayer]
 }
 
+// invertedLayers returns the list of method layers starting
+// from the base methods and going up all inherited layers
+func (methInfo *methodInfo) invertedLayers() []*methodLayer {
+	var layersInv []*methodLayer
+	for cl := methInfo.topLayer; cl != nil; cl = methInfo.getNextLayer(cl) {
+		layersInv = append([]*methodLayer{cl}, layersInv...)
+	}
+	return layersInv
+}
+
 // methodLayer is one layer of a method, that is one function defined in a module
 type methodLayer struct {
 	methInfo  *methodInfo
 	mixedIn   bool
 	funcValue reflect.Value
+	doc       string
 }
 
 // newMethodInfo creates a new method ref with the given func value as first layer.
 // First argument of given function must implement RecordSet.
-func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodInfo {
+func newMethodInfo(mi *modelInfo, methodName, doc string, val reflect.Value) *methodInfo {
 	funcType := val.Type()
 	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
 		logging.LogAndPanic(log, "Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
@@ -107,6 +120,7 @@ func newMethodInfo(mi *modelInfo, methodName string, val reflect.Value) *methodI
 	methInfo.topLayer = &methodLayer{
 		funcValue: wrapFunctionForMethodLayer(val),
 		methInfo:  &methInfo,
+		doc:       doc,
 	}
 	return &methInfo
 }
@@ -152,19 +166,19 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 // CreateMethod creates a new method on given model name and adds the given fnct
 // as first layer for this method. Given fnct function must have a RecordSet as
 // first argument.
-func CreateMethod(modelName, methodName string, fnct interface{}) {
+func CreateMethod(modelName, methodName, doc string, fnct interface{}) {
 	mi := checkMethodAndFnctType(modelName, methodName, fnct)
 	_, exists := mi.methods.get(methodName)
 	if exists {
 		logging.LogAndPanic(log, "Call to CreateMethod with an existing method name", "model", modelName, "method", methodName)
 	}
-	mi.methods.set(methodName, newMethodInfo(mi, methodName, reflect.ValueOf(fnct)))
+	mi.methods.set(methodName, newMethodInfo(mi, methodName, doc, reflect.ValueOf(fnct)))
 }
 
 // ExtendMethod adds the given fnct function as a new layer on the given
 // method of the given model.
 // fnct must be of the same signature as the first layer of this method.
-func ExtendMethod(modelName, methodName string, fnct interface{}) {
+func ExtendMethod(modelName, methodName, doc string, fnct interface{}) {
 	mi := checkMethodAndFnctType(modelName, methodName, fnct)
 	methInfo, exists := mi.methods.get(methodName)
 	if !exists {
@@ -185,7 +199,7 @@ func ExtendMethod(modelName, methodName string, fnct interface{}) {
 		logging.LogAndPanic(log, "Variadic mismatch", "model", modelName, "method", methodName,
 			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
 	}
-	methInfo.addMethodLayer(val)
+	methInfo.addMethodLayer(val, doc)
 }
 
 // checkMethodAndFnctType checks whether the given arguments are valid for
