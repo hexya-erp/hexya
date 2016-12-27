@@ -304,7 +304,7 @@ func MixInModel(targetModel, mixInModel string) {
 	mi.mixins = append(mi.mixins, mixInMI)
 }
 
-// MixInAllModel extends all models with the given mixInModel.
+// MixInAllModels extends all models with the given mixInModel.
 // Mixins added with this method have lower priority than MixIns
 // that are directly applied to a model, which have themselves a
 // lower priority than the fields and methods of the model.
