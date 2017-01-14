@@ -11,9 +11,8 @@ services:
   - postgresql
 
 before_install:
-  - go get -t github.com/npiganeau/yep/cmd/yep-generate
-  - go install github.com/npiganeau/yep/cmd/yep-generate
-  - yep-generate
+  - go get -t github.com/npiganeau/yep
+  - yep generate -t
 
 before_script:
   - psql -c 'create database yep_test_models;' -U postgres

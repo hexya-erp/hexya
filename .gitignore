@@ -74,3 +74,7 @@ _testmain.go
 
 # YEP Specifics
 pool/
+/yep/server/static/
+/yep/server/templates/
+/yep/server/views/
+/yep/server/data/

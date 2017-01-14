@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	models.CreateModel("Test__User", new(struct {
+	models.CreateModel("User", new(struct {
 		ID            int64
 		UserName      string `yep:"unique;string(Name);help(The user's username)"`
 		DecoratedName string `yep:"compute(computeDecoratedName)"`
@@ -29,58 +29,58 @@ func init() {
 		Status        int16 `yep:"json(status_json)"`
 		IsStaff       bool
 		IsActive      bool
-		Profile       pool.Test__ProfileSet `yep:"type(many2one)"` //;on_delete(set_null)"`
-		Age           int16                 `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
-		Posts         pool.Test__PostSet    `yep:"type(one2many);fk(User)"`
+		Profile       pool.ProfileSet `yep:"type(many2one)"` //;on_delete(set_null)"`
+		Age           int16           `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
+		Posts         pool.PostSet    `yep:"type(one2many);fk(User)"`
 		Nums          int
-		PMoney        float64            `yep:"related(Profile.Money)"`
-		LastPost      pool.Test__PostSet `yep:"type(many2one);embed"`
+		PMoney        float64      `yep:"related(Profile.Money)"`
+		LastPost      pool.PostSet `yep:"type(many2one);embed"`
 	}))
 
-	models.ExtendModel("Test__User", new(struct {
+	models.ExtendModel("User", new(struct {
 		Email2    string
 		IsPremium bool
 	}))
 
-	models.CreateModel("Test__Profile", new(struct {
+	models.CreateModel("Profile", new(struct {
 		Age      int16
 		Money    float64
-		User     pool.Test__UserSet `yep:"type(many2one)"`
-		BestPost pool.Test__PostSet `yep:"type(one2one)"`
+		User     pool.UserSet `yep:"type(many2one)"`
+		BestPost pool.PostSet `yep:"type(one2one)"`
 	}))
-	models.ExtendModel("Test__Profile", new(struct {
+	models.ExtendModel("Profile", new(struct {
 		City    string
 		Country string
 	}))
 
-	models.CreateModel("Test__Post", new(struct {
-		User    pool.Test__UserSet `yep:"type(many2one)"`
+	models.CreateModel("Post", new(struct {
+		User    pool.UserSet `yep:"type(many2one)"`
 		Title   string
-		Content string            `yep:"type(text)"`
-		Tags    pool.Test__TagSet `yep:"type(many2many)"`
+		Content string      `yep:"type(text)"`
+		Tags    pool.TagSet `yep:"type(many2many)"`
 	}))
 
-	models.CreateModel("Test__Tag", new(struct {
+	models.CreateModel("Tag", new(struct {
 		Name     string
-		BestPost pool.Test__PostSet `yep:"type(many2one)"`
-		Posts    pool.Test__PostSet `yep:"type(many2many)"`
+		BestPost pool.PostSet `yep:"type(many2one)"`
+		Posts    pool.PostSet `yep:"type(many2many)"`
 	}))
 
-	models.ExtendModel("Test__Tag", new(struct {
+	models.ExtendModel("Tag", new(struct {
 		Description string
 	}))
 
-	models.CreateMixinModel("Test__AddressMixIn", new(struct {
+	models.CreateMixinModel("AddressMixIn", new(struct {
 		Street string
 		Zip    string
 		City   string
 	}))
 
-	models.MixInModel("Test__Profile", "Test__AddressMixIn")
+	models.MixInModel("Profile", "AddressMixIn")
 
-	models.CreateMixinModel("Test__ActiveMixIn", new(struct {
+	models.CreateMixinModel("ActiveMixIn", new(struct {
 		Active bool
 	}))
 
-	models.MixInAllModels("Test__ActiveMixIn")
+	models.MixInAllModels("ActiveMixIn")
 }

@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package cmd
 
-// Import here anonymously all yep addons you need in your application
 import (
-// Import webclient module
-//_ "github.com/npiganeau/yep-addons/web"
+	"fmt"
+
+	"github.com/spf13/cobra"
 )
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version YEP",
+	Long:  `Print the version of the YEP framework`,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("YEP version 0.1")
+	},
+}
+
+func initVersion() {
+	YEPCmd.AddCommand(versionCmd)
+}

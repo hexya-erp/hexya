@@ -27,13 +27,13 @@ func TestDomains(t *testing.T) {
 	Convey("Testing Domains", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Creating an extra user", func() {
-				profile := pool.NewTest__ProfileSet(env).Create(&pool.Test__Profile{Age: 45})
-				userData := pool.Test__User{
+				profile := pool.NewProfileSet(env).Create(&pool.Profile{Age: 45})
+				userData := pool.User{
 					UserName: "Martin Weston",
 					Email:    "mweston@example.com",
 					Profile:  profile,
 				}
-				user := pool.NewTest__UserSet(env).Create(&userData)
+				user := pool.NewUserSet(env).Create(&userData)
 				So(user.Profile().Age(), ShouldEqual, 45)
 			})
 			Convey("Testing simple [(A), (B)] domain", func() {
@@ -41,7 +41,7 @@ func TestDomains(t *testing.T) {
 					0: []interface{}{"UserName", "like", "Smith"},
 					1: []interface{}{"Age", "=", 24},
 				}
-				dom1Users := pool.NewTest__UserSet(env).Search(models.ParseDomain(dom1))
+				dom1Users := pool.NewUserSet(env).Search(models.ParseDomain(dom1))
 				So(dom1Users.Len(), ShouldEqual, 1)
 				So(dom1Users.UserName(), ShouldEqual, "Jane A. Smith")
 			})
@@ -51,7 +51,7 @@ func TestDomains(t *testing.T) {
 					1: []interface{}{"UserName", "like", "Will"},
 					2: []interface{}{"Email", "ilike", "Jane.Smith"},
 				}
-				dom2Users := pool.NewTest__UserSet(env).Search(models.ParseDomain(dom2)).OrderBy("UserName")
+				dom2Users := pool.NewUserSet(env).Search(models.ParseDomain(dom2)).OrderBy("UserName")
 				So(dom2Users.Len(), ShouldEqual, 2)
 				userRecs := dom2Users.Records()
 				So(userRecs[0].UserName(), ShouldEqual, "Jane A. Smith")
@@ -66,7 +66,7 @@ func TestDomains(t *testing.T) {
 					4: []interface{}{"Age", "<", 25},
 					5: []interface{}{"Email", "not like", "will.smith"},
 				}
-				dom3Users := pool.NewTest__UserSet(env).Search(models.ParseDomain(dom3)).OrderBy("UserName")
+				dom3Users := pool.NewUserSet(env).Search(models.ParseDomain(dom3)).OrderBy("UserName")
 				So(dom3Users.Len(), ShouldEqual, 1)
 				So(dom3Users.UserName(), ShouldEqual, "Jane A. Smith")
 			})

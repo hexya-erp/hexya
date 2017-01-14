@@ -182,7 +182,22 @@ func ExtendMethod(modelName, methodName, doc string, fnct interface{}) {
 	mi := checkMethodAndFnctType(modelName, methodName, fnct)
 	methInfo, exists := mi.methods.get(methodName)
 	if !exists {
-		logging.LogAndPanic(log, "Call to ExtendMethod on non existent method", "model", modelName, "method", methodName)
+		// We didn't find the method, but maybe it exists in mixins
+		var found bool
+		allMixIns := append(modelRegistry.commonMixins, mi.mixins...)
+		for _, mixin := range allMixIns {
+			_, ok := mixin.methods.get(methodName)
+			if ok {
+				found = true
+				break
+			}
+		}
+		if !found {
+			logging.LogAndPanic(log, "Call to ExtendMethod on non existent method", "model", modelName, "method", methodName)
+		}
+		// The method exists in a mixin so we create it here with our layer.
+		// Bootstrap will take care of putting them the right way round afterwards.
+		methInfo = newMethodInfo(mi, methodName, doc, reflect.ValueOf(fnct))
 	}
 	val := reflect.ValueOf(fnct)
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {
@@ -198,6 +213,10 @@ func ExtendMethod(modelName, methodName, doc string, fnct interface{}) {
 	if methInfo.methodType.IsVariadic() != val.Type().IsVariadic() {
 		logging.LogAndPanic(log, "Variadic mismatch", "model", modelName, "method", methodName,
 			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
+	}
+	if !exists {
+		mi.methods.set(methodName, methInfo)
+		return
 	}
 	methInfo.addMethodLayer(val, doc)
 }

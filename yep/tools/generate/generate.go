@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/format"
 	"go/parser"
 	"go/types"
@@ -31,6 +32,8 @@ import (
 )
 
 const (
+	// YEPPath is the go import path of the base yep package
+	YEPPath string = "github.com/npiganeau/yep"
 	// ConfigPath is the go import path of the yep/config package
 	ConfigPath string = "github.com/npiganeau/yep/config"
 	// ModelsPath is the go import path of the yep/models package
@@ -43,7 +46,10 @@ const (
 	TestModulePath string = "github.com/npiganeau/yep/yep/tests/test_module"
 )
 
-var log log15.Logger
+var (
+	log    log15.Logger
+	YEPDir string
+)
 
 // CreateFileFromTemplate generates a new file from the given template and data
 func CreateFileFromTemplate(fileName string, template *template.Template, data interface{}) {
@@ -163,7 +169,10 @@ func GetMethodsASTData(paths []string) map[MethodRef]MethodASTData {
 	for _, path := range paths {
 		conf.Import(path)
 	}
-	program, _ := conf.Load()
+	program, err := conf.Load()
+	if err != nil {
+		logging.LogAndPanic(log, "Unable to load program", "error", err, "paths", paths)
+	}
 	modInfos := GetModulePackages(program)
 	return GetMethodsASTDataForModules(modInfos)
 }
@@ -288,4 +297,9 @@ func computeExportPath(typ types.Type) string {
 
 func init() {
 	log = logging.GetLogger("tools/generate")
+	yepPack, err := build.Import(YEPPath, ".", build.FindOnly)
+	if err != nil {
+		panic(fmt.Errorf("Error while getting YEP root path: %s", err))
+	}
+	YEPDir = yepPack.Dir
 }

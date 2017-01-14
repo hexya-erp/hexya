@@ -27,7 +27,7 @@ func TestMethods(t *testing.T) {
 	Convey("Testing simple methods", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Getting all users and calling `PrefixedUser`", func() {
-				users := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				users := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				res := users.PrefixedUser("Prefix")
 				So(res[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 			})
@@ -39,11 +39,11 @@ func TestComputedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored computed fields", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Getting one user (Jane) and checking DisplayName", func() {
-				users := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				users := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				So(users.DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
 			Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-				users := pool.NewTest__UserSet(env).OrderBy("UserName")
+				users := pool.NewUserSet(env).OrderBy("UserName")
 				So(users.Len(), ShouldEqual, 3)
 				userRecs := users.Records()
 				So(userRecs[0].DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
@@ -58,15 +58,15 @@ func TestComputedStoredFields(t *testing.T) {
 	Convey("Testing stored computed fields", t, func() {
 		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking that user Jane is 23", func() {
-				userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				userJane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				So(userJane.Age(), ShouldEqual, 23)
 			})
 			Convey("Checking that user Will has no age since no profile", func() {
-				userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
+				userWill := pool.NewUserSet(env).Filter("Email", "=", "will.smith@example.com")
 				So(userWill.Age(), ShouldEqual, 0)
 			})
 			Convey("It's Jane's birthday, change her age, commit and check", func() {
-				jane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				jane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				So(jane.UserName(), ShouldEqual, "Jane A. Smith")
 				So(jane.Profile().Money(), ShouldEqual, 12345)
 				jane.Profile().SetAge(24)
@@ -76,14 +76,14 @@ func TestComputedStoredFields(t *testing.T) {
 				So(jane.Age(), ShouldEqual, 24)
 			})
 			Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
-				userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
+				userWill := pool.NewUserSet(env).Filter("Email", "=", "will.smith@example.com")
 				userWill.Load()
 				So(userWill.UserName(), ShouldEqual, "Will Smith")
-				willProfileData := pool.Test__Profile{
+				willProfileData := pool.Profile{
 					Age:   34,
 					Money: 5100,
 				}
-				willProfile := pool.NewTest__ProfileSet(env).Create(&willProfileData)
+				willProfile := pool.NewProfileSet(env).Create(&willProfileData)
 				userWill.SetProfile(willProfile)
 
 				userWill.Load()
@@ -97,27 +97,27 @@ func TestRelatedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored related fields", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking that users PMoney is correct", func() {
-				userJohn := pool.NewTest__UserSet(env).Filter("UserName", "=", "John Smith")
+				userJohn := pool.NewUserSet(env).Filter("UserName", "=", "John Smith")
 				So(userJohn.Len(), ShouldEqual, 1)
 				So(userJohn.PMoney(), ShouldEqual, 0)
-				userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				userJane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				So(userJane.PMoney(), ShouldEqual, 12345)
-				userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
+				userWill := pool.NewUserSet(env).Filter("Email", "=", "will.smith@example.com")
 				So(userWill.PMoney(), ShouldEqual, 5100)
 			})
 			Convey("Checking that PMoney is correct after update of Profile", func() {
-				userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				userJane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				So(userJane.PMoney(), ShouldEqual, 12345)
 				userJane.Profile().SetMoney(54321)
 				So(userJane.PMoney(), ShouldEqual, 54321)
 			})
 			Convey("Checking that we can update PMoney directly", func() {
-				userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				userJane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				So(userJane.PMoney(), ShouldEqual, 12345)
 				userJane.SetPMoney(67890)
 				So(userJane.Profile().Money(), ShouldEqual, 67890)
 				So(userJane.PMoney(), ShouldEqual, 67890)
-				userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
+				userWill := pool.NewUserSet(env).Filter("Email", "=", "will.smith@example.com")
 				So(userWill.PMoney(), ShouldEqual, 5100)
 
 				userJane.Union(userWill).SetPMoney(100)
@@ -127,12 +127,12 @@ func TestRelatedNonStoredFields(t *testing.T) {
 				So(userWill.PMoney(), ShouldEqual, 100)
 			})
 			Convey("Checking that we can search PMoney directly", func() {
-				userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
-				userWill := pool.NewTest__UserSet(env).Filter("Email", "=", "will.smith@example.com")
-				pmoneyUser := pool.NewTest__UserSet(env).Filter("PMoney", "=", 12345)
+				userJane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				userWill := pool.NewUserSet(env).Filter("Email", "=", "will.smith@example.com")
+				pmoneyUser := pool.NewUserSet(env).Filter("PMoney", "=", 12345)
 				So(pmoneyUser.Len(), ShouldEqual, 1)
 				So(pmoneyUser.Ids()[0], ShouldEqual, userJane.Ids()[0])
-				pUsers := pool.NewTest__UserSet(env).Search(models.NewCondition().And("PMoney", "=", 12345).Or("PMoney", "=", 5100))
+				pUsers := pool.NewUserSet(env).Search(models.NewCondition().And("PMoney", "=", 12345).Or("PMoney", "=", 5100))
 				So(pUsers.Len(), ShouldEqual, 2)
 				So(pUsers.Ids(), ShouldContain, userJane.Ids()[0])
 				So(pUsers.Ids(), ShouldContain, userWill.Ids()[0])
@@ -145,14 +145,14 @@ func TestEmbeddedModels(t *testing.T) {
 	Convey("Testing embedded models", t, func() {
 		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Adding a last post to Jane", func() {
-				postRs := pool.NewTest__PostSet(env).Create(&pool.Test__Post{
+				postRs := pool.NewPostSet(env).Create(&pool.Post{
 					Title:   "This is my title",
 					Content: "Here we have some content",
 				})
-				pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com").SetLastPost(postRs)
+				pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com").SetLastPost(postRs)
 			})
 			Convey("Checking that we can access jane's post directly", func() {
-				userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				userJane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				So(userJane.Title(), ShouldEqual, "This is my title")
 				So(userJane.Content(), ShouldEqual, "Here we have some content")
 				So(userJane.LastPost().Title(), ShouldEqual, "This is my title")
@@ -166,12 +166,12 @@ func TestMixedInModels(t *testing.T) {
 	Convey("Testing mixed in models", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking that mixed in functions are correctly inherited", func() {
-				janeProfile := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com").Profile()
+				janeProfile := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com").Profile()
 				So(janeProfile.PrintAddress(), ShouldEqual, "[<165 5th Avenue, 0305 New York>, USA]")
 				So(janeProfile.SayHello(), ShouldEqual, "Hello !")
 			})
 			Convey("Checking mixing in all models", func() {
-				userJane := pool.NewTest__UserSet(env).Filter("Email", "=", "jane.smith@example.com")
+				userJane := pool.NewUserSet(env).Filter("Email", "=", "jane.smith@example.com")
 				userJane.SetActive(true)
 				So(userJane.Active(), ShouldEqual, true)
 				So(userJane.IsActivated(), ShouldEqual, true)

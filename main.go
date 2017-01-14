@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package yep
+package main
 
 import (
-	// Load DB driver
-	_ "github.com/lib/pq"
-	"github.com/npiganeau/yep/yep/ir"
-	"github.com/npiganeau/yep/yep/models"
-	"github.com/npiganeau/yep/yep/server"
-	"github.com/npiganeau/yep/yep/tools/config"
-	"github.com/npiganeau/yep/yep/tools/logging"
+	"fmt"
+	"os"
+
+	"github.com/npiganeau/yep/cmd"
 )
 
-func init() {
-	log := logging.GetLogger("init")
-	models.DBConnect(config.Config.GetString("DBDriver"), config.Config.GetString("DBSource"))
-	models.BootStrap()
-	server.LoadInternalResources()
-	ir.BootStrap()
-	server.PostInit()
-	log.Info("YEP is up and running")
+func main() {
+	if err := cmd.YEPCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
 }

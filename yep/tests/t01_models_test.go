@@ -35,7 +35,7 @@ func TestCreateDB(t *testing.T) {
 	Convey("Truncating all tables...", t, func() {
 		db := sqlx.MustConnect(DBARGS.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s",
 			DBARGS.DB, DBARGS.User, DBARGS.Password))
-		for _, tn := range []string{"test___user", "test___profile", "test___tag", "test___post"} {
+		for _, tn := range []string{"user", "profile", "tag", "post"} {
 			db.MustExec(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))
 		}
 		db.Close()

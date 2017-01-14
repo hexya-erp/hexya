@@ -52,6 +52,7 @@ Server
 - [X] Recover from orm methods' panics
 - [X] Unified logging system
 - [X] Automate routing and include for `static` dir in modules
+- [X] Improve yep CLI with a cobra commander
 
 Client
 ------

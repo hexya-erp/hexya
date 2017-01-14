@@ -15,7 +15,6 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/tools/etree"
+	"github.com/npiganeau/yep/yep/tools/generate"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -66,8 +66,8 @@ func createModuleSymlinks(mod *Module) {
 		logging.LogAndPanic(log, "Unable to find caller", "module", mod.Name)
 	}
 	for _, dir := range symlinkDirs {
-		srcPath := fmt.Sprintf(path.Dir(fileName)+"/%s", dir)
-		dstPath := fmt.Sprintf("yep/server/%s/%s", dir, mod.Name)
+		srcPath := path.Join(path.Dir(fileName), dir)
+		dstPath := path.Join(generate.YEPDir, "yep", "server", dir, mod.Name)
 		if _, err := os.Stat(srcPath); err == nil {
 			os.Symlink(srcPath, dstPath)
 		}
@@ -78,7 +78,7 @@ func createModuleSymlinks(mod *Module) {
 // Note that this function actually removes and recreates the symlink directories.
 func cleanModuleSymlinks() {
 	for _, dir := range symlinkDirs {
-		dirPath := fmt.Sprintf("yep/server/%s", dir)
+		dirPath := path.Join(generate.YEPDir, "yep", "server", dir)
 		os.RemoveAll(dirPath)
 		os.Mkdir(dirPath, 0775)
 	}
@@ -90,7 +90,7 @@ func cleanModuleSymlinks() {
 // - menu items,
 func LoadInternalResources() {
 	for _, mod := range Modules {
-		dataDir := fmt.Sprintf("yep/server/views/%s", mod.Name)
+		dataDir := path.Join(generate.YEPDir, "yep", "server", "views", mod.Name)
 		if _, err := os.Stat(dataDir); err != nil {
 			// No data dir in this module
 			continue

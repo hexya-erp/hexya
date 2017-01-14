@@ -15,8 +15,10 @@
 package tools
 
 import (
-	"fmt"
 	"io/ioutil"
+	"path"
+
+	"github.com/npiganeau/yep/yep/tools/generate"
 )
 
 // ListStaticFiles get all file names of the static files that are in
@@ -28,15 +30,15 @@ import (
 func ListStaticFiles(subDir string, modules []string, diskPath bool) []string {
 	var res []string
 	for _, module := range modules {
-		dirName := fmt.Sprintf("yep/server/static/%s/%s", module, subDir)
+		dirName := path.Join(generate.YEPDir, "yep", "server", "static", module, subDir)
 		fileInfos, _ := ioutil.ReadDir(dirName)
 		for _, fi := range fileInfos {
 			if !fi.IsDir() {
-				path := fmt.Sprintf("/static/%s/%s/%s", module, subDir, fi.Name())
+				fPath := path.Join("static", module, subDir, fi.Name())
 				if diskPath {
-					path = fmt.Sprintf("yep/server/%s", path)
+					fPath = path.Join(generate.YEPDir, "yep", "server", fPath)
 				}
-				res = append(res, path)
+				res = append(res, fPath)
 			}
 		}
 	}

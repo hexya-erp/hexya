@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 NDP Systèmes. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cmd
 
 import (
 	"fmt"
+	"go/build"
 	"go/types"
 	"os"
 	"os/exec"
@@ -23,14 +24,16 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/npiganeau/yep/yep/models"
+	// We need to import models because of generated code
+	_ "github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/generate"
+	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/loader"
 )
 
 const (
-	// PoolDir is the name of the generated pool directory
-	PoolDir string = "pool"
+	// PoolDirRel is the name of the generated pool directory (relative to the yep root)
+	PoolDirRel string = "pool"
 	// TempStructs is the name of the temporary go file in the pool directory used in stage 1
 	TempStructs string = "temp_structs.go"
 	// TempMethods is the name of the temporary go file in the pool directory used in stage 3
@@ -39,21 +42,67 @@ const (
 	StructGen string = "yep-temp.go"
 )
 
-func main() {
-	models.Testing = true
+var generateCmd = &cobra.Command{
+	Use:   "generate [projectDir]",
+	Short: "Generate the source code of the model pool",
+	Long: `Generate the source code of the pool package which includes the definition of all the models.
+Additionally, this command creates the startup file of the project.
+This command must be rerun after each source code modification, including module import.
 
-	cleanPoolDir(PoolDir)
+  projectDir: the directory in which to find the go package that imports all the modules we want.
+              If not set, projectDir defaults to the current directory`,
+	Run: func(cmd *cobra.Command, args []string) {
+		projectDir := "."
+		if len(args) > 0 {
+			projectDir = args[0]
+		}
+		runGenerate(projectDir)
+	},
+}
+
+var (
+	generateTestModule bool
+	importedPaths      []string
+)
+
+func initGenerate() {
+	YEPCmd.AddCommand(generateCmd)
+	generateCmd.Flags().BoolVarP(&generateTestModule, "test", "t", false, "Generate pool for test module. When set projectDir is ignored.")
+}
+
+func runGenerate(projectDir string) {
+	poolDir := path.Join(generate.YEPDir, PoolDirRel)
+
+	projectPack, err := build.ImportDir(path.Join(projectDir, "config"), 0)
+	if err != nil && !generateTestModule {
+		panic(fmt.Errorf("Error while importing project path: %s", err))
+	}
+
+	cleanPoolDir(poolDir)
 	conf := loader.Config{
 		AllowErrors: true,
 	}
-	fmt.Print(`
+	fmt.Println(`
 YEP Generate
-------------
-Loading program...
-Warnings may appear here, just ignore them if yep-generate doesn't crash
-`)
-	conf.Import(generate.ConfigPath)
-	conf.Import(generate.TestModulePath)
+------------`)
+	if generateTestModule {
+		fmt.Println("Building test module")
+	} else {
+		fmt.Printf("Project package found: %s.\n", projectPack.Name)
+	}
+	fmt.Printf("Detected YEP root directory at %s.\n", generate.YEPDir)
+	fmt.Println(`Loading program...
+Warnings may appear here, just ignore them if yep-generate doesn't crash.`)
+
+	if generateTestModule {
+		importedPaths = []string{generate.TestModulePath}
+	} else {
+		importedPaths = projectPack.Imports
+	}
+	for _, ip := range importedPaths {
+		conf.Import(ip)
+	}
+
 	program, _ := conf.Load()
 	fmt.Println("Ok")
 	fmt.Print("Identifying modules...")
@@ -62,25 +111,25 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash
 
 	fmt.Print("Stage 1: Generating temporary structs...")
 	missingDecls := getMissingDeclarations(modules)
-	generateTempStructs(path.Join(PoolDir, TempStructs), missingDecls)
+	generateTempStructs(path.Join(poolDir, TempStructs), missingDecls)
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 2: Generating final structs...")
 	defsModules := filterDefsModules(modules)
-	generateFromModelRegistry(PoolDir, defsModules)
-	os.Remove(path.Join(PoolDir, TempStructs))
+	generateFromModelRegistry(poolDir, defsModules)
+	os.Remove(path.Join(poolDir, TempStructs))
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 3: Generating temporary methods...")
-	generateTempMethods(path.Join(PoolDir, TempMethods))
+	generateTempMethods(path.Join(poolDir, TempMethods))
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 4: Generating final methods...")
-	generateFromModelRegistry(PoolDir, []string{generate.ConfigPath, generate.TestModulePath})
-	os.Remove(path.Join(PoolDir, TempMethods))
+	generateFromModelRegistry(poolDir, importedPaths)
+	os.Remove(path.Join(poolDir, TempMethods))
 	fmt.Println("Ok")
 
-	fmt.Println("Pool successfully generated")
+	fmt.Println("Pool generated successfully")
 }
 
 // cleanPoolDir removes all files in the given directory and leaves only
@@ -145,7 +194,7 @@ func generateTempMethods(fileName string) {
 		Imports []string
 	}
 
-	astData := generate.GetMethodsASTData([]string{generate.ConfigPath, generate.TestModulePath})
+	astData := generate.GetMethodsASTData(importedPaths)
 	var data templData
 	for ref, mData := range astData {
 		params := strings.Join(mData.Params, " interface{}, ") + " interface{}"

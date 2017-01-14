@@ -1,0 +1,149 @@
+= Installing YEP
+Author Nicolas Piganeau
+:prewrap!:
+:toc:
+
+== Introduction
+Since YEP is a modular ERP at compile time, it is only distributed as source
+code. The following instructions will guide you through the process of
+downloading the source code, setting up your configuration and compile YEP.
+
+== Prerequisites
+
+=== Install Go
+First of all, you need to install the Go SDK. Follow the instructions on the
+Go website to install on your platform: https://golang.org/dl/ .
+
+Then setup your Go workspace and define your `$GOPATH` environment variable as
+described here: https://golang.org/doc/code.html#Workspaces
+
+== Download
+
+=== Download YEP
+YEP uses the standard go toolchain. Download YEP with the following command:
+
+[source,shell]
+----
+go get github.com/npiganeau/yep
+----
+
+This will download yep and its dependencies in your workspace and compile the
+`yep` command.
+
+=== Download YEP modules
+YEP modules are distributed as Go packages. They can be downloaded with
+`go get` too. For instance, to get the official addons:
+
+[source,shell]
+----
+go get -d github.com/npiganeau/yep-base
+go get -d github.com/npiganeau/yep-addons
+----
+
+== Create a project
+You need to create a project to run a YEP server. Your project will hold your
+specific configuration, in particular the modules to install.
+
+=== Download Demo Project
+If you want to evaluate YEP, you can download the `yep-demo` project.
+
+[source,shell]
+----
+go get github.com/npiganeau/yep-demo
+----
+
+=== Creating a custom project
+To create a custom project, create a directory with the following structure:
+----
+<projectDir>/
+    config/
+        config.go
+----
+
+Edit the `config.go` file and make it look like the following, adding one line
+per module to install in your YEP instance in the `import` stanza:
+
+[source,go]
+----
+package config
+
+import (
+    _ "github.com/npiganeau/yep-addons/sale"
+    _ "github.com/npiganeau/yep-addons/stock"
+    _ "github.com/npiganeau/yep-addons/purchase"
+    _ "github.com/my-partner/my-super-module"
+)
+----
+
+NOTE: The leading underscore before each module import path makes the file
+valid Go.
+
+=== Generate YEP
+
+This step will generate some source code that depends on the modules you
+selected in the previous step. It must be performed after each modification
+of the configuration from inside the project directory.
+
+[source,shell]
+----
+cd <projectDir>
+yep generate
+----
+
+Type `yep help generate` for the list of available options:
+----
+$ yep help generate
+Generate the source code of the pool package which includes the definition of all the models.
+Additionally, this command creates the startup file of the project.
+This command must be rerun after each source code modification, including module import.
+
+  projectDir: the directory in which to find the go package that imports all the modules we want.
+              If not set, projectDir defaults to the current directory
+
+Usage:
+  yep generate [projectDir] [flags]
+
+Flags:
+  -t, --test   Generate pool for test module. When set projectDir is ignored.
+
+Global Flags:
+  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.yep/
+  -l, --log-file string    File to which the log will be written
+  -L, --log-level string   Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
+  -o, --log-stdout         Enable stdout logging. Use for development or debugging.
+----
+
+== Running YEP
+
+YEP is launched by the `yep server` command from inside the project directory.
+
+[source,shell]
+----
+cd <projectDir>
+yep server -o --db-password=MY_DB_PASSWORD
+----
+
+Type `yep help server` to get the list of available options:
+
+----
+$ yep help server
+Start the YEP server of the project in 'projectDir'.
+If projectDir is omitted, defaults to the current directory.
+
+Usage:
+  yep server [projectDir] [flags]
+
+Flags:
+      --db-driver string     Database driver to use (default "postgres")
+      --db-host string       Database hostname or IP. Leave empty to connect through socket.
+      --db-name string       Database name. Defaults to 'yep' (default "yep")
+      --db-password string   Database password. Leave empty when connecting through socket.
+      --db-port string       Database port. Value is ignored if db-host is not set. (default "5432")
+      --db-user string       Database user. Defaults to current user
+
+Global Flags:
+  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.yep/
+  -l, --log-file string    File to which the log will be written
+  -L, --log-level string   Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
+  -o, --log-stdout         Enable stdout logging. Use for development or debugging.
+----

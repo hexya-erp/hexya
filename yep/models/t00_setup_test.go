@@ -17,9 +17,9 @@ package models
 import (
 	"fmt"
 	"os"
+	"testing"
 
 	_ "github.com/lib/pq"
-	"testing"
 )
 
 var DBARGS = struct {

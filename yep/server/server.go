@@ -21,6 +21,7 @@ import (
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/inconshreveable/log15"
+	"github.com/npiganeau/yep/yep/tools/generate"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -147,5 +148,5 @@ func PostInit() {
 		module.PostInit()
 	}
 
-	yepServer.LoadHTMLGlob("yep/server/templates/**/*.html")
+	yepServer.LoadHTMLGlob(generate.YEPDir + "/yep/server/templates/**/*.html")
 }

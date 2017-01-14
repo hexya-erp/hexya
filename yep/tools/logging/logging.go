@@ -23,27 +23,30 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-stack/stack"
 	"github.com/inconshreveable/log15"
-	"github.com/npiganeau/yep/yep/tools/config"
+	"github.com/spf13/viper"
 )
 
 var log log15.Logger
 
-// initLogger initializes the base logger used by all YEP components
 func init() {
 	log = log15.New()
-	logLevel, err := log15.LvlFromString(config.Config.GetString("LogLevel"))
+}
+
+// Initialize starts the base logger used by all YEP components
+func Initialize() {
+	logLevel, err := log15.LvlFromString(viper.GetString("LogLevel"))
 	if err != nil {
 		log.Warn("Error while reading log level. Falling back to info", "error", err.Error())
 		logLevel = log15.LvlInfo
 	}
 
 	stdoutHandler := log15.DiscardHandler()
-	if config.Config.GetBool("LogStdout") {
+	if viper.GetBool("LogStdout") {
 		stdoutHandler = log15.StreamHandler(os.Stdout, log15.TerminalFormat())
 	}
 
 	fileHandler := log15.DiscardHandler()
-	if path := config.Config.GetString("LogFile"); path != "" {
+	if path := viper.GetString("LogFile"); path != "" {
 		fileHandler = log15.Must.FileHandler(path, log15.LogfmtFormat())
 	}
 
