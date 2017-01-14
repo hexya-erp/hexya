@@ -47,7 +47,8 @@ const (
 )
 
 var (
-	log    log15.Logger
+	log log15.Logger
+	// YEPDir is the directory of the base yep package
 	YEPDir string
 )
 
