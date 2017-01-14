@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
+	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/spf13/viper"
 )
 
 var DBARGS = struct {
@@ -66,7 +68,13 @@ export YEP_DB_PASSWORD=secret
 go test -v github.com/npiganeau/yep/yep/models`)
 		os.Exit(2)
 	}
+	viper.Set("LogLevel", "crit")
+	if DBARGS.Debug != "" {
+		viper.Set("LogLevel", "debug")
+		viper.Set("LogStdout", true)
 
+	}
+	logging.Initialize()
 	DBConnect(DBARGS.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", DBARGS.DB, DBARGS.User, DBARGS.Password))
 	testAdapter = adapters[db.DriverName()]
 }

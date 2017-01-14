@@ -17,10 +17,12 @@ package tests
 import (
 	"fmt"
 	"os"
+	"testing"
 
 	_ "github.com/lib/pq"
 	"github.com/npiganeau/yep/yep/models"
-	"testing"
+	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/spf13/viper"
 )
 
 var DBARGS = struct {
@@ -62,11 +64,17 @@ export YEP_DB_DRIVER=postgres
 export YEP_DB_USER=postgres
 export YEP_DB_PREFIX=yep_test
 export YEP_DB_PASSWORD=secret
-go test -v github.com/npiganeau/yep/yep/tests
-
-`)
+go test -v github.com/npiganeau/yep/yep/tests`)
 		os.Exit(2)
 	}
+
+	viper.Set("LogLevel", "crit")
+	if DBARGS.Debug != "" {
+		viper.Set("LogLevel", "debug")
+		viper.Set("LogStdout", true)
+
+	}
+	logging.Initialize()
 
 	models.DBConnect(DBARGS.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", DBARGS.DB, DBARGS.User, DBARGS.Password))
 }
