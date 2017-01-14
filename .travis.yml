@@ -19,4 +19,4 @@ before_script:
   - psql -c 'create database yep_test_tests;' -U postgres
 
 env:
-- YEP_DB_DRIVER=postgres YEP_DB_USER=postgres YEP_DB_PASSWORD= YEP_DEBUG=1 YEP_DB_PREFIX=yep_test
+- YEP_DB_DRIVER=postgres YEP_DB_USER=postgres YEP_DB_PASSWORD= YEP_DB_PREFIX=yep_test
