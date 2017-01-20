@@ -17,6 +17,8 @@ package models
 import (
 	"fmt"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCreateDB(t *testing.T) {

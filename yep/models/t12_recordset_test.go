@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/npiganeau/yep/yep/models/security"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCreateRecordSet(t *testing.T) {
