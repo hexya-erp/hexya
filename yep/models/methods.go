@@ -32,7 +32,7 @@ func (mc *methodsCollection) get(methodName string) (mi *methodInfo, ok bool) {
 	return
 }
 
-// mustGet returns the methodInfo of the given method. It panics if the
+// MustGet returns the methodInfo of the given method. It panics if the
 // method is not found.
 func (mc *methodsCollection) mustGet(methodName string) *methodInfo {
 	methInfo, ok := mc.get(methodName)
@@ -63,7 +63,7 @@ func newMethodsCollection() *methodsCollection {
 // A methodInfo is a definition of a model's method
 type methodInfo struct {
 	name       string
-	mi         *modelInfo
+	mi         *Model
 	doc        string
 	methodType reflect.Type
 	topLayer   *methodLayer
@@ -105,7 +105,7 @@ type methodLayer struct {
 
 // newMethodInfo creates a new method ref with the given func value as first layer.
 // First argument of given function must implement RecordSet.
-func newMethodInfo(mi *modelInfo, methodName, doc string, val reflect.Value) *methodInfo {
+func newMethodInfo(mi *Model, methodName, doc string, val reflect.Value) *methodInfo {
 	funcType := val.Type()
 	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
 		logging.LogAndPanic(log, "Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
@@ -166,25 +166,23 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 // CreateMethod creates a new method on given model name and adds the given fnct
 // as first layer for this method. Given fnct function must have a RecordSet as
 // first argument.
-func CreateMethod(modelName, methodName, doc string, fnct interface{}) {
-	mi := checkMethodAndFnctType(modelName, methodName, fnct)
-	_, exists := mi.methods.get(methodName)
+func (m *Model) CreateMethod(methodName, doc string, fnct interface{}) {
+	_, exists := m.methods.get(methodName)
 	if exists {
-		logging.LogAndPanic(log, "Call to CreateMethod with an existing method name", "model", modelName, "method", methodName)
+		logging.LogAndPanic(log, "Call to CreateMethod with an existing method name", "model", m.name, "method", methodName)
 	}
-	mi.methods.set(methodName, newMethodInfo(mi, methodName, doc, reflect.ValueOf(fnct)))
+	m.methods.set(methodName, newMethodInfo(m, methodName, doc, reflect.ValueOf(fnct)))
 }
 
 // ExtendMethod adds the given fnct function as a new layer on the given
 // method of the given model.
 // fnct must be of the same signature as the first layer of this method.
-func ExtendMethod(modelName, methodName, doc string, fnct interface{}) {
-	mi := checkMethodAndFnctType(modelName, methodName, fnct)
-	methInfo, exists := mi.methods.get(methodName)
+func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
+	methInfo, exists := m.methods.get(methodName)
 	if !exists {
 		// We didn't find the method, but maybe it exists in mixins
 		var found bool
-		allMixIns := append(modelRegistry.commonMixins, mi.mixins...)
+		allMixIns := append(Registry.commonMixins, m.mixins...)
 		for _, mixin := range allMixIns {
 			_, ok := mixin.methods.get(methodName)
 			if ok {
@@ -193,29 +191,29 @@ func ExtendMethod(modelName, methodName, doc string, fnct interface{}) {
 			}
 		}
 		if !found {
-			logging.LogAndPanic(log, "Call to ExtendMethod on non existent method", "model", modelName, "method", methodName)
+			logging.LogAndPanic(log, "Call to ExtendMethod on non existent method", "model", m.name, "method", methodName)
 		}
 		// The method exists in a mixin so we create it here with our layer.
 		// Bootstrap will take care of putting them the right way round afterwards.
-		methInfo = newMethodInfo(mi, methodName, doc, reflect.ValueOf(fnct))
+		methInfo = newMethodInfo(m, methodName, doc, reflect.ValueOf(fnct))
 	}
 	val := reflect.ValueOf(fnct)
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {
 		if methInfo.methodType.In(i) != val.Type().In(i) {
-			logging.LogAndPanic(log, "Function signature does not match", "model", modelName, "method", methodName,
+			logging.LogAndPanic(log, "Function signature does not match", "model", m.name, "method", methodName,
 				"argument", i, "expected", methInfo.methodType.In(i), "received", val.Type().In(i))
 		}
 	}
 	if methInfo.methodType.NumOut() > 0 && methInfo.methodType.Out(0) != val.Type().Out(0) {
-		logging.LogAndPanic(log, "Function return type does not match", "model", modelName, "method", methodName,
+		logging.LogAndPanic(log, "Function return type does not match", "model", m.name, "method", methodName,
 			"expected", methInfo.methodType.Out(0), "received", val.Type().Out(0))
 	}
 	if methInfo.methodType.IsVariadic() != val.Type().IsVariadic() {
-		logging.LogAndPanic(log, "Variadic mismatch", "model", modelName, "method", methodName,
+		logging.LogAndPanic(log, "Variadic mismatch", "model", m.name, "method", methodName,
 			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
 	}
 	if !exists {
-		mi.methods.set(methodName, methInfo)
+		m.methods.set(methodName, methInfo)
 		return
 	}
 	methInfo.addMethodLayer(val, doc)
@@ -223,8 +221,8 @@ func ExtendMethod(modelName, methodName, doc string, fnct interface{}) {
 
 // checkMethodAndFnctType checks whether the given arguments are valid for
 // CreateMethod or ExtendMethod
-func checkMethodAndFnctType(modelName, methodName string, fnct interface{}) *modelInfo {
-	mi := modelRegistry.mustGet(modelName)
+func checkMethodAndFnctType(modelName, methodName string, fnct interface{}) *Model {
+	mi := Registry.MustGet(modelName)
 	if mi.methods.bootstrapped {
 		logging.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", modelName, "method", methodName)
 	}

@@ -202,8 +202,5 @@ type RecordSet interface {
 	Env() Environment
 }
 
-// A ModelName is a type representing model names.
-type ModelName string
-
 // A FieldName is a type representing field names in models.
 type FieldName string

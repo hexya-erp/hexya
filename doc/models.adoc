@@ -22,6 +22,10 @@ references so that most mistakes can be spotted at compile time.
 
 === Records and RecordSets types
 
+Each model has a definition instance that can be retrieved by using the
+`__Model__()` function of the pool package. This model instance will be used
+to extend/modify the model definition.
+
 Interaction with models and records is performed through RecordSets, a sorted
 set of Records of the same model. Methods defined on a model are executed on a
 RecordSet.
@@ -34,10 +38,11 @@ parameters or return values types. For example, all RecordSets implement a
 `Create` method but each take a Record struct of its model type and return its
 own type.
 
-Each model has also its own Record Go type which has the same name as its
-model's name. A Record type is simply a struct with all the fields of the model
-whether they are stored into the database or computed on the fly. Record types
-are used to read and write values to RecordSets.
+Each model has also its own Record Go type which is named by appending "Data"
+to its model's name (e.g. `ResPartnerData`). A Record type is simply a struct
+with all the fields of the model whether they are stored into the database or
+computed on the fly. Record types are used to read and write values to
+RecordSets.
 
 All Record and RecordSet types live in the `pool` package.
 
@@ -51,7 +56,7 @@ RecordSets are self-querying. One should initialize an empty RecordSet call
 loading, so that data is actually queried only when needed.
 
 An empty RecordSet instance of a model `ModelName` can be instantiated by
-calling `pool.NewModelNameSet(env Environment)`.
+calling the `NewSet(env Environment)` of its model instance.
 
 === Common RecordSet Methods
 
@@ -63,7 +68,7 @@ A parameter or return value of type `RecordSetType` means the actual type of
 the RecordSet for this model (not an interface).
 
 A parameter or return value of type `RecordType` means the actual type of the
-Record struct for this model.
+Record struct for this model (e.g. `ResPartnerData`).
 ====
 
 ==== Data Access Methods
@@ -109,7 +114,7 @@ value.
 
 [source,go]
 ----
-customer := pool.NewResPartnerSet(env).Create(pool.ResPartner{
+customer := pool.ResPartner().NewSet(env).Create(pool.ResPartner{
     Name: "Jane Smith",
     Email: "jsmith@example.com",
     Position: "Sale's Manager",
@@ -129,7 +134,7 @@ value, then all non-zero values of data are updated.
 
 [source,go]
 ----
-partner := pool.NewResPartnerSearch(env).Filter("Company.Name", "=", "NDP Systèmes")
+partner := pool.ResPartner().NewSet(env).Filter("Company.Name", "=", "NDP Systèmes")
 partner.Write(pool.ResPartner{
     Lang: "fr_FR",
 })
@@ -158,7 +163,7 @@ calls to a getter will not call `Read()` again if the value is already loaded.
 
 [source,go]
 ----
-partners := pool.NewResPartnerSet(env)
+partners := pool.ResPartner().NewSet(env)
 partners.Filter("Name", "ilike", "John").Read(pool.ResPartner_Name, pool.ResPartner_Birthday)
 
 // The following lines will not load from the database, but use
@@ -180,7 +185,7 @@ A new Condition instance can be created with `models.NewCondition()`.
 [source,go]
 ----
 cond := models.NewCondition().And(pool.ResUsers_Email, "ilike", "example.com").Or(pool.ResUsers_Email, "ilike", "example.net")
-users := NewResUsersSet(env).Search(cond)
+users := pool.ResUsers().NewSet(env).Search(cond)
 ----
 
 ====
@@ -252,7 +257,7 @@ valid field name and optionally a direction.
 
 [source,go]
 ----
-users := pool.NewResUsersSet(env).OrderBy("Name ASC", "Email DESC", "ID")
+users := pool.ResUsers().NewSet(env).OrderBy("Name ASC", "Email DESC", "ID")
 ----
 
 ==== RecordSet Operations
@@ -359,8 +364,8 @@ instead.
 
 [source,go]
 ----
-noReplyUser := pool.NewResUsers(env).Filter("Email", "=", "no-reply@ndp-systemes.fr").Limit(1)
-partners := pool.NewResPartnerSet(env).Filter("Name", "ilike", "John")
+noReplyUser := pool.ResUsers().NewSet(env).Filter("Email", "=", "no-reply@ndp-systemes.fr").Limit(1)
+partners := pool.ResPartner().NewSet(env).Filter("Name", "ilike", "John")
 
 partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
 ----
@@ -416,11 +421,17 @@ by-passes all security restrictions. Use the RecordSet API instead.
 When developing a YEP module, you can create your own models and/or
 extend in place existing models created by other modules.
 
+[source,go]
+----
+resPartnerModel := models.Registry.MustGet("ResPartner")
+resUsersModel := pool.ResUsers
+----
+
 All models and fields definitions MUST be made in the `init()` of a package
 called `defs` inside the module's main package.
 
-All methods definitions MUST be made in the `init()` of a package called by
-the modules main package.
+All methods definitions MUST be made in the `init()` the main package or of
+a package called by the module's main package.
 
 [IMPORTANT]
 ====
@@ -432,14 +443,15 @@ inspections on the newly created types.
 ====
 
 === Creating a new model
-`*models.CreateModel(modelName string, dataStructPtr ...interface{})*`::
+`*models.NewModel(modelName string, dataStructPtr interface{}) *Model*`::
 
-Creates a new model with the given `modelName`. if dataStructPtr is given,
-add all its fields to the model.
+Creates a new model with the given `modelName` and add the fields of
+dataStructPtr to the model. It returns an pointer to the created model
+instance.
 
 [source,go]
 ----
-models.CreateModel("Course", new(struct {
+course := models.NewModel("Course", new(struct {
         Name      string             `yep:"string(Name);help(This is the name of the course);required"`
         Date      models.DateTime    `yep:"string(Date of the Course)"`
         Teacher   pool.ResPartnerSet `yep:"string(Teacher);type(many2one)"`
@@ -448,13 +460,20 @@ models.CreateModel("Course", new(struct {
     }))
 ----
 
-`*models.CreateMixInModel(modelName string, dataStructPtr ...interface{})*`::
+`*models.NewMixInModel(modelName string, dataStructPtr interface{}) *Model*`::
 
 Creates a new mixin model with the given name and adds all fields of the given
 `dataStructPtr` to the model. Mixin model are not be accessible like a regular
 model but are meant to be mixed in other models.
 +
 See <<Model Mix In>>
+
+`*models.NewMixInModel(modelName string, dataStructPtr interface{}) *Model*`::
+
+Creates a new transient model with the given name and adds all fields of the given
+`dataStructPtr` to the model. Transient model instances have a limited life
+time and are automatically removed from database. They are mainly used for
+wizards.
 
 === Extending a model
 Models can be extended by 3 different ways:
@@ -470,20 +489,20 @@ Allow direct access to all fields of another model. Embedding only applies to
 fields, not methods.
 
 ==== Model Extension
-`*models.ExtendModel(modelName string, dataStructPtr ...interface{})*`::
-Extend a model by adding fields of `dataStructPtr` to the model.
+`*(*Model) Extend(dataStructPtr ...interface{})*`::
+Extend this model by adding fields of `dataStructPtr` to the model.
 
 See also <<Defining methods>> to see how to add or override methods in a model.
 
 ==== Model Mix In
-`*models.MixInModel(targetModel, mixInModel string)*`::
-Extend the `targetModel` by importing all fields and methods of `mixInModel`.
-`MixInModel` must have been created by `models.CreateMixInModel()` and
-`targetModel` must not be a mixin model itself.
+`*(*Model) MixInModel(mixInModel *Model)*`::
+Extend this model by importing all fields and methods of `mixInModel`.
+`MixInModel` must have been created by `models.NewMixInModel()` and this model
+must not be a mixin model itself.
 
-`*models.MixInAllModels(mixInModel string)*`::
+`*models.MixInAllModels(mixInModel *Model)*`::
 Extends all models by importing all fields and methods of `mixInModel`.
-`MixInModel` must have been created by `models.CreateMixInModel()`
+`MixInModel` must have been created by `models.NewMixInModel()`
 
 If a field name conflicts with an existing field name in the model, then:
 
@@ -527,7 +546,7 @@ example below:
 
 [source,go]
 ----
-models.CreateModel("Course", new(struct {
+course := models.NewModel("Course", new(struct {
     Name      string             `yep:"string(Name);help(This is the name of the course);required"`
     Date      models.DateTime    `yep:"string(Date of the Course)"`
     Teacher   pool.ResPartnerSet `yep:"string(Teacher);type(many2one)"`
@@ -695,36 +714,32 @@ actual implementation. Layer functions must meet the following constraints:
 
 --
 
-`*models.CreateMethod(modelName, methodName, doc string, layerFunction interface{})*`::
-Creates a new method on the given `modelName` with the given `methodName` and
+`*(*Model) CreateMethod(methodName, doc string, layerFunction interface{})*`::
+Creates a new method on this model with the given `methodName` and
 apply the given `layerFunction` as first "layer function". `doc` is the
 documentation of the method.
 
 [source,go]
 ----
 // PartnerUpdateBirthday updates this partner birthday.
-models.CreateMethod("ResPartner", "UpdateBirthday",
+pool.ResPartner.CreateMethod("UpdateBirthday",
     `PartnerUpdateBirthday updates this partner birthday.`,
     func (rs ResPartnerSet, birthday time.Time) {
         rs.SetBirthday(Date(birthDay))
     })
-
-PartnerUpdateBirthday)
 ----
 
 [IMPORTANT]
 ====
-The `modelName` and `methodName` attributes of `CreateMethod` *MUST* be string
-literals for `yep-generate` to work correctly. Do *NOT* use variables or
-constants here.
-
-This limitation may be removed in a future version.
+The `methodName` attributes of `CreateMethod` *MUST* be string
+literals for `yep-generate` to work correctly. Do *NOT* use variable or
+constant here.
 ====
 
-`*models.ExtendMethod(modelName, methodName, doc string, layerFunction interface{})*`::
-Extends the method `methodName` in the model `modelName` with the given
-`layerFunction`. If `doc` is not the empty string, it is appended to the
-documentation of the method.
+`*(*Model) ExtendMethod(methodName, doc string, layerFunction interface{})*`::
+Extends the method `methodName` in this model with the given `layerFunction`.
+If `doc` is not the empty string, it is appended to the documentation of the
+method.
 +
 The layer function should call the `Super()` or `SuperMulti()` method of its
 first argument to call the previous layer, and pass it all the other arguments
@@ -732,7 +747,7 @@ of the function layer.
 
 [source,go]
 ----
-models.ExtendMethod("ResPartner", "UpdateBirthday",
+pool.ResPartner.ExtendMethod("UpdateBirthday",
     `Extended in myModule to compute age at the same time.`,
     func(rs ResPartnerSet, birthday time.Time) {
         rs.Super(birthday)

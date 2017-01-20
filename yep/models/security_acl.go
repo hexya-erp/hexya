@@ -21,54 +21,50 @@ import (
 
 // AllowModelAccess grants the given permission to the given group for the given model.
 // This also sets the permissions for all fields of the model.
-func AllowModelAccess(model ModelName, group *security.Group, perm security.Permission) {
-	mi := modelRegistry.mustGet(string(model))
+func (m *Model) AllowModelAccess(group *security.Group, perm security.Permission) {
 	// Add perm to the model's acl
-	mi.acl.AddPermission(group, perm)
+	m.acl.AddPermission(group, perm)
 	// Add perm to all fields of the model
-	for fName := range mi.fields.registryByName {
-		AllowFieldAccess(model, FieldName(fName), group, perm)
+	for fName := range m.fields.registryByName {
+		m.AllowFieldAccess(FieldName(fName), group, perm)
 	}
 }
 
 // AllowFieldAccess grants the given perm to the given group on the given field of model.
 // Only security.Read and security.Write permissions are taken into account by
 // this function, others are discarded.
-func AllowFieldAccess(model ModelName, field FieldName, group *security.Group, perm security.Permission) {
+func (m *Model) AllowFieldAccess(field FieldName, group *security.Group, perm security.Permission) {
 	perm = perm & (security.Read | security.Write | security.Create)
-	mi := modelRegistry.mustGet(string(model))
-	if !mi.acl.CheckPermission(group, security.Read) {
-		log.Warn("Trying to add permission on field, but model is not readable", "model", model, "field", field, "perm", perm)
+	if !m.acl.CheckPermission(group, security.Read) {
+		log.Warn("Trying to add permission on field, but model is not readable", "model", m, "field", field, "perm", perm)
 	}
-	fi := mi.fields.mustGet(string(field))
+	fi := m.fields.mustGet(string(field))
 	fi.acl.AddPermission(group, perm)
 }
 
 // DenyModelAccess denies the given permission to the given group for the given model.
 // This also unsets the permissions for all fields of the model.
-func DenyModelAccess(model ModelName, group *security.Group, perm security.Permission) {
-	mi := modelRegistry.mustGet(string(model))
+func (m *Model) DenyModelAccess(group *security.Group, perm security.Permission) {
 	// Remove perm to the model's acl
-	mi.acl.RemovePermission(group, perm)
+	m.acl.RemovePermission(group, perm)
 	// Remove perm to all fields of the model
-	for fName := range mi.fields.registryByName {
-		DenyFieldAccess(model, FieldName(fName), group, perm)
+	for fName := range m.fields.registryByName {
+		m.DenyFieldAccess(FieldName(fName), group, perm)
 	}
 }
 
 // DenyFieldAccess denies the given perm to the given group on the given field of model.
 // Only security.Read and security.Write permissions are taken into account by
 // this function, others are discarded.
-func DenyFieldAccess(model ModelName, field FieldName, group *security.Group, perm security.Permission) {
+func (m *Model) DenyFieldAccess(field FieldName, group *security.Group, perm security.Permission) {
 	perm = perm & (security.Read | security.Write | security.Create)
-	mi := modelRegistry.mustGet(string(model))
-	fi := mi.fields.mustGet(string(field))
+	fi := m.fields.mustGet(string(field))
 	fi.acl.RemovePermission(group, perm)
 }
 
 // checkModelPermission checks if the given uid has the given perm on the given model info.
 // It panics if the user does not have the required permission and does nothing otherwise.
-func mustCheckModelPermission(mi *modelInfo, uid int64, perm security.Permission) {
+func mustCheckModelPermission(mi *Model, uid int64, perm security.Permission) {
 	userGroups := security.AuthenticationRegistry.UserGroups(uid)
 	for _, group := range userGroups {
 		if mi.acl.CheckPermission(group, perm) {
@@ -91,7 +87,7 @@ func checkFieldPermission(fi *fieldInfo, uid int64, perm security.Permission) bo
 
 // filterOnAuthorizedFields returns the fields slice with only the fields on
 // which the current user has the given permission.
-func filterOnAuthorizedFields(mi *modelInfo, uid int64, fields []string, perm security.Permission) []string {
+func filterOnAuthorizedFields(mi *Model, uid int64, fields []string, perm security.Permission) []string {
 	perm = perm & (security.Read | security.Write | security.Create)
 	if perm == 0 {
 		// We are trying to check perms that are not read or write which
@@ -111,7 +107,7 @@ func filterOnAuthorizedFields(mi *modelInfo, uid int64, fields []string, perm se
 
 // filterMapOnAuthorizedFields returns a new FieldMap from fMap
 // with only the fields on which the given uid user has access.
-func filterMapOnAuthorizedFields(mi *modelInfo, fMap FieldMap, uid int64, perm security.Permission) FieldMap {
+func filterMapOnAuthorizedFields(mi *Model, fMap FieldMap, uid int64, perm security.Permission) FieldMap {
 	perm = perm & (security.Read | security.Write | security.Create)
 	if perm == 0 {
 		// We are trying to check perms that are not read or write which

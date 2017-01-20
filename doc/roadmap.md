@@ -29,6 +29,7 @@ ORM
     - [X] CRUD permissions to models and fields
     - [X] Record rules on models
 - [X] Handle serialization transaction isolation with appropriate retries
+- [X] Improved model creation/extension API
 - [ ] Add more type safety in the condition builder
 - [ ] Pagination API for RecordSets
 - [ ] Support for SQL views and materialized views

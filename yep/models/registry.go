@@ -27,7 +27,8 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
-var modelRegistry *modelCollection
+// Registry is the registry of all Model instances.
+var Registry *modelCollection
 
 // Option describes a optional feature of a model
 type Option int
@@ -35,13 +36,13 @@ type Option int
 type modelCollection struct {
 	sync.RWMutex
 	bootstrapped        bool
-	commonMixins        []*modelInfo
-	registryByName      map[string]*modelInfo
-	registryByTableName map[string]*modelInfo
+	commonMixins        []*Model
+	registryByName      map[string]*Model
+	registryByTableName map[string]*Model
 }
 
-// get the given modelInfo by name or by table name
-func (mc *modelCollection) get(nameOrJSON string) (mi *modelInfo, ok bool) {
+// get the given Model by name or by table name
+func (mc *modelCollection) get(nameOrJSON string) (mi *Model, ok bool) {
 	mi, ok = mc.registryByName[nameOrJSON]
 	if !ok {
 		mi, ok = mc.registryByTableName[nameOrJSON]
@@ -49,9 +50,9 @@ func (mc *modelCollection) get(nameOrJSON string) (mi *modelInfo, ok bool) {
 	return
 }
 
-// mustGet the given modelInfo by name or by table name.
-// It panics if the modelInfo does not exist
-func (mc *modelCollection) mustGet(nameOrJSON string) *modelInfo {
+// MustGet the given Model by name or by table name.
+// It panics if the Model does not exist
+func (mc *modelCollection) MustGet(nameOrJSON string) *Model {
 	mi, ok := mc.get(nameOrJSON)
 	if !ok {
 		logging.LogAndPanic(log, "Unknown model", "model", nameOrJSON)
@@ -59,18 +60,18 @@ func (mc *modelCollection) mustGet(nameOrJSON string) *modelInfo {
 	return mi
 }
 
-// mustGetMixInModel returns the modelInfo of the given mixin name.
+// mustGetMixInModel returns the Model of the given mixin name.
 // It panics if the given name is not the name of a registered mixin
-func (mc *modelCollection) mustGetMixInModel(name string) *modelInfo {
-	mixInMI := mc.mustGet(name)
+func (mc *modelCollection) mustGetMixInModel(name string) *Model {
+	mixInMI := mc.MustGet(name)
 	if !mixInMI.isMixin() {
 		logging.LogAndPanic(log, "Model is not a mixin model", "model", name)
 	}
 	return mixInMI
 }
 
-// add the given modelInfo to the modelCollection
-func (mc *modelCollection) add(mi *modelInfo) {
+// add the given Model to the modelCollection
+func (mc *modelCollection) add(mi *Model) {
 	mc.registryByName[mi.name] = mi
 	mc.registryByTableName[mi.tableName] = mi
 }
@@ -78,12 +79,14 @@ func (mc *modelCollection) add(mi *modelInfo) {
 // newModelCollection returns a pointer to a new modelCollection
 func newModelCollection() *modelCollection {
 	return &modelCollection{
-		registryByName:      make(map[string]*modelInfo),
-		registryByTableName: make(map[string]*modelInfo),
+		registryByName:      make(map[string]*Model),
+		registryByTableName: make(map[string]*Model),
 	}
 }
 
-type modelInfo struct {
+// A Model is the definition of a business object (e.g. a partner, a sale order, etc.)
+// including fields and methods.
+type Model struct {
 	name          string
 	options       Option
 	acl           *security.AccessControlList
@@ -91,20 +94,20 @@ type modelInfo struct {
 	tableName     string
 	fields        *fieldsCollection
 	methods       *methodsCollection
-	mixins        []*modelInfo
+	mixins        []*Model
 }
 
 // addFieldsFromStruct adds the fields of the given struct to our
-// modelInfo
-func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
+// Model
+func (m *Model) addFieldsFromStruct(structPtr interface{}) {
 	typ := reflect.TypeOf(structPtr)
 	if typ.Kind() != reflect.Ptr {
-		logging.LogAndPanic(log, "StructPtr must be a pointer to a struct", "model", mi.name, "received", structPtr)
+		logging.LogAndPanic(log, "StructPtr must be a pointer to a struct", "model", m.name, "received", structPtr)
 	}
 	typ = typ.Elem()
 	for i := 0; i < typ.NumField(); i++ {
 		sf := typ.Field(i)
-		fi := createFieldInfo(sf, mi)
+		fi := createFieldInfo(sf, m)
 		if fi == nil {
 			// unexported field
 			continue
@@ -113,20 +116,20 @@ func (mi *modelInfo) addFieldsFromStruct(structPtr interface{}) {
 			// do not change primary key
 			continue
 		}
-		mi.fields.add(fi)
+		m.fields.add(fi)
 	}
 }
 
-// getRelatedModelInfo returns the modelInfo of the related model when
+// getRelatedModelInfo returns the Model of the related model when
 // following path.
 // - If skipLast is true, getRelatedModelInfo does not follow the last part of the path
 // - If the last part of path is a non relational field, it is simply ignored, whatever
 // the value of skipLast.
 //
 // Paths can be formed from field names or JSON names.
-func (mi *modelInfo) getRelatedModelInfo(path string, skipLast ...bool) *modelInfo {
+func (m *Model) getRelatedModelInfo(path string, skipLast ...bool) *Model {
 	if path == "" {
-		return mi
+		return m
 	}
 	var skip bool
 	if len(skipLast) > 0 {
@@ -134,12 +137,12 @@ func (mi *modelInfo) getRelatedModelInfo(path string, skipLast ...bool) *modelIn
 	}
 
 	exprs := strings.Split(path, ExprSep)
-	jsonizeExpr(mi, exprs)
-	fi := mi.fields.mustGet(exprs[0])
+	jsonizeExpr(m, exprs)
+	fi := m.fields.mustGet(exprs[0])
 	if fi.relatedModel == nil || (len(exprs) == 1 && skip) {
 		// The field is a non relational field, so we are already
-		// on the related modelInfo. Or we have only 1 exprs and we skip the last one.
-		return mi
+		// on the related Model. Or we have only 1 exprs and we skip the last one.
+		return m
 	}
 	if len(exprs) > 1 {
 		return fi.relatedModel.getRelatedModelInfo(strings.Join(exprs[1:], ExprSep), skipLast...)
@@ -149,14 +152,14 @@ func (mi *modelInfo) getRelatedModelInfo(path string, skipLast ...bool) *modelIn
 
 // getRelatedFieldIfo returns the fieldInfo of the related field when
 // following path. Path can be formed from field names or JSON names.
-func (mi *modelInfo) getRelatedFieldInfo(path string) *fieldInfo {
+func (m *Model) getRelatedFieldInfo(path string) *fieldInfo {
 	colExprs := strings.Split(path, ExprSep)
-	var rmi *modelInfo
+	var rmi *Model
 	num := len(colExprs)
 	if len(colExprs) > 1 {
-		rmi = mi.getRelatedModelInfo(path, true)
+		rmi = m.getRelatedModelInfo(path, true)
 	} else {
-		rmi = mi
+		rmi = m
 	}
 	fi := rmi.fields.mustGet(colExprs[num-1])
 	return fi
@@ -164,8 +167,8 @@ func (mi *modelInfo) getRelatedFieldInfo(path string) *fieldInfo {
 
 // scanToFieldMap scans the db query result r into the given FieldMap.
 // Unlike slqx.MapScan, the returned interface{} values are of the type
-// of the modelInfo fields instead of the database types.
-func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
+// of the Model fields instead of the database types.
+func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 	columns, err := r.Columns()
 	if err != nil {
 		return err
@@ -193,20 +196,20 @@ func (mi *modelInfo) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 
 	// Step 3: We convert values with the type of the corresponding fieldInfo
 	// if the value is not nil.
-	mi.convertValuesToFieldType(dest)
+	m.convertValuesToFieldType(dest)
 	return r.Err()
 }
 
 // convertValuesToFieldType converts all values of the given FieldMap to
-// their type in the modelInfo.
-func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
+// their type in the Model.
+func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 	destVals := reflect.ValueOf(fMap).Elem()
 	for colName, fMapValue := range *fMap {
 		if val, ok := fMapValue.(bool); ok && !val {
 			// Hack to manage client returning false instead of nil
 			fMapValue = nil
 		}
-		fi := mi.getRelatedFieldInfo(colName)
+		fi := m.getRelatedFieldInfo(colName)
 		fType := fi.structField.Type
 		if fType == reflect.TypeOf(fMapValue) {
 			// If we already have the good type, don't do anything
@@ -237,7 +240,7 @@ func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 				} else if fType == reflect.TypeOf([]int64{}) {
 					val = reflect.ValueOf(ids)
 				} else {
-					logging.LogAndPanic(log, "Non consistent type", "model", mi.name, "field", colName, "type", fType, "value", fMapValue)
+					logging.LogAndPanic(log, "Non consistent type", "model", m.name, "field", colName, "type", fType, "value", fMapValue)
 				}
 			} else {
 				val = reflect.ValueOf(fMapValue)
@@ -253,55 +256,52 @@ func (mi *modelInfo) convertValuesToFieldType(fMap *FieldMap) {
 }
 
 // isMixin returns true if this is a mixin model.
-func (mi *modelInfo) isMixin() bool {
-	if mi.options&MixinModel > 0 {
+func (m *Model) isMixin() bool {
+	if m.options&MixinModel > 0 {
 		return true
 	}
 	return false
 }
 
-// CreateModel creates a new model with the given name and
-// extends it with the given struct pointers.
-func CreateModel(name string, structPtrs ...interface{}) {
-	model := new(BaseModel)
-	createModelInfo(name, model, Option(0))
-	ExtendModel(name, structPtrs...)
+// NewModel creates a new model with the given name and
+// extends it with the given struct pointer.
+func NewModel(name string, structPtr interface{}) *Model {
+	model := createModel(name, Option(0))
+	model.Extend(structPtr)
+	return model
 }
 
-// CreateMixinModel creates a new mixin model with the given name and
-// extends it with the given struct pointers.
-func CreateMixinModel(name string, structPtrs ...interface{}) {
-	model := new(BaseModel)
-	createModelInfo(name, model, MixinModel)
-	ExtendModel(name, structPtrs...)
+// NewMixinModel creates a new mixin model with the given name and
+// extends it with the given struct pointer.
+func NewMixinModel(name string, structPtr interface{}) *Model {
+	model := createModel(name, MixinModel)
+	model.Extend(structPtr)
+	return model
 }
 
-// CreateTransientModel creates a new mixin model with the given name and
+// NewTransientModel creates a new mixin model with the given name and
 // extends it with the given struct pointers.
-func CreateTransientModel(name string, structPtrs ...interface{}) {
-	model := new(BaseModel)
-	createModelInfo(name, model, MixinModel)
-	ExtendModel(name, structPtrs...)
+func NewTransientModel(name string, structPtr interface{}) *Model {
+	model := createModel(name, TransientModel)
+	model.Extend(structPtr)
+	return model
 }
 
-// ExtendModel extends the model given by its name with the given struct pointers
-func ExtendModel(name string, structPtrs ...interface{}) {
-	mi := modelRegistry.mustGet(name)
+// Extend extends the model given by its name with the given struct pointers
+func (m *Model) Extend(structPtrs ...interface{}) {
 	for _, structPtr := range structPtrs {
-		mi.addFieldsFromStruct(structPtr)
+		m.addFieldsFromStruct(structPtr)
 	}
 }
 
-// MixInModel extends targetModel by importing all fields and methods of mixInModel.
+// MixInModel extends this Model by importing all fields and methods of mixInModel.
 // MixIn methods and fields have a lower priority than those of the model and are
 // overridden by the them when applicable.
-func MixInModel(targetModel, mixInModel string) {
-	mi := modelRegistry.mustGet(targetModel)
-	if mi.isMixin() {
-		logging.LogAndPanic(log, "Trying to mixin a mixin model", "model", targetModel, "mixin", mixInModel)
+func (m *Model) MixInModel(mixInModel *Model) {
+	if m.isMixin() {
+		logging.LogAndPanic(log, "Trying to mixin a mixin model", "model", m.name, "mixin", mixInModel)
 	}
-	mixInMI := modelRegistry.mustGetMixInModel(mixInModel)
-	mi.mixins = append(mi.mixins, mixInMI)
+	m.mixins = append(m.mixins, mixInModel)
 }
 
 // MixInAllModels extends all models with the given mixInModel.
@@ -313,14 +313,14 @@ func MixInModel(targetModel, mixInModel string) {
 // which means that all models, including those that are not yet
 // defined at the time this function is called, will be extended.
 func MixInAllModels(mixInModel string) {
-	mixInMI := modelRegistry.mustGetMixInModel(mixInModel)
-	modelRegistry.commonMixins = append(modelRegistry.commonMixins, mixInMI)
+	mixInMI := Registry.mustGetMixInModel(mixInModel)
+	Registry.commonMixins = append(Registry.commonMixins, mixInMI)
 }
 
-// createModelInfo creates and populates a new modelInfo with the given name
+// createModel creates and populates a new Model with the given name
 // by parsing the given struct pointer.
-func createModelInfo(name string, model interface{}, options Option) {
-	mi := &modelInfo{
+func createModel(name string, options Option) *Model {
+	mi := &Model{
 		name:          name,
 		options:       options,
 		acl:           security.NewAccessControlList(),
@@ -333,7 +333,7 @@ func createModelInfo(name string, model interface{}, options Option) {
 		name:      "ID",
 		json:      "id",
 		acl:       security.NewAccessControlList(),
-		mi:        mi,
+		model:     mi,
 		required:  true,
 		noCopy:    true,
 		fieldType: types.Integer,
@@ -344,6 +344,6 @@ func createModelInfo(name string, model interface{}, options Option) {
 		).Field(0),
 	}
 	mi.fields.add(pk)
-	mi.addFieldsFromStruct(model)
-	modelRegistry.add(mi)
+	Registry.add(mi)
+	return mi
 }

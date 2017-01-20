@@ -26,13 +26,13 @@ import (
 // with the declared data.
 func BootStrap() {
 	log.Info("Bootstrapping models")
-	if modelRegistry.bootstrapped == true {
+	if Registry.bootstrapped == true {
 		logging.LogAndPanic(log, "Trying to bootstrap models twice !")
 	}
-	modelRegistry.Lock()
-	defer modelRegistry.Unlock()
+	Registry.Lock()
+	defer Registry.Unlock()
 
-	modelRegistry.bootstrapped = true
+	Registry.bootstrapped = true
 
 	createModelLinks()
 	inflateMixIns()
@@ -46,17 +46,17 @@ func BootStrap() {
 	setupSecurity()
 }
 
-// createModelLinks create links with related modelInfo
+// createModelLinks create links with related Model
 // where applicable.
 func createModelLinks() {
-	for _, mi := range modelRegistry.registryByName {
+	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.registryByName {
 			var (
-				relatedMI *modelInfo
+				relatedMI *Model
 				ok        bool
 			)
 			if fi.fieldType.IsRelationType() {
-				relatedMI, ok = modelRegistry.get(fi.relatedModelName)
+				relatedMI, ok = Registry.get(fi.relatedModelName)
 				if !ok {
 					logging.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
 				}
@@ -69,12 +69,12 @@ func createModelLinks() {
 
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
-	for _, mi := range modelRegistry.registryByName {
+	for _, mi := range Registry.registryByName {
 		if mi.isMixin() {
 			// We don't mix in mixin models
 			continue
 		}
-		allMixIns := append(modelRegistry.commonMixins, mi.mixins...)
+		allMixIns := append(Registry.commonMixins, mi.mixins...)
 		for _, mixInMI := range allMixIns {
 			// Add mixIn fields
 			for fName, fi := range mixInMI.fields.registryByName {
@@ -84,7 +84,7 @@ func inflateMixIns() {
 					continue
 				}
 				newFI := *fi
-				newFI.mi = mi
+				newFI.model = mi
 				mi.fields.add(&newFI)
 			}
 			// Add mixIn methods
@@ -133,7 +133,7 @@ func inflateMixIns() {
 
 // inflateEmbeddings creates related fields for all fields of embedded models.
 func inflateEmbeddings() {
-	for _, mi := range modelRegistry.registryByName {
+	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.registryByName {
 			if !fi.embed {
 				continue
@@ -148,7 +148,7 @@ func inflateEmbeddings() {
 					name:        relName,
 					json:        relFI.json,
 					acl:         security.NewAccessControlList(),
-					mi:          mi,
+					model:       mi,
 					stored:      fi.stored,
 					structField: relFI.structField,
 					noCopy:      true,
@@ -163,7 +163,7 @@ func inflateEmbeddings() {
 // syncRelatedFieldInfo overwrites the fieldInfo data of the related fields
 // with the data of the fieldInfo of the target.
 func syncRelatedFieldInfo() {
-	for _, mi := range modelRegistry.registryByName {
+	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.registryByName {
 			if !fi.isRelatedField() {
 				continue
@@ -173,7 +173,7 @@ func syncRelatedFieldInfo() {
 			newFI.json = fi.json
 			newFI.relatedPath = fi.relatedPath
 			newFI.stored = fi.stored
-			newFI.mi = mi
+			newFI.model = mi
 			newFI.noCopy = true
 			*fi = newFI
 		}
@@ -185,7 +185,7 @@ func syncDatabase() {
 	adapter := adapters[db.DriverName()]
 	dbTables := adapter.tables()
 	// Create or update existing tables
-	for tableName, mi := range modelRegistry.registryByTableName {
+	for tableName, mi := range Registry.registryByTableName {
 		if mi.isMixin() {
 			// Don't create table for mixin models
 			continue
@@ -199,7 +199,7 @@ func syncDatabase() {
 	// Drop DB tables that are not in the models
 	for dbTable := range adapter.tables() {
 		var modelExists bool
-		for tableName, mi := range modelRegistry.registryByTableName {
+		for tableName, mi := range Registry.registryByTableName {
 			if dbTable != tableName {
 				continue
 			}
@@ -216,7 +216,7 @@ func syncDatabase() {
 	}
 }
 
-// createDBTable creates a table in the database from the given modelInfo
+// createDBTable creates a table in the database from the given Model
 // It only creates the primary key. Call updateDBColumns to create columns.
 func createDBTable(tableName string) {
 	adapter := adapters[db.DriverName()]
@@ -236,8 +236,8 @@ func dropDBTable(tableName string) {
 }
 
 // updateDBColumns synchronizes the colums of the database with the
-// given modelInfo.
-func updateDBColumns(mi *modelInfo) {
+// given Model.
+func updateDBColumns(mi *Model) {
 	adapter := adapters[db.DriverName()]
 	dbColumns := adapter.columns(mi.tableName)
 	// create or update columns from registry data
@@ -272,13 +272,13 @@ func updateDBColumns(mi *modelInfo) {
 // createDBColumn insert the column described by fieldInfo in the database
 func createDBColumn(fi *fieldInfo) {
 	if !fi.isStored() {
-		logging.LogAndPanic(log, "createDBColumn should not be called on non stored fields", "model", fi.mi.name, "field", fi.json)
+		logging.LogAndPanic(log, "createDBColumn should not be called on non stored fields", "model", fi.model.name, "field", fi.json)
 	}
 	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`
 		ALTER TABLE %s
 		ADD COLUMN %s %s
-	`, adapter.quoteTableName(fi.mi.tableName), fi.json, adapter.columnSQLDefinition(fi))
+	`, adapter.quoteTableName(fi.model.tableName), fi.json, adapter.columnSQLDefinition(fi))
 	dbExecuteNoTx(query)
 }
 
@@ -288,7 +288,7 @@ func updateDBColumnDataType(fi *fieldInfo) {
 	query := fmt.Sprintf(`
 		ALTER TABLE %s
 		ALTER COLUMN %s SET DATA TYPE %s
-	`, adapter.quoteTableName(fi.mi.tableName), fi.json, adapter.typeSQL(fi))
+	`, adapter.quoteTableName(fi.model.tableName), fi.json, adapter.typeSQL(fi))
 	dbExecuteNoTx(query)
 }
 
@@ -304,7 +304,7 @@ func updateDBColumnNullable(fi *fieldInfo) {
 	query := fmt.Sprintf(`
 		ALTER TABLE %s
 		ALTER COLUMN %s %s NOT NULL
-	`, adapter.quoteTableName(fi.mi.tableName), fi.json, verb)
+	`, adapter.quoteTableName(fi.model.tableName), fi.json, verb)
 	dbExecuteNoTx(query)
 }
 
@@ -317,12 +317,12 @@ func updateDBColumnDefault(fi *fieldInfo) {
 		query = fmt.Sprintf(`
 			ALTER TABLE %s
 			ALTER COLUMN %s DROP DEFAULT
-		`, adapter.quoteTableName(fi.mi.tableName), fi.json)
+		`, adapter.quoteTableName(fi.model.tableName), fi.json)
 	} else {
 		query = fmt.Sprintf(`
 			ALTER TABLE %s
 			ALTER COLUMN %s SET DEFAULT %s
-		`, adapter.quoteTableName(fi.mi.tableName), fi.json, adapter.fieldSQLDefault(fi))
+		`, adapter.quoteTableName(fi.model.tableName), fi.json, adapter.fieldSQLDefault(fi))
 	}
 	dbExecuteNoTx(query)
 }
@@ -338,8 +338,8 @@ func dropDBColumn(tableName, colName string) {
 }
 
 // updateDBIndexes creates or updates indexes based on the data of
-// the given modelInfo
-func updateDBIndexes(mi *modelInfo) {
+// the given Model
+func updateDBIndexes(mi *Model) {
 	adapter := adapters[db.DriverName()]
 	// update column indexes
 	for colName, fi := range mi.fields.registryByJSON {
@@ -364,7 +364,7 @@ func createColumnIndex(tableName, colName string) {
 // generateMethodsDoc concatenates the doc of each method layer into
 // the methods doc string.
 func generateMethodsDoc() {
-	for _, mi := range modelRegistry.registryByName {
+	for _, mi := range Registry.registryByName {
 		for _, methInfo := range mi.methods.registry {
 			for _, ml := range methInfo.invertedLayers() {
 				if ml.doc != "" {
@@ -397,14 +397,14 @@ func formatDocString(doc string) string {
 
 // bootStrapMethods freezes the methods of the models.
 func bootStrapMethods() {
-	for _, mi := range modelRegistry.registryByName {
+	for _, mi := range Registry.registryByName {
 		mi.methods.bootstrapped = true
 	}
 }
 
 // setupSecurity adds all permissions to the admin group for all models
 func setupSecurity() {
-	for modelName := range modelRegistry.registryByName {
-		AllowModelAccess(ModelName(modelName), security.AdminGroup, security.All)
+	for _, model := range Registry.registryByName {
+		model.AllowModelAccess(security.AdminGroup, security.All)
 	}
 }

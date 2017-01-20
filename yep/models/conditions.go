@@ -146,7 +146,7 @@ func (c Condition) clone() *Condition {
 // getAllExpressions returns a list of all exprs used in this condition,
 // and recursively in all subconditions.
 // Expressions are given in field json format
-func (c Condition) getAllExpressions(mi *modelInfo) [][]string {
+func (c Condition) getAllExpressions(mi *Model) [][]string {
 	var res [][]string
 	for _, cv := range c.params {
 		res = append(res, jsonizeExpr(mi, cv.exprs))
@@ -159,7 +159,7 @@ func (c Condition) getAllExpressions(mi *modelInfo) [][]string {
 
 // substituteExprs recursively replaces condition exprs that match substs keys
 // with the corresponding substs values.
-func (c *Condition) substituteExprs(mi *modelInfo, substs map[string][]string) {
+func (c *Condition) substituteExprs(mi *Model, substs map[string][]string) {
 	for i, cv := range c.params {
 		for k, v := range substs {
 			if len(cv.exprs) > 0 && jsonizeExpr(mi, cv.exprs)[0] == k {

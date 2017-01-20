@@ -29,13 +29,13 @@ import (
 
 /*
 computeData holds data to recompute another field.
-- modelInfo is a pointer to the modelInfo instance to recompute
-- compute is the name of the function to call on modelInfo
+- Model is a pointer to the Model instance to recompute
+- compute is the name of the function to call on Model
 - path is the search string that will be used to find records to update
 (e.g. path = "Profile.BestPost").
 */
 type computeData struct {
-	modelInfo *modelInfo
+	modelInfo *Model
 	compute   string
 	path      string
 }
@@ -60,14 +60,14 @@ func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
 	return
 }
 
-// mustGet returns the fieldInfo of the field with the given name or panics
+// MustGet returns the fieldInfo of the field with the given name or panics
 // name can be either the name of the field or its JSON name.
 func (fc *fieldsCollection) mustGet(name string) *fieldInfo {
 	fi, ok := fc.get(name)
 	if !ok {
 		var model string
 		for _, f := range fc.registryByName {
-			model = f.mi.name
+			model = f.model.name
 			break
 		}
 		logging.LogAndPanic(log, "Unknown field in model", "model", model, "field", name)
@@ -184,7 +184,7 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 
 // fieldInfo holds the meta information about a field
 type fieldInfo struct {
-	mi               *modelInfo
+	model            *Model
 	acl              *security.AccessControlList
 	name             string
 	json             string
@@ -198,9 +198,9 @@ type fieldInfo struct {
 	depends          []string
 	html             bool
 	relatedModelName string
-	relatedModel     *modelInfo
+	relatedModel     *Model
 	reverseFK        string
-	m2mRelModel      *modelInfo
+	m2mRelModel      *Model
 	m2mOurField      *fieldInfo
 	m2mTheirField    *fieldInfo
 	selection        Selection
@@ -246,8 +246,8 @@ func (fi *fieldInfo) isStored() bool {
 }
 
 // createFieldInfo creates and returns a new fieldInfo pointer from the given
-// StructField and modelInfo.
-func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
+// StructField and Model.
+func createFieldInfo(sf reflect.StructField, mi *Model) *fieldInfo {
 	var (
 		attrs map[string]bool
 		tags  map[string]string
@@ -292,7 +292,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 	relatedModelName := getStringFromMap(tags, "comodel", defaultCoModel(sf, typ))
 
 	var (
-		m2mRelModel                *modelInfo
+		m2mRelModel                *Model
 		m2mOurField, m2mTheirField *fieldInfo
 	)
 	if typ == types.Many2Many {
@@ -323,7 +323,7 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 		name:             sf.Name,
 		acl:              security.NewAccessControlList(),
 		json:             json,
-		mi:               mi,
+		model:            mi,
 		compute:          computeName,
 		stored:           stored,
 		required:         required,
@@ -356,28 +356,28 @@ func createFieldInfo(sf reflect.StructField, mi *modelInfo) *fieldInfo {
 func checkFieldInfo(fi *fieldInfo) {
 	if fi.fieldType.IsReverseRelationType() && fi.reverseFK == "" {
 		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'fk' tag", "model",
-			fi.mi.name, "field", fi.name, "type", fi.fieldType)
+			fi.model.name, "field", fi.name, "type", fi.fieldType)
 	}
 
 	if fi.embed && !fi.fieldType.IsStoredRelationType() {
-		log.Warn("'embed' should be set only on many2one or one2one fields", "model", fi.mi.name, "field", fi.name,
+		log.Warn("'embed' should be set only on many2one or one2one fields", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 		fi.embed = false
 	}
 
 	if fi.structField.Type == reflect.TypeOf(RecordCollection{}) && fi.relatedModelName == "" {
-		logging.LogAndPanic(log, "Undefined comodel on related field", "model", fi.mi.name, "field", fi.name,
+		logging.LogAndPanic(log, "Undefined comodel on related field", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 	}
 
 	if fi.stored && !fi.isComputedField() {
-		log.Warn("'store' should be set only on computed fields", "model", fi.mi.name, "field", fi.name,
+		log.Warn("'store' should be set only on computed fields", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 		fi.stored = false
 	}
 
 	if fi.selection != nil && fi.structField.Type.Kind() != reflect.String {
-		logging.LogAndPanic(log, "'selection' tag can only be set on string types", "model", fi.mi.name, "field", fi.name)
+		logging.LogAndPanic(log, "'selection' tag can only be set on string types", "model", fi.model.name, "field", fi.name)
 	}
 }
 
@@ -419,12 +419,12 @@ func snakeCaseFieldName(fName string, typ types.FieldType) string {
 	return res
 }
 
-// createM2MRelModelInfo creates a modelInfo relModelName (if it does not exist)
+// createM2MRelModelInfo creates a Model relModelName (if it does not exist)
 // for the m2m relation defined between model1 and model2.
-// It returns the modelInfo of the intermediate model, the fieldInfo of that model
+// It returns the Model of the intermediate model, the fieldInfo of that model
 // pointing to our model, and the fieldInfo pointing to the other model.
-func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fieldInfo, *fieldInfo) {
-	if relMI, exists := modelRegistry.get(relModelName); exists {
+func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldInfo, *fieldInfo) {
+	if relMI, exists := Registry.get(relModelName); exists {
 		var m1, m2 *fieldInfo
 		for fName, fi := range relMI.fields.registryByName {
 			if fName == model1 {
@@ -436,7 +436,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		return relMI, m1, m2
 	}
 
-	newMI := &modelInfo{
+	newMI := &Model{
 		name:      relModelName,
 		acl:       security.NewAccessControlList(),
 		tableName: tools.SnakeCaseString(relModelName),
@@ -447,7 +447,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		name:             model1,
 		json:             tools.SnakeCaseString(model1) + "_id",
 		acl:              security.NewAccessControlList(),
-		mi:               newMI,
+		model:            newMI,
 		required:         true,
 		noCopy:           true,
 		fieldType:        types.Many2One,
@@ -464,7 +464,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		name:             model2,
 		json:             tools.SnakeCaseString(model2) + "_id",
 		acl:              security.NewAccessControlList(),
-		mi:               newMI,
+		model:            newMI,
 		required:         true,
 		noCopy:           true,
 		fieldType:        types.Many2One,
@@ -476,7 +476,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*modelInfo, *fi
 		},
 	}
 	newMI.fields.add(theirField)
-	modelRegistry.add(newMI)
+	Registry.add(newMI)
 	return newMI, ourField, theirField
 }
 
@@ -485,7 +485,7 @@ processDepends populates the dependencies of each fieldInfo from the depends str
 each fieldInfo instances.
 */
 func processDepends() {
-	for _, mi := range modelRegistry.registryByTableName {
+	for _, mi := range Registry.registryByTableName {
 		for _, fInfo := range mi.fields.registryByJSON {
 			var refName string
 			for _, depString := range fInfo.depends {
@@ -529,7 +529,7 @@ func checkComputeMethodsSignature() {
 			logging.LogAndPanic(log, msg, "model", method.mi.name, "method", method.name)
 		}
 	}
-	for _, mi := range modelRegistry.registryByName {
+	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.computedFields {
 			method := mi.methods.mustGet(fi.compute)
 			checkMethType(method, false)

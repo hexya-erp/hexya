@@ -92,14 +92,12 @@ func newRecordRuleRegistry() *recordRuleRegistry {
 
 // AddRecordRule registers the given RecordRule to the registry for
 // the given model with the given name.
-func AddRecordRule(model ModelName, rule *RecordRule) {
-	mi := modelRegistry.mustGet(string(model))
-	mi.rulesRegistry.addRule(rule)
+func (m *Model) AddRecordRule(rule *RecordRule) {
+	m.rulesRegistry.addRule(rule)
 }
 
 // RemoveRecordRule removes the Record Rule with the given name
 // from the rule registry of the given model.
-func RemoveRecordRule(model ModelName, name string) {
-	mi := modelRegistry.mustGet(string(model))
-	mi.rulesRegistry.removeRule(name)
+func (m *Model) RemoveRecordRule(name string) {
+	m.rulesRegistry.removeRule(name)
 }

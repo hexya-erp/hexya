@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	models.CreateModel("User", new(struct {
+	user := models.NewModel("User", new(struct {
 		ID            int64
 		UserName      string `yep:"unique;string(Name);help(The user's username)"`
 		DecoratedName string `yep:"compute(computeDecoratedName)"`
@@ -37,48 +37,48 @@ func init() {
 		LastPost      pool.PostSet `yep:"type(many2one);embed"`
 	}))
 
-	models.ExtendModel("User", new(struct {
+	user.Extend(new(struct {
 		Email2    string
 		IsPremium bool
 	}))
 
-	models.CreateModel("Profile", new(struct {
+	profile := models.NewModel("Profile", new(struct {
 		Age      int16
 		Money    float64
 		User     pool.UserSet `yep:"type(many2one)"`
 		BestPost pool.PostSet `yep:"type(one2one)"`
 	}))
-	models.ExtendModel("Profile", new(struct {
+	profile.Extend(new(struct {
 		City    string
 		Country string
 	}))
 
-	models.CreateModel("Post", new(struct {
+	models.NewModel("Post", new(struct {
 		User    pool.UserSet `yep:"type(many2one)"`
 		Title   string
 		Content string      `yep:"type(text)"`
 		Tags    pool.TagSet `yep:"type(many2many)"`
 	}))
 
-	models.CreateModel("Tag", new(struct {
+	tag := models.NewModel("Tag", new(struct {
 		Name     string
 		BestPost pool.PostSet `yep:"type(many2one)"`
 		Posts    pool.PostSet `yep:"type(many2many)"`
 	}))
 
-	models.ExtendModel("Tag", new(struct {
+	tag.Extend(new(struct {
 		Description string
 	}))
 
-	models.CreateMixinModel("AddressMixIn", new(struct {
+	addressMI := models.NewMixinModel("AddressMixIn", new(struct {
 		Street string
 		Zip    string
 		City   string
 	}))
 
-	models.MixInModel("Profile", "AddressMixIn")
+	profile.MixInModel(addressMI)
 
-	models.CreateMixinModel("ActiveMixIn", new(struct {
+	models.NewMixinModel("ActiveMixIn", new(struct {
 		Active bool
 	}))
 

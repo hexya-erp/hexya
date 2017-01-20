@@ -28,7 +28,7 @@ import (
 // RecordCollection is a generic struct representing several
 // records of a model.
 type RecordCollection struct {
-	mi        *modelInfo
+	mi        *Model
 	callStack []*methodLayer
 	query     *Query
 	env       *Environment
@@ -561,7 +561,7 @@ var _ RecordSet = RecordCollection{}
 // newRecordCollection returns a new empty RecordCollection in the
 // given environment for the given modelName
 func newRecordCollection(env Environment, modelName string) RecordCollection {
-	mi := modelRegistry.mustGet(modelName)
+	mi := Registry.MustGet(modelName)
 	rc := RecordCollection{
 		mi:    mi,
 		query: newQuery(),

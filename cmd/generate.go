@@ -34,6 +34,8 @@ import (
 const (
 	// PoolDirRel is the name of the generated pool directory (relative to the yep root)
 	PoolDirRel string = "pool"
+	// TempEmpty is the name of the temporary go file in the pool directory for startup
+	TempEmpty string = "temp.go"
 	// TempStructs is the name of the temporary go file in the pool directory used in stage 1
 	TempStructs string = "temp_structs.go"
 	// TempMethods is the name of the temporary go file in the pool directory used in stage 3
@@ -122,6 +124,7 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash.`)
 
 	fmt.Print("Stage 3: Generating temporary methods...")
 	generateTempMethods(path.Join(poolDir, TempMethods))
+	os.Remove(path.Join(poolDir, TempEmpty))
 	fmt.Println("Ok")
 
 	fmt.Print("Stage 4: Generating final methods...")
@@ -137,7 +140,7 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash.`)
 func cleanPoolDir(dirName string) {
 	os.RemoveAll(dirName)
 	os.MkdirAll(dirName, 0755)
-	generate.CreateFileFromTemplate(path.Join(dirName, "temp.go"), emptyPoolTemplate, nil)
+	generate.CreateFileFromTemplate(path.Join(dirName, TempEmpty), emptyPoolTemplate, nil)
 }
 
 // getMissingDeclarations parses the errors from the program for
@@ -258,6 +261,8 @@ var emptyPoolTemplate = template.Must(template.New("").Parse(`
 // DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
 
 package pool
+
+func PostInit() {}
 `))
 
 var tempStructsTemplate = template.Must(template.New("").Parse(`

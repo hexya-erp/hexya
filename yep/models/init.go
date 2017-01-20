@@ -30,7 +30,7 @@ func init() {
 	adapters = make(map[string]dbAdapter)
 	registerDBAdapter("postgres", new(postgresAdapter))
 	// model registry
-	modelRegistry = newModelCollection()
+	Registry = newModelCollection()
 	// declare base mixin
 	declareBaseMixin()
 }

@@ -22,7 +22,8 @@ import (
 )
 
 func declareMethods() {
-	models.CreateMethod("User", "PrefixedUser",
+	user := models.Registry.MustGet("User")
+	user.CreateMethod("PrefixedUser",
 		`PrefixedUser is a sample method layer for testing`,
 		func(rs pool.UserSet, prefix string) []string {
 			var res []string
@@ -32,29 +33,29 @@ func declareMethods() {
 			return res
 		})
 
-	models.CreateMethod("User", "DecorateEmail",
+	user.CreateMethod("DecorateEmail",
 		`DecorateEmail is a sample method layer for testing`,
 		func(rs pool.UserSet, email string) string {
 			return fmt.Sprintf("<%s>", email)
 		})
 
-	models.ExtendMethod("User", "DecorateEmail",
+	user.ExtendMethod("DecorateEmail",
 		`DecorateEmailExtension is a sample method layer for testing`,
 		func(rs pool.UserSet, email string) string {
 			res := rs.Super(email).(string)
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	models.CreateMethod("User", "computeAge",
+	user.CreateMethod("computeAge",
 		`ComputeAge is a sample method layer for testing`,
-		func(rs pool.UserSet) (*pool.User, []models.FieldName) {
-			res := pool.User{
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldName) {
+			res := pool.UserData{
 				Age: rs.Profile().Age(),
 			}
 			return &res, []models.FieldName{pool.User_Age}
 		})
 
-	models.ExtendMethod("User", "PrefixedUser", "",
+	user.ExtendMethod("PrefixedUser", "",
 		func(rs pool.UserSet, prefix string) []string {
 			res := rs.Super(prefix).([]string)
 			for i, u := range rs.Records() {
@@ -63,46 +64,50 @@ func declareMethods() {
 			return res
 		})
 
-	models.CreateMethod("User", "computeDecoratedName", "",
-		func(rs pool.UserSet) (*pool.User, []models.FieldName) {
-			res := pool.User{
+	user.CreateMethod("computeDecoratedName", "",
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldName) {
+			res := pool.UserData{
 				DecoratedName: rs.PrefixedUser("User")[0],
 			}
 			return &res, []models.FieldName{pool.User_DecoratedName}
 		})
 
-	models.CreateMethod("AddressMixIn", "SayHello",
+	addressMI := pool.AddressMixIn()
+	addressMI.CreateMethod("SayHello",
 		`SayHello is a sample method layer for testing`,
 		func(rs pool.AddressMixInSet) string {
 			return "Hello !"
 		})
 
-	models.CreateMethod("AddressMixIn", "PrintAddress",
+	addressMI.CreateMethod("PrintAddress",
 		`PrintAddressMixIn is a sample method layer for testing`,
 		func(rs pool.AddressMixInSet) string {
 			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
 		})
 
-	models.CreateMethod("Profile", "PrintAddress",
+	pool.Profile().CreateMethod("PrintAddress",
 		`PrintAddress is a sample method layer for testing`,
 		func(rs pool.ProfileSet) string {
 			res := rs.Super()
 			return fmt.Sprintf("%s, %s", res, rs.Country())
 		})
 
-	models.ExtendMethod("AddressMixIn", "PrintAddress", "",
+	addressMI.ExtendMethod("PrintAddress", "",
 		func(rs pool.AddressMixInSet) string {
 			res := rs.Super()
 			return fmt.Sprintf("<%s>", res)
 		})
 
-	models.ExtendMethod("Profile", "PrintAddress", "",
+	pool.Profile().ExtendMethod("PrintAddress", "",
 		func(rs pool.ProfileSet) string {
 			res := rs.Super()
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	models.CreateMethod("ActiveMixIn", "IsActivated",
+	// Chained declaration
+	activeMI1 := pool.ActiveMixIn()
+	activeMI := activeMI1
+	activeMI.CreateMethod("IsActivated",
 		`IsACtivated is a sample method of ActiveMixIn"`,
 		func(rs pool.ActiveMixInSet) bool {
 			return rs.Active()

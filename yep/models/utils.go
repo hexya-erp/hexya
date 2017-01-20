@@ -15,11 +15,10 @@
 package models
 
 import (
+	"database/sql/driver"
 	"errors"
 	"reflect"
 	"strings"
-
-	"database/sql/driver"
 
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -150,9 +149,9 @@ func checkStructSlicePtr(data interface{}) error {
 }
 
 // jsonizeExpr returns an expression slice with field names changed to the fields json names
-// Computation is made relatively to the given modelInfo
+// Computation is made relatively to the given Model
 // e.g. [User Profile Name] -> [user_id profile_id name]
-func jsonizeExpr(mi *modelInfo, exprs []string) []string {
+func jsonizeExpr(mi *Model, exprs []string) []string {
 	if len(exprs) == 0 {
 		return []string{}
 	}
@@ -171,7 +170,7 @@ func jsonizeExpr(mi *modelInfo, exprs []string) []string {
 
 // addNameSearchesToCondition recursively modifies the given condition to search
 // on the name of the related records if they point to a relation field.
-func addNameSearchesToCondition(mi *modelInfo, cond *Condition) {
+func addNameSearchesToCondition(mi *Model, cond *Condition) {
 	for i, cv := range cond.params {
 		switch cv.arg.(type) {
 		case bool:
@@ -187,7 +186,7 @@ func addNameSearchesToCondition(mi *modelInfo, cond *Condition) {
 
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
-func addNameSearchToExprs(mi *modelInfo, exprs []string) []string {
+func addNameSearchToExprs(mi *Model, exprs []string) []string {
 	if len(exprs) == 0 {
 		return exprs
 	}
@@ -203,9 +202,9 @@ func addNameSearchToExprs(mi *modelInfo, exprs []string) []string {
 }
 
 // jsonizePath returns a path with field names changed to the field json names
-// Computation is made relatively to the given modelInfo
+// Computation is made relatively to the given Model
 // e.g. User.Profile.Name -> user_id.profile_id.name
-func jsonizePath(mi *modelInfo, path string) string {
+func jsonizePath(mi *Model, path string) string {
 	exprs := strings.Split(path, ExprSep)
 	exprs = jsonizeExpr(mi, exprs)
 	return strings.Join(exprs, ExprSep)
@@ -343,7 +342,7 @@ func getFieldType(typ reflect.Type) types.FieldType {
 
 // filterOnDBFields returns the given fields slice with only stored fields
 // This function also adds the "id" field to the list if not present
-func filterOnDBFields(mi *modelInfo, fields []string) []string {
+func filterOnDBFields(mi *Model, fields []string) []string {
 	var res []string
 	// Check if fields are stored
 	for _, field := range fields {
@@ -375,7 +374,7 @@ func filterOnDBFields(mi *modelInfo, fields []string) []string {
 
 // filterMapOnStoredFields returns a new FieldMap from fMap
 // with only stored fields keys.
-func filterMapOnStoredFields(mi *modelInfo, fMap FieldMap) FieldMap {
+func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
 	newFMap := make(FieldMap)
 	for field, value := range fMap {
 		if fi := mi.getRelatedFieldInfo(field); fi.isStored() {

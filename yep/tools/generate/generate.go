@@ -16,6 +16,7 @@ package generate
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -191,56 +192,103 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 		for _, file := range modInfo.Files {
 			ast.Inspect(file, func(n ast.Node) bool {
 				switch node := n.(type) {
-				case *ast.FuncDecl:
-					funcs[n] = MethodASTData{
-						Params:     extractParams(node.Type),
-						ReturnType: extractReturnType(node.Type, modInfo),
-					}
-				case *ast.FuncLit:
-					funcs[n] = MethodASTData{
-						Params:     extractParams(node.Type),
-						ReturnType: extractReturnType(node.Type, modInfo),
-					}
 				case *ast.CallExpr:
-					var fNameNode *ast.Ident
-					switch nf := node.Fun.(type) {
-					case *ast.SelectorExpr:
-						fNameNode = nf.Sel
-					case *ast.Ident:
-						fNameNode = nf
-					default:
+					fNode, ok := node.Fun.(*ast.SelectorExpr)
+					if !ok {
 						return true
 					}
-					if fNameNode.Name != "CreateMethod" {
+					if fNode.Sel.Name != "CreateMethod" {
 						return true
 					}
-					modelName := ""
-					if mn, ok := node.Args[0].(*ast.BasicLit); ok {
-						modelName = strings.Trim(mn.Value, `"`)
+
+					modelName, err := extractModel(fNode.X)
+					if err != nil {
+						logging.LogAndPanic(log, "Unable to extract model while visiting AST", "error", err)
 					}
 					methodName := ""
-					if mn, ok := node.Args[1].(*ast.BasicLit); ok {
+					if mn, ok := node.Args[0].(*ast.BasicLit); ok {
 						methodName = strings.Trim(mn.Value, `"`)
 					}
 
-					var funcDecl ast.Node
-					switch fd := node.Args[3].(type) {
+					var funcType *ast.FuncType
+					switch fd := node.Args[2].(type) {
 					case *ast.Ident:
-						funcDecl = fd.Obj.Decl.(*ast.FuncDecl)
+						funcType = fd.Obj.Decl.(*ast.FuncDecl).Type
 					case *ast.FuncLit:
-						funcDecl = fd
+						funcType = fd.Type
 					}
-					meths[MethodRef{Model: modelName, Method: methodName}] = funcDecl
+					res[MethodRef{Model: modelName, Method: methodName}] = MethodASTData{
+						Params:     extractParams(funcType),
+						ReturnType: extractReturnType(funcType, modInfo),
+					}
 				}
 				return true
 			})
 		}
 	}
-	// Now we extract the doc and params from funcs only for methods
+	// Now we extract params from funcs only for methods
 	for ref, meth := range meths {
 		res[ref] = funcs[meth]
 	}
 	return res
+}
+
+// extractModel returns the string name of the model of the given ident variable
+// Returns an error if it cannot determine the model
+func extractModel(ident ast.Expr) (string, error) {
+	switch idt := ident.(type) {
+	case *ast.Ident:
+		// CreateMethod is called on an identifier without selector such as
+		// user.createMethod. In this case, we try to find out the model from
+		// the identifier declaration.
+		switch decl := idt.Obj.Decl.(type) {
+		case *ast.AssignStmt:
+			// The declaration is also an assignment
+			switch rd := decl.Rhs[0].(type) {
+			case *ast.CallExpr:
+				// The assignment is a call to a function
+				var fnIdent *ast.Ident
+				switch ft := rd.Fun.(type) {
+				case *ast.Ident:
+					fnIdent = ft
+				case *ast.SelectorExpr:
+					fnIdent = ft.Sel
+				}
+				switch fnIdent.Name {
+				case "MustGet", "NewModel", "NewMixinModel", "NewTransientModel":
+					return strings.Trim(rd.Args[0].(*ast.BasicLit).Value, `"`), nil
+				default:
+					return extractModelNameFromFunc(rd)
+				}
+			case *ast.Ident:
+				// The assignment is another identifier, we go to the declaration of this new ident.
+				return extractModel(rd)
+			default:
+				return "", fmt.Errorf("Unmanaged type %T for %s", rd, idt.Name)
+			}
+		}
+	case *ast.CallExpr:
+		// CreateMethod is called on a function call.
+		// We are interested only if it is from the pool package (e.g. pool.User())
+		return extractModelNameFromFunc(idt)
+	}
+	return "", errors.New("Unmanaged situation")
+}
+
+// extractModelNameFromFunc extracts the model name from a pool.ModelName()
+// expression or an error if this is not a pool function.
+func extractModelNameFromFunc(ce *ast.CallExpr) (string, error) {
+	switch ft := ce.Fun.(type) {
+	case *ast.Ident:
+		// func is called without selector, then it is not from pool
+		return "", errors.New("Function call without selector")
+	case *ast.SelectorExpr:
+		if pkg, ok := ft.X.(*ast.Ident); !ok || pkg.Name != "pool" {
+			return "", errors.New("Selector not from pool package")
+		}
+		return ft.Sel.Name, nil
+	}
+	return "", errors.New("Unparsable function call")
 }
 
 // extractParams extracts the parameters name of the given FuncType

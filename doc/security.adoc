@@ -53,14 +53,14 @@ By default, a model has an access control list that only allows the members
 of the AdminGroup to access it. Access Control at the model level can be set
 with the `AllowModelAccess()` and `DenyModelAccess()` functions.
 
-`*AllowModelAccess(model ModelName, group *security.Group, perm security.Permission)*`::
+`*(*Model) AllowModelAccess(group *security.Group, perm security.Permission)*`::
 Grant the given `perm` permission to the given `group` for the given `model`.
 
 [source,go]
 salesManager := models.GroupsRegistry.Get("sale_manager")
-models.AllowModelAccess(pool.ModelResPartner, salesManager, security.Create|security.Read)
+pool.ResPartner().AllowModelAccess(salesManager, security.Create|security.Read)
 
-`*DenyModelAccess(model ModelName, group *security.Group, perm security.Permission)*`::
+`*(*Model) DenyModelAccess(group *security.Group, perm security.Permission)*`::
 Deny the `perm` permission to the given `group` for the given `model`.
 
 Permissions are evaluated in the order of insertion. This means that the
@@ -80,14 +80,14 @@ the respective permission.
 
 Field permissions can be modified with the following functions:
 
-`*AllowFieldAccess(model ModelName, field FieldName, group *security.Group, perm security.Permission)*`::
+`*(*Model) AllowFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
 Grant the given `perm` to the given `group` on the given `field` of `model`.
 
 [source,go]
 salesManager := models.GroupsRegistry.Get("sale_manager")
-models.AllowFieldAccess(pool.ResPartner_Function, salesManager, security.Read)
+pool.ResPartner().AllowFieldAccess(pool.ResPartner_Function, salesManager, security.Read)
 
-`*DenyFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
+`*(*Model) DenyFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
 Deny the given `perm` to the given `group` on the given `field`.
 
 Generally speaking, the permission on the model and on the fields must match
@@ -137,7 +137,7 @@ there is no record yet during creation.
 Record Rules are added or removed from the Record Rules Registry with the
 following functions:
 
-`*AddRecordRule(model ModelName, rule RecordRule)*`::
+`*(*Model) AddRecordRule(rule *RecordRule)*`::
 Register the given `RecordRule` to the registry for the given `model`. If the
 rule's `Name` already exists, then the rule is overwritten.
 
@@ -157,15 +157,15 @@ rule := models.RecordRule {
     Condition: cond,
     Perms:     security.All,
 }
-models.AddRecordRule(pool.ModelResPartner, rule)
+pool.ResPartner().AddRecordRule(&rule)
 ----
 
-`*RemoveRecordRule(model ModelName, name string)*`::
+`*(*Model) RemoveRecordRule(name string)*`::
 Removes the Record Rule with the given `name` from the rule registry of the
 given `model`.
 
 [source,go]
-models.RemoveRecordRule(pool.ModelResPartner, "salesman_own_partner")
+pool.ResPartner().RemoveRecordRule("salesman_own_partner")
 
 === Record Rules combination
 

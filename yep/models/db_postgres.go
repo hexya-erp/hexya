@@ -94,7 +94,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 	typ, ok := pgTypes[fi.fieldType]
 	res = typ
 	if !ok {
-		logging.LogAndPanic(log, "Unknown column type", "type", fi.fieldType, "model", fi.mi.name, "field", fi.name)
+		logging.LogAndPanic(log, "Unknown column type", "type", fi.fieldType, "model", fi.model.name, "field", fi.name)
 	}
 	switch fi.fieldType {
 	case types.Char:

@@ -17,13 +17,11 @@ package models
 import (
 	"fmt"
 	"testing"
-
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
-		CreateModel("User", new(struct {
+		user := NewModel("User", new(struct {
 			ID            int64
 			UserName      string `yep:"unique;string(Name);help(The user's username)"`
 			DecoratedName string `yep:"compute(computeDecoratedName)"`
@@ -41,50 +39,53 @@ func TestCreateDB(t *testing.T) {
 			LastPost      RecordCollection `yep:"embed;type(many2one);comodel(Post)"`
 		}))
 
-		ExtendModel("User", new(struct {
+		user.Extend(new(struct {
 			Email2    string
 			IsPremium bool
 		}))
 
-		CreateMixinModel("AddressMixIn", new(struct {
+		addressMI := NewMixinModel("AddressMixIn", new(struct {
 			Street string
 			Zip    string
 			City   string
 		}))
 
-		CreateModel("Profile")
-		MixInModel("Profile", "AddressMixIn")
-		ExtendModel("Profile", new(struct {
+		profile := NewModel("Profile", new(struct {
 			Age      int16
 			Money    float64
 			User     RecordCollection `yep:"type(many2one);comodel(User)"`
 			BestPost RecordCollection `yep:"type(one2one);comodel(Post)"`
-		}), new(struct {
+		}))
+
+		profile.MixInModel(addressMI)
+		profile.Extend(new(struct {
 			City    string
 			Country string
 		}))
 
-		CreateModel("Post", new(struct {
+		NewModel("Post", new(struct {
 			User    RecordCollection `yep:"type(many2one);comodel(User)"`
 			Title   string
 			Content string           `yep:"type(text)"`
 			Tags    RecordCollection `yep:"type(many2many);comodel(Tag)"`
 		}))
 
-		CreateMixinModel("ActiveMixIn", new(struct {
+		activeMI := NewMixinModel("ActiveMixIn", new(struct {
 			Active bool
 		}))
 		MixInAllModels("ActiveMixIn")
 
-		CreateModel("Tag", new(struct {
+		tag := NewModel("Tag", new(struct {
 			Name     string
 			BestPost RecordCollection `yep:"type(many2one);comodel(Post)"`
 			Posts    RecordCollection `yep:"type(many2many);comodel(Post)"`
-		}), new(struct {
+		}))
+
+		tag.Extend(new(struct {
 			Description string
 		}))
 
-		CreateMethod("User", "PrefixedUser", "",
+		user.CreateMethod("PrefixedUser", "",
 			func(rc RecordCollection, prefix string) []string {
 				var res []string
 				for _, u := range rc.Records() {
@@ -93,7 +94,7 @@ func TestCreateDB(t *testing.T) {
 				return res
 			})
 
-		ExtendMethod("User", "PrefixedUser", "",
+		user.ExtendMethod("PrefixedUser", "",
 			func(rc RecordCollection, prefix string) []string {
 				res := rc.Super(prefix).([]string)
 				for i, u := range rc.Records() {
@@ -103,59 +104,59 @@ func TestCreateDB(t *testing.T) {
 				return res
 			})
 
-		CreateMethod("User", "DecorateEmail", "",
+		user.CreateMethod("DecorateEmail", "",
 			func(rc RecordCollection, email string) string {
 				return fmt.Sprintf("<%s>", email)
 			})
 
-		ExtendMethod("User", "DecorateEmail", "",
+		user.ExtendMethod("DecorateEmail", "",
 			func(rc RecordCollection, email string) string {
 				res := rc.Super(email).(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 
-		CreateMethod("User", "computeDecoratedName", "",
+		user.CreateMethod("computeDecoratedName", "",
 			func(rc RecordCollection) FieldMap {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 				return res
 			})
 
-		CreateMethod("User", "computeAge", "",
+		user.CreateMethod("computeAge", "",
 			func(rc RecordCollection) (FieldMap, []FieldName) {
 				res := make(FieldMap)
 				res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
 				return res, []FieldName{}
 			})
 
-		CreateMethod("ActiveMixIn", "IsActivated", "",
+		activeMI.CreateMethod("IsActivated", "",
 			func(rc RecordCollection) bool {
 				return rc.Get("Active").(bool)
 			})
 
-		CreateMethod("AddressMixIn", "SayHello", "",
+		addressMI.CreateMethod("SayHello", "",
 			func(rc RecordCollection) string {
 				return "Hello !"
 			})
 
-		CreateMethod("AddressMixIn", "PrintAddress", "",
+		addressMI.CreateMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
 				return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
 			})
 
-		CreateMethod("Profile", "PrintAddress", "",
+		profile.CreateMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
 				res := rc.Super().(string)
 				return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
 			})
 
-		ExtendMethod("AddressMixIn", "PrintAddress", "",
+		addressMI.ExtendMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
 				res := rc.Super().(string)
 				return fmt.Sprintf("<%s>", res)
 			})
 
-		ExtendMethod("Profile", "PrintAddress", "",
+		profile.ExtendMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
 				res := rc.Super().(string)
 				return fmt.Sprintf("[%s]", res)
@@ -174,7 +175,7 @@ func TestCreateDB(t *testing.T) {
 		})
 		Convey("All models should have a DB table", func() {
 			dbTables := testAdapter.tables()
-			for tableName, mi := range modelRegistry.registryByTableName {
+			for tableName, mi := range Registry.registryByTableName {
 				if mi.isMixin() {
 					continue
 				}
@@ -183,12 +184,12 @@ func TestCreateDB(t *testing.T) {
 		})
 		Convey("All DB tables should have a model", func() {
 			for dbTable := range testAdapter.tables() {
-				So(modelRegistry.registryByTableName, ShouldContainKey, dbTable)
+				So(Registry.registryByTableName, ShouldContainKey, dbTable)
 			}
 		})
 	})
 	Convey("Truncating all tables...", t, func() {
-		for tn, mi := range modelRegistry.registryByTableName {
+		for tn, mi := range Registry.registryByTableName {
 			if mi.isMixin() {
 				continue
 			}

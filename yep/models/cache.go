@@ -24,7 +24,7 @@ import (
 type cache map[RecordRef]FieldMap
 
 // addEntry to the cache. fieldName must be a simple field name (no path)
-func (c *cache) addEntry(mi *modelInfo, ID int64, fieldName string, value interface{}) {
+func (c *cache) addEntry(mi *Model, ID int64, fieldName string, value interface{}) {
 	ref := RecordRef{ModelName: mi.name, ID: ID}
 	jsonName := jsonizePath(mi, fieldName)
 	c.addEntryByRef(ref, jsonName, value)
@@ -39,8 +39,8 @@ func (c *cache) addEntryByRef(ref RecordRef, jsonName string, value interface{})
 }
 
 // addRecord successively adds each entry of the given FieldMap to the cache.
-// fMap keys may be a paths relative to this modelInfo (e.g. "User.Profile.Age").
-func (c *cache) addRecord(mi *modelInfo, ID int64, fMap FieldMap) {
+// fMap keys may be a paths relative to this Model (e.g. "User.Profile.Age").
+func (c *cache) addRecord(mi *Model, ID int64, fMap FieldMap) {
 	paths := make(map[int][]string)
 	var maxLen int
 	// We create our exprsMap with the length of the path as key
@@ -61,14 +61,14 @@ func (c *cache) addRecord(mi *modelInfo, ID int64, fMap FieldMap) {
 }
 
 // invalidateRecord removes an entire record from the cache
-func (c *cache) invalidateRecord(mi *modelInfo, ID int64) {
+func (c *cache) invalidateRecord(mi *Model, ID int64) {
 	delete((*c), RecordRef{ModelName: mi.name, ID: ID})
 }
 
 // get returns the cache value of the given fieldName
 // for the given modelName and ID. fieldName may be a path
-// relative to this modelInfo (e.g. "User.Profile.Age").
-func (c *cache) get(mi *modelInfo, ID int64, fieldName string) interface{} {
+// relative to this Model (e.g. "User.Profile.Age").
+func (c *cache) get(mi *Model, ID int64, fieldName string) interface{} {
 	ref, fName, _ := c.getRelatedRef(mi, ID, fieldName)
 	res := (*c)[ref][fName]
 	return res
@@ -82,7 +82,7 @@ func (c *cache) getRecord(modelName string, ID int64) FieldMap {
 
 // checkIfInCache returns true if all fields given by fieldNames are available
 // in cache for all the records with the given ids in the given model.
-func (c *cache) checkIfInCache(mi *modelInfo, ids []int64, fieldNames []string) bool {
+func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string) bool {
 	for _, id := range ids {
 		for _, fName := range fieldNames {
 			ref, path, err := c.getRelatedRef(mi, id, fName)
@@ -99,7 +99,7 @@ func (c *cache) checkIfInCache(mi *modelInfo, ids []int64, fieldNames []string) 
 
 // getRelatedRef returns the RecordRef and field name of the field that is
 // defined by path when walking from the given model with the given ID.
-func (c *cache) getRelatedRef(mi *modelInfo, ID int64, path string) (RecordRef, string, error) {
+func (c *cache) getRelatedRef(mi *Model, ID int64, path string) (RecordRef, string, error) {
 	exprs := jsonizeExpr(mi, strings.Split(path, ExprSep))
 	if len(exprs) > 1 {
 		relMI := mi.getRelatedModelInfo(exprs[0])

@@ -34,14 +34,9 @@ const (
 	MixinModel
 )
 
-// BaseModel is the base implementation  of all non transient models
-type BaseModel struct {
-	ID int64
-}
-
 // declareBaseMixin creates the mixin that implements all the necessary base methods of a model
 func declareBaseMixin() {
-	CreateMixinModel("BaseMixin", new(struct {
+	model := NewMixinModel("BaseMixin", new(struct {
 		ID          int64
 		CreateDate  DateTime `yep:"nocopy"`
 		CreateUID   int64    `yep:"nocopy"`
@@ -51,13 +46,13 @@ func declareBaseMixin() {
 		DisplayName string   `yep:"compute(ComputeNameGet)"`
 	}))
 
-	CreateMethod("BaseMixin", "ComputeWriteDate",
+	model.CreateMethod("ComputeWriteDate",
 		`ComputeWriteDate updates the WriteDate field with the current datetime.`,
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"WriteDate": DateTime(time.Now())}
 		})
 
-	CreateMethod("BaseMixin", "ComputeLastUpdate",
+	model.CreateMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
 		func(rc RecordCollection) FieldMap {
 			lastUpdate := DateTime(time.Now())
@@ -70,20 +65,20 @@ func declareBaseMixin() {
 			return FieldMap{"LastUpdate": lastUpdate}
 		})
 
-	CreateMethod("BaseMixin", "ComputeNameGet",
+	model.CreateMethod("ComputeNameGet",
 		`ComputeNameGet updates the DisplayName field with the result of NameGet.`,
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"DisplayName": rc.Call("NameGet").(string)}
 		})
 
-	CreateMethod("BaseMixin", "Create",
+	model.CreateMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
 		func(rc RecordCollection, data interface{}) RecordCollection {
 			return rc.create(data)
 		})
 
-	CreateMethod("BaseMixin", "Read",
+	model.CreateMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
 		func(rc RecordCollection, fields []string) []FieldMap {
 			res := make([]FieldMap, rc.Len())
@@ -114,7 +109,7 @@ func declareBaseMixin() {
 			return res
 		})
 
-	CreateMethod("BaseMixin", "Load",
+	model.CreateMethod("Load",
 		`Load query all data of the RecordCollection and store in cache.
 		fields are the fields to retrieve in the expression format,
 		i.e. "User.Profile.Age" or "user_id.profile_id.age".
@@ -124,7 +119,7 @@ func declareBaseMixin() {
 			return rc.Load(fields...)
 		})
 
-	CreateMethod("BaseMixin", "Write",
+	model.CreateMethod("Write",
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
@@ -132,13 +127,13 @@ func declareBaseMixin() {
 			return rc.update(data, fieldsToUnset...)
 		})
 
-	CreateMethod("BaseMixin", "Unlink",
+	model.CreateMethod("Unlink",
 		`Unlink deletes the given records in the database.`,
 		func(rc RecordCollection) int64 {
 			return rc.delete()
 		})
 
-	CreateMethod("BaseMixin", "Copy",
+	model.CreateMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
 		func(rc RecordCollection) RecordCollection {
@@ -160,7 +155,7 @@ func declareBaseMixin() {
 			return newRs
 		})
 
-	CreateMethod("BaseMixin", "NameGet",
+	model.CreateMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc RecordCollection) string {
 			if _, nameExists := rc.mi.fields.get("name"); nameExists {
@@ -172,7 +167,7 @@ func declareBaseMixin() {
 			return rc.String()
 		})
 
-	CreateMethod("BaseMixin", "NameSearch",
+	model.CreateMethod("NameSearch",
 		`NameSearch searches for records that have a display name matching the given
 		"name" pattern when compared with the given "operator", while also
 		matching the optional search domain ("args").
@@ -196,7 +191,7 @@ func declareBaseMixin() {
 			return res
 		})
 
-	CreateMethod("BaseMixin", "GetFormviewId",
+	model.CreateMethod("GetFormviewId",
 		`GetFormviewId returns an view id to open the document with.
 		This method is meant to be overridden in addons that want
  		to give specific view ids for example.`,
@@ -204,7 +199,7 @@ func declareBaseMixin() {
 			return ""
 		})
 
-	CreateMethod("BaseMixin", "GetFormviewAction",
+	model.CreateMethod("GetFormviewAction",
 		`GetFormviewAction returns an action to open the document.
 		This method is meant to be overridden in addons that want
 		to give specific view ids for example.`,
@@ -222,7 +217,7 @@ func declareBaseMixin() {
 			}
 		})
 
-	CreateMethod("BaseMixin", "FieldsViewGet",
+	model.CreateMethod("FieldsViewGet",
 		`FieldsViewGet is the base implementation of the 'FieldsViewGet' method which
 		gets the detailed composition of the requested view like fields, model,
 		view architecture.`,
@@ -249,7 +244,7 @@ func declareBaseMixin() {
 			return &res
 		})
 
-	CreateMethod("BaseMixin", "FieldsGet",
+	model.CreateMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
 		The embedded fields are included.
 		The string, help, and selection (if present) attributes are translated.`,
@@ -285,7 +280,7 @@ func declareBaseMixin() {
 			return res
 		})
 
-	CreateMethod("BaseMixin", "ProcessView",
+	model.CreateMethod("ProcessView",
 		`ProcessView makes all the necessary modifications to the view
 		arch and returns the new xml string.`,
 		func(rc RecordCollection, arch string, fieldInfos map[string]*FieldInfo) string {
@@ -305,7 +300,7 @@ func declareBaseMixin() {
 			return res
 		})
 
-	CreateMethod("BaseMixin", "AddModifiers",
+	model.CreateMethod("AddModifiers",
 		`AddModifiers adds the modifiers attribute nodes to given xml doc.`,
 		func(rc RecordCollection, doc *etree.Document, fieldInfos map[string]*FieldInfo) {
 			for _, fieldTag := range doc.FindElements("//field") {
@@ -319,7 +314,7 @@ func declareBaseMixin() {
 			}
 		})
 
-	CreateMethod("BaseMixin", "UpdateFieldNames",
+	model.CreateMethod("UpdateFieldNames",
 		`UpdateFieldNames changes the field names in the view to the column names.
 		If a field name is already column names then it does nothing.`,
 		func(rc RecordCollection, doc *etree.Document) {
@@ -337,7 +332,7 @@ func declareBaseMixin() {
 			}
 		})
 
-	CreateMethod("BaseMixin", "SearchRead",
+	model.CreateMethod("SearchRead",
 		`SearchRead retrieves database records according to the filters defined in params.`,
 		func(rc RecordCollection, params SearchParams) []FieldMap {
 			if searchCond := ParseDomain(params.Domain); searchCond != nil {
@@ -360,14 +355,14 @@ func declareBaseMixin() {
 			return rSet.Call("Read", params.Fields).([]FieldMap)
 		})
 
-	CreateMethod("BaseMixin", "DefaultGet",
+	model.CreateMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
 		func(rc RecordCollection) FieldMap {
 			// TODO Implement DefaultGet
 			return make(FieldMap)
 		})
 
-	CreateMethod("BaseMixin", "Onchange",
+	model.CreateMethod("Onchange",
 		`Onchange returns the values that must be modified in the pseudo-record
 		given as params.Values`,
 		func(rc RecordCollection, params OnchangeParams) FieldMap {
@@ -375,32 +370,32 @@ func declareBaseMixin() {
 			return make(FieldMap)
 		})
 
-	CreateMethod("BaseMixin", "Search",
+	model.CreateMethod("Search",
 		`Search returns a new RecordSet filtering on the current one with the
 		additional given Condition`,
 		func(rc RecordCollection, cond *Condition) RecordCollection {
 			return rc.Search(cond)
 		})
 
-	CreateMethod("BaseMixin", "Filter",
+	model.CreateMethod("Filter",
 		`Filter returns a new RecordSet filtered on records matching the given additional condition.`,
 		func(rc RecordCollection, fieldName, op string, data interface{}) RecordCollection {
 			return rc.Filter(fieldName, op, data)
 		})
 
-	CreateMethod("BaseMixin", "Exclude",
+	model.CreateMethod("Exclude",
 		`Exclude returns a new RecordSet filtered on records NOT matching the given additional condition.`,
 		func(rc RecordCollection, fieldName, op string, data interface{}) RecordCollection {
 			return rc.Exclude(fieldName, op, data)
 		})
 
-	CreateMethod("BaseMixin", "Distinct",
+	model.CreateMethod("Distinct",
 		`Distinct returns a new RecordSet without duplicates`,
 		func(rc RecordCollection) RecordCollection {
 			return rc.Distinct()
 		})
 
-	CreateMethod("BaseMixin", "Fetch",
+	model.CreateMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
 		with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 		if you want to fetch all fields.`,
@@ -408,31 +403,31 @@ func declareBaseMixin() {
 			return rc.Fetch()
 		})
 
-	CreateMethod("BaseMixin", "GroupBy",
+	model.CreateMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.GroupBy(exprs...)
 		})
 
-	CreateMethod("BaseMixin", "Limit",
+	model.CreateMethod("Limit",
 		`Limit returns a new RecordSet with only the first 'limit' records.`,
 		func(rc RecordCollection, limit int) RecordCollection {
 			return rc.Limit(limit)
 		})
 
-	CreateMethod("BaseMixin", "Offset",
+	model.CreateMethod("Offset",
 		`Offset returns a new RecordSet with only the records starting at offset`,
 		func(rc RecordCollection, offset int) RecordCollection {
 			return rc.Offset(offset)
 		})
 
-	CreateMethod("BaseMixin", "OrderBy",
+	model.CreateMethod("OrderBy",
 		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.OrderBy(exprs...)
 		})
 
-	CreateMethod("BaseMixin", "Union",
+	model.CreateMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
 		func(rc RecordCollection, other RecordCollection) RecordCollection {
