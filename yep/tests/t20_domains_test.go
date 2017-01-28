@@ -20,6 +20,7 @@ import (
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/models/security"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestDomains(t *testing.T) {
