@@ -33,9 +33,9 @@ func (rc RecordCollection) Call(methName string, args ...interface{}) interface{
 // CallMulti calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as []interface{}.
 func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
-	methInfo, ok := rc.mi.methods.get(methName)
+	methInfo, ok := rc.model.methods.get(methName)
 	if !ok {
-		logging.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.mi.name)
+		logging.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.model.name)
 	}
 	methLayer := methInfo.topLayer
 	return rc.callMulti(methLayer, args...)
@@ -55,7 +55,7 @@ func (rc RecordCollection) Super(args ...interface{}) interface{} {
 // This method is meant to be used inside a method layer function to call its parent.
 func (rc RecordCollection) SuperMulti(args ...interface{}) []interface{} {
 	if len(rc.callStack) == 0 {
-		logging.LogAndPanic(log, "Empty call stack", "model", rc.mi.name)
+		logging.LogAndPanic(log, "Empty call stack", "model", rc.model.name)
 	}
 	currentLayer := rc.callStack[0]
 	methInfo := currentLayer.methInfo
@@ -70,9 +70,9 @@ func (rc RecordCollection) SuperMulti(args ...interface{}) []interface{} {
 
 // MethodType returns the type of the method given by methName
 func (rc RecordCollection) MethodType(methName string) reflect.Type {
-	methInfo, ok := rc.mi.methods.get(methName)
+	methInfo, ok := rc.model.methods.get(methName)
 	if !ok {
-		logging.LogAndPanic(log, "Unknown method in model", "model", rc.mi.name, "method", methName)
+		logging.LogAndPanic(log, "Unknown method in model", "model", rc.model.name, "method", methName)
 	}
 	return methInfo.methodType
 }

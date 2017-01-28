@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/npiganeau/yep/yep/models/operator"
 )
 
 // ExprSep define the expression separation
@@ -29,7 +29,7 @@ const (
 
 type condValue struct {
 	exprs    []string
-	operator DomainOperator
+	operator operator.Operator
 	arg      interface{}
 	cond     *Condition
 	isOr     bool
@@ -37,110 +37,207 @@ type condValue struct {
 	isCond   bool
 }
 
-// Condition struct.
-// work for WHERE conditions.
+// A Condition represents a WHERE clause of an SQL query.
 type Condition struct {
 	params []condValue
 }
 
-// NewCondition return new condition struct
-func NewCondition() *Condition {
+// newCondition returns a new condition struct
+func newCondition() *Condition {
 	c := &Condition{}
 	return c
 }
 
-// checkArgs check expressions, operator and args and panics if
-// they are not valid
-func checkArgs(expr, op string, arg interface{}) {
-	if expr == "" || op == "" || arg == nil {
-		logging.LogAndPanic(log, "Condition arguments cannot empty", "expr", expr, "operator", op, "arg", arg)
-	}
-	dop := DomainOperator(op)
-	if !allowedOperators[dop] {
-		logging.LogAndPanic(log, "Unknown operator", "operator", op)
-	}
+// And completes the current condition with a simple AND clause : c.And().nextCond => c AND nextCond
+func (c Condition) And() *ConditionStart {
+	res := ConditionStart{cond: c}
+	return &res
 }
 
-// And add expression to condition
-func (c Condition) And(expr string, op string, arg interface{}) *Condition {
-	checkArgs(expr, op, arg)
-	c.params = append(c.params, condValue{
-		exprs:    strings.Split(expr, ExprSep),
-		operator: DomainOperator(op),
-		arg:      arg,
-	})
+// AndCond completes the current condition with the given cond as an AND clause
+// between brackets : c.And(cond) => c AND (cond)
+func (c Condition) AndCond(cond *Condition) *Condition {
+	c.params = append(c.params, condValue{cond: cond, isCond: true})
 	return &c
 }
 
-// AndNot add NOT expression to condition
-func (c Condition) AndNot(expr string, op string, arg interface{}) *Condition {
-	checkArgs(expr, op, arg)
-	c.params = append(c.params, condValue{
-		exprs:    strings.Split(expr, ExprSep),
-		operator: DomainOperator(op),
-		arg:      arg,
-		isNot:    true,
-	})
+// AndNot completes the current condition with a simple AND NOT clause :
+// c.AndNot().nextCond => c AND NOT nextCond
+func (c Condition) AndNot() *ConditionStart {
+	res := ConditionStart{cond: c}
+	res.nextIsNot = true
+	return &res
+}
+
+// AndNotCond completes the current condition with an AND NOT clause between
+// brackets : c.AndNot(cond) => c AND NOT (cond)
+func (c Condition) AndNotCond(cond *Condition) *Condition {
+	c.params = append(c.params, condValue{cond: cond, isCond: true, isNot: true})
 	return &c
 }
 
-// AndCond combine a condition to current condition
-func (c *Condition) AndCond(cond *Condition) *Condition {
-	c = c.clone()
-	if c == cond {
-		logging.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
-	}
-	if cond != nil {
-		c.params = append(c.params, condValue{cond: cond, isCond: true})
-	}
-	return c
+// Or completes the current condition both with a simple OR clause : c.Or().nextCond => c OR nextCond
+func (c Condition) Or() *ConditionStart {
+	res := ConditionStart{cond: c}
+	res.nextIsOr = true
+	return &res
 }
 
-// Or add OR expression to condition
-func (c Condition) Or(expr string, op string, arg interface{}) *Condition {
-	checkArgs(expr, op, arg)
-	c.params = append(c.params, condValue{
-		exprs:    strings.Split(expr, ExprSep),
-		operator: DomainOperator(op),
-		arg:      arg,
-		isOr:     true,
-	})
+// OrCond completes the current condition both with an OR clause between
+// brackets : c.Or(cond) => c OR (cond)
+func (c Condition) OrCond(cond *Condition) *Condition {
+	c.params = append(c.params, condValue{cond: cond, isCond: true, isOr: true})
 	return &c
 }
 
-// OrNot add OR NOT expression to condition
-func (c Condition) OrNot(expr string, op string, arg interface{}) *Condition {
-	checkArgs(expr, op, arg)
-	c.params = append(c.params, condValue{
-		exprs:    strings.Split(expr, ExprSep),
-		operator: DomainOperator(op),
-		arg:      arg,
-		isNot:    true,
-		isOr:     true,
-	})
+// OrNot completes the current condition both with a simple OR NOT clause : c.OrNot().nextCond => c OR NOT nextCond
+func (c Condition) OrNot() *ConditionStart {
+	res := ConditionStart{cond: c}
+	res.nextIsNot = true
+	res.nextIsOr = true
+	return &res
+}
+
+// OrNotCond completes the current condition both with an OR NOT clause between
+// brackets : c.OrNot(cond) => c OR NOT (cond)
+func (c Condition) OrNotCond(cond *Condition) *Condition {
+	c.params = append(c.params, condValue{cond: cond, isCond: true, isOr: true, isNot: true})
 	return &c
 }
 
-// OrCond combine a OR condition to current condition
-func (c *Condition) OrCond(cond *Condition) *Condition {
-	c = c.clone()
-	if c == cond {
-		logging.LogAndPanic(log, "Cannot use self as sub condition", "condition", c)
+// A ConditionStart is an object representing a Condition when
+// we just added a logical operator (AND, OR, ...) and we are
+// about to add a predicate.
+type ConditionStart struct {
+	cond      Condition
+	nextIsOr  bool
+	nextIsNot bool
+}
+
+// Field adds a field path (dot separated) to this condition
+func (cs ConditionStart) Field(name string) *ConditionField {
+	newExprs := strings.Split(name, ExprSep)
+	cp := ConditionField{cs: cs}
+	cp.exprs = append(cp.exprs, newExprs...)
+	return &cp
+}
+
+// FilteredOn adds a condition with a table join on the given field and
+// filters the result with the given condition
+func (cs ConditionStart) FilteredOn(field string, condition *Condition) *Condition {
+	res := cs.cond
+	for i, p := range condition.params {
+		condition.params[i].exprs = append([]string{field}, p.exprs...)
 	}
-	if cond != nil {
-		c.params = append(c.params, condValue{cond: cond, isCond: true, isOr: true})
-	}
-	return c
+	res.params = append(res.params, condition.params...)
+	return &res
+}
+
+// A ConditionField is a partial Condition when we have set
+// a field name in a predicate and are about to add an operator.
+type ConditionField struct {
+	cs    ConditionStart
+	exprs []string
+}
+
+// FieldName returns the field name of this ConditionField
+func (c ConditionField) FieldName() FieldName {
+	return FieldName(strings.Join(c.exprs, ExprSep))
+}
+
+var _ FieldNamer = ConditionField{}
+
+// addOperator adds a condition value to the condition with the given operator and data
+func (c ConditionField) addOperator(op operator.Operator, data interface{}) *Condition {
+	cond := c.cs.cond
+	cond.params = append(cond.params, condValue{
+		exprs:    c.exprs,
+		operator: op,
+		arg:      data,
+		isNot:    c.cs.nextIsNot,
+		isOr:     c.cs.nextIsOr,
+	})
+	return &cond
+}
+
+// Equals appends the '=' operator to the current Condition
+func (c ConditionField) Equals(data interface{}) *Condition {
+	return c.addOperator(operator.Equals, data)
+}
+
+// NotEquals appends the '!=' operator to the current Condition
+func (c ConditionField) NotEquals(data interface{}) *Condition {
+	return c.addOperator(operator.NotEquals, data)
+}
+
+// Greater appends the '>' operator to the current Condition
+func (c ConditionField) Greater(data interface{}) *Condition {
+	return c.addOperator(operator.Greater, data)
+}
+
+// GreaterOrEqual appends the '>=' operator to the current Condition
+func (c ConditionField) GreaterOrEqual(data interface{}) *Condition {
+	return c.addOperator(operator.GreaterOrEqual, data)
+}
+
+// Lower appends the '<' operator to the current Condition
+func (c ConditionField) Lower(data interface{}) *Condition {
+	return c.addOperator(operator.Lower, data)
+}
+
+// LowerOrEqual appends the '<=' operator to the current Condition
+func (c ConditionField) LowerOrEqual(data interface{}) *Condition {
+	return c.addOperator(operator.LowerOrEqual, data)
+}
+
+// LikePattern appends the 'LIKE' operator to the current Condition
+func (c ConditionField) LikePattern(data interface{}) *Condition {
+	return c.addOperator(operator.LikePattern, data)
+}
+
+// ILikePattern appends the 'ILIKE' operator to the current Condition
+func (c ConditionField) ILikePattern(data interface{}) *Condition {
+	return c.addOperator(operator.ILikePattern, data)
+}
+
+// Like appends the 'LIKE %%' operator to the current Condition
+func (c ConditionField) Like(data interface{}) *Condition {
+	return c.addOperator(operator.Like, data)
+}
+
+// NotLike appends the 'NOT LIKE %%' operator to the current Condition
+func (c ConditionField) NotLike(data interface{}) *Condition {
+	return c.addOperator(operator.NotLike, data)
+}
+
+// ILike appends the 'ILIKE %%' operator to the current Condition
+func (c ConditionField) ILike(data interface{}) *Condition {
+	return c.addOperator(operator.ILike, data)
+}
+
+// NotILike appends the 'NOT ILIKE %%' operator to the current Condition
+func (c ConditionField) NotILike(data interface{}) *Condition {
+	return c.addOperator(operator.NotILike, data)
+}
+
+// In appends the 'IN' operator to the current Condition
+func (c ConditionField) In(data interface{}) *Condition {
+	return c.addOperator(operator.In, data)
+}
+
+// NotIn appends the 'NOT IN' operator to the current Condition
+func (c ConditionField) NotIn(data interface{}) *Condition {
+	return c.addOperator(operator.NotIn, data)
+}
+
+// ChildOf appends the 'child of' operator to the current Condition
+func (c ConditionField) ChildOf(data interface{}) *Condition {
+	return c.addOperator(operator.ChildOf, data)
 }
 
 // IsEmpty check the condition arguments are empty or not.
 func (c *Condition) IsEmpty() bool {
 	return len(c.params) == 0
-}
-
-// clone clone a condition
-func (c Condition) clone() *Condition {
-	return &c
 }
 
 // getAllExpressions returns a list of all exprs used in this condition,
@@ -191,8 +288,9 @@ func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
 		}
 		argValue := reflect.ValueOf(rc)
 		if firstArgType != reflect.TypeOf(RecordCollection{}) {
-			argValue = reflect.New(firstArgType).Elem()
-			argValue.FieldByName("RecordCollection").Set(argValue)
+			newArgValue := reflect.New(firstArgType).Elem()
+			newArgValue.FieldByName("RecordCollection").Set(argValue)
+			argValue = newArgValue
 		}
 
 		res := fnctVal.Call([]reflect.Value{argValue})

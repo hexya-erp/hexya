@@ -520,8 +520,8 @@ func checkComputeMethodsSignature() {
 			msg = "Compute methods should return a value"
 		case methType.NumOut() == 1 && stored:
 			msg = "Compute methods for stored field must return fields to unset as second value"
-		case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldName{}):
-			msg = "Second return value of compute methods must be []models.FieldName"
+		case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldNamer{}):
+			msg = "Second return value of compute methods must be []models.FieldNamer"
 		case methType.NumOut() > 2:
 			msg = "Too many return values for compute method"
 		}

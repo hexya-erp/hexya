@@ -114,7 +114,7 @@ value.
 
 [source,go]
 ----
-customer := pool.ResPartner().NewSet(env).Create(pool.ResPartner{
+customer := pool.ResPartner().NewSet(env).Create(pool.ResPartnerData{
     Name: "Jane Smith",
     Email: "jsmith@example.com",
     Position: "Sale's Manager",
@@ -134,7 +134,7 @@ value, then all non-zero values of data are updated.
 
 [source,go]
 ----
-partner := pool.ResPartner().NewSet(env).Filter("Company.Name", "=", "NDP Systèmes")
+partner := pool.ResPartner().NewSet(env).Search(pool.ResPartner().Where().Company().Name().Equals("NDP Systèmes"))
 partner.Write(pool.ResPartner{
     Lang: "fr_FR",
 })
@@ -164,7 +164,7 @@ calls to a getter will not call `Read()` again if the value is already loaded.
 [source,go]
 ----
 partners := pool.ResPartner().NewSet(env)
-partners.Filter("Name", "ilike", "John").Read(pool.ResPartner_Name, pool.ResPartner_Birthday)
+partners.Search(pool.ResPartner().Where().Name().ILike("John")).Read(pool.ResPartner().Name, pool.ResPartner().Birthday)
 
 // The following lines will not load from the database, but use
 // the values cached in the RecordSet.
@@ -178,26 +178,34 @@ for _, p := range partners.Records() {
 
 ==== Search Methods
 
-`*Search(condition *models.Condition) RecordSetType*`::
+`*Search(condition ConditionType) RecordSetType*`::
 Apply the given search condition to the given RecordSet.
-A new Condition instance can be created with `models.NewCondition()`.
+A new Condition instance can be created from a model instance.
 
 [source,go]
 ----
-cond := models.NewCondition().And(pool.ResUsers_Email, "ilike", "example.com").Or(pool.ResUsers_Email, "ilike", "example.net")
+cond := pool.ResUsers().Email().ILike("example.com").Or().Email().ILike("example.net")
 users := pool.ResUsers().NewSet(env).Search(cond)
 ----
 
 ====
 .Available methods on Condition type
-* `And(field models.FieldName, operator string, value interface{})`
-* `AndNot(field models.FieldName, operator string, value interface{})`
-* `AndCond(condition *models.Condition)`
-* `Or(field models.FieldName, operator string, value interface{})`
-* `OrNot(field models.FieldName, operator string, value interface{})`
-* `OrCond(condition *models.Condition)`
+* `And()`
+* `AndNot()`
+* `AndCond(condition ConditionType)`
+* `Or()`
+* `OrNot()`
+* `OrCond(condition ConditionType)`
+====
+====
+.Available operator methods
+Depending on the field type, all or part of the following operator methods
+will be available:
 
-The `value` parameter of the above function can be any of the following:
+`Equals`, `NotEquals`, `Greater`, `GreaterOrEqual`, `Lower`, `LowerOrEqual`,
+			`LikePattern`, `Like`, `NotLike`, `ILike`, `NotILike`, `ILikePattern`, `In`, `NotIn`, `ChildOf`
+
+Each of these methods take a `value` parameter which can be any of the following:
 
 * A standard type (int, string, etc.)
 * A type that implements `driver.Valuer`
@@ -211,13 +219,28 @@ The function will be evaluated at the time of the query by passing it the
 RecordSet we are querying and the result will be substituted in the query.
 ====
 
-`*Filter(field models.FieldName, operator string, value interface{}) RecordSetType*`::
-`Filter` is a shortcut for `Condition(models.NewCondition().And(field,
-operator, value))`.
+Searches can also be performed on joined model fields with the 
+`__FK__FilteredOn()` methods:
 
-`*Exclude(field models.FieldName, operator string, value interface{}) RecordSetType*`::
-`Exclude` is a shortcut for `Condition(models.NewCondition().AndNot(field,
- operator, value))`.
+[source,go]
+----
+cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().Function().ILike("manager"))
+users := pool.ResUsers().NewSet(env).Search(cond)
+----
+
+Conditions with `__FK__FilteredOn()` can be nested:
+
+[source,go]
+----
+cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().CountryFilteredOn(pool.ResCountry().Code.Equals("F")))
+----
+
+They can also be mixed with simple conditions:
+
+[source,go]
+----
+cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().Function().ILike("manager")).And().Login().ILike("John")
+----
 
 `*SearchCount() int*`::
 Return the number of records matching the search condition.
@@ -285,7 +308,11 @@ than one Record or if there are no Records at all.
 
 `*Filtered(fn func(RecordType) bool) RecordSetType*`::
 Select the records in this RecordSet such that fn(Record) is true, and return
-them as a RecordSet.
+them as a RecordSet. Filtered will use the data in cache if present.
+
+NOTE: Unless the RecordSet is already loaded in cache, it is generally faster
+and more efficient to use `Search()` on the RecordSet to return a filtered
+Set.
 
 `*Sorted(key func(Record) interface{}) RecordSetType*`::
 Returns a sorted copy of this RecordSet. `key(record)` should return a
@@ -364,8 +391,8 @@ instead.
 
 [source,go]
 ----
-noReplyUser := pool.ResUsers().NewSet(env).Filter("Email", "=", "no-reply@ndp-systemes.fr").Limit(1)
-partners := pool.ResPartner().NewSet(env).Filter("Name", "ilike", "John")
+noReplyUser := pool.ResUsers().NewSet(env).Search(pool.ResUsers().Email().Equals("no-reply@ndp-systemes.fr")).Limit(1)
+partners := pool.ResPartner().NewSet(env).Search(pool.ResPartner().Name().ILike("John"))
 
 partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
 ----
@@ -423,8 +450,8 @@ extend in place existing models created by other modules.
 
 [source,go]
 ----
-resPartnerModel := models.Registry.MustGet("ResPartner")
-resUsersModel := pool.ResUsers
+resPartnerModel := pool.ResPartner()
+resUsersModel := pool.ResUsers()
 ----
 
 All models and fields definitions MUST be made in the `init()` of a package
@@ -658,7 +685,7 @@ Record with the values to update and a slice of field names to unset.
 
 [source,go]
 ----
-func (RecordSetType) (*RecordType, []models.FieldName)
+func (RecordSetType) (*RecordType, []models.FieldNamer)
 ----
 
 `related(__path__)`::
@@ -731,8 +758,8 @@ pool.ResPartner.CreateMethod("UpdateBirthday",
 
 [IMPORTANT]
 ====
-The `methodName` attributes of `CreateMethod` *MUST* be string
-literals for `yep-generate` to work correctly. Do *NOT* use variable or
+The `methodName` attribute of `CreateMethod` *MUST* be a string
+literal for `yep-generate` to work correctly. Do *NOT* use variable or
 constant here.
 ====
 

@@ -24,16 +24,16 @@ func (rc RecordCollection) addRecordRuleConditions(uid int64, perm security.Perm
 	}
 	rSet := rc
 	// Add global rules
-	for _, rule := range rSet.mi.rulesRegistry.globalRules {
+	for _, rule := range rSet.model.rulesRegistry.globalRules {
 		if perm&rule.Perms > 0 {
 			rSet = rSet.Search(rule.Condition)
 		}
 	}
 	// Add groups rules
 	userGroups := security.AuthenticationRegistry.UserGroups(uid)
-	groupCondition := NewCondition()
+	groupCondition := newCondition()
 	for _, group := range userGroups {
-		for _, rule := range rSet.mi.rulesRegistry.rulesByGroup[group.Name] {
+		for _, rule := range rSet.model.rulesRegistry.rulesByGroup[group.Name] {
 			if perm&rule.Perms > 0 {
 				groupCondition = groupCondition.OrCond(rule.Condition)
 			}

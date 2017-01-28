@@ -48,11 +48,11 @@ func declareMethods() {
 
 	user.CreateMethod("computeAge",
 		`ComputeAge is a sample method layer for testing`,
-		func(rs pool.UserSet) (*pool.UserData, []models.FieldName) {
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
 			res := pool.UserData{
 				Age: rs.Profile().Age(),
 			}
-			return &res, []models.FieldName{pool.User_Age}
+			return &res, []models.FieldNamer{pool.User().Age()}
 		})
 
 	user.ExtendMethod("PrefixedUser", "",
@@ -65,11 +65,11 @@ func declareMethods() {
 		})
 
 	user.CreateMethod("computeDecoratedName", "",
-		func(rs pool.UserSet) (*pool.UserData, []models.FieldName) {
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
 			res := pool.UserData{
 				DecoratedName: rs.PrefixedUser("User")[0],
 			}
-			return &res, []models.FieldName{pool.User_DecoratedName}
+			return &res, []models.FieldNamer{pool.User().DecoratedName()}
 		})
 
 	addressMI := pool.AddressMixIn()

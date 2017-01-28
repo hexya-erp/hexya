@@ -14,7 +14,10 @@
 
 package models
 
-import "github.com/npiganeau/yep/yep/tools/logging"
+import (
+	"github.com/npiganeau/yep/yep/models/operator"
+	"github.com/npiganeau/yep/yep/tools/logging"
+)
 
 // A Domain is a list of search criteria (DomainTerm) in the form of
 // a tuplet (field_name, operator, value).
@@ -36,49 +39,6 @@ const (
 	PREFIX_NOT DomainPrefixOperator = "!"
 )
 
-// A DomainOperator is an operator inside a DomainTerm.
-// Each operator can be matched with an equivalent SQL operator.
-type DomainOperator string
-
-// Domain operators
-const (
-	OPERATOR_EQUALS        DomainOperator = "="
-	OPERATOR_NOT_EQUALS    DomainOperator = "!="
-	OPERATOR_GREATER       DomainOperator = ">"
-	OPERATOR_GREATER_EQUAL DomainOperator = ">="
-	OPERATOR_LOWER         DomainOperator = "<"
-	OPERATOR_LOWER_EQUAL   DomainOperator = "<="
-	OPERATOR_UNSET_EQUALS  DomainOperator = "=?"
-	OPERATOR_LIKE_PATTERN  DomainOperator = "=like"
-	OPERATOR_LIKE          DomainOperator = "like"
-	OPERATOR_NOT_LIKE      DomainOperator = "not like"
-	OPERATOR_ILIKE         DomainOperator = "ilike"
-	OPERATOR_NOT_ILIKE     DomainOperator = "not ilike"
-	OPERATOR_ILIKE_PATTERN DomainOperator = "=ilike"
-	OPERATOR_IN            DomainOperator = "in"
-	OPERATOR_NOT_IN        DomainOperator = "not in"
-	OPERATOR_CHILD_OF      DomainOperator = "child_of"
-)
-
-var allowedOperators = map[DomainOperator]bool{
-	OPERATOR_EQUALS:        true,
-	OPERATOR_NOT_EQUALS:    true,
-	OPERATOR_GREATER:       true,
-	OPERATOR_GREATER_EQUAL: true,
-	OPERATOR_LOWER:         true,
-	OPERATOR_LOWER_EQUAL:   true,
-	OPERATOR_UNSET_EQUALS:  true,
-	OPERATOR_LIKE_PATTERN:  true,
-	OPERATOR_LIKE:          true,
-	OPERATOR_NOT_LIKE:      true,
-	OPERATOR_ILIKE:         true,
-	OPERATOR_NOT_ILIKE:     true,
-	OPERATOR_ILIKE_PATTERN: true,
-	OPERATOR_IN:            true,
-	OPERATOR_NOT_IN:        true,
-	OPERATOR_CHILD_OF:      true,
-}
-
 // ParseDomain gets Domain and parses it into a RecordSet query Condition.
 // Returns nil if the domain is []
 func ParseDomain(dom Domain) *Condition {
@@ -87,7 +47,7 @@ func ParseDomain(dom Domain) *Condition {
 		return nil
 	}
 	for len(dom) > 0 {
-		res = NewCondition().AndCond(res).AndCond(parseDomain(&dom))
+		res = newCondition().AndCond(res).AndCond(parseDomain(&dom))
 	}
 	return res
 }
@@ -99,7 +59,7 @@ func parseDomain(dom *Domain) *Condition {
 		return nil
 	}
 
-	res := NewCondition()
+	res := newCondition()
 	currentOp := PREFIX_AND
 
 	operatorTerm := (*dom)[0]
@@ -151,16 +111,16 @@ func addTerm(cond *Condition, term DomainTerm, op DomainPrefixOperator) *Conditi
 		logging.LogAndPanic(log, "Malformed domain term", "term", term)
 	}
 	fieldName := term[0].(string)
-	operator := DomainOperator(term[1].(string))
+	optr := operator.Operator(term[1].(string))
 	value := term[2]
 	meth := getConditionMethod(cond, op)
-	cond = meth(fieldName, string(operator), value)
+	cond = meth().Field(fieldName).addOperator(optr, value)
 	return cond
 }
 
 // getConditionMethod returns the condition method to use on the given condition
 // for the given prefix operator and negation condition.
-func getConditionMethod(cond *Condition, op DomainPrefixOperator) func(string, string, interface{}) *Condition {
+func getConditionMethod(cond *Condition, op DomainPrefixOperator) func() *ConditionStart {
 	switch op {
 	case PREFIX_AND:
 		return cond.And

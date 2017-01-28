@@ -347,3 +347,24 @@ func createModel(name string, options Option) *Model {
 	Registry.add(mi)
 	return mi
 }
+
+// Field starts a condition on this model
+func (m *Model) Field(name string) *ConditionField {
+	newExprs := strings.Split(name, ExprSep)
+	cp := ConditionField{}
+	cp.exprs = append(cp.exprs, newExprs...)
+	return &cp
+}
+
+// FilteredOn adds a condition with a table join on the given field and
+// filters the result with the given condition
+func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
+	res := Condition{params: make([]condValue, len(condition.params))}
+	i := 0
+	for _, p := range condition.params {
+		p.exprs = append([]string{field}, p.exprs...)
+		res.params[i] = p
+		i++
+	}
+	return &res
+}

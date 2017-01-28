@@ -20,7 +20,7 @@ import "github.com/npiganeau/yep/yep/models/security"
 // or all the computed fields of the model if not given.
 // Returned fieldMap keys are field's JSON name
 func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
-	for _, fInfo := range rc.mi.fields.getComputedFields(fields...) {
+	for _, fInfo := range rc.model.fields.getComputedFields(fields...) {
 		if !checkFieldPermission(fInfo, rc.env.uid, security.Read) {
 			// We do not have the access rights on this field, so we skip it.
 			continue
@@ -32,7 +32,7 @@ func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 		}
 		newParams := convertInterfaceToFieldMap(rc.Call(fInfo.compute))
 		for k, v := range newParams {
-			key, _ := rc.mi.fields.get(k)
+			key, _ := rc.model.fields.get(k)
 			(*params)[key.json] = v
 		}
 	}
@@ -43,7 +43,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 	fieldNames := fMap.Keys()
 	var toUpdate []computeData
 	for _, fieldName := range fieldNames {
-		refFieldInfo, ok := rc.mi.fields.get(fieldName)
+		refFieldInfo, ok := rc.model.fields.get(fieldName)
 		if !ok {
 			continue
 		}
@@ -54,7 +54,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 	for _, cData := range toUpdate {
 		recs := rSet.env.Pool(cData.modelInfo.name)
 		if cData.path != "" {
-			recs = recs.Filter(cData.path, "in", rSet.Ids())
+			recs = recs.Search(rSet.Model().Field(cData.path).In(rSet.Ids()))
 		} else {
 			recs = rSet
 		}
@@ -62,7 +62,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 		for _, rec := range recs.Records() {
 			retVal := rec.CallMulti(cData.compute)
 			vals := convertInterfaceToFieldMap(retVal[0])
-			toUnset := retVal[1].([]FieldName)
+			toUnset := retVal[1].([]FieldNamer)
 			rec.Call("Write", vals, toUnset)
 		}
 	}

@@ -48,6 +48,13 @@ type Query struct {
 	distinct  bool
 }
 
+// clone returns a pointer to a deep copy of this Query
+func (q Query) clone() *Query {
+	newCond := *q.cond
+	q.cond = &newCond
+	return &q
+}
+
 // sqlWhereClause returns the sql string and parameters corresponding to the
 // WHERE clause of this Query
 func (q *Query) sqlWhereClause() (string, SQLParams) {
@@ -107,7 +114,7 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 		sql += fmt.Sprintf(`(%s) `, subSQL)
 		args = args.Extend(subArgs)
 	} else {
-		exprs := jsonizeExpr(q.recordSet.mi, cv.exprs)
+		exprs := jsonizeExpr(q.recordSet.model, cv.exprs)
 		field := q.joinedFieldExpression(exprs)
 		opSql, arg := adapter.operatorSQL(cv.operator, cv.arg)
 		sql += fmt.Sprintf(`%s %s `, field, opSql)
@@ -140,7 +147,7 @@ func (q *Query) sqlOrderByClause() string {
 	directions := make([]string, len(q.orders))
 	for i, order := range q.orders {
 		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
-		oExprs := jsonizeExpr(q.recordSet.mi, strings.Split(fieldOrder[0], ExprSep))
+		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
 		fExprs = append(fExprs, oExprs)
 		if len(fieldOrder) > 1 {
 			directions[i] = fieldOrder[1]
@@ -159,7 +166,7 @@ func (q *Query) sqlOrderByClause() string {
 func (q *Query) deleteQuery() (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	sql, args := q.sqlWhereClause()
-	delQuery := fmt.Sprintf(`DELETE FROM %s %s`, adapter.quoteTableName(q.recordSet.mi.tableName), sql)
+	delQuery := fmt.Sprintf(`DELETE FROM %s %s`, adapter.quoteTableName(q.recordSet.model.tableName), sql)
 	return delQuery, args
 }
 
@@ -177,12 +184,12 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 		sql string
 	)
 	for k, v := range data {
-		fi := q.recordSet.mi.fields.mustGet(k)
+		fi := q.recordSet.model.fields.mustGet(k)
 		cols[i] = fi.json
 		vals[i] = v
 		i++
 	}
-	tableName := adapter.quoteTableName(q.recordSet.mi.tableName)
+	tableName := adapter.quoteTableName(q.recordSet.model.tableName)
 	fields := strings.Join(cols, ", ")
 	values := "?" + strings.Repeat(", ?", len(vals)-1)
 	sql = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id", tableName, fields, values)
@@ -203,18 +210,18 @@ func (q *Query) countQuery() (string, SQLParams) {
 // expression pointing at the field, either as names or columns
 // (e.g. 'User.Name' or 'user_id.name')
 func (q *Query) selectQuery(fields []string) (string, SQLParams) {
-	addNameSearchesToCondition(q.recordSet.mi, q.cond)
+	addNameSearchesToCondition(q.recordSet.model, q.cond)
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {
-		fieldExprs[i] = jsonizeExpr(q.recordSet.mi, strings.Split(f, ExprSep))
+		fieldExprs[i] = jsonizeExpr(q.recordSet.model, strings.Split(f, ExprSep))
 	}
 	// Then given by condition
-	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.mi)...)
+	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
 	// Add 'order by' exprs
 	for _, order := range q.orders {
 		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
-		oExprs := jsonizeExpr(q.recordSet.mi, strings.Split(orderField, ExprSep))
+		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
 		fExprs = append(fExprs, oExprs)
 	}
 	// Build up the query
@@ -244,12 +251,12 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 		sql string
 	)
 	for k, v := range data {
-		fi := q.recordSet.mi.fields.mustGet(k)
+		fi := q.recordSet.model.fields.mustGet(k)
 		cols[i] = fmt.Sprintf("%s = ?", fi.json)
 		vals[i] = v
 		i++
 	}
-	tableName := adapter.quoteTableName(q.recordSet.mi.tableName)
+	tableName := adapter.quoteTableName(q.recordSet.model.tableName)
 	updates := strings.Join(cols, ", ")
 	whereSQL, args := q.sqlWhereClause()
 	sql = fmt.Sprintf("UPDATE %s SET %s %s", tableName, updates, whereSQL)
@@ -288,7 +295,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	var joins []tableJoin
 
 	// Create the tableJoin for the current table
-	currentTableName := adapter.quoteTableName(q.recordSet.mi.tableName)
+	currentTableName := adapter.quoteTableName(q.recordSet.model.tableName)
 	currentTJ := tableJoin{
 		tableName: currentTableName,
 		joined:    false,
@@ -296,7 +303,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	}
 	joins = append(joins, currentTJ)
 
-	curMI := q.recordSet.mi
+	curMI := q.recordSet.model
 	curTJ := &currentTJ
 	alias := curMI.tableName
 	exprsLen := len(fieldExprs)
@@ -380,7 +387,7 @@ func (q *Query) isEmpty() bool {
 // substituteConditionExprs substitutes all occurrences of each substMap keys in
 // its conditions 1st exprs with the corresponding substMap value.
 func (q *Query) substituteConditionExprs(substMap map[string][]string) {
-	q.cond.substituteExprs(q.recordSet.mi, substMap)
+	q.cond.substituteExprs(q.recordSet.model, substMap)
 }
 
 // evaluateConditionArgFunctions evaluates all args in the queries that are functions and
@@ -397,7 +404,7 @@ func newQuery(rs ...RecordCollection) *Query {
 		rset = rs[0]
 	}
 	return &Query{
-		cond:      NewCondition(),
+		cond:      newCondition(),
 		recordSet: rset,
 	}
 }

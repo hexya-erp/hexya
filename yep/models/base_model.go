@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/npiganeau/yep/yep/ir"
+	"github.com/npiganeau/yep/yep/models/operator"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -91,7 +92,7 @@ func declareBaseMixin() {
 					value := rec.Get(fName)
 					if relRC, ok := value.(RecordCollection); ok {
 						relRC = relRC.Fetch()
-						fi := rc.mi.fields.mustGet(fName)
+						fi := rc.model.fields.mustGet(fName)
 						switch {
 						case fi.fieldType.Is2OneRelationType():
 							if rcId := relRC.Get("id"); rcId != 0 {
@@ -123,7 +124,7 @@ func declareBaseMixin() {
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
-		func(rc RecordCollection, data interface{}, fieldsToUnset ...FieldName) bool {
+		func(rc RecordCollection, data interface{}, fieldsToUnset ...FieldNamer) bool {
 			return rc.update(data, fieldsToUnset...)
 		})
 
@@ -140,7 +141,7 @@ func declareBaseMixin() {
 			rc.EnsureOne()
 
 			var fields []string
-			for _, fi := range rc.mi.fields.registryByName {
+			for _, fi := range rc.model.fields.registryByName {
 				if !fi.noCopy {
 					fields = append(fields, fi.json)
 				}
@@ -158,8 +159,8 @@ func declareBaseMixin() {
 	model.CreateMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc RecordCollection) string {
-			if _, nameExists := rc.mi.fields.get("name"); nameExists {
-				if !rc.env.cache.checkIfInCache(rc.mi, rc.ids, []string{"name"}) {
+			if _, nameExists := rc.model.fields.get("name"); nameExists {
+				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"name"}) {
 					rc.Load("name")
 				}
 				return rc.Get("name").(string)
@@ -176,7 +177,7 @@ func declareBaseMixin() {
 		value for a relational field. Sometimes be seen as the inverse
 		function of NameGet but it is not guaranteed to be.`,
 		func(rc RecordCollection, params NameSearchParams) []RecordIDWithName {
-			searchRs := rc.Filter("Name", params.Operator, params.Name).Limit(convertLimitToInt(params.Limit))
+			searchRs := rc.Search(rc.Model().Field("Name").addOperator(params.Operator, params.Name)).Limit(convertLimitToInt(params.Limit))
 			if extraCondition := ParseDomain(params.Args); extraCondition != nil {
 				searchRs = searchRs.Search(extraCondition)
 			}
@@ -228,7 +229,7 @@ func declareBaseMixin() {
 			}
 			cols := make([]string, len(view.Fields))
 			for i, f := range view.Fields {
-				fi := rc.mi.fields.mustGet(f)
+				fi := rc.model.fields.mustGet(f)
 				cols[i] = fi.json
 			}
 			fInfos := rc.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
@@ -253,7 +254,7 @@ func declareBaseMixin() {
 			res := make(map[string]*FieldInfo)
 			fields := args.AllFields
 			if len(args.AllFields) == 0 {
-				for jName := range rc.mi.fields.registryByJSON {
+				for jName := range rc.model.fields.registryByJSON {
 					//if fi.fieldType != tools.MANY2MANY {
 					// We don't want Many2Many as it points to the link table
 					fields = append(fields, jName)
@@ -261,7 +262,7 @@ func declareBaseMixin() {
 				}
 			}
 			for _, f := range fields {
-				fInfo := rc.mi.fields.mustGet(f)
+				fInfo := rc.model.fields.mustGet(f)
 				var relation string
 				if fInfo.relatedModel != nil {
 					relation = fInfo.relatedModel.name
@@ -320,13 +321,13 @@ func declareBaseMixin() {
 		func(rc RecordCollection, doc *etree.Document) {
 			for _, fieldTag := range doc.FindElements("//field") {
 				fieldName := fieldTag.SelectAttr("name").Value
-				fi := rc.mi.fields.mustGet(fieldName)
+				fi := rc.model.fields.mustGet(fieldName)
 				fieldTag.RemoveAttr("name")
 				fieldTag.CreateAttr("name", fi.json)
 			}
 			for _, labelTag := range doc.FindElements("//label") {
 				fieldName := labelTag.SelectAttr("for").Value
-				fi := rc.mi.fields.mustGet(fieldName)
+				fi := rc.model.fields.mustGet(fieldName)
 				labelTag.RemoveAttr("for")
 				labelTag.CreateAttr("for", fi.json)
 			}
@@ -375,18 +376,6 @@ func declareBaseMixin() {
 		additional given Condition`,
 		func(rc RecordCollection, cond *Condition) RecordCollection {
 			return rc.Search(cond)
-		})
-
-	model.CreateMethod("Filter",
-		`Filter returns a new RecordSet filtered on records matching the given additional condition.`,
-		func(rc RecordCollection, fieldName, op string, data interface{}) RecordCollection {
-			return rc.Filter(fieldName, op, data)
-		})
-
-	model.CreateMethod("Exclude",
-		`Exclude returns a new RecordSet filtered on records NOT matching the given additional condition.`,
-		func(rc RecordCollection, fieldName, op string, data interface{}) RecordCollection {
-			return rc.Exclude(fieldName, op, data)
 		})
 
 	model.CreateMethod("Distinct",
@@ -453,10 +442,10 @@ func convertLimitToInt(limit interface{}) int {
 
 // NameSearchParams is the args struct for the NameSearch function
 type NameSearchParams struct {
-	Args     Domain      `json:"args"`
-	Name     string      `json:"name"`
-	Operator string      `json:"operator"`
-	Limit    interface{} `json:"limit"`
+	Args     Domain            `json:"args"`
+	Name     string            `json:"name"`
+	Operator operator.Operator `json:"operator"`
+	Limit    interface{}       `json:"limit"`
 }
 
 // FieldsViewGetParams is the args struct for the FieldsViewGet function

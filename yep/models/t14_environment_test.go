@@ -26,7 +26,8 @@ func TestEnvironment(t *testing.T) {
 	Convey("Testing Environment Modifications", t, func() {
 		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			env.context = types.NewContext().WithKey("key", "context value")
-			userJane := env.Pool("User").Filter("Email", "=", "jane.smith@example.com")
+			users := env.Pool("User")
+			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 			Convey("Checking WithEnv", func() {
 				env2 := newEnvironment(2)
 				userJane1 := userJane.WithEnv(env2)

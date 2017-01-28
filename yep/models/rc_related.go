@@ -29,7 +29,7 @@ func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, R
 	// Create a keys map with our fields
 	keys := make(map[string]bool)
 	for _, field := range fields {
-		fi := rc.mi.getRelatedFieldInfo(field)
+		fi := rc.model.getRelatedFieldInfo(field)
 		if fi.isRelatedField() {
 			keys[fi.relatedPath] = true
 			var curPath string
@@ -39,7 +39,7 @@ func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, R
 			}
 			continue
 		}
-		keys[jsonizePath(rc.mi, field)] = true
+		keys[jsonizePath(rc.model, field)] = true
 	}
 	// extract keys from our map to res
 	res := make([]string, len(keys))
@@ -51,7 +51,7 @@ func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, R
 
 	// Substitute in RecordCollection query
 	substs := make(map[string][]string)
-	for _, fi := range rc.mi.fields.relatedFields {
+	for _, fi := range rc.model.fields.relatedFields {
 		substs[fi.json] = strings.Split(fi.relatedPath, ExprSep)
 	}
 	rc.query.substituteConditionExprs(substs)

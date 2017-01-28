@@ -17,27 +17,28 @@ package models
 import (
 	"fmt"
 
+	"github.com/npiganeau/yep/yep/models/operator"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 type postgresAdapter struct{}
 
-var pgOperators = map[DomainOperator]string{
-	OPERATOR_EQUALS:        "= ?",
-	OPERATOR_NOT_EQUALS:    "!= ?",
-	OPERATOR_LIKE:          "LIKE ?",
-	OPERATOR_NOT_LIKE:      "NOT LIKE ?",
-	OPERATOR_LIKE_PATTERN:  "LIKE ?",
-	OPERATOR_ILIKE:         "ILIKE ?",
-	OPERATOR_NOT_ILIKE:     "NOT ILIKE ?",
-	OPERATOR_ILIKE_PATTERN: "ILIKE ?",
-	OPERATOR_IN:            "IN (?)",
-	OPERATOR_NOT_IN:        "NOT IN (?)",
-	OPERATOR_LOWER:         "< ?",
-	OPERATOR_LOWER_EQUAL:   "< ?",
-	OPERATOR_GREATER:       "> ?",
-	OPERATOR_GREATER_EQUAL: ">= ?",
+var pgOperators = map[operator.Operator]string{
+	operator.Equals:         "= ?",
+	operator.NotEquals:      "!= ?",
+	operator.Like:           "LIKE ?",
+	operator.NotLike:        "NOT LIKE ?",
+	operator.LikePattern:    "LIKE ?",
+	operator.ILike:          "ILIKE ?",
+	operator.NotILike:       "NOT ILIKE ?",
+	operator.ILikePattern:   "ILIKE ?",
+	operator.In:             "IN (?)",
+	operator.NotIn:          "NOT IN (?)",
+	operator.Lower:          "< ?",
+	operator.LowerOrEqual:   "< ?",
+	operator.Greater:        "> ?",
+	operator.GreaterOrEqual: ">= ?",
 	//OPERATOR_CHILD_OF: "",
 }
 
@@ -73,10 +74,10 @@ var pgDefaultValues = map[types.FieldType]string{
 
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
 // Also modifies the given args to match the syntax of the operator.
-func (d *postgresAdapter) operatorSQL(do DomainOperator, arg interface{}) (string, interface{}) {
+func (d *postgresAdapter) operatorSQL(do operator.Operator, arg interface{}) (string, interface{}) {
 	op := pgOperators[do]
 	switch do {
-	case OPERATOR_LIKE, OPERATOR_ILIKE, OPERATOR_NOT_LIKE, OPERATOR_NOT_ILIKE:
+	case operator.Like, operator.ILike, operator.NotLike, operator.NotILike:
 		arg = fmt.Sprintf("%%%s%%", arg)
 	}
 	return op, arg

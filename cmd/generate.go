@@ -261,8 +261,6 @@ var emptyPoolTemplate = template.Must(template.New("").Parse(`
 // DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
 
 package pool
-
-func PostInit() {}
 `))
 
 var tempStructsTemplate = template.Must(template.New("").Parse(`

@@ -204,3 +204,16 @@ type RecordSet interface {
 
 // A FieldName is a type representing field names in models.
 type FieldName string
+
+// FieldName makes a FieldName instance a FieldNamer
+func (fn FieldName) FieldName() FieldName {
+	return fn
+}
+
+var _ FieldNamer = FieldName("")
+
+// A FieldNamer is a type that can yield a FieldName through
+// its FieldName() method
+type FieldNamer interface {
+	FieldName() FieldName
+}

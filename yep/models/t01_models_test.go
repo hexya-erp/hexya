@@ -125,10 +125,10 @@ func TestCreateDB(t *testing.T) {
 			})
 
 		user.CreateMethod("computeAge", "",
-			func(rc RecordCollection) (FieldMap, []FieldName) {
+			func(rc RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
 				res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
-				return res, []FieldName{}
+				return res, []FieldNamer{}
 			})
 
 		activeMI.CreateMethod("IsActivated", "",

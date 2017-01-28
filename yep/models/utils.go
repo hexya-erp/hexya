@@ -244,7 +244,7 @@ func mapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 	for i := 0; i < ind.NumField(); i++ {
 		fVal := ind.Field(i)
 		sf := ind.Type().Field(i)
-		fi, ok := rc.mi.fields.get(sf.Name)
+		fi, ok := rc.model.fields.get(sf.Name)
 		if !ok {
 			logging.LogAndPanic(log, "Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
 		}

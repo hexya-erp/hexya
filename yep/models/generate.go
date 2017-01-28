@@ -26,9 +26,11 @@ import (
 
 // A fieldData describes a field in a RecordSet
 type fieldData struct {
-	Name     string
-	Type     string
-	TypeIsRS bool
+	Name         string
+	RelModel     string
+	IsSearchable bool
+	Type         string
+	TypeIsRS     bool
 }
 
 // A methodData describes a method in a RecordSet
@@ -43,16 +45,19 @@ type methodData struct {
 
 // A modelData describes a RecordSet model
 type modelData struct {
-	Name    string
-	Deps    []string
-	Fields  []fieldData
-	Methods []methodData
+	Name           string
+	Deps           []string
+	Fields         []fieldData
+	Methods        []methodData
+	ConditionFuncs []string
+	OperatorFuncs  []string
 }
 
 // specificMethods are generated according to specific templates and thus
 // must not be wrapped automatically.
 var specificMethods = map[string]bool{
 	"Create": true,
+	"Search": true,
 	"First":  true,
 	"All":    true,
 }
@@ -87,8 +92,11 @@ func generateModelPoolFile(mi *Model, fileName string, astData map[generate.Meth
 		generate.PoolPath: true,
 	}
 	mData := modelData{
-		Name: mi.name,
-		Deps: []string{generate.ModelsPath},
+		Name:           mi.name,
+		Deps:           []string{generate.ModelsPath},
+		ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
+		OperatorFuncs: []string{"Equals", "NotEquals", "Greater", "GreaterOrEqual", "Lower", "LowerOrEqual",
+			"LikePattern", "Like", "NotLike", "ILike", "NotILike", "ILikePattern", "In", "NotIn", "ChildOf"},
 	}
 	// Add fields
 	addFieldsToModelData(&mData, mi, &deps)
@@ -130,19 +138,23 @@ func addDependency(data *modelData, typ reflect.Type, deps *map[string]bool) {
 func addFieldsToModelData(mData *modelData, mi *Model, deps *map[string]bool) {
 	for fieldName, fi := range mi.fields.registryByName {
 		var (
-			typStr  string
-			typIsRS bool
+			typStr   string
+			typIsRS  bool
+			relModel string
 		)
 		if fi.isRelationField() {
 			typStr = fmt.Sprintf("%sSet", fi.relatedModelName)
 			typIsRS = true
+			relModel = fi.relatedModelName
 		} else {
 			typStr, _ = sanitizedFieldType(mi, fi.structField.Type)
 		}
 		mData.Fields = append(mData.Fields, fieldData{
-			Name:     fieldName,
-			Type:     typStr,
-			TypeIsRS: typIsRS,
+			Name:         fieldName,
+			RelModel:     relModel,
+			IsSearchable: fi.isStored() || fi.isRelatedField(),
+			Type:         typStr,
+			TypeIsRS:     typIsRS,
 		})
 		// Add dependency for this field, if needed and not already imported
 		addDependency(mData, fi.structField.Type, deps)
@@ -232,27 +244,15 @@ import (
 {{ end }}
 )
 
-const (
-{{ range .Fields }}	{{ $.Name }}_{{ .Name }} models.FieldName = "{{ .Name }}"
-{{ end }}
-)
+// ------- MODEL ---------
 
 // {{ .Name }}Model is a strongly typed model definition that is used
 // to extend the {{ .Name }} model or to get a {{ .Name }}Set through
 // its NewSet() function.
 //
-// To get the unique instance of this type, call {{ .Name }}.
+// To get the unique instance of this type, call {{ .Name }}().
 type {{ .Name }}Model struct {
 	*models.Model
-}
-
-// {{ .Name }} returns the unique instance of the {{ .Name }}Model type
-// which is used to extend the {{ .Name }} model or to get a {{ .Name }}Set through
-// its NewSet() function.
-func {{ .Name }}() {{ .Name }}Model {
-	return {{ .Name }}Model{
-		models.Registry.MustGet("{{ .Name }}"),
-	}
 }
 
 // NewSet returns a new {{ .Name }}Set instance in the given Environment
@@ -262,11 +262,113 @@ func (m {{ .Name }}Model) NewSet(env models.Environment) {{ .Name }}Set {
 	}
 }
 
+{{ range .Fields }}
+{{ if .TypeIsRS }}
+// {{ .Name }}FilteredOn adds a condition with a table join on the given field and
+// filters the result with the given condition
+func (m {{ $.Name }}Model) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: m.FilteredOn("{{ .Name }}", cond.Condition),
+	}
+}
+{{ end }}
+
+// {{ .Name }} adds the "{{ .Name }}" field to the Condition
+func (m {{ $.Name }}Model) {{ .Name }}() {{ $.Name }}ConditionField {
+	return {{ $.Name }}ConditionField{
+		ConditionField: m.Field("{{ .Name }}"),
+	}
+}
+
+{{ end }}
+
+// {{ .Name }} returns the unique instance of the {{ .Name }}Model type
+// which is used to extend the {{ .Name }} model or to get a {{ .Name }}Set through
+// its NewSet() function.
+func {{ .Name }}() {{ .Name }}Model {
+	return {{ .Name }}Model{
+		Model: models.Registry.MustGet("{{ .Name }}"),
+	}
+}
+
+// ------- CONDITION ---------
+
+// A {{ .Name }}Condition is a type safe WHERE clause in an SQL query
+type {{ .Name }}Condition struct {
+	*models.Condition
+}
+
+{{ range .ConditionFuncs }}
+// {{ . }} completes the current condition with a simple {{ . }} clause : c.{{ . }}().nextCond => c {{ . }} nextCond
+func (c {{ $.Name }}Condition) {{ . }}() {{ $.Name }}ConditionStart {
+	return {{ $.Name }}ConditionStart{
+		ConditionStart: c.Condition.{{ . }}(),
+	}
+}
+
+// {{ . }}Cond completes the current condition with the given cond as an {{ . }} clause
+// between brackets : c.{{ . }}(cond) => c {{ . }} (cond)
+func (c {{ $.Name }}Condition) {{ . }}Cond(cond {{ $.Name }}Condition) {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: c.Condition.{{ . }}Cond(cond.Condition),
+	}
+}
+{{ end }}
+
+// ------- CONDITION START ---------
+
+// A {{ .Name }}ConditionStart is an object representing a Condition when
+// we just added a logical operator (AND, OR, ...) and we are
+// about to add a predicate.
+type {{ .Name }}ConditionStart struct {
+	*models.ConditionStart
+}
+
+{{ range .Fields }}
+// {{ .Name }} adds the "{{ .Name }}" field to the Condition
+func (cs {{ $.Name }}ConditionStart) {{ .Name }}() {{ $.Name }}ConditionField {
+	return {{ $.Name }}ConditionField{
+		ConditionField: cs.Field("{{ .Name }}"),
+	}
+}
+
+{{ if .TypeIsRS }}
+// {{ .Name }}FilteredOn adds a condition with a table join on the given field and
+// filters the result with the given condition
+func (cs {{ $.Name }}ConditionStart) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: cs.FilteredOn("{{ .Name }}", cond.Condition),
+	}
+}
+{{ end }}
+{{ end }}
+
+// ------- CONDITION FIELDS ----------
+
+// A {{ .Name }}ConditionField is a partial {{ .Name }}Condition when
+// we have selected the field and expecting an operator.
+type {{ .Name }}ConditionField struct {
+	*models.ConditionField
+}
+
+{{ range .OperatorFuncs }}
+// {{ . }} adds a condition value to the ConditionPath
+func (c {{ $.Name }}ConditionField) {{ . }}(data interface{}) {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: c.ConditionField.{{ . }}(data),
+	}
+}
+{{ end }}
+
+// ------- DATA STRUCT ---------
+
 // {{ .Name }}Data is an autogenerated struct type to handle {{ .Name }} data.
 type {{ .Name }}Data struct {
 {{ range .Fields }}	{{ .Name }} {{ .Type }}
 {{ end }}
 }
+
+// ------- RECORD SET ---------
 
 // {{ .Name }}Set is an autogenerated type to handle {{ .Name }} objects.
 type {{ .Name }}Set struct {
@@ -312,6 +414,14 @@ func (s {{ .Name }}Set) Records() []{{ .Name }}Set {
 func (s {{ $.Name }}Set) Create(data *{{ .Name }}Data) {{ .Name }}Set {
 	return {{ .Name }}Set{
 		RecordCollection: s.Call("Create", data).(models.RecordCollection),
+	}
+}
+
+// Search returns a new {{ $.Name }}Set filtering on the current one with the
+// additional given Condition
+func (s {{ $.Name }}Set) Search(condition {{ .Name }}Condition) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: s.RecordCollection.Search(condition.Condition),
 	}
 }
 

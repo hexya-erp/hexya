@@ -176,12 +176,12 @@ func createRecordCollection(env models.Environment, params CallParams) (rc model
 			// Unable to unmarshal in a list of IDs, trying with a single id
 			var id float64
 			if err := json.Unmarshal(params.Args[0], &id); err == nil {
-				rc = rc.Filter("ID", "=", id)
+				rc = rc.Search(rc.Model().Field("ID").Equals(id))
 				single = true
 				idsParsed = true
 			}
 		} else {
-			rc = rc.Filter("ID", "in", ids)
+			rc = rc.Search(rc.Model().Field("ID").In(ids))
 			idsParsed = true
 		}
 	}
@@ -218,7 +218,8 @@ func GetFieldValue(uid, id int64, model, field string) (res interface{}, rError 
 	checkUser(uid)
 	rError = models.ExecuteInNewEnvironment(uid, func(env models.Environment) {
 		model = tools.ConvertModelName(model)
-		res = env.Pool(model).Filter("ID", "=", id).Get(field)
+		rc := env.Pool(model)
+		res = rc.Search(rc.Model().Field("ID").Equals(id)).Get(field)
 	})
 
 	return

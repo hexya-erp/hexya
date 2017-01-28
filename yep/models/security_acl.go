@@ -33,12 +33,12 @@ func (m *Model) AllowModelAccess(group *security.Group, perm security.Permission
 // AllowFieldAccess grants the given perm to the given group on the given field of model.
 // Only security.Read and security.Write permissions are taken into account by
 // this function, others are discarded.
-func (m *Model) AllowFieldAccess(field FieldName, group *security.Group, perm security.Permission) {
+func (m *Model) AllowFieldAccess(field FieldNamer, group *security.Group, perm security.Permission) {
 	perm = perm & (security.Read | security.Write | security.Create)
 	if !m.acl.CheckPermission(group, security.Read) {
 		log.Warn("Trying to add permission on field, but model is not readable", "model", m, "field", field, "perm", perm)
 	}
-	fi := m.fields.mustGet(string(field))
+	fi := m.fields.mustGet(string(field.FieldName()))
 	fi.acl.AddPermission(group, perm)
 }
 
@@ -56,9 +56,9 @@ func (m *Model) DenyModelAccess(group *security.Group, perm security.Permission)
 // DenyFieldAccess denies the given perm to the given group on the given field of model.
 // Only security.Read and security.Write permissions are taken into account by
 // this function, others are discarded.
-func (m *Model) DenyFieldAccess(field FieldName, group *security.Group, perm security.Permission) {
+func (m *Model) DenyFieldAccess(field FieldNamer, group *security.Group, perm security.Permission) {
 	perm = perm & (security.Read | security.Write | security.Create)
-	fi := m.fields.mustGet(string(field))
+	fi := m.fields.mustGet(string(field.FieldName()))
 	fi.acl.RemovePermission(group, perm)
 }
 
