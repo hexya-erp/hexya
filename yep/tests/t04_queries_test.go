@@ -33,10 +33,10 @@ func TestConditions(t *testing.T) {
 					So(func() { rs.Load() }, ShouldNotPanic)
 				})
 				Convey("Simple query with args inflation", func() {
-					getUserID := func(rs pool.UserSet) int64 {
-						return rs.Env().Uid()
+					getUserID := func(rs pool.UserSet) int {
+						return int(rs.Env().Uid())
 					}
-					rs2 := pool.User().NewSet(env).Search(pool.User().Nums().Equals(getUserID))
+					rs2 := pool.User().NewSet(env).Search(pool.User().Nums().EqualsFunc(getUserID))
 					So(func() { rs2.Load() }, ShouldNotPanic)
 				})
 				Convey("Check WHERE clause with additionnal filter", func() {

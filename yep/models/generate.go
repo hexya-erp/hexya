@@ -30,6 +30,7 @@ type fieldData struct {
 	RelModel     string
 	IsSearchable bool
 	Type         string
+	SanType      string
 	TypeIsRS     bool
 }
 
@@ -43,6 +44,13 @@ type methodData struct {
 	ReturnsIsRS    bool
 }
 
+// An fieldType holds the name and valid operators on a field type
+type fieldType struct {
+	Type      string
+	SanType   string
+	Operators []string
+}
+
 // A modelData describes a RecordSet model
 type modelData struct {
 	Name           string
@@ -50,7 +58,7 @@ type modelData struct {
 	Fields         []fieldData
 	Methods        []methodData
 	ConditionFuncs []string
-	OperatorFuncs  []string
+	Types          []fieldType
 }
 
 // specificMethods are generated according to specific templates and thus
@@ -86,25 +94,25 @@ func GeneratePool(dir string, astData map[generate.MethodRef]generate.MethodASTD
 
 // generateModelPoolFile generates the file with the source code of the
 // pool object for the given Model.
-func generateModelPoolFile(mi *Model, fileName string, astData map[generate.MethodRef]generate.MethodASTData) {
+func generateModelPoolFile(model *Model, fileName string, astData map[generate.MethodRef]generate.MethodASTData) {
 	// Generate model data
 	deps := map[string]bool{
 		generate.PoolPath: true,
 	}
 	mData := modelData{
-		Name:           mi.name,
+		Name:           model.name,
 		Deps:           []string{generate.ModelsPath},
 		ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
-		OperatorFuncs: []string{"Equals", "NotEquals", "Greater", "GreaterOrEqual", "Lower", "LowerOrEqual",
-			"LikePattern", "Like", "NotLike", "ILike", "NotILike", "ILikePattern", "In", "NotIn", "ChildOf"},
 	}
 	// Add fields
-	addFieldsToModelData(&mData, mi, &deps)
+	addFieldsToModelData(&mData, model, &deps)
+	// add Field types
+	addFieldTypesToModelData(&mData, model)
 	// Add methods
-	addMethodsToModelData(&mData, mi, astData, &deps)
+	addMethodsToModelData(&mData, model, astData, &deps)
 	// Create file
 	generate.CreateFileFromTemplate(fileName, defsFileTemplate, mData)
-	log.Info("Generated pool source file for model", "model", mi.name, "fileName", fileName)
+	log.Info("Generated pool source file for model", "model", model.name, "fileName", fileName)
 }
 
 // sanitizeFieldType returns the sanitizes name of the type
@@ -154,10 +162,40 @@ func addFieldsToModelData(mData *modelData, mi *Model, deps *map[string]bool) {
 			RelModel:     relModel,
 			IsSearchable: fi.isStored() || fi.isRelatedField(),
 			Type:         typStr,
+			SanType:      createTypeIdent(typStr),
 			TypeIsRS:     typIsRS,
 		})
 		// Add dependency for this field, if needed and not already imported
 		addDependency(mData, fi.structField.Type, deps)
+	}
+}
+
+// createTypeIdent creates a string from the given type that
+// can be used inside an identifier.
+func createTypeIdent(typStr string) string {
+	res := strings.Replace(typStr, ".", "", -1)
+	res = strings.Replace(res, "[", "Slice", -1)
+	res = strings.Replace(res, "map[", "Map", -1)
+	res = strings.Replace(res, "]", "", -1)
+	res = strings.Title(res)
+	return res
+}
+
+// addFieldsToModelData extracts field types from mData.Fields
+// and add them to mData.Types
+func addFieldTypesToModelData(mData *modelData, model *Model) {
+	fTypes := make(map[string]bool)
+	for _, f := range mData.Fields {
+		if fTypes[f.Type] {
+			continue
+		}
+		fTypes[f.Type] = true
+		mData.Types = append(mData.Types, fieldType{
+			Type:    f.Type,
+			SanType: createTypeIdent(f.Type),
+			Operators: []string{"Equals", "NotEquals", "Greater", "GreaterOrEqual", "Lower", "LowerOrEqual",
+				"LikePattern", "Like", "NotLike", "ILike", "NotILike", "ILikePattern", "In", "NotIn", "ChildOf"},
+		})
 	}
 }
 
@@ -274,8 +312,8 @@ func (m {{ $.Name }}Model) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) 
 {{ end }}
 
 // {{ .Name }} adds the "{{ .Name }}" field to the Condition
-func (m {{ $.Name }}Model) {{ .Name }}() {{ $.Name }}ConditionField {
-	return {{ $.Name }}ConditionField{
+func (m {{ $.Name }}Model) {{ .Name }}() {{ $.Name }}{{ .SanType }}ConditionField {
+	return {{ $.Name }}{{ .SanType }}ConditionField{
 		ConditionField: m.Field("{{ .Name }}"),
 	}
 }
@@ -326,8 +364,8 @@ type {{ .Name }}ConditionStart struct {
 
 {{ range .Fields }}
 // {{ .Name }} adds the "{{ .Name }}" field to the Condition
-func (cs {{ $.Name }}ConditionStart) {{ .Name }}() {{ $.Name }}ConditionField {
-	return {{ $.Name }}ConditionField{
+func (cs {{ $.Name }}ConditionStart) {{ .Name }}() {{ $.Name }}{{ .SanType }}ConditionField {
+	return {{ $.Name }}{{ .SanType }}ConditionField{
 		ConditionField: cs.Field("{{ .Name }}"),
 	}
 }
@@ -345,19 +383,31 @@ func (cs {{ $.Name }}ConditionStart) {{ .Name }}FilteredOn(cond {{ .RelModel }}C
 
 // ------- CONDITION FIELDS ----------
 
-// A {{ .Name }}ConditionField is a partial {{ .Name }}Condition when
-// we have selected the field and expecting an operator.
-type {{ .Name }}ConditionField struct {
+{{ range $typ := .Types }}
+// A {{ $.Name }}{{ $typ.SanType }}ConditionField is a partial {{ $.Name }}Condition when
+// we have selected a field of type {{ $typ.Type }} and expecting an operator.
+type {{ $.Name }}{{ $typ.SanType }}ConditionField struct {
 	*models.ConditionField
 }
 
-{{ range .OperatorFuncs }}
+{{ range $typ.Operators }}
 // {{ . }} adds a condition value to the ConditionPath
-func (c {{ $.Name }}ConditionField) {{ . }}(data interface{}) {{ $.Name }}Condition {
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ . }}(arg {{ $typ.Type }}) {{ $.Name }}Condition {
 	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.{{ . }}(data),
+		Condition: c.ConditionField.{{ . }}(arg),
 	}
 }
+
+// {{ . }}Func adds a function value to the ConditionPath.
+// The function will be evaluated when the query is performed and
+// it will be given the RecordSet on which the query is made as parameter
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ . }}Func(arg func ({{ $.Name }}Set) {{ $typ.Type }}) {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: c.ConditionField.{{ . }}(arg),
+	}
+}
+
+{{ end }}
 {{ end }}
 
 // ------- DATA STRUCT ---------
