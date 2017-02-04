@@ -181,23 +181,23 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 
 			Convey("Testing search all users", func() {
-				usersAll := pool.User().NewSet(env).Load()
+				usersAll := pool.User().NewSet(env).OrderBy("UserName").Load()
 				So(usersAll.Len(), ShouldEqual, 3)
 				Convey("Reading first user with getters", func() {
-					So(usersAll.UserName(), ShouldEqual, "John Smith")
-					So(usersAll.Email(), ShouldEqual, "jsmith@example.com")
+					So(usersAll.UserName(), ShouldEqual, "Jane Smith")
+					So(usersAll.Email(), ShouldEqual, "jane.smith@example.com")
 				})
 				Convey("Reading all users with Records and Get", func() {
 					recs := usersAll.Records()
 					So(len(recs), ShouldEqual, 3)
-					So(recs[0].Email(), ShouldEqual, "jsmith@example.com")
-					So(recs[1].Email(), ShouldEqual, "jane.smith@example.com")
+					So(recs[0].Email(), ShouldEqual, "jane.smith@example.com")
+					So(recs[1].Email(), ShouldEqual, "jsmith@example.com")
 					So(recs[2].Email(), ShouldEqual, "will.smith@example.com")
 				})
 				Convey("Reading all users with ReadAll()", func() {
 					userStructs := usersAll.All()
-					So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
-					So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+					So(userStructs[0].Email, ShouldEqual, "jane.smith@example.com")
+					So(userStructs[1].Email, ShouldEqual, "jsmith@example.com")
 					So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
 				})
 			})
@@ -262,6 +262,41 @@ func TestSearchRecordSet(t *testing.T) {
 				pool.User().DenyModelAccess(group1, security.Read)
 				pool.User().RemoveRecordRule("jOnly")
 				pool.User().RemoveRecordRule("writeRule")
+			})
+		})
+	})
+}
+
+func TestAdvancedQueries(t *testing.T) {
+	Convey("Testing advanced queries on M2O relations", t, func() {
+		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+			jane := pool.User().NewSet(env).Search(pool.User().UserName().Equals("Jane Smith"))
+			So(jane.Len(), ShouldEqual, 1)
+			Convey("Condition on m2o relation fields", func() {
+				users := pool.User().NewSet(env).Search(pool.User().Profile().Equals(jane.Profile()))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.ID(), ShouldEqual, jane.ID())
+			})
+			Convey("Condition on m2o relation fields with IN operator", func() {
+				users := pool.User().NewSet(env).Search(pool.User().Profile().In(jane.Profile()))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.ID(), ShouldEqual, jane.ID())
+			})
+		})
+	})
+	Convey("Testing advanced queries on O2M relations", t, func() {
+		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+			jane := pool.User().NewSet(env).Search(pool.User().UserName().Equals("Jane Smith"))
+			So(jane.Len(), ShouldEqual, 1)
+			Convey("Conditions on o2m relation", func() {
+				users := pool.User().NewSet(env).Search(pool.User().Posts().Equals(jane.Posts().Records()[0]))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Conditions on o2m relation with IN operator", func() {
+				users := pool.User().NewSet(env).Search(pool.User().Posts().In(jane.Posts()))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
 		})
 	})

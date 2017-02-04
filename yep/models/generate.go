@@ -44,11 +44,18 @@ type methodData struct {
 	ReturnsIsRS    bool
 }
 
+// an operatorDef defines an operator func
+type operatorDef struct {
+	Name  string
+	Multi bool
+}
+
 // An fieldType holds the name and valid operators on a field type
 type fieldType struct {
 	Type      string
 	SanType   string
-	Operators []string
+	TypeIsRS  bool
+	Operators []operatorDef
 }
 
 // A modelData describes a RecordSet model
@@ -191,10 +198,15 @@ func addFieldTypesToModelData(mData *modelData, model *Model) {
 		}
 		fTypes[f.Type] = true
 		mData.Types = append(mData.Types, fieldType{
-			Type:    f.Type,
-			SanType: createTypeIdent(f.Type),
-			Operators: []string{"Equals", "NotEquals", "Greater", "GreaterOrEqual", "Lower", "LowerOrEqual",
-				"LikePattern", "Like", "NotLike", "ILike", "NotILike", "ILikePattern", "In", "NotIn", "ChildOf"},
+			Type:     f.Type,
+			SanType:  createTypeIdent(f.Type),
+			TypeIsRS: f.TypeIsRS,
+			Operators: []operatorDef{
+				{Name: "Equals"}, {Name: "NotEquals"}, {Name: "Greater"}, {Name: "GreaterOrEqual"}, {Name: "Lower"},
+				{Name: "LowerOrEqual"}, {Name: "LikePattern"}, {Name: "Like"}, {Name: "NotLike"}, {Name: "ILike"},
+				{Name: "NotILike"}, {Name: "ILikePattern"}, {Name: "In", Multi: true}, {Name: "NotIn", Multi: true},
+				{Name: "ChildOf"},
+			},
 		})
 	}
 }
@@ -391,19 +403,19 @@ type {{ $.Name }}{{ $typ.SanType }}ConditionField struct {
 }
 
 {{ range $typ.Operators }}
-// {{ . }} adds a condition value to the ConditionPath
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ . }}(arg {{ $typ.Type }}) {{ $.Name }}Condition {
+// {{ .Name }} adds a condition value to the ConditionPath
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and .Multi (not $typ.TypeIsRS) }}[]{{ end }}{{ $typ.Type }}) {{ $.Name }}Condition {
 	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.{{ . }}(arg),
+		Condition: c.ConditionField.{{ .Name }}(arg),
 	}
 }
 
-// {{ . }}Func adds a function value to the ConditionPath.
+// {{ .Name }}Func adds a function value to the ConditionPath.
 // The function will be evaluated when the query is performed and
 // it will be given the RecordSet on which the query is made as parameter
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ . }}Func(arg func ({{ $.Name }}Set) {{ $typ.Type }}) {{ $.Name }}Condition {
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func ({{ $.Name }}Set) {{ if and .Multi (not $typ.TypeIsRS) }}[]{{ end }}{{ $typ.Type }}) {{ $.Name }}Condition {
 	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.{{ . }}(arg),
+		Condition: c.ConditionField.{{ .Name }}(arg),
 	}
 }
 

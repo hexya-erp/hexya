@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tools
+package xmlutils
 
 import (
 	"crypto/sha1"
 	"encoding/xml"
 	"io/ioutil"
 
+	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
+
+var log log15.Logger
 
 type basicXML struct {
 	XMLName xml.Name
@@ -53,4 +56,8 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte) {
 		logging.LogAndPanic(log, "Unable to convert back to XML", "error", err)
 	}
 	return res, sha1.Sum(res)
+}
+
+func init() {
+	log = logging.GetLogger("xmlutils")
 }

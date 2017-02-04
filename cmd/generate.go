@@ -200,7 +200,10 @@ func generateTempMethods(fileName string) {
 	astData := generate.GetMethodsASTData(importedPaths)
 	var data templData
 	for ref, mData := range astData {
-		params := strings.Join(mData.Params, " interface{}, ") + " interface{}"
+		var params string
+		if len(mData.Params) > 0 {
+			params = strings.Join(mData.Params, " interface{}, ") + " interface{}"
+		}
 		if ref.Model == "BaseMixin" {
 			// BaseMixin methods have already been generated in previous step
 			continue
@@ -287,7 +290,9 @@ import (
 
 {{ range .Methods }}
 func (s {{ .Model }}) {{ .Name }}({{ .Params }}) {{ .ReturnType }} {
+	{{ if .ReturnType }}
 	return *new({{ .ReturnType }})
+	{{ end }}
 }
 {{ end }}
 `))

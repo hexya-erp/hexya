@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ir
+package actions
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	"github.com/npiganeau/yep/yep/tools/xmlutils"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 var actionDef1 string = `
@@ -30,10 +32,10 @@ var actionDef1 string = `
 
 func TestActions(t *testing.T) {
 	Convey("Creating Action 1", t, func() {
-		LoadActionFromEtree(xmlToElement(actionDef1))
-		So(len(ActionsRegistry.actions), ShouldEqual, 1)
-		So(ActionsRegistry.GetActionById("my_action"), ShouldNotBeNil)
-		action := ActionsRegistry.GetActionById("my_action")
+		LoadFromEtree(xmlutils.XMLToElement(actionDef1))
+		So(len(Registry.actions), ShouldEqual, 1)
+		So(Registry.GetActionById("my_action"), ShouldNotBeNil)
+		action := Registry.GetActionById("my_action")
 		So(action.ID, ShouldEqual, "my_action")
 		So(action.Name, ShouldEqual, "My Action")
 		So(action.Model, ShouldEqual, "ResPartner")

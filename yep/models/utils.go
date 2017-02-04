@@ -168,6 +168,25 @@ func jsonizeExpr(mi *Model, exprs []string) []string {
 	return res
 }
 
+// inflate2ManyConditions modifies the query to handle searches on
+// one2many and many2many fields.
+func inflate2ManyConditions(mi *Model, cond *Condition) {
+	for i, cv := range cond.params {
+		if cv.cond != nil {
+			inflate2ManyConditions(mi, cv.cond)
+			continue
+		}
+		path := strings.Join(cv.exprs, ExprSep)
+		fi := mi.getRelatedFieldInfo(path)
+		switch fi.fieldType {
+		case types.One2Many:
+			cond.params[i].exprs = append(cv.exprs, "id")
+		case types.Many2Many:
+		case types.Rev2One:
+		}
+	}
+}
+
 // addNameSearchesToCondition recursively modifies the given condition to search
 // on the name of the related records if they point to a relation field.
 func addNameSearchesToCondition(mi *Model, cond *Condition) {

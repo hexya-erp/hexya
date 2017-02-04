@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
@@ -45,7 +46,6 @@ type Query struct {
 	offset    int
 	groups    []string
 	orders    []string
-	distinct  bool
 }
 
 // clone returns a pointer to a deep copy of this Query
@@ -211,19 +211,20 @@ func (q *Query) countQuery() (string, SQLParams) {
 // (e.g. 'User.Name' or 'user_id.name')
 func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	addNameSearchesToCondition(q.recordSet.model, q.cond)
+	inflate2ManyConditions(q.recordSet.model, q.cond)
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {
 		fieldExprs[i] = jsonizeExpr(q.recordSet.model, strings.Split(f, ExprSep))
 	}
-	// Then given by condition
-	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
 	// Add 'order by' exprs
 	for _, order := range q.orders {
 		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
-		fExprs = append(fExprs, oExprs)
+		fieldExprs = append(fieldExprs, oExprs)
 	}
+	// Then given by condition
+	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
 	// Build up the query
 	// Fields
 	fieldsSQL := q.fieldsSQL(fieldExprs)
@@ -233,7 +234,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	whereSQL, args := q.sqlWhereClause()
 	whereSQL += q.sqlOrderByClause()
 	whereSQL += q.sqlLimitOffsetClause()
-	selQuery := fmt.Sprintf(`SELECT %s FROM %s %s`, fieldsSQL, tablesSQL, whereSQL)
+	selQuery := fmt.Sprintf(`SELECT DISTINCT %s FROM %s %s`, fieldsSQL, tablesSQL, whereSQL)
 	return selQuery, args
 }
 
@@ -323,13 +324,22 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 		}
 		linkedTableName := adapter.quoteTableName(fi.relatedModel.tableName)
 		alias = fmt.Sprintf("%s%s%s", alias, sqlSep, fi.relatedModel.tableName)
+
+		var field, otherField string
+		switch fi.fieldType {
+		case types.Many2One, types.One2One:
+			field, otherField = "id", expr
+		case types.One2Many, types.Rev2One:
+			field, otherField = jsonizePath(fi.relatedModel, fi.reverseFK), "id"
+		}
+
 		nextTJ := tableJoin{
 			tableName:  linkedTableName,
 			joined:     true,
 			innerJoin:  innerJoin,
-			field:      "id",
+			field:      field,
 			otherTable: curTJ,
-			otherField: expr,
+			otherField: otherField,
 			alias:      adapter.quoteTableName(alias),
 		}
 		joins = append(joins, nextTJ)
@@ -376,9 +386,6 @@ func (q *Query) isEmpty() bool {
 		return false
 	}
 	if len(q.orders) > 0 {
-		return false
-	}
-	if q.distinct {
 		return false
 	}
 	return true

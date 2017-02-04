@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ir
+package actions
 
 import (
 	"database/sql"
@@ -25,6 +25,8 @@ import (
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/npiganeau/yep/yep/tools/xmlutils"
+	"github.com/npiganeau/yep/yep/views"
 )
 
 // An ActionType defines the type of action
@@ -45,12 +47,12 @@ const (
 	ActionViewTypeTree ActionViewType = "tree"
 )
 
-// ActionsRegistry is the action collection of the application
-var ActionsRegistry *ActionsCollection
+// Registry is the action collection of the application
+var Registry *ActionsCollection
 
 // MakeActionRef creates an ActionRef from an action id
 func MakeActionRef(id string) ActionRef {
-	action := ActionsRegistry.GetActionById(id)
+	action := Registry.GetActionById(id)
 	if action == nil {
 		return ActionRef{}
 	}
@@ -124,30 +126,30 @@ func (ar *ActionsCollection) GetActionById(id string) *BaseAction {
 // A BaseAction is the definition of an action. Actions define the
 // behavior of the system in response to user actions.
 type BaseAction struct {
-	ID           string         `json:"id" xml:"id,attr"`
-	Type         ActionType     `json:"type" xml:"type"`
-	Name         string         `json:"name" xml:"name"`
-	Model        string         `json:"res_model" xml:"model"`
-	ResID        int64          `json:"res_id" xml:"res_id"`
-	Groups       []string       `json:"groups_id" xml:"groups"`
-	Domain       string         `json:"domain" xml:"domain"`
-	Help         string         `json:"help" xml:"help"`
-	SearchView   ViewRef        `json:"search_view_id" xml:"search_view_id"`
-	SrcModel     string         `json:"src_model" xml:"src_model"`
-	Usage        string         `json:"usage" xml:"usage"`
-	Views        []ViewTuple    `json:"views" xml:"views"`
-	View         ViewRef        `json:"view_id" xml:"view_id"`
-	AutoRefresh  bool           `json:"auto_refresh" xml:"auto_refresh"`
-	ManualSearch bool           `json:"-"`
-	ActViewType  ActionViewType `json:"-"`
-	ViewMode     string         `json:"view_mode" xml:"view_mode"`
-	ViewIds      []string       `json:"view_ids" xml:"view_ids"`
-	Multi        bool           `json:"multi" xml:"multi"`
-	Target       string         `json:"target" xml:"target"`
-	AutoSearch   bool           `json:"auto_search" xml:"auto_search"`
-	Filter       bool           `json:"filter" xml:"filter"`
-	Limit        int64          `json:"limit" xml:"limit"`
-	Context      *types.Context `json:"context" xml:"context"`
+	ID           string            `json:"id" xml:"id,attr"`
+	Type         ActionType        `json:"type" xml:"type"`
+	Name         string            `json:"name" xml:"name"`
+	Model        string            `json:"res_model" xml:"model"`
+	ResID        int64             `json:"res_id" xml:"res_id"`
+	Groups       []string          `json:"groups_id" xml:"groups"`
+	Domain       string            `json:"domain" xml:"domain"`
+	Help         string            `json:"help" xml:"help"`
+	SearchView   views.ViewRef     `json:"search_view_id" xml:"search_view_id"`
+	SrcModel     string            `json:"src_model" xml:"src_model"`
+	Usage        string            `json:"usage" xml:"usage"`
+	Views        []views.ViewTuple `json:"views" xml:"views"`
+	View         views.ViewRef     `json:"view_id" xml:"view_id"`
+	AutoRefresh  bool              `json:"auto_refresh" xml:"auto_refresh"`
+	ManualSearch bool              `json:"-"`
+	ActViewType  ActionViewType    `json:"-"`
+	ViewMode     string            `json:"view_mode" xml:"view_mode"`
+	ViewIds      []string          `json:"view_ids" xml:"view_ids"`
+	Multi        bool              `json:"multi" xml:"multi"`
+	Target       string            `json:"target" xml:"target"`
+	AutoSearch   bool              `json:"auto_search" xml:"auto_search"`
+	Filter       bool              `json:"filter" xml:"filter"`
+	Limit        int64             `json:"limit" xml:"limit"`
+	Context      *types.Context    `json:"context" xml:"context"`
 	//Flags interface{}`json:"flags"`
 }
 
@@ -158,13 +160,13 @@ type Toolbar struct {
 	Relate []*BaseAction `json:"relate"`
 }
 
-// LoadActionFromEtree reads the action given etree.Element, creates or updates the action
+// LoadFromEtree reads the action given etree.Element, creates or updates the action
 // and adds it to the action registry if it not already.
-func LoadActionFromEtree(element *etree.Element) {
-	xmlBytes := []byte(elementToXML(element))
+func LoadFromEtree(element *etree.Element) {
+	xmlBytes := []byte(xmlutils.ElementToXML(element))
 	var action BaseAction
 	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
 		logging.LogAndPanic(log, "Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
-	ActionsRegistry.AddAction(&action)
+	Registry.AddAction(&action)
 }

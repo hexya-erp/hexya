@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ir
+package xmlutils
 
 import (
 	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
-// elementToXML returns the XML string of the given element and
+// ElementToXML returns the XML string of the given element and
 // all its children.
-func elementToXML(element *etree.Element) string {
+func ElementToXML(element *etree.Element) string {
 	doc := etree.NewDocument()
 	doc.SetRoot(element)
 	doc.IndentTabs()
@@ -32,8 +32,8 @@ func elementToXML(element *etree.Element) string {
 	return xmlStr
 }
 
-// xmlToElement parses the given xml string and returns the root node
-func xmlToElement(xmlStr string) *etree.Element {
+// XMLToElement parses the given xml string and returns the root node
+func XMLToElement(xmlStr string) *etree.Element {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(xmlStr); err != nil {
 		logging.LogAndPanic(log, "Unable to parse XML", "error", "xml", xmlStr)
@@ -41,8 +41,8 @@ func xmlToElement(xmlStr string) *etree.Element {
 	return doc.Root()
 }
 
-// findNextSibling returns the next sibling of the given element
-func findNextSibling(element *etree.Element) *etree.Element {
+// FindNextSibling returns the next sibling of the given element
+func FindNextSibling(element *etree.Element) *etree.Element {
 	var found bool
 	for _, el := range element.Parent().ChildElements() {
 		if found {

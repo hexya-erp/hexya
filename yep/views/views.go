@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ir
+package views
 
 import (
 	"database/sql"
@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/npiganeau/yep/yep/tools/xmlutils"
 )
 
 // A ViewType defines the type of a view
@@ -205,7 +207,7 @@ type View struct {
 	Priority    uint8    `json:"priority"`
 	Arch        string   `json:"arch"`
 	FieldParent string   `json:"field_parent"`
-	Fields      []string
+	Fields      []models.FieldName
 }
 
 // ViewArch is used to unmarshal the arch node of the XML definition
@@ -226,10 +228,10 @@ type ViewXML struct {
 	InheritanceMode ViewInheritanceMode `xml:"mode"`
 }
 
-// LoadViewFromEtree reads the view given etree.Element, creates or updates the view
+// LoadFromEtree reads the view given etree.Element, creates or updates the view
 // and adds it to the view registry if it not already.
-func LoadViewFromEtree(element *etree.Element) {
-	xmlBytes := []byte(elementToXML(element))
+func LoadFromEtree(element *etree.Element) {
+	xmlBytes := []byte(xmlutils.ElementToXML(element))
 	var viewXML ViewXML
 	if err := xml.Unmarshal(xmlBytes, &viewXML); err != nil {
 		logging.LogAndPanic(log, "Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
@@ -243,7 +245,7 @@ func updateViewRegistry(viewXML ViewXML) {
 	if viewXML.InheritID != "" {
 		// Update an existing view
 		baseView := ViewsRegistry.GetViewById(viewXML.InheritID)
-		baseElem := xmlToElement(baseView.Arch)
+		baseElem := xmlutils.XMLToElement(baseView.Arch)
 		specDoc := etree.NewDocument()
 		if err := specDoc.ReadFromString(viewXML.ArchData.XML); err != nil {
 			logging.LogAndPanic(log, "Unable to read inheritance specs", "error", err, "arch", viewXML.ArchData.XML)
@@ -252,7 +254,7 @@ func updateViewRegistry(viewXML ViewXML) {
 		for _, spec := range specDoc.ChildElements() {
 			xpath := getInheritXPathFromSpec(spec)
 			nodeToModify := baseElem.FindElement(xpath)
-			nextNode := findNextSibling(nodeToModify)
+			nextNode := xmlutils.FindNextSibling(nodeToModify)
 			modifyAction := spec.SelectAttr("position")
 			switch modifyAction.Value {
 			case "before":
@@ -281,7 +283,7 @@ func updateViewRegistry(viewXML ViewXML) {
 			}
 			//break
 		}
-		baseView.Arch = elementToXML(baseElem)
+		baseView.Arch = xmlutils.ElementToXML(baseElem)
 	} else {
 		// Create a new view
 		priority := uint8(16)
@@ -289,7 +291,7 @@ func updateViewRegistry(viewXML ViewXML) {
 			priority = viewXML.Priority
 		}
 		// We check/standardize arch by unmarshalling and marshalling it again
-		arch := elementToXML(xmlToElement(viewXML.ArchData.XML))
+		arch := xmlutils.ElementToXML(xmlutils.XMLToElement(viewXML.ArchData.XML))
 		view := View{
 			ID:          viewXML.ID,
 			Name:        viewXML.Name,
@@ -311,7 +313,7 @@ func getInheritXPathFromSpec(spec *etree.Element) string {
 		xpath = spec.SelectAttr("expr").Value
 	} else {
 		if len(spec.Attr) < 1 || len(spec.Attr) > 2 {
-			logging.LogAndPanic(log, "Invalid view inherit spec", "spec", elementToXML(spec))
+			logging.LogAndPanic(log, "Invalid view inherit spec", "spec", xmlutils.ElementToXML(spec))
 		}
 		var attrStr string
 		for _, attr := range spec.Attr {

@@ -182,24 +182,24 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 
 			Convey("Testing search all users", func() {
-				usersAll := env.Pool("User").Load()
+				usersAll := env.Pool("User").OrderBy("UserName").Load()
 				So(usersAll.Len(), ShouldEqual, 3)
 				Convey("Reading first user with Get", func() {
-					So(usersAll.Get("UserName"), ShouldEqual, "John Smith")
-					So(usersAll.Get("Email"), ShouldEqual, "jsmith@example.com")
+					So(usersAll.Get("UserName"), ShouldEqual, "Jane Smith")
+					So(usersAll.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				})
 				Convey("Reading all users with Records and Get", func() {
 					recs := usersAll.Records()
 					So(len(recs), ShouldEqual, 3)
-					So(recs[0].Get("Email"), ShouldEqual, "jsmith@example.com")
-					So(recs[1].Get("Email"), ShouldEqual, "jane.smith@example.com")
+					So(recs[0].Get("Email"), ShouldEqual, "jane.smith@example.com")
+					So(recs[1].Get("Email"), ShouldEqual, "jsmith@example.com")
 					So(recs[2].Get("Email"), ShouldEqual, "will.smith@example.com")
 				})
 				Convey("Reading all users with ReadAll()", func() {
 					var userStructs []*UserStruct
 					usersAll.All(&userStructs)
-					So(userStructs[0].Email, ShouldEqual, "jsmith@example.com")
-					So(userStructs[1].Email, ShouldEqual, "jane.smith@example.com")
+					So(userStructs[0].Email, ShouldEqual, "jane.smith@example.com")
+					So(userStructs[1].Email, ShouldEqual, "jsmith@example.com")
 					So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
 				})
 			})
@@ -265,6 +265,69 @@ func TestSearchRecordSet(t *testing.T) {
 				userModel.DenyModelAccess(group1, security.Read)
 				userModel.RemoveRecordRule("jOnly")
 				userModel.RemoveRecordRule("writeRule")
+			})
+		})
+	})
+}
+
+func TestAdvancedQueries(t *testing.T) {
+	Convey("Testing advanced queries on M2O relations", t, func() {
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			jane := env.Pool("User").Search(env.Pool("User").Model().Field("UserName").Equals("Jane Smith"))
+			So(jane.Len(), ShouldEqual, 1)
+			Convey("Condition on m2o relation fields with ids", func() {
+				profile_id := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").Equals(profile_id))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Condition on m2o relation fields with recordset", func() {
+				profile := jane.Get("Profile").(RecordCollection)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").Equals(profile))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Condition on m2o relation fields with IN operator and ids", func() {
+				profile_id := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profile_id))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Condition on m2o relation fields with IN operator and recordset", func() {
+				profile := jane.Get("Profile").(RecordCollection)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profile))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+		})
+	})
+	Convey("Testing advanced queries on O2M relations", t, func() {
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			jane := env.Pool("User").Search(env.Pool("User").Model().Field("UserName").Equals("Jane Smith"))
+			So(jane.Len(), ShouldEqual, 1)
+			Convey("Condition on o2m relation with slice of ids", func() {
+				post_id := jane.Get("Posts").(RecordCollection).Ids()[0]
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").Equals(post_id))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Conditions on o2m relation with recordset", func() {
+				post := jane.Get("Posts").(RecordCollection).Records()[0]
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").Equals(post))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Condition on o2m relation with IN operator and slice of ids", func() {
+				post_ids := jane.Get("Posts").(RecordCollection).Ids()
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").In(post_ids))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Conditions on o2m relation with IN operator and recordset", func() {
+				posts := jane.Get("Posts").(RecordCollection)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").In(posts))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
 		})
 	})

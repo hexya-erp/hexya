@@ -348,6 +348,14 @@ func createModel(name string, options Option) *Model {
 	return mi
 }
 
+// JSONizeFieldName returns the json name of the given fieldName
+// If fieldName is already the json name, returns it without modifying it.
+// fieldName may be a dot separated path from this model.
+// It panics if the path is invalid.
+func (m *Model) JSONizeFieldName(fieldName FieldName) FieldName {
+	return FieldName(jsonizePath(m, string(fieldName)))
+}
+
 // Field starts a condition on this model
 func (m *Model) Field(name string) *ConditionField {
 	newExprs := strings.Split(name, ExprSep)

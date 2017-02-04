@@ -22,11 +22,12 @@ import (
 	"path"
 	"text/template"
 
-	"github.com/npiganeau/yep/yep/ir"
+	"github.com/npiganeau/yep/yep/actions"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/server"
 	"github.com/npiganeau/yep/yep/tools/generate"
 	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/npiganeau/yep/yep/views"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -93,7 +94,8 @@ func StartServer(config map[string]interface{}) {
 	models.DBConnect(viper.GetString("Server.DBDriver"), connectString)
 	models.BootStrap()
 	server.LoadInternalResources()
-	ir.BootStrap()
+	views.BootStrap()
+	actions.BootStrap()
 	server.PostInit()
 	srv := server.GetServer()
 	log.Info("YEP is up and running")

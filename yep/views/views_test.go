@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ir
+package views
 
 import (
 	"testing"
 
+	"github.com/npiganeau/yep/yep/tools/xmlutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -96,7 +97,7 @@ var viewDef5 string = `
 
 func TestViews(t *testing.T) {
 	Convey("Creating View 1", t, func() {
-		LoadViewFromEtree(xmlToElement(viewDef1))
+		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
 		So(len(ViewsRegistry.views), ShouldEqual, 1)
 		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
 		view := ViewsRegistry.GetViewById("my_id")
@@ -114,7 +115,7 @@ func TestViews(t *testing.T) {
 `)
 	})
 	Convey("Creating View 2", t, func() {
-		LoadViewFromEtree(xmlToElement(viewDef2))
+		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
 		So(len(ViewsRegistry.views), ShouldEqual, 2)
 		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)
 		view := ViewsRegistry.GetViewById("my_other_id")
@@ -137,7 +138,7 @@ func TestViews(t *testing.T) {
 `)
 	})
 	Convey("Inheriting View 2", t, func() {
-		LoadViewFromEtree(xmlToElement(viewDef3))
+		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
 		So(len(ViewsRegistry.views), ShouldEqual, 2)
 		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
 		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)
@@ -168,7 +169,7 @@ func TestViews(t *testing.T) {
 `)
 	})
 	Convey("More inheritance on View 2", t, func() {
-		LoadViewFromEtree(xmlToElement(viewDef4))
+		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
 		So(len(ViewsRegistry.views), ShouldEqual, 2)
 		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
 		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)
@@ -194,7 +195,7 @@ func TestViews(t *testing.T) {
 `)
 	})
 	Convey("Modifying inherited modifications on View 2", t, func() {
-		LoadViewFromEtree(xmlToElement(viewDef5))
+		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
 		So(len(ViewsRegistry.views), ShouldEqual, 2)
 		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
 		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)

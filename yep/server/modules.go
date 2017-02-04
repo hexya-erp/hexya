@@ -20,10 +20,12 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/npiganeau/yep/yep/ir"
+	"github.com/npiganeau/yep/yep/actions"
+	"github.com/npiganeau/yep/yep/menus"
 	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/generate"
 	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/npiganeau/yep/yep/views"
 )
 
 var symlinkDirs = []string{"static", "templates", "data", "views"}
@@ -129,11 +131,11 @@ func loadXMLDataFile(fileName string) {
 		for _, object := range dataTag.ChildElements() {
 			switch object.Tag {
 			case "view":
-				ir.LoadViewFromEtree(object)
+				views.LoadFromEtree(object)
 			case "action":
-				ir.LoadActionFromEtree(object)
+				actions.LoadFromEtree(object)
 			case "menuitem":
-				ir.LoadMenuFromEtree(object)
+				menus.LoadFromEtree(object)
 			case "record":
 			default:
 				logging.LogAndPanic(log, "Unknown XML tag", "tag", object.Tag)

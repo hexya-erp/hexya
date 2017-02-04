@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ir
+package menus
 
 import (
 	"sort"
 	"strconv"
 	"sync"
 
+	"github.com/npiganeau/yep/yep/actions"
 	"github.com/npiganeau/yep/yep/tools/etree"
 )
 
-// MenusRegistry is the menu collection of the application
-var MenusRegistry *MenuCollection
+// Registry is the menu collection of the application
+var Registry *MenuCollection
 
 // A MenuCollection is a hierarchical and sortable collection of menus
 type MenuCollection struct {
@@ -93,29 +94,33 @@ type Menu struct {
 	ParentCollection *MenuCollection
 	Children         *MenuCollection
 	Sequence         uint8
-	Action           *BaseAction
+	Action           *actions.BaseAction
 	HasChildren      bool
 	HasAction        bool
 }
 
-// LoadMenuFromEtree reads the menu given etree.Element, creates or updates the menu
+// LoadFromEtree reads the menu given etree.Element, creates or updates the menu
 // and adds it to the menu registry if it not already.
-func LoadMenuFromEtree(element *etree.Element) {
+func LoadFromEtree(element *etree.Element) {
 	menu := new(Menu)
 	menu.ID = element.SelectAttrValue("id", "NO_ID")
 	actionID := element.SelectAttrValue("action", "")
 	defaultName := "No name"
 	if actionID != "" {
-		menu.Action = ActionsRegistry.GetActionById(actionID)
+		menu.Action = actions.Registry.GetActionById(actionID)
 		defaultName = menu.Action.Name
 	}
 	menu.Name = element.SelectAttrValue("name", defaultName)
 	parentID := element.SelectAttrValue("parent", "")
 	if parentID != "" {
-		menu.Parent = MenusRegistry.GetMenuById(parentID)
+		menu.Parent = Registry.GetMenuById(parentID)
 	}
 	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
 	menu.Sequence = uint8(seq)
 
-	MenusRegistry.AddMenu(menu)
+	Registry.AddMenu(menu)
+}
+
+func init() {
+	Registry = NewMenuCollection()
 }

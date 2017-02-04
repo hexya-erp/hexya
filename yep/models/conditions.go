@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/npiganeau/yep/yep/models/operator"
+	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // ExprSep define the expression separation
@@ -160,79 +161,97 @@ func (c ConditionField) addOperator(op operator.Operator, data interface{}) *Con
 	return &cond
 }
 
+// sanitizeArgs returns the given args suitable for SQL query
+// In particular, retrieves the ids of a recordset if args is one.
+// If multi is true, a recordset will be converted into a slice of int64
+// otherwise, it will return an int64 and panic if the recordset is not
+// a singleton
+func sanitizeArgs(args interface{}, multi bool) interface{} {
+	if rs, ok := args.(RecordSet); ok {
+		if multi {
+			return rs.Ids()
+		}
+		if len(rs.Ids()) > 1 {
+			logging.LogAndPanic(log, "Trying to extract a single ID from a non singleton", "args", args)
+		}
+		return rs.Ids()[0]
+	}
+	return args
+}
+
 // Equals appends the '=' operator to the current Condition
 func (c ConditionField) Equals(data interface{}) *Condition {
-	return c.addOperator(operator.Equals, data)
+	return c.addOperator(operator.Equals, sanitizeArgs(data, false))
 }
 
 // NotEquals appends the '!=' operator to the current Condition
 func (c ConditionField) NotEquals(data interface{}) *Condition {
-	return c.addOperator(operator.NotEquals, data)
+	return c.addOperator(operator.NotEquals, sanitizeArgs(data, false))
 }
 
 // Greater appends the '>' operator to the current Condition
 func (c ConditionField) Greater(data interface{}) *Condition {
-	return c.addOperator(operator.Greater, data)
+	return c.addOperator(operator.Greater, sanitizeArgs(data, false))
 }
 
 // GreaterOrEqual appends the '>=' operator to the current Condition
 func (c ConditionField) GreaterOrEqual(data interface{}) *Condition {
-	return c.addOperator(operator.GreaterOrEqual, data)
+	return c.addOperator(operator.GreaterOrEqual, sanitizeArgs(data, false))
 }
 
 // Lower appends the '<' operator to the current Condition
 func (c ConditionField) Lower(data interface{}) *Condition {
-	return c.addOperator(operator.Lower, data)
+	return c.addOperator(operator.Lower, sanitizeArgs(data, false))
 }
 
 // LowerOrEqual appends the '<=' operator to the current Condition
 func (c ConditionField) LowerOrEqual(data interface{}) *Condition {
-	return c.addOperator(operator.LowerOrEqual, data)
+	return c.addOperator(operator.LowerOrEqual, sanitizeArgs(data, false))
 }
 
 // LikePattern appends the 'LIKE' operator to the current Condition
 func (c ConditionField) LikePattern(data interface{}) *Condition {
-	return c.addOperator(operator.LikePattern, data)
+	return c.addOperator(operator.LikePattern, sanitizeArgs(data, false))
 }
 
 // ILikePattern appends the 'ILIKE' operator to the current Condition
 func (c ConditionField) ILikePattern(data interface{}) *Condition {
-	return c.addOperator(operator.ILikePattern, data)
+	return c.addOperator(operator.ILikePattern, sanitizeArgs(data, false))
 }
 
 // Like appends the 'LIKE %%' operator to the current Condition
 func (c ConditionField) Like(data interface{}) *Condition {
-	return c.addOperator(operator.Like, data)
+	return c.addOperator(operator.Like, sanitizeArgs(data, false))
 }
 
 // NotLike appends the 'NOT LIKE %%' operator to the current Condition
 func (c ConditionField) NotLike(data interface{}) *Condition {
-	return c.addOperator(operator.NotLike, data)
+	return c.addOperator(operator.NotLike, sanitizeArgs(data, false))
 }
 
 // ILike appends the 'ILIKE %%' operator to the current Condition
 func (c ConditionField) ILike(data interface{}) *Condition {
-	return c.addOperator(operator.ILike, data)
+	return c.addOperator(operator.ILike, sanitizeArgs(data, false))
 }
 
 // NotILike appends the 'NOT ILIKE %%' operator to the current Condition
 func (c ConditionField) NotILike(data interface{}) *Condition {
-	return c.addOperator(operator.NotILike, data)
+	return c.addOperator(operator.NotILike, sanitizeArgs(data, false))
 }
 
 // In appends the 'IN' operator to the current Condition
 func (c ConditionField) In(data interface{}) *Condition {
-	return c.addOperator(operator.In, data)
+	return c.addOperator(operator.In, sanitizeArgs(data, true))
 }
 
 // NotIn appends the 'NOT IN' operator to the current Condition
 func (c ConditionField) NotIn(data interface{}) *Condition {
-	return c.addOperator(operator.NotIn, data)
+	return c.addOperator(operator.NotIn, sanitizeArgs(data, true))
 }
 
 // ChildOf appends the 'child of' operator to the current Condition
 func (c ConditionField) ChildOf(data interface{}) *Condition {
-	return c.addOperator(operator.ChildOf, data)
+	return c.addOperator(operator.ChildOf, sanitizeArgs(data, false))
 }
 
 // IsEmpty check the condition arguments are empty or not.

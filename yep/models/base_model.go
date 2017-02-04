@@ -15,15 +15,10 @@
 package models
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
-	"github.com/npiganeau/yep/yep/ir"
 	"github.com/npiganeau/yep/yep/models/operator"
 	"github.com/npiganeau/yep/yep/models/types"
-	"github.com/npiganeau/yep/yep/tools/etree"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 const (
@@ -177,7 +172,7 @@ func declareBaseMixin() {
 		value for a relational field. Sometimes be seen as the inverse
 		function of NameGet but it is not guaranteed to be.`,
 		func(rc RecordCollection, params NameSearchParams) []RecordIDWithName {
-			searchRs := rc.Search(rc.Model().Field("Name").addOperator(params.Operator, params.Name)).Limit(convertLimitToInt(params.Limit))
+			searchRs := rc.Search(rc.Model().Field("Name").addOperator(params.Operator, params.Name)).Limit(ConvertLimitToInt(params.Limit))
 			if extraCondition := ParseDomain(params.Args); extraCondition != nil {
 				searchRs = searchRs.Search(extraCondition)
 			}
@@ -192,59 +187,6 @@ func declareBaseMixin() {
 			return res
 		})
 
-	model.CreateMethod("GetFormviewId",
-		`GetFormviewId returns an view id to open the document with.
-		This method is meant to be overridden in addons that want
- 		to give specific view ids for example.`,
-		func(rc RecordCollection) string {
-			return ""
-		})
-
-	model.CreateMethod("GetFormviewAction",
-		`GetFormviewAction returns an action to open the document.
-		This method is meant to be overridden in addons that want
-		to give specific view ids for example.`,
-		func(rc RecordCollection) *ir.BaseAction {
-			viewID := rc.Call("GetFormviewId").(string)
-			return &ir.BaseAction{
-				Type:        ir.ActionActWindow,
-				Model:       rc.ModelName(),
-				ActViewType: ir.ActionViewTypeForm,
-				ViewMode:    "form",
-				Views:       []ir.ViewTuple{{ID: viewID, Type: ir.VIEW_TYPE_FORM}},
-				Target:      "current",
-				ResID:       rc.Get("id").(int64),
-				Context:     rc.Env().Context(),
-			}
-		})
-
-	model.CreateMethod("FieldsViewGet",
-		`FieldsViewGet is the base implementation of the 'FieldsViewGet' method which
-		gets the detailed composition of the requested view like fields, model,
-		view architecture.`,
-		func(rc RecordCollection, args FieldsViewGetParams) *FieldsViewData {
-			view := ir.ViewsRegistry.GetViewById(args.ViewID)
-			if view == nil {
-				view = ir.ViewsRegistry.GetFirstViewForModel(rc.ModelName(), ir.ViewType(args.ViewType))
-			}
-			cols := make([]string, len(view.Fields))
-			for i, f := range view.Fields {
-				fi := rc.model.fields.mustGet(f)
-				cols[i] = fi.json
-			}
-			fInfos := rc.Call("FieldsGet", FieldsGetArgs{AllFields: cols}).(map[string]*FieldInfo)
-			arch := rc.Call("ProcessView", view.Arch, fInfos).(string)
-			res := FieldsViewData{
-				Name:   view.Name,
-				Arch:   arch,
-				ViewID: args.ViewID,
-				Model:  view.Model,
-				Type:   view.Type,
-				Fields: fInfos,
-			}
-			return &res
-		})
-
 	model.CreateMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
 		The embedded fields are included.
@@ -257,12 +199,12 @@ func declareBaseMixin() {
 				for jName := range rc.model.fields.registryByJSON {
 					//if fi.fieldType != tools.MANY2MANY {
 					// We don't want Many2Many as it points to the link table
-					fields = append(fields, jName)
+					fields = append(fields, FieldName(jName))
 					//}
 				}
 			}
 			for _, f := range fields {
-				fInfo := rc.model.fields.mustGet(f)
+				fInfo := rc.model.fields.mustGet(string(f))
 				var relation string
 				if fInfo.relatedModel != nil {
 					relation = fInfo.relatedModel.name
@@ -279,81 +221,6 @@ func declareBaseMixin() {
 				}
 			}
 			return res
-		})
-
-	model.CreateMethod("ProcessView",
-		`ProcessView makes all the necessary modifications to the view
-		arch and returns the new xml string.`,
-		func(rc RecordCollection, arch string, fieldInfos map[string]*FieldInfo) string {
-			// Load arch as etree
-			doc := etree.NewDocument()
-			if err := doc.ReadFromString(arch); err != nil {
-				logging.LogAndPanic(log, "Unable to parse view arch", "arch", arch, "error", err)
-			}
-			// Apply changes
-			rc.Call("UpdateFieldNames", doc)
-			rc.Call("AddModifiers", doc, fieldInfos)
-			// Dump xml to string and return
-			res, err := doc.WriteToString()
-			if err != nil {
-				logging.LogAndPanic(log, "Unable to render XML", "error", err)
-			}
-			return res
-		})
-
-	model.CreateMethod("AddModifiers",
-		`AddModifiers adds the modifiers attribute nodes to given xml doc.`,
-		func(rc RecordCollection, doc *etree.Document, fieldInfos map[string]*FieldInfo) {
-			for _, fieldTag := range doc.FindElements("//field") {
-				fieldName := fieldTag.SelectAttr("name").Value
-				var mods []string
-				if fieldInfos[fieldName].ReadOnly {
-					mods = append(mods, "&quot;readonly&quot;: true")
-				}
-				modStr := fmt.Sprintf("{%s}", strings.Join(mods, ","))
-				fieldTag.CreateAttr("modifiers", modStr)
-			}
-		})
-
-	model.CreateMethod("UpdateFieldNames",
-		`UpdateFieldNames changes the field names in the view to the column names.
-		If a field name is already column names then it does nothing.`,
-		func(rc RecordCollection, doc *etree.Document) {
-			for _, fieldTag := range doc.FindElements("//field") {
-				fieldName := fieldTag.SelectAttr("name").Value
-				fi := rc.model.fields.mustGet(fieldName)
-				fieldTag.RemoveAttr("name")
-				fieldTag.CreateAttr("name", fi.json)
-			}
-			for _, labelTag := range doc.FindElements("//label") {
-				fieldName := labelTag.SelectAttr("for").Value
-				fi := rc.model.fields.mustGet(fieldName)
-				labelTag.RemoveAttr("for")
-				labelTag.CreateAttr("for", fi.json)
-			}
-		})
-
-	model.CreateMethod("SearchRead",
-		`SearchRead retrieves database records according to the filters defined in params.`,
-		func(rc RecordCollection, params SearchParams) []FieldMap {
-			if searchCond := ParseDomain(params.Domain); searchCond != nil {
-				rc = rc.Search(searchCond)
-			}
-			// Limit
-			rc = rc.Limit(convertLimitToInt(params.Limit))
-
-			// Offset
-			if params.Offset != 0 {
-				rc = rc.Offset(params.Offset)
-			}
-
-			// Order
-			if params.Order != "" {
-				rc = rc.OrderBy(strings.Split(params.Order, ",")...)
-			}
-
-			rSet := rc.Fetch()
-			return rSet.Call("Read", params.Fields).([]FieldMap)
 		})
 
 	model.CreateMethod("DefaultGet",
@@ -376,12 +243,6 @@ func declareBaseMixin() {
 		additional given Condition`,
 		func(rc RecordCollection, cond *Condition) RecordCollection {
 			return rc.Search(cond)
-		})
-
-	model.CreateMethod("Distinct",
-		`Distinct returns a new RecordSet without duplicates`,
-		func(rc RecordCollection) RecordCollection {
-			return rc.Distinct()
 		})
 
 	model.CreateMethod("Fetch",
@@ -426,8 +287,8 @@ func declareBaseMixin() {
 	MixInAllModels("BaseMixin")
 }
 
-// convertLimitToInt converts the given limit as interface{} to an int
-func convertLimitToInt(limit interface{}) int {
+// ConvertLimitToInt converts the given limit as interface{} to an int
+func ConvertLimitToInt(limit interface{}) int {
 	var lim int
 	switch limit.(type) {
 	case bool:
@@ -446,25 +307,6 @@ type NameSearchParams struct {
 	Name     string            `json:"name"`
 	Operator operator.Operator `json:"operator"`
 	Limit    interface{}       `json:"limit"`
-}
-
-// FieldsViewGetParams is the args struct for the FieldsViewGet function
-type FieldsViewGetParams struct {
-	ViewID   string `json:"view_id"`
-	ViewType string `json:"view_type"`
-	Toolbar  bool   `json:"toolbar"`
-}
-
-// FieldsViewData is the return type string for the FieldsViewGet function
-type FieldsViewData struct {
-	Name        string                `json:"name"`
-	Arch        string                `json:"arch"`
-	ViewID      string                `json:"view_id"`
-	Model       string                `json:"model"`
-	Type        ir.ViewType           `json:"type"`
-	Fields      map[string]*FieldInfo `json:"fields"`
-	Toolbar     ir.Toolbar            `json:"toolbar"`
-	FieldParent string                `json:"field_parent"`
 }
 
 // FieldInfo is the exportable field information struct
@@ -490,16 +332,7 @@ type FieldInfo struct {
 // FieldsGetArgs is the args struct for the FieldsGet method
 type FieldsGetArgs struct {
 	// list of fields to document, all if empty or not provided
-	AllFields []string `json:"allfields"`
-}
-
-// SearchParams is the args struct for the SearchRead method
-type SearchParams struct {
-	Domain Domain      `json:"domain"`
-	Fields []string    `json:"fields"`
-	Offset int         `json:"offset"`
-	Limit  interface{} `json:"limit"`
-	Order  string      `json:"order"`
+	AllFields []FieldName `json:"allfields"`
 }
 
 // OnchangeParams is the args struct of the Onchange function

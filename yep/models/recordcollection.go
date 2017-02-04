@@ -274,13 +274,6 @@ func (rc RecordCollection) GroupBy(exprs ...string) RecordCollection {
 	return rc
 }
 
-// Distinct returns a new RecordSet without duplicates
-func (rc RecordCollection) Distinct() RecordCollection {
-	rc.query = rc.query.clone()
-	rc.query.distinct = true
-	return rc
-}
-
 // Fetch query the database with the current filter and returns a RecordSet
 // with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
