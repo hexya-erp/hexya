@@ -276,8 +276,8 @@ func TestAdvancedQueries(t *testing.T) {
 			jane := env.Pool("User").Search(env.Pool("User").Model().Field("UserName").Equals("Jane Smith"))
 			So(jane.Len(), ShouldEqual, 1)
 			Convey("Condition on m2o relation fields with ids", func() {
-				profile_id := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
-				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").Equals(profile_id))
+				profileID := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").Equals(profileID))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
@@ -288,8 +288,8 @@ func TestAdvancedQueries(t *testing.T) {
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
 			Convey("Condition on m2o relation fields with IN operator and ids", func() {
-				profile_id := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
-				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profile_id))
+				profileID := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profileID))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
@@ -306,8 +306,8 @@ func TestAdvancedQueries(t *testing.T) {
 			jane := env.Pool("User").Search(env.Pool("User").Model().Field("UserName").Equals("Jane Smith"))
 			So(jane.Len(), ShouldEqual, 1)
 			Convey("Condition on o2m relation with slice of ids", func() {
-				post_id := jane.Get("Posts").(RecordCollection).Ids()[0]
-				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").Equals(post_id))
+				postID := jane.Get("Posts").(RecordCollection).Ids()[0]
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").Equals(postID))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
@@ -318,8 +318,8 @@ func TestAdvancedQueries(t *testing.T) {
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
 			Convey("Condition on o2m relation with IN operator and slice of ids", func() {
-				post_ids := jane.Get("Posts").(RecordCollection).Ids()
-				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").In(post_ids))
+				postIds := jane.Get("Posts").(RecordCollection).Ids()
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").In(postIds))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})

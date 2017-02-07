@@ -16,7 +16,6 @@ package server
 
 import (
 	"encoding/json"
-	"net/http"
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -29,6 +28,69 @@ import (
 // It is internally a wrapper around a gin.Engine
 type Server struct {
 	*gin.Engine
+}
+
+// Group creates a new router group. You should add all the routes that have common middlwares or the same path prefix.
+// For example, all the routes that use a common middlware for authorization could be grouped.
+func (s *Server) Group(relativePath string, handlers ...HandlerFunc) *RouterGroup {
+	return &RouterGroup{
+		RouterGroup: *s.Engine.Group(relativePath, wrapContextFuncs(handlers...)...),
+	}
+}
+
+// Handle registers a new request handle and middleware with the given path and method.
+// The last handler should be the real handler, the other ones should be middleware that can and should be shared among different routes.
+// See the example code in github.
+//
+// For GET, POST, PUT, PATCH and DELETE requests the respective shortcut
+// functions can be used.
+//
+// This function is intended for bulk loading and to allow the usage of less
+// frequently used, non-standardized or custom methods (e.g. for internal
+// communication with a proxy).
+func (s *Server) Handle(httpMethod, relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.Handle(httpMethod, relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// POST is a shortcut for router.Handle("POST", path, handle)
+func (s *Server) POST(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.POST(relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// GET is a shortcut for router.Handle("GET", path, handle)
+func (s *Server) GET(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.GET(relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// DELETE is a shortcut for router.Handle("DELETE", path, handle)
+func (s *Server) DELETE(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.DELETE(relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// PATCH is a shortcut for router.Handle("PATCH", path, handle)
+func (s *Server) PATCH(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.PATCH(relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// PUT is a shortcut for router.Handle("PUT", path, handle)
+func (s *Server) PUT(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.PUT(relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// OPTIONS is a shortcut for router.Handle("OPTIONS", path, handle)
+func (s *Server) OPTIONS(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.OPTIONS(relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// HEAD is a shortcut for router.Handle("HEAD", path, handle)
+func (s *Server) HEAD(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.HEAD(relativePath, wrapContextFuncs(handlers...)...)
+}
+
+// Any registers a route that matches all the HTTP methods.
+// GET, POST, PUT, PATCH, HEAD, OPTIONS, DELETE, CONNECT, TRACE
+func (s *Server) Any(relativePath string, handlers ...HandlerFunc) gin.IRoutes {
+	return s.RouterGroup.Any(relativePath, wrapContextFuncs(handlers...)...)
 }
 
 // A RequestRPC is the message format expected from a client
@@ -66,55 +128,6 @@ type JSONRPCError struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
-}
-
-// RPC serializes the given struct as JSON-RPC into the response body.
-func RPC(c *gin.Context, code int, obj interface{}, err ...error) {
-	id, ok := c.Get("id")
-	if !ok {
-		var req RequestRPC
-		if err := c.BindJSON(&req); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
-			return
-		}
-		id = req.ID
-	}
-	if len(err) > 0 && err[0] != nil {
-		respErr := ResponseError{
-			JsonRPC: "2.0",
-			ID:      id.(int64),
-			Error: JSONRPCError{
-				Code:    code,
-				Message: "YEP Server Error",
-				Data: JSONRPCErrorData{
-					Arguments: "Internal Server Error",
-					Debug:     err[0].Error(),
-				},
-			},
-		}
-		c.JSON(code, respErr)
-		return
-	}
-	resp := ResponseRPC{
-		JsonRPC: "2.0",
-		ID:      id.(int64),
-		Result:  obj,
-	}
-	c.JSON(code, resp)
-}
-
-// BindRPCParams binds the RPC parameters to the given data object.
-func BindRPCParams(c *gin.Context, data interface{}) {
-	var req RequestRPC
-	if err := c.BindJSON(&req); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-	c.Set("id", req.ID)
-	if err := json.Unmarshal(req.Params, data); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
 }
 
 var yepServer *Server
