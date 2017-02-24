@@ -6,7 +6,7 @@ go:
  - tip
 
 addons:
-  postgresql: "9.5"
+  postgresql: "9.4"
 
 services:
   - postgresql
