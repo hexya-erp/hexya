@@ -98,9 +98,9 @@ var viewDef5 string = `
 func TestViews(t *testing.T) {
 	Convey("Creating View 1", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		So(len(ViewsRegistry.views), ShouldEqual, 1)
-		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
-		view := ViewsRegistry.GetViewById("my_id")
+		So(len(Registry.views), ShouldEqual, 1)
+		So(Registry.GetByID("my_id"), ShouldNotBeNil)
+		view := Registry.GetByID("my_id")
 		So(view.ID, ShouldEqual, "my_id")
 		So(view.Name, ShouldEqual, "My View")
 		So(view.Model, ShouldEqual, "Test__User")
@@ -116,9 +116,9 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Creating View 2", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		So(len(ViewsRegistry.views), ShouldEqual, 2)
-		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)
-		view := ViewsRegistry.GetViewById("my_other_id")
+		So(len(Registry.views), ShouldEqual, 2)
+		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		view := Registry.GetByID("my_other_id")
 		So(view.ID, ShouldEqual, "my_other_id")
 		So(view.Name, ShouldEqual, "My Other View")
 		So(view.Model, ShouldEqual, "Test__Partner")
@@ -139,10 +139,10 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Inheriting View 2", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		So(len(ViewsRegistry.views), ShouldEqual, 2)
-		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
-		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)
-		view1 := ViewsRegistry.GetViewById("my_id")
+		So(len(Registry.views), ShouldEqual, 2)
+		So(Registry.GetByID("my_id"), ShouldNotBeNil)
+		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		view1 := Registry.GetByID("my_id")
 		So(view1.Arch, ShouldEqual,
 			`<form>
 	<group>
@@ -151,7 +151,7 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
-		view2 := ViewsRegistry.GetViewById("my_other_id")
+		view2 := Registry.GetByID("my_other_id")
 		So(view2.Arch, ShouldEqual,
 			`<form>
 	<h1>
@@ -170,10 +170,10 @@ func TestViews(t *testing.T) {
 	})
 	Convey("More inheritance on View 2", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
-		So(len(ViewsRegistry.views), ShouldEqual, 2)
-		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
-		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)
-		view2 := ViewsRegistry.GetViewById("my_other_id")
+		So(len(Registry.views), ShouldEqual, 2)
+		So(Registry.GetByID("my_id"), ShouldNotBeNil)
+		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		view2 := Registry.GetByID("my_other_id")
 		So(view2.Arch, ShouldEqual,
 			`<form>
 	<h2>
@@ -196,10 +196,10 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Modifying inherited modifications on View 2", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
-		So(len(ViewsRegistry.views), ShouldEqual, 2)
-		So(ViewsRegistry.GetViewById("my_id"), ShouldNotBeNil)
-		So(ViewsRegistry.GetViewById("my_other_id"), ShouldNotBeNil)
-		view2 := ViewsRegistry.GetViewById("my_other_id")
+		So(len(Registry.views), ShouldEqual, 2)
+		So(Registry.GetByID("my_id"), ShouldNotBeNil)
+		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		view2 := Registry.GetByID("my_other_id")
 		So(view2.Arch, ShouldEqual,
 			`<form>
 	<h2>

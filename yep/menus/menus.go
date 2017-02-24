@@ -24,34 +24,36 @@ import (
 )
 
 // Registry is the menu collection of the application
-var Registry *MenuCollection
+var Registry *collection
 
-// A MenuCollection is a hierarchical and sortable collection of menus
-type MenuCollection struct {
+// A collection is a hierarchical and sortable collection of menus
+type collection struct {
 	sync.RWMutex
 	Menus    []*Menu
 	menusMap map[string]*Menu
 }
 
-func (mc *MenuCollection) Len() int {
+func (mc *collection) Len() int {
 	return len(mc.Menus)
 }
-func (mc *MenuCollection) Swap(i, j int) {
+
+func (mc *collection) Swap(i, j int) {
 	mc.Menus[i], mc.Menus[j] = mc.Menus[j], mc.Menus[i]
 }
-func (mc *MenuCollection) Less(i, j int) bool {
+
+func (mc *collection) Less(i, j int) bool {
 	return mc.Menus[i].Sequence < mc.Menus[j].Sequence
 }
 
-// AddMenu adds a menu to the menu collection
-func (mc *MenuCollection) AddMenu(m *Menu) {
+// Add adds a menu to the menu collection
+func (mc *collection) Add(m *Menu) {
 	if m.Action != nil {
 		m.HasAction = true
 	}
-	var targetCollection *MenuCollection
+	var targetCollection *collection
 	if m.Parent != nil {
 		if m.Parent.Children == nil {
-			m.Parent.Children = new(MenuCollection)
+			m.Parent.Children = new(collection)
 		}
 		targetCollection = m.Parent.Children
 		m.Parent.HasChildren = true
@@ -72,15 +74,15 @@ func (mc *MenuCollection) AddMenu(m *Menu) {
 	topParent.ParentCollection.menusMap[m.ID] = m
 }
 
-// GetMenuById returns the Menu with the given id
-func (mc *MenuCollection) GetMenuById(id string) *Menu {
+// GetByID returns the Menu with the given id
+func (mc *collection) GetByID(id string) *Menu {
 	return mc.menusMap[id]
 }
 
-// NewMenuCollection returns a pointer to a new
-// MenuCollection instance
-func NewMenuCollection() *MenuCollection {
-	res := MenuCollection{
+// NewCollection returns a pointer to a new
+// collection instance
+func NewCollection() *collection {
+	res := collection{
 		menusMap: make(map[string]*Menu),
 	}
 	return &res
@@ -91,8 +93,8 @@ type Menu struct {
 	ID               string
 	Name             string
 	Parent           *Menu
-	ParentCollection *MenuCollection
-	Children         *MenuCollection
+	ParentCollection *collection
+	Children         *collection
 	Sequence         uint8
 	Action           *actions.BaseAction
 	HasChildren      bool
@@ -107,20 +109,20 @@ func LoadFromEtree(element *etree.Element) {
 	actionID := element.SelectAttrValue("action", "")
 	defaultName := "No name"
 	if actionID != "" {
-		menu.Action = actions.Registry.GetActionById(actionID)
+		menu.Action = actions.Registry.GetById(actionID)
 		defaultName = menu.Action.Name
 	}
 	menu.Name = element.SelectAttrValue("name", defaultName)
 	parentID := element.SelectAttrValue("parent", "")
 	if parentID != "" {
-		menu.Parent = Registry.GetMenuById(parentID)
+		menu.Parent = Registry.GetByID(parentID)
 	}
 	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
 	menu.Sequence = uint8(seq)
 
-	Registry.AddMenu(menu)
+	Registry.Add(menu)
 }
 
 func init() {
-	Registry = NewMenuCollection()
+	Registry = NewCollection()
 }

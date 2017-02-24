@@ -3,10 +3,9 @@
 
 package server
 
-import (
-	"github.com/gin-gonic/gin"
-)
+import "github.com/gin-gonic/gin"
 
+//A HandlerFunc is a function that can be used for handling a given request or as a middleware
 type HandlerFunc func(*Context)
 
 // RouterGroup is used internally to configure router, a RouterGroup is associated with a prefix
@@ -19,9 +18,12 @@ type RouterGroup struct {
 func wrapContextFuncs(handlers ...HandlerFunc) []gin.HandlerFunc {
 	wrappedHandlers := make([]gin.HandlerFunc, len(handlers))
 	for i, hf := range handlers {
-		wrappedHandlers[i] = func(ctx *gin.Context) {
-			hf(&Context{Context: ctx})
-		}
+		// We use here a closure inside a closure to freeze hf
+		wrappedHandlers[i] = func(f HandlerFunc) gin.HandlerFunc {
+			return func(ctx *gin.Context) {
+				f(&Context{Context: ctx})
+			}
+		}(hf)
 	}
 	return wrappedHandlers
 }
@@ -32,6 +34,11 @@ func (rg *RouterGroup) Group(relativePath string, handlers ...HandlerFunc) *Rout
 	return &RouterGroup{
 		RouterGroup: *rg.RouterGroup.Group(relativePath, wrapContextFuncs(handlers...)...),
 	}
+}
+
+// Use adds middleware to the group.
+func (rg *RouterGroup) Use(middleware ...HandlerFunc) gin.IRoutes {
+	return rg.RouterGroup.Use(wrapContextFuncs(middleware...)...)
 }
 
 // Handle registers a new request handle and middleware with the given path and method.

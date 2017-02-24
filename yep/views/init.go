@@ -16,7 +16,7 @@ var log log15.Logger
 //- sets the type of the view from the arch root.
 //- populates the fields map from the views arch.
 func BootStrap() {
-	for _, v := range ViewsRegistry.views {
+	for _, v := range Registry.views {
 		archElem := xmlutils.XMLToElement(v.Arch)
 
 		// Set view type
@@ -32,5 +32,5 @@ func BootStrap() {
 
 func init() {
 	log = logging.GetLogger("views")
-	ViewsRegistry = NewViewsCollection()
+	Registry = NewCollection()
 }

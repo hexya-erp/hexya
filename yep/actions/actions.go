@@ -48,11 +48,11 @@ const (
 )
 
 // Registry is the action collection of the application
-var Registry *ActionsCollection
+var Registry *Collection
 
 // MakeActionRef creates an ActionRef from an action id
 func MakeActionRef(id string) ActionRef {
-	action := Registry.GetActionById(id)
+	action := Registry.GetById(id)
 	if action == nil {
 		return ActionRef{}
 	}
@@ -96,30 +96,30 @@ var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
 var _ json.Marshaler = &ActionRef{}
 
-// An ActionsCollection is a collection of actions
-type ActionsCollection struct {
+// An Collection is a collection of actions
+type Collection struct {
 	sync.RWMutex
 	actions map[string]*BaseAction
 }
 
 // NewActionsCollection returns a pointer to a new
-// ActionsCollection instance
-func NewActionsCollection() *ActionsCollection {
-	res := ActionsCollection{
+// Collection instance
+func NewActionsCollection() *Collection {
+	res := Collection{
 		actions: make(map[string]*BaseAction),
 	}
 	return &res
 }
 
-// AddAction adds the given action to our ActionsCollection
-func (ar *ActionsCollection) AddAction(a *BaseAction) {
+// Add adds the given action to our Collection
+func (ar *Collection) Add(a *BaseAction) {
 	ar.Lock()
 	defer ar.Unlock()
 	ar.actions[a.ID] = a
 }
 
-// GetActionById returns the Action with the given id
-func (ar *ActionsCollection) GetActionById(id string) *BaseAction {
+// GetById returns the Action with the given id
+func (ar *Collection) GetById(id string) *BaseAction {
 	return ar.actions[id]
 }
 
@@ -168,5 +168,5 @@ func LoadFromEtree(element *etree.Element) {
 	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
 		logging.LogAndPanic(log, "Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
-	Registry.AddAction(&action)
+	Registry.Add(&action)
 }

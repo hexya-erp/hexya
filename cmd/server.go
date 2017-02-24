@@ -23,6 +23,7 @@ import (
 	"text/template"
 
 	"github.com/npiganeau/yep/yep/actions"
+	"github.com/npiganeau/yep/yep/controllers"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/server"
 	"github.com/npiganeau/yep/yep/tools/generate"
@@ -96,6 +97,7 @@ func StartServer(config map[string]interface{}) {
 	server.LoadInternalResources()
 	views.BootStrap()
 	actions.BootStrap()
+	controllers.BootStrap()
 	server.PostInit()
 	srv := server.GetServer()
 	log.Info("YEP is up and running")

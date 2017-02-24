@@ -54,12 +54,12 @@ const (
 	VIEW_EXTENSION ViewInheritanceMode = "extension"
 )
 
-// ViewsRegistry is the views collection of the application
-var ViewsRegistry *ViewsCollection
+// Registry is the views collection of the application
+var Registry *Collection
 
 // MakeViewRef creates a ViewRef from a view id
 func MakeViewRef(id string) ViewRef {
-	view := ViewsRegistry.GetViewById(id)
+	view := Registry.GetByID(id)
 	if view == nil {
 		return ViewRef{}
 	}
@@ -148,25 +148,25 @@ func (vt ViewTuple) MarshalJSON() ([]byte, error) {
 	return json.Marshal([2]string{vt.ID, string(vt.Type)})
 }
 
-// A ViewsCollection is a view collection
-type ViewsCollection struct {
+// A Collection is a view collection
+type Collection struct {
 	sync.RWMutex
 	views        map[string]*View
 	orderedViews map[string][]*View
 }
 
-// NewViewsCollection returns a pointer to a new
-// ViewsCollection instance
-func NewViewsCollection() *ViewsCollection {
-	res := ViewsCollection{
+// NewCollection returns a pointer to a new
+// Collection instance
+func NewCollection() *Collection {
+	res := Collection{
 		views:        make(map[string]*View),
 		orderedViews: make(map[string][]*View),
 	}
 	return &res
 }
 
-// AddView adds the given view to our ViewsCollection
-func (vc *ViewsCollection) AddView(v *View) {
+// Add adds the given view to our Collection
+func (vc *Collection) Add(v *View) {
 	vc.Lock()
 	var index int8
 	for i, view := range vc.orderedViews[v.Model] {
@@ -182,13 +182,13 @@ func (vc *ViewsCollection) AddView(v *View) {
 	vc.orderedViews[v.Model] = append(append(vc.orderedViews[v.Model][:index], v), endElems...)
 }
 
-// GetViewById returns the View with the given id
-func (vc *ViewsCollection) GetViewById(id string) *View {
+// GetByID returns the View with the given id
+func (vc *Collection) GetByID(id string) *View {
 	return vc.views[id]
 }
 
 // GetFirstViewForModel returns the first view of type viewType for the given model
-func (vc *ViewsCollection) GetFirstViewForModel(model string, viewType ViewType) *View {
+func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *View {
 	for _, view := range vc.orderedViews[model] {
 		if view.Type == viewType {
 			return view
@@ -239,12 +239,12 @@ func LoadFromEtree(element *etree.Element) {
 	updateViewRegistry(viewXML)
 }
 
-// updateViewRegistry creates or updates the view in the ViewsRegistry
+// updateViewRegistry creates or updates the view in the Registry
 // that is defined by the given ViewXML.
 func updateViewRegistry(viewXML ViewXML) {
 	if viewXML.InheritID != "" {
 		// Update an existing view
-		baseView := ViewsRegistry.GetViewById(viewXML.InheritID)
+		baseView := Registry.GetByID(viewXML.InheritID)
 		baseElem := xmlutils.XMLToElement(baseView.Arch)
 		specDoc := etree.NewDocument()
 		if err := specDoc.ReadFromString(viewXML.ArchData.XML); err != nil {
@@ -300,7 +300,7 @@ func updateViewRegistry(viewXML ViewXML) {
 			Arch:        arch,
 			FieldParent: viewXML.FieldParent,
 		}
-		ViewsRegistry.AddView(&view)
+		Registry.Add(&view)
 	}
 }
 

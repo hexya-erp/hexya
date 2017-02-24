@@ -13,10 +13,10 @@ import (
 
 var log log15.Logger
 
-//BootStrap makes the necessary updates to action definitions. In particular:
-//- Add a few default values
-//- Add View to Views if not already present
-//- Add all views that are not specified
+// BootStrap makes the necessary updates to action definitions. In particular:
+// - Add a few default values
+// - Add View to Views if not already present
+// - Add all views that are not specified
 func BootStrap() {
 	for _, a := range Registry.actions {
 		// Set a few default values
@@ -41,7 +41,7 @@ func BootStrap() {
 		}
 		// Add View if not present in Views
 		if !present && len(a.View) > 0 && a.View[0] != "" {
-			vType := views.ViewsRegistry.GetViewById(a.View[0]).Type
+			vType := views.Registry.GetByID(a.View[0]).Type
 			newRef := views.ViewTuple{
 				ID:   a.View[0],
 				Type: vType,
@@ -63,7 +63,7 @@ func BootStrap() {
 				}
 			}
 			// No view defined for mode, we need to find it.
-			view := views.ViewsRegistry.GetFirstViewForModel(a.Model, views.ViewType(mode))
+			view := views.Registry.GetFirstViewForModel(a.Model, views.ViewType(mode))
 			newRef := views.ViewTuple{
 				ID:   view.ID,
 				Type: view.Type,

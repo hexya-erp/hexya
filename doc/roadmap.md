@@ -45,7 +45,7 @@ Views
 
 Controllers
 -----------
-- [ ] Inheritable controllers
+- [X] Inheritable controllers
 
 Server
 ------

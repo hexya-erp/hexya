@@ -34,8 +34,8 @@ func TestActions(t *testing.T) {
 	Convey("Creating Action 1", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(actionDef1))
 		So(len(Registry.actions), ShouldEqual, 1)
-		So(Registry.GetActionById("my_action"), ShouldNotBeNil)
-		action := Registry.GetActionById("my_action")
+		So(Registry.GetById("my_action"), ShouldNotBeNil)
+		action := Registry.GetById("my_action")
 		So(action.ID, ShouldEqual, "my_action")
 		So(action.Name, ShouldEqual, "My Action")
 		So(action.Model, ShouldEqual, "ResPartner")

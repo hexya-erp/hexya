@@ -70,3 +70,9 @@ func (c *Context) BindRPCParams(data interface{}) {
 func (c *Context) Session() sessions.Session {
 	return sessions.Default(c.Context)
 }
+
+// Super calls the next middleware / handler layer
+// It is an alias for Next
+func (c *Context) Super() {
+	c.Next()
+}
