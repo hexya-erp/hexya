@@ -23,37 +23,37 @@ import (
 	"github.com/npiganeau/yep/yep/tools/etree"
 )
 
-// Registry is the menu collection of the application
-var Registry *collection
+// Registry is the menu Collection of the application
+var Registry *Collection
 
-// A collection is a hierarchical and sortable collection of menus
-type collection struct {
+// A Collection is a hierarchical and sortable Collection of menus
+type Collection struct {
 	sync.RWMutex
 	Menus    []*Menu
 	menusMap map[string]*Menu
 }
 
-func (mc *collection) Len() int {
+func (mc *Collection) Len() int {
 	return len(mc.Menus)
 }
 
-func (mc *collection) Swap(i, j int) {
+func (mc *Collection) Swap(i, j int) {
 	mc.Menus[i], mc.Menus[j] = mc.Menus[j], mc.Menus[i]
 }
 
-func (mc *collection) Less(i, j int) bool {
+func (mc *Collection) Less(i, j int) bool {
 	return mc.Menus[i].Sequence < mc.Menus[j].Sequence
 }
 
-// Add adds a menu to the menu collection
-func (mc *collection) Add(m *Menu) {
+// Add adds a menu to the menu Collection
+func (mc *Collection) Add(m *Menu) {
 	if m.Action != nil {
 		m.HasAction = true
 	}
-	var targetCollection *collection
+	var targetCollection *Collection
 	if m.Parent != nil {
 		if m.Parent.Children == nil {
-			m.Parent.Children = new(collection)
+			m.Parent.Children = new(Collection)
 		}
 		targetCollection = m.Parent.Children
 		m.Parent.HasChildren = true
@@ -75,14 +75,14 @@ func (mc *collection) Add(m *Menu) {
 }
 
 // GetByID returns the Menu with the given id
-func (mc *collection) GetByID(id string) *Menu {
+func (mc *Collection) GetByID(id string) *Menu {
 	return mc.menusMap[id]
 }
 
 // NewCollection returns a pointer to a new
-// collection instance
-func NewCollection() *collection {
-	res := collection{
+// Collection instance
+func NewCollection() *Collection {
+	res := Collection{
 		menusMap: make(map[string]*Menu),
 	}
 	return &res
@@ -93,8 +93,8 @@ type Menu struct {
 	ID               string
 	Name             string
 	Parent           *Menu
-	ParentCollection *collection
-	Children         *collection
+	ParentCollection *Collection
+	Children         *Collection
 	Sequence         uint8
 	Action           *actions.BaseAction
 	HasChildren      bool
