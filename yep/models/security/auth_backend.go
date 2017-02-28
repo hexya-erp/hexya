@@ -14,16 +14,43 @@
 
 package security
 
+import (
+	"fmt"
+
+	"github.com/npiganeau/yep/yep/models/types"
+)
+
 // AuthenticationRegistry is the authentication registry of the application
 var AuthenticationRegistry *AuthBackendRegistry
+
+// A UserNotFoundError should be returned by backends when the user is not known
+type UserNotFoundError string
+
+// Error returns the error message
+func (unfe UserNotFoundError) Error() string {
+	return fmt.Sprintf("User not found %s", unfe)
+}
+
+// A InvalidCredentialsError should be returned by backends when the user is known
+// to this backend but cannot be authenticated.
+type InvalidCredentialsError string
+
+// Error returns the error message
+func (ice InvalidCredentialsError) Error() string {
+	return fmt.Sprintf("Wrong credentials for user %s", ice)
+}
 
 // An AuthBackend is an interface that is capable of authenticating a
 // user and tell whether a user is a member of a given group.
 type AuthBackend interface {
-	// Authenticate returns true if the given secret authenticates the
-	// user with the given uid. It returns false if the secret is not
-	// valid or if the given uid is not known to this auth backend.
-	Authenticate(uid int64, secret string) bool
+	// Authenticate the user defined by login and secret. Additional data
+	// needed by the authentication backend may be passed into the context.
+	//
+	// On success, it returns the ID of the authenticated user.
+	// On failure, it should return a UserNotFoundError if this user is not
+	// known to this backend or a InvalidCredentialsError if it is known but
+	// cannot be authenticated.
+	Authenticate(login, secret string, context *types.Context) (int64, error)
 	// UserGroups returns the list of groups the given uid belongs to.
 	// It returns an empty slice if the user is not part of any group.
 	// It returns nil if the given uid is not known to this auth backend.
@@ -49,13 +76,20 @@ func (ar *AuthBackendRegistry) RegisterBackend(backend AuthBackend) {
 // Authenticate tries to authenticate the user with the given uid and secret.
 // Backends are polled in order. The user is authenticated as soon as one
 // backend authenticates his uid with the given secret.
-func (ar *AuthBackendRegistry) Authenticate(uid int64, secret string) bool {
+func (ar *AuthBackendRegistry) Authenticate(login, secret string, context *types.Context) (int64, error) {
 	for _, backend := range ar.backends {
-		if backend.Authenticate(uid, secret) {
-			return true
+		uid, err := backend.Authenticate(login, secret, context)
+		if err != nil {
+			switch err.(type) {
+			case UserNotFoundError:
+				continue
+			case InvalidCredentialsError:
+				return 0, err
+			}
 		}
+		return uid, nil
 	}
-	return false
+	return 0, UserNotFoundError(login)
 }
 
 // UserGroups returns the list of groups the given uid belongs to.
@@ -79,9 +113,9 @@ var _ AuthBackend = new(AuthBackendRegistry)
 // It is the default backend of the application.
 type AdminOnlyBackend bool
 
-// Authenticate function of the AdminOnlyBackend. Always returns false.
-func (aob AdminOnlyBackend) Authenticate(uid int64, secret string) bool {
-	return false
+// Authenticate function of the AdminOnlyBackend. Never authenticates any user.
+func (aob AdminOnlyBackend) Authenticate(login, secret string, context *types.Context) (int64, error) {
+	return 0, UserNotFoundError(login)
 }
 
 // UserGroups function of the AdminOnlyBackend. Returns the Admin group.
@@ -99,9 +133,9 @@ var _ AuthBackend = AdminOnlyBackend(true)
 // any user.
 type GroupMapBackend map[int64][]*Group
 
-// Authenticate function of the GroupMapBackend. Always returns false.
-func (gmb GroupMapBackend) Authenticate(uid int64, secret string) bool {
-	return false
+// Authenticate function of the GroupMapBackend. Never authenticates any user.
+func (gmb GroupMapBackend) Authenticate(login, secret string, context *types.Context) (int64, error) {
+	return 0, UserNotFoundError(login)
 }
 
 // UserGroups function of the GroupMapBackend.

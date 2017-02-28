@@ -22,6 +22,7 @@ import (
 	"path"
 	"text/template"
 
+	"github.com/gin-gonic/gin"
 	"github.com/npiganeau/yep/yep/actions"
 	"github.com/npiganeau/yep/yep/controllers"
 	"github.com/npiganeau/yep/yep/models"
@@ -77,6 +78,9 @@ func StartServer(config map[string]interface{}) {
 	for key, value := range config {
 		viper.Set(key, value)
 	}
+	if !viper.GetBool("Server.Debug") {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	logging.Initialize()
 	log := logging.GetLogger("init")
 	connectString := fmt.Sprintf("dbname=%s sslmode=disable", viper.GetString("Server.DBName"))
@@ -119,6 +123,8 @@ func initServer() {
 	viper.BindPFlag("Server.DBPassword", serverCmd.PersistentFlags().Lookup("db-password"))
 	serverCmd.PersistentFlags().String("db-name", "yep", "Database name. Defaults to 'yep'")
 	viper.BindPFlag("Server.DBName", serverCmd.PersistentFlags().Lookup("db-name"))
+	serverCmd.PersistentFlags().Bool("debug", false, "Enable server debug mode for development")
+	viper.BindPFlag("Server.Debug", serverCmd.PersistentFlags().Lookup("debug"))
 }
 
 var startFileTemplate = template.Must(template.New("").Parse(`

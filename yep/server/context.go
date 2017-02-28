@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/npiganeau/yep/yep/tools"
 )
 
 // The Context allows to pass data across controller layers
@@ -75,4 +76,17 @@ func (c *Context) Session() sessions.Session {
 // It is an alias for Next
 func (c *Context) Super() {
 	c.Next()
+}
+
+// HTTPGet makes an http GET request to this server with the context's session cookie
+func (c *Context) HTTPGet(uri string) (*http.Response, error) {
+	url := tools.AbsolutizeURL(c.Request, uri)
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	sessionCookie, _ := c.Cookie("yep-session")
+	req.AddCookie(&http.Cookie{
+		Name:  "yep-session",
+		Value: sessionCookie,
+	})
+	client := http.Client{}
+	return client.Do(req)
 }

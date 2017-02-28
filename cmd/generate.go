@@ -187,10 +187,11 @@ func generateTempStructs(fileName string, names []string) {
 // definitions of all models
 func generateTempMethods(fileName string) {
 	type methData struct {
-		Model      string
-		Name       string
-		Params     string
-		ReturnType string
+		Model        string
+		Name         string
+		Params       string
+		ReturnTypes  string
+		ReturnString string
 	}
 	type templData struct {
 		Methods []methData
@@ -208,14 +209,21 @@ func generateTempMethods(fileName string) {
 			// BaseMixin methods have already been generated in previous step
 			continue
 		} else {
+			retNews := make([]string, len(mData.ReturnType.Types))
+			for i, rt := range mData.ReturnType.Types {
+				retNews[i] = fmt.Sprintf("*new(%s)", rt)
+			}
 			data.Methods = append(data.Methods, methData{
-				Model:      fmt.Sprintf("%sSet", ref.Model),
-				Name:       ref.Method,
-				Params:     params,
-				ReturnType: strings.Replace(mData.ReturnType.Type, "pool.", "", 1),
+				Model:        fmt.Sprintf("%sSet", ref.Model),
+				Name:         ref.Method,
+				Params:       params,
+				ReturnTypes:  strings.Join(retNews, ","),
+				ReturnString: strings.Join(mData.ReturnType.Types, ","),
 			})
-			if mData.ReturnType.ImportPath != "" && mData.ReturnType.ImportPath != generate.PoolPath {
-				data.Imports = append(data.Imports, mData.ReturnType.ImportPath)
+			for _, impPath := range mData.ReturnType.ImportPaths {
+				if impPath != "" && impPath != generate.PoolPath {
+					data.Imports = append(data.Imports, impPath)
+				}
 			}
 		}
 	}
@@ -238,7 +246,7 @@ func filterDefsModules(modules []*generate.ModuleInfo) []string {
 // in the model registry that will be created by importing the given modules.
 func generateFromModelRegistry(dirName string, modules []string) {
 	generatorFileName := path.Join(os.TempDir(), StructGen)
-	//defer os.Remove(generatorFileName)
+	defer os.Remove(generatorFileName)
 
 	data := struct {
 		Imports      []string
@@ -289,9 +297,9 @@ import (
 )
 
 {{ range .Methods }}
-func (s {{ .Model }}) {{ .Name }}({{ .Params }}) {{ .ReturnType }} {
-	{{ if .ReturnType }}
-	return *new({{ .ReturnType }})
+func (s {{ .Model }}) {{ .Name }}({{ .Params }}) ({{ .ReturnString }}) {
+	{{ if .ReturnTypes }}
+	return {{ .ReturnTypes }}
 	{{ end }}
 }
 {{ end }}

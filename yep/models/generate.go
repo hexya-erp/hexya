@@ -34,14 +34,22 @@ type fieldData struct {
 	TypeIsRS     bool
 }
 
+// A returnType characterizes a return value of a method
+type returnType struct {
+	Type string
+	IsRS bool
+}
+
 // A methodData describes a method in a RecordSet
 type methodData struct {
 	Name           string
 	Doc            string
 	Params         string
 	ParamsWithType string
+	ReturnAsserts  string
 	Returns        string
-	ReturnsIsRS    bool
+	ReturnString   string
+	Call           string
 }
 
 // an operatorDef defines an operator func
@@ -108,7 +116,7 @@ func generateModelPoolFile(model *Model, fileName string, astData map[generate.M
 	}
 	mData := modelData{
 		Name:           model.name,
-		Deps:           []string{generate.ModelsPath},
+		Deps:           []string{generate.ModelsPath, generate.TypesPath},
 		ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
 	}
 	// Add fields
@@ -138,7 +146,7 @@ func sanitizedFieldType(mi *Model, typ reflect.Type) (string, bool) {
 // if not already imported. deps is the map of already imported paths and is updated
 // by this function.
 func addDependency(data *modelData, typ reflect.Type, deps *map[string]bool) {
-	for typ.Kind() == reflect.Ptr {
+	for typ.Kind() == reflect.Ptr || typ.Kind() == reflect.Slice || typ.Kind() == reflect.Map {
 		typ = typ.Elem()
 	}
 	fDep := typ.PkgPath()
@@ -241,6 +249,7 @@ func addMethodsToModelData(mData *modelData, mi *Model, astData map[generate.Met
 			}
 		}
 		methType := methInfo.methodType
+		// Process method parameters
 		params := make([]string, methType.NumIn()-1)
 		paramsType := make([]string, methType.NumIn()-1)
 		for i := 0; i < methType.NumIn()-1; i++ {
@@ -262,22 +271,47 @@ func addMethodsToModelData(mData *modelData, mi *Model, astData map[generate.Met
 			}
 			addDependency(mData, methType.In(i+1), deps)
 		}
-
-		var (
-			returns     string
-			returnsIsRS bool
-		)
-		if methType.NumOut() > 0 {
-			returns, returnsIsRS = sanitizedFieldType(mi, methType.Out(0))
+		// Process method return types
+		returns := make([]string, methType.NumOut())
+		returnString := make([]string, methType.NumOut())
+		returnAsserts := make([]string, methType.NumOut())
+		var call string
+		if methType.NumOut() == 1 {
+			typ, isRS := sanitizedFieldType(mi, methType.Out(0))
 			addDependency(mData, methType.Out(0), deps)
+			if isRS {
+				returnAsserts[0] = "resTyped, _ := res.(models.RecordCollection)"
+				returns[0] = fmt.Sprintf("%s{RecordCollection: resTyped}", typ)
+			} else {
+				returnAsserts[0] = fmt.Sprintf("resTyped, _ := res.(%s)", typ)
+				returns[0] = "resTyped"
+			}
+			returnString[0] = typ
+			call = "Call"
+		} else if methType.NumOut() > 1 {
+			for i := 0; i < methType.NumOut(); i++ {
+				typ, isRS := sanitizedFieldType(mi, methType.Out(i))
+				addDependency(mData, methType.Out(i), deps)
+				if isRS {
+					returnAsserts[i] = fmt.Sprintf("resTyped%d, _ := res[%d].(models.RecordCollection)", i, i)
+					returns[i] = fmt.Sprintf("%s{RecordCollection: resTyped%d}", typ, i)
+				} else {
+					returnAsserts[i] = fmt.Sprintf("resTyped%d, _ := res[%d].(%s)", i, i, typ)
+					returns[i] = fmt.Sprintf("resTyped%d", i)
+				}
+				returnString[i] = typ
+			}
+			call = "CallMulti"
 		}
 		methData := methodData{
 			Name:           methodName,
 			Doc:            methInfo.doc,
 			Params:         strings.Join(params, ", "),
 			ParamsWithType: strings.Join(paramsType, ", "),
-			Returns:        returns,
-			ReturnsIsRS:    returnsIsRS,
+			Returns:        strings.Join(returns, ","),
+			ReturnString:   strings.Join(returnString, ","),
+			ReturnAsserts:  strings.Join(returnAsserts, "\n"),
+			Call:           call,
 		}
 		mData.Methods = append(mData.Methods, methData)
 	}
@@ -487,6 +521,37 @@ func (s {{ $.Name }}Set) Search(condition {{ .Name }}Condition) {{ .Name }}Set {
 	}
 }
 
+// WithEnv returns a copy of the current {{ .Name }}Set with the given Environment.
+func (s {{ .Name }}Set) WithEnv(env models.Environment) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: s.RecordCollection.WithEnv(env),
+	}
+}
+
+// WithContext returns a copy of the current {{ .Name }}Set with
+// its context extended by the given key and value.
+func (s {{ .Name }}Set) WithContext(key string, value interface{}) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: s.RecordCollection.WithContext(key, value),
+	}
+}
+
+// WithNewContext returns a copy of the current {{ .Name }}Set with its context
+// replaced by the given one.
+func (s {{ .Name }}Set) WithNewContext(context *types.Context) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: s.RecordCollection.WithNewContext(context),
+	}
+}
+
+// Sudo returns a new RecordCollection with the given userId
+// or the superuser id if not specified
+func (s {{ .Name }}Set) Sudo(userId ...int64) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: s.RecordCollection.Sudo(userId...),
+	}
+}
+
 {{ range .Fields }}
 // {{ .Name }} is a getter for the value of the "{{ .Name }}" field of the first
 // record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
@@ -509,16 +574,13 @@ func (s {{ $.Name }}Set) Set{{ .Name }}(value {{ .Type }}) {
 
 {{ range .Methods }}
 {{ .Doc }}
-func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) {{ .Returns }} {
-{{ if eq .Returns "" -}}
+func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}) {
+{{ if eq .Returns "" }}
 	s.Call("{{ .Name }}", {{ .Params}})
-{{- else }}{{ if .ReturnsIsRS -}}
-	return {{ .Returns }}{
-		RecordCollection: s.Call("{{ .Name }}", {{ .Params}}).(models.RecordCollection),
-	}
-{{- else -}}
-	return s.Call("{{ .Name }}", {{ .Params}}).({{ .Returns }})
-{{- end -}}
+{{- else }}
+	res := s.{{ .Call }}("{{ .Name }}", {{ .Params}})
+	{{ .ReturnAsserts }}
+	return {{ .Returns }}
 {{- end }}
 }
 
