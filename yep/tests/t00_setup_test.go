@@ -15,66 +15,12 @@
 package tests
 
 import (
-	"fmt"
-	"os"
 	"testing"
 
 	_ "github.com/lib/pq"
-	"github.com/npiganeau/yep/yep/models"
-	"github.com/npiganeau/yep/yep/tools/logging"
-	"github.com/spf13/viper"
+	_ "github.com/npiganeau/yep/yep/tests/test_module"
 )
 
-var DBARGS = struct {
-	Driver   string
-	User     string
-	Password string
-	DB       string
-	Debug    string
-}{
-	os.Getenv("YEP_DB_DRIVER"),
-	os.Getenv("YEP_DB_USER"),
-	os.Getenv("YEP_DB_PASSWORD"),
-	os.Getenv("YEP_DB_PREFIX") + "_tests",
-	os.Getenv("YEP_DEBUG"),
-}
-
 func TestMain(m *testing.M) {
-	initializeTests()
-	res := m.Run()
-	os.Exit(res)
-}
-
-func initializeTests() {
-	if DBARGS.Driver == "" || DBARGS.DB == "" || DBARGS.User == "" {
-		fmt.Println(`need driver and credentials!
-
-Default DB Drivers.
-
-postgres: https://github.com/lib/pq
-
-
-usage:
-
-go get -u github.com/lib/pq
-
-#### PostgreSQL
-psql -c 'create database yep_test_tests;' -U postgres
-export YEP_DB_DRIVER=postgres
-export YEP_DB_USER=postgres
-export YEP_DB_PREFIX=yep_test
-export YEP_DB_PASSWORD=secret
-go test -v github.com/npiganeau/yep/yep/tests`)
-		os.Exit(2)
-	}
-
-	viper.Set("LogLevel", "crit")
-	if DBARGS.Debug != "" {
-		viper.Set("LogLevel", "debug")
-		viper.Set("LogStdout", true)
-
-	}
-	logging.Initialize()
-
-	models.DBConnect(DBARGS.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", DBARGS.DB, DBARGS.User, DBARGS.Password))
+	RunTests(m, "tests")
 }

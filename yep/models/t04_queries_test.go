@@ -23,7 +23,7 @@ import (
 
 func TestConditions(t *testing.T) {
 	Convey("Testing SQL building for queries", t, func() {
-		if DBARGS.Driver == "postgres" {
+		if dbArgs.Driver == "postgres" {
 			SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 				rs := env.Pool("User")
 				rs = rs.Search(rs.Model().FilteredOn("Profile", env.Pool("Profile").Model().FilteredOn("BestPost", env.Pool("Post").Model().Field("Title").Equals("foo"))))

@@ -25,7 +25,7 @@ import (
 
 func TestConditions(t *testing.T) {
 	Convey("Testing SQL building for queries", t, func() {
-		if DBARGS.Driver == "postgres" {
+		if driver == "postgres" {
 			models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 				rs := pool.User().NewSet(env)
 				rs = rs.Search(pool.User().ProfileFilteredOn(pool.Profile().BestPostFilteredOn(pool.Post().Title().Equals("foo"))))

@@ -13,6 +13,6 @@
 // limitations under the License.
 
 /*
-Package tests is a testing package for models with the generated API
+Package tests implements a testing API for YEP modules.
 */
 package tests

@@ -64,9 +64,9 @@ Client
 Modules
 -------
 - [X] Make module registering create necessary symlinks
+- [X] Business logic testing framework
 - [ ] Internal resource XML data files
     - [X] New schema for internal resources XML
     - [ ] Make yep-generate create XSD for XML autocompletion
 - [ ] Add support for data & demo JSON files
 - [ ] Add support for CSV data files
-- [ ] Business logic testing framework

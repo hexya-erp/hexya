@@ -28,7 +28,7 @@ type UserNotFoundError string
 
 // Error returns the error message
 func (unfe UserNotFoundError) Error() string {
-	return fmt.Sprintf("User not found %s", unfe)
+	return fmt.Sprintf("User not found %s", string(unfe))
 }
 
 // A InvalidCredentialsError should be returned by backends when the user is known
@@ -37,7 +37,7 @@ type InvalidCredentialsError string
 
 // Error returns the error message
 func (ice InvalidCredentialsError) Error() string {
-	return fmt.Sprintf("Wrong credentials for user %s", ice)
+	return fmt.Sprintf("Wrong credentials for user %s", string(ice))
 }
 
 // An AuthBackend is an interface that is capable of authenticating a

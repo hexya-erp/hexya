@@ -108,6 +108,13 @@ func DBConnect(driver, connData string) {
 	log.Info("Connected to database", "driver", driver, "connData", connData)
 }
 
+// DBClose is a wrapper around sqlx.Close
+// It closes the connection to the database
+func DBClose() {
+	err := db.Close()
+	log.Info("Closed database", "error", err)
+}
+
 // dbExecute is a wrapper around sqlx.MustExec
 // It executes a query that returns no row
 func dbExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {

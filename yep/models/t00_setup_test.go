@@ -19,62 +19,70 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/npiganeau/yep/yep/tools/logging"
 	"github.com/spf13/viper"
 )
 
-var DBARGS = struct {
+var dbArgs = struct {
 	Driver   string
 	User     string
 	Password string
 	DB       string
 	Debug    string
-}{
-	os.Getenv("YEP_DB_DRIVER"),
-	os.Getenv("YEP_DB_USER"),
-	os.Getenv("YEP_DB_PASSWORD"),
-	os.Getenv("YEP_DB_PREFIX") + "_models",
-	os.Getenv("YEP_DEBUG"),
-}
+}{}
 
 var testAdapter dbAdapter
 
 func TestMain(m *testing.M) {
 	initializeTests()
 	res := m.Run()
+	tearDownTests()
 	os.Exit(res)
 }
 
 func initializeTests() {
-	if DBARGS.Driver == "" || DBARGS.DB == "" || DBARGS.User == "" {
-		fmt.Println(`need driver and credentials!
-
-Default DB Drivers.
-
-postgres: https://github.com/lib/pq
-
-
-usage:
-
-go get -u github.com/lib/pq
-
-#### PostgreSQL
-psql -c 'create database yep_test_models;' -U postgres
-export YEP_DB_DRIVER=postgres
-export YEP_DB_USER=postgres
-export YEP_DB_PREFIX=yep_test
-export YEP_DB_PASSWORD=secret
-go test -v github.com/npiganeau/yep/yep/models`)
-		os.Exit(2)
+	fmt.Printf("Initializing database for models\n")
+	dbArgs.Driver = os.Getenv("YEP_DB_DRIVER")
+	if dbArgs.Driver == "" {
+		dbArgs.Driver = "postgres"
 	}
+	dbArgs.User = os.Getenv("YEP_DB_USER")
+	if dbArgs.User == "" {
+		dbArgs.User = "yep"
+	}
+	dbArgs.Password = os.Getenv("YEP_DB_PASSWORD")
+	if dbArgs.Password == "" {
+		dbArgs.Password = "yep"
+	}
+	prefix := os.Getenv("YEP_DB_PREFIX")
+	if prefix == "" {
+		prefix = "yep"
+	}
+
+	dbArgs.DB = fmt.Sprintf("%s_models_tests", prefix)
+	dbArgs.Debug = os.Getenv("YEP_DEBUG")
+
 	viper.Set("LogLevel", "crit")
-	if DBARGS.Debug != "" {
+	if dbArgs.Debug != "" {
 		viper.Set("LogLevel", "debug")
 		viper.Set("LogStdout", true)
-
 	}
 	logging.Initialize()
-	DBConnect(DBARGS.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", DBARGS.DB, DBARGS.User, DBARGS.Password))
+
+	admDB := sqlx.MustConnect(dbArgs.Driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", dbArgs.User, dbArgs.Password))
+	admDB.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbArgs.DB))
+	admDB.Close()
+
+	DBConnect(dbArgs.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", dbArgs.DB, dbArgs.User, dbArgs.Password))
 	testAdapter = adapters[db.DriverName()]
+}
+
+func tearDownTests() {
+	DBClose()
+	fmt.Printf("Tearing down database for models\n")
+	admDB := sqlx.MustConnect(dbArgs.Driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", dbArgs.User, dbArgs.Password))
+	admDB.MustExec(fmt.Sprintf("DROP DATABASE %s", dbArgs.DB))
+	admDB.Close()
 }
