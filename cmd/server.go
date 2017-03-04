@@ -53,7 +53,7 @@ If projectDir is omitted, defaults to the current directory.`,
 // generateAndRunStartupFile creates the startup file of the project and runs it.
 func generateAndRunStartupFile(projectDir string) {
 	projectPack, err := build.ImportDir(path.Join(projectDir, "config"), 0)
-	if err != nil && !generateTestModule {
+	if err != nil {
 		panic(fmt.Errorf("Error while importing project path: %s", err))
 	}
 

@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -63,47 +64,48 @@ This command must be rerun after each source code modification, including module
 }
 
 var (
-	generateTestModule bool
-	importedPaths      []string
+	testedModule  string
+	importedPaths []string
 )
 
 func initGenerate() {
 	YEPCmd.AddCommand(generateCmd)
-	generateCmd.Flags().BoolVarP(&generateTestModule, "test", "t", false, "Generate pool for test module. When set projectDir is ignored.")
+	generateCmd.Flags().StringVarP(&testedModule, "test", "t", "", "Generate pool for testing the module in the given source directory. When set projectDir is ignored.")
 }
 
 func runGenerate(projectDir string) {
 	poolDir := path.Join(generate.YEPDir, PoolDirRel)
-
-	projectPack, err := build.ImportDir(path.Join(projectDir, "config"), 0)
-	if err != nil && !generateTestModule {
-		panic(fmt.Errorf("Error while importing project path: %s", err))
-	}
-
 	cleanPoolDir(poolDir)
+
 	conf := loader.Config{
 		AllowErrors: true,
 	}
-	fmt.Println(`
-YEP Generate
-------------`)
-	if generateTestModule {
-		fmt.Println("Building test module")
-	} else {
-		fmt.Printf("Project package found: %s.\n", projectPack.Name)
-	}
-	fmt.Printf("Detected YEP root directory at %s.\n", generate.YEPDir)
-	fmt.Println(`Loading program...
-Warnings may appear here, just ignore them if yep-generate doesn't crash.`)
 
-	if generateTestModule {
-		importedPaths = []string{generate.TestModulePath}
-	} else {
-		importedPaths = projectPack.Imports
+	fmt.Println(`YEP Generate
+------------`)
+	fmt.Printf("Detected YEP root directory at %s.\n", generate.YEPDir)
+
+	targetDir := path.Join(projectDir, "config")
+	if testedModule != "" {
+		targetDir, _ = filepath.Abs(testedModule)
+	}
+	fmt.Println("target dir", targetDir)
+	importPack, err := build.ImportDir(targetDir, 0)
+	if err != nil {
+		panic(fmt.Errorf("Error while importing project: %s", err))
+	}
+	fmt.Printf("Project package found: %s.\n", importPack.Name)
+
+	importedPaths = importPack.Imports
+	if testedModule != "" {
+		importedPaths = []string{importPack.ImportPath}
 	}
 	for _, ip := range importedPaths {
 		conf.Import(ip)
 	}
+
+	fmt.Println(`Loading program...
+Warnings may appear here, just ignore them if yep-generate doesn't crash.`)
 
 	program, _ := conf.Load()
 	fmt.Println("Ok")
