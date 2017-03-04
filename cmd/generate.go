@@ -64,18 +64,23 @@ This command must be rerun after each source code modification, including module
 }
 
 var (
-	testedModule  string
-	importedPaths []string
+	generateEmptyPool bool
+	testedModule      string
+	importedPaths     []string
 )
 
 func initGenerate() {
 	YEPCmd.AddCommand(generateCmd)
 	generateCmd.Flags().StringVarP(&testedModule, "test", "t", "", "Generate pool for testing the module in the given source directory. When set projectDir is ignored.")
+	generateCmd.Flags().BoolVar(&generateEmptyPool, "empty", false, "Generate an empty pool package. When set projectDir is ignored.")
 }
 
 func runGenerate(projectDir string) {
 	poolDir := path.Join(generate.YEPDir, PoolDirRel)
 	cleanPoolDir(poolDir)
+	if generateEmptyPool {
+		return
+	}
 
 	conf := loader.Config{
 		AllowErrors: true,
