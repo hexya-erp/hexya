@@ -100,12 +100,10 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Testing access control list on creation (create only)", t, func() {
 		SimulateInNewEnvironment(2, func(env Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
+			security.Registry.AddMembership(2, group1)
 			userModel := Registry.MustGet("User")
 
 			Convey("Checking that user 2 cannot create records", func() {
@@ -148,6 +146,7 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }
 
 func TestSearchRecordSet(t *testing.T) {
@@ -205,14 +204,11 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
+	security.Registry.AddMembership(2, group1)
 	Convey("Testing access control list while searching", t, func() {
 		SimulateInNewEnvironment(2, func(env Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
 			userModel := Registry.MustGet("User")
-
 			Convey("Checking that user 2 cannot access records", func() {
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("UserName").Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldPanic)
@@ -268,6 +264,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }
 
 func TestAdvancedQueries(t *testing.T) {
@@ -398,12 +395,10 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
+	security.Registry.AddMembership(2, group1)
 	Convey("Testing access control list on update (write only)", t, func() {
 		SimulateInNewEnvironment(2, func(env Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
 			userModel := Registry.MustGet("User")
 
 			Convey("Checking that user 2 cannot update records", func() {
@@ -481,6 +476,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }
 
 func TestDeleteRecordSet(t *testing.T) {
@@ -493,12 +489,10 @@ func TestDeleteRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
+	security.Registry.AddMembership(2, group1)
 	Convey("Checking unlink access permissions", t, func() {
 		SimulateInNewEnvironment(2, func(env Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
 			userModel := Registry.MustGet("User")
 
 			Convey("Checking that user 2 cannot delete records", func() {
@@ -544,4 +538,5 @@ func TestDeleteRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }

@@ -24,10 +24,7 @@ var log log15.Logger
 func init() {
 	log = logging.GetLogger("security")
 
-	GroupRegistry = NewGroupCollection()
-	AdminGroup = NewGroup(AdminGroupName)
-	GroupRegistry.RegisterGroup(AdminGroup)
-
-	AuthenticationRegistry = new(AuthBackendRegistry)
-	AuthenticationRegistry.RegisterBackend(AdminOnlyBackend(true))
+	Registry = NewGroupCollection()
+	AdminGroup = Registry.NewGroup(AdminGroupID, "Admin Group")
+	Registry.AddMembership(SuperUserID, AdminGroup)
 }

@@ -101,13 +101,10 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Testing access control list on creation (create only)", t, func() {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
-
+			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot create records", func() {
 				userTomData := pool.UserData{
 					UserName: "Tom Smith",
@@ -203,13 +200,10 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Testing access control list while searching", t, func() {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
-
+			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot access records", func() {
 				userJane := pool.User().NewSet(env).Search(pool.User().UserName().Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldPanic)
@@ -366,13 +360,10 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Testing access control list on update (write only)", t, func() {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
-
+			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot update records", func() {
 				pool.User().AllowModelAccess(group1, security.Read)
 				john := pool.User().NewSet(env).Search(pool.User().UserName().Equals("John Smith"))
@@ -460,13 +451,10 @@ func TestDeleteRecordSet(t *testing.T) {
 			})
 		})
 	})
+	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Checking unlink access permissions", t, func() {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
-			group1 := security.NewGroup("Group1")
-			gmBackend := make(security.GroupMapBackend)
-			security.AuthenticationRegistry.RegisterBackend(gmBackend)
-			gmBackend[2] = []*security.Group{group1}
-
+			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot delete records", func() {
 				pool.User().AllowModelAccess(group1, security.Read)
 				users := pool.User().NewSet(env).Search(pool.User().UserName().Equals("John Smith"))

@@ -51,10 +51,6 @@ type AuthBackend interface {
 	// known to this backend or a InvalidCredentialsError if it is known but
 	// cannot be authenticated.
 	Authenticate(login, secret string, context *types.Context) (int64, error)
-	// UserGroups returns the list of groups the given uid belongs to.
-	// It returns an empty slice if the user is not part of any group.
-	// It returns nil if the given uid is not known to this auth backend.
-	UserGroups(uid int64) []*Group
 }
 
 // An AuthBackendRegistry holds an ordered list of AuthBackend instances
@@ -92,56 +88,4 @@ func (ar *AuthBackendRegistry) Authenticate(login, secret string, context *types
 	return 0, UserNotFoundError(login)
 }
 
-// UserGroups returns the list of groups the given uid belongs to.
-// Backends are polled in order. The returned list of groups is that
-// of the first backend which replied with a non nil answer.
-func (ar *AuthBackendRegistry) UserGroups(uid int64) []*Group {
-	for _, backend := range ar.backends {
-		if ug := backend.UserGroups(uid); ug != nil {
-			return ug
-		}
-	}
-	return nil
-}
-
 var _ AuthBackend = new(AuthBackendRegistry)
-
-// AdminOnlyBackend is a simple backend that:
-// - Never authenticate any user
-// - States that Admin user is member of the admin group
-// - States that any other user is member of no groups
-// It is the default backend of the application.
-type AdminOnlyBackend bool
-
-// Authenticate function of the AdminOnlyBackend. Never authenticates any user.
-func (aob AdminOnlyBackend) Authenticate(login, secret string, context *types.Context) (int64, error) {
-	return 0, UserNotFoundError(login)
-}
-
-// UserGroups function of the AdminOnlyBackend. Returns the Admin group.
-func (aob AdminOnlyBackend) UserGroups(uid int64) []*Group {
-	if uid == SuperUserID {
-		return []*Group{AdminGroup}
-	}
-	return []*Group{}
-}
-
-var _ AuthBackend = AdminOnlyBackend(true)
-
-// GroupMapBackend is a simple backend that holds group / user mappings.
-// It is mainly used for tests and for security reasons never authenticate
-// any user.
-type GroupMapBackend map[int64][]*Group
-
-// Authenticate function of the GroupMapBackend. Never authenticates any user.
-func (gmb GroupMapBackend) Authenticate(login, secret string, context *types.Context) (int64, error) {
-	return 0, UserNotFoundError(login)
-}
-
-// UserGroups function of the GroupMapBackend.
-// Returns the group slice for the given uid.
-func (gmb GroupMapBackend) UserGroups(uid int64) []*Group {
-	return gmb[uid]
-}
-
-var _ AuthBackend = GroupMapBackend{}

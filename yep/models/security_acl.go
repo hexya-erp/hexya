@@ -65,8 +65,8 @@ func (m *Model) DenyFieldAccess(field FieldNamer, group *security.Group, perm se
 // checkModelPermission checks if the given uid has the given perm on the given model info.
 // It panics if the user does not have the required permission and does nothing otherwise.
 func mustCheckModelPermission(mi *Model, uid int64, perm security.Permission) {
-	userGroups := security.AuthenticationRegistry.UserGroups(uid)
-	for _, group := range userGroups {
+	userGroups := security.Registry.UserGroups(uid)
+	for group := range userGroups {
 		if mi.acl.CheckPermission(group, perm) {
 			return
 		}
@@ -76,8 +76,8 @@ func mustCheckModelPermission(mi *Model, uid int64, perm security.Permission) {
 
 // checkFieldPermission checks if the given uid has the given perm on the given field info.
 func checkFieldPermission(fi *fieldInfo, uid int64, perm security.Permission) bool {
-	userGroups := security.AuthenticationRegistry.UserGroups(uid)
-	for _, group := range userGroups {
+	userGroups := security.Registry.UserGroups(uid)
+	for group := range userGroups {
 		if fi.acl.CheckPermission(group, perm) {
 			return true
 		}

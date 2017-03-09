@@ -30,9 +30,9 @@ func (rc RecordCollection) addRecordRuleConditions(uid int64, perm security.Perm
 		}
 	}
 	// Add groups rules
-	userGroups := security.AuthenticationRegistry.UserGroups(uid)
+	userGroups := security.Registry.UserGroups(uid)
 	groupCondition := newCondition()
-	for _, group := range userGroups {
+	for group := range userGroups {
 		for _, rule := range rSet.model.rulesRegistry.rulesByGroup[group.Name] {
 			if perm&rule.Perms > 0 {
 				groupCondition = groupCondition.OrCond(rule.Condition)
