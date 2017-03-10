@@ -25,6 +25,7 @@ func init() {
 	log = logging.GetLogger("security")
 
 	Registry = NewGroupCollection()
+	AuthenticationRegistry = new(AuthBackendRegistry)
 	AdminGroup = Registry.NewGroup(AdminGroupID, "Admin Group")
 	Registry.AddMembership(SuperUserID, AdminGroup)
 }

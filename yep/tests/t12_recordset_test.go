@@ -145,6 +145,7 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }
 
 func TestSearchRecordSet(t *testing.T) {
@@ -259,6 +260,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }
 
 func TestAdvancedQueries(t *testing.T) {
@@ -439,6 +441,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }
 
 func TestDeleteRecordSet(t *testing.T) {
@@ -498,4 +501,5 @@ func TestDeleteRecordSet(t *testing.T) {
 			})
 		})
 	})
+	security.Registry.UnregisterGroup(group1)
 }
