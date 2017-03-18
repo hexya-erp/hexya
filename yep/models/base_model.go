@@ -44,6 +44,16 @@ func declareBaseMixin() {
 	model.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
 	model.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
 
+	declareComputeMethods(model)
+	declareCRUDMethods(model)
+	declareClientHelperMethods(model)
+	declareSearchMethods(model)
+
+	MixInAllModels(model)
+}
+
+func declareComputeMethods(model *Model) {
+
 	model.AddMethod("ComputeWriteDate",
 		`ComputeWriteDate updates the WriteDate field with the current datetime.`,
 		func(rc RecordCollection) FieldMap {
@@ -68,6 +78,9 @@ func declareBaseMixin() {
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"DisplayName": rc.Call("NameGet").(string)}
 		})
+}
+
+func declareCRUDMethods(model *Model) {
 
 	model.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
@@ -152,6 +165,9 @@ func declareBaseMixin() {
 			newRs := rc.Call("Create", fMap).(RecordCollection)
 			return newRs
 		})
+}
+
+func declareClientHelperMethods(model *Model) {
 
 	model.AddMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
@@ -239,7 +255,9 @@ func declareBaseMixin() {
 			// TODO Implement Onchange
 			return make(FieldMap)
 		})
+}
 
+func declareSearchMethods(model *Model) {
 	model.AddMethod("Search",
 		`Search returns a new RecordSet filtering on the current one with the
 		additional given Condition`,
@@ -285,8 +303,6 @@ func declareBaseMixin() {
 		func(rc RecordCollection, other RecordCollection) RecordCollection {
 			return rc.Union(other)
 		})
-
-	MixInAllModels(model)
 }
 
 // ConvertLimitToInt converts the given limit as interface{} to an int

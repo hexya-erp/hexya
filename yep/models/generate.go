@@ -248,61 +248,11 @@ func addMethodsToModelData(mData *modelData, mi *Model, astData map[generate.Met
 				dParams = astData[newRef]
 			}
 		}
+
 		methType := methInfo.methodType
-		// Process method parameters
-		params := make([]string, methType.NumIn()-1)
-		paramsType := make([]string, methType.NumIn()-1)
-		for i := 0; i < methType.NumIn()-1; i++ {
-			var (
-				varArgType, pType string
-				isRC              bool
-			)
-			if methType.IsVariadic() && i == methType.NumIn()-2 {
-				varArgType, isRC = sanitizedFieldType(mi, methType.In(i+1).Elem())
-				pType = fmt.Sprintf("...%s", varArgType)
-			} else {
-				pType, isRC = sanitizedFieldType(mi, methType.In(i+1))
-			}
-			paramsType[i] = fmt.Sprintf("%s %s", dParams.Params[i], pType)
-			if isRC {
-				params[i] = fmt.Sprintf("%s.RecordCollection", dParams.Params[i])
-			} else {
-				params[i] = dParams.Params[i]
-			}
-			addDependency(mData, methType.In(i+1), deps)
-		}
-		// Process method return types
-		returns := make([]string, methType.NumOut())
-		returnString := make([]string, methType.NumOut())
-		returnAsserts := make([]string, methType.NumOut())
-		var call string
-		if methType.NumOut() == 1 {
-			typ, isRS := sanitizedFieldType(mi, methType.Out(0))
-			addDependency(mData, methType.Out(0), deps)
-			if isRS {
-				returnAsserts[0] = "resTyped, _ := res.(models.RecordCollection)"
-				returns[0] = fmt.Sprintf("%s{RecordCollection: resTyped}", typ)
-			} else {
-				returnAsserts[0] = fmt.Sprintf("resTyped, _ := res.(%s)", typ)
-				returns[0] = "resTyped"
-			}
-			returnString[0] = typ
-			call = "Call"
-		} else if methType.NumOut() > 1 {
-			for i := 0; i < methType.NumOut(); i++ {
-				typ, isRS := sanitizedFieldType(mi, methType.Out(i))
-				addDependency(mData, methType.Out(i), deps)
-				if isRS {
-					returnAsserts[i] = fmt.Sprintf("resTyped%d, _ := res[%d].(models.RecordCollection)", i, i)
-					returns[i] = fmt.Sprintf("%s{RecordCollection: resTyped%d}", typ, i)
-				} else {
-					returnAsserts[i] = fmt.Sprintf("resTyped%d, _ := res[%d].(%s)", i, i, typ)
-					returns[i] = fmt.Sprintf("resTyped%d", i)
-				}
-				returnString[i] = typ
-			}
-			call = "CallMulti"
-		}
+		params, paramsType := processMethodParameters(methType, mi, dParams, mData, deps)
+		returns, returnString, returnAsserts, call := processMethodReturns(methType, mi, mData, deps)
+
 		methData := methodData{
 			Name:           methodName,
 			Doc:            methInfo.doc,
@@ -315,6 +265,68 @@ func addMethodsToModelData(mData *modelData, mi *Model, astData map[generate.Met
 		}
 		mData.Methods = append(mData.Methods, methData)
 	}
+}
+
+// processMethodParameters returns a list of parameter names and parameter types for the given method
+func processMethodParameters(methType reflect.Type, m *Model, dParams generate.MethodASTData, mData *modelData, deps *map[string]bool) ([]string, []string) {
+	params := make([]string, methType.NumIn()-1)
+	paramsType := make([]string, methType.NumIn()-1)
+	for i := 0; i < methType.NumIn()-1; i++ {
+		var (
+			varArgType, pType string
+			isRC              bool
+		)
+		if methType.IsVariadic() && i == methType.NumIn()-2 {
+			varArgType, isRC = sanitizedFieldType(m, methType.In(i+1).Elem())
+			pType = fmt.Sprintf("...%s", varArgType)
+		} else {
+			pType, isRC = sanitizedFieldType(m, methType.In(i+1))
+		}
+		paramsType[i] = fmt.Sprintf("%s %s", dParams.Params[i], pType)
+		if isRC {
+			params[i] = fmt.Sprintf("%s.RecordCollection", dParams.Params[i])
+		} else {
+			params[i] = dParams.Params[i]
+		}
+		addDependency(mData, methType.In(i+1), deps)
+	}
+	return params, paramsType
+}
+
+// processMethodReturns returns the types and assert statements needed to generate the method
+func processMethodReturns(methType reflect.Type, mi *Model, mData *modelData, deps *map[string]bool) ([]string, []string, []string, string) {
+	returns := make([]string, methType.NumOut())
+	returnString := make([]string, methType.NumOut())
+	returnAsserts := make([]string, methType.NumOut())
+	var call string
+	if methType.NumOut() == 1 {
+		typ, isRS := sanitizedFieldType(mi, methType.Out(0))
+		addDependency(mData, methType.Out(0), deps)
+		if isRS {
+			returnAsserts[0] = "resTyped, _ := res.(models.RecordCollection)"
+			returns[0] = fmt.Sprintf("%s{RecordCollection: resTyped}", typ)
+		} else {
+			returnAsserts[0] = fmt.Sprintf("resTyped, _ := res.(%s)", typ)
+			returns[0] = "resTyped"
+		}
+		returnString[0] = typ
+		call = "Call"
+	} else if methType.NumOut() > 1 {
+		for i := 0; i < methType.NumOut(); i++ {
+			typ, isRS := sanitizedFieldType(mi, methType.Out(i))
+			addDependency(mData, methType.Out(i), deps)
+			if isRS {
+				returnAsserts[i] = fmt.Sprintf("resTyped%d, _ := res[%d].(models.RecordCollection)", i, i)
+				returns[i] = fmt.Sprintf("%s{RecordCollection: resTyped%d}", typ, i)
+			} else {
+				returnAsserts[i] = fmt.Sprintf("resTyped%d, _ := res[%d].(%s)", i, i, typ)
+				returns[i] = fmt.Sprintf("resTyped%d", i)
+			}
+			returnString[i] = typ
+		}
+		call = "CallMulti"
+	}
+	return returns, returnString, returnAsserts, call
 }
 
 var defsFileTemplate = template.Must(template.New("").Parse(`

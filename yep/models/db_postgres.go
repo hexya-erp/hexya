@@ -49,7 +49,7 @@ var pgTypes = map[types.FieldType]string{
 	types.Date:      "date",
 	types.DateTime:  "timestamp without time zone",
 	types.Integer:   "integer",
-	types.Float:     "numeric",
+	types.Float:     "double precision",
 	types.HTML:      "text",
 	types.Binary:    "bytea",
 	types.Selection: "varchar",

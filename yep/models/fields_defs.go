@@ -449,7 +449,7 @@ func (m *Model) AddOne2OneField(name string, params ForeignKeyFieldParams) {
 	fInfo.unique = true
 }
 
-// AddRev2oneField adds a rev2one field with the given name to this Model.
+// AddRev2OneField adds a rev2one field with the given name to this Model.
 func (m *Model) AddRev2OneField(name string, params ReverseFieldParams) {
 	m.addReverseField(name, params, types.Rev2One, reflect.TypeOf(*new(int64)))
 }
@@ -574,7 +574,7 @@ func (m *Model) OverrideOne2OneField(name string, params ForeignKeyFieldParams) 
 	m.AddOne2OneField(name, params)
 }
 
-// OverrideRev2oneField overrides the rev2one field with the given name of this Model.
+// OverrideRev2OneField overrides the rev2one field with the given name of this Model.
 func (m *Model) OverrideRev2OneField(name string, params ReverseFieldParams) {
 	params.override = true
 	m.AddRev2OneField(name, params)

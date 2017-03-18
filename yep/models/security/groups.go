@@ -23,7 +23,7 @@ import (
 const (
 	// SuperUserID is the uid of the administrator
 	SuperUserID int64 = 1
-	// AdminGroupName is the name of the group with all permissions
+	// AdminGroupID is the string ID of the group with all permissions
 	AdminGroupID string = "admin"
 
 	// NativeGroup means that this user has been explicitly given membership in this group

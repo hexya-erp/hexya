@@ -173,7 +173,7 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 // Mapping is done on the fInfo name.
 func (fc *fieldsCollection) override(fInfo *fieldInfo) {
 	if _, exists := fc.registryByName[fInfo.name]; !exists {
-		logging.LogAndPanic(log, "Trying to override a non-existant field", "model", fInfo.model.name, "field", fInfo.name)
+		logging.LogAndPanic(log, "Trying to override a non-existent field", "model", fInfo.model.name, "field", fInfo.name)
 	}
 	fc.register(fInfo)
 }

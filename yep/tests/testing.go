@@ -37,7 +37,7 @@ func RunTests(m *testing.M, moduleName string) {
 	os.Exit(res)
 }
 
-// Initializes a database for the tests of the given module.
+// InitializeTests initializes a database for the tests of the given module.
 // You probably want to use RunTests instead.
 func InitializeTests(moduleName string) {
 	fmt.Printf("Initializing database for module %s\n", moduleName)
@@ -75,7 +75,7 @@ func InitializeTests(moduleName string) {
 	models.BootStrap()
 }
 
-// Tear down the tests for the given module
+// TearDownTests tears down the tests for the given module
 func TearDownTests(moduleName string) {
 	models.DBClose()
 	fmt.Printf("Tearing down database for module %s\n", moduleName)
