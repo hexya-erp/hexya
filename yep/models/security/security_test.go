@@ -24,9 +24,9 @@ func TestAccessControlList(t *testing.T) {
 	Convey("Testing Access Control Lists", t, func() {
 		gr := NewGroupCollection()
 		acl := NewAccessControlList()
-		group1 := gr.NewGroup("group1", "Group 1")
+		group1 := gr.NewGroup("group1_test", "Group 1")
 		group1Inherit := gr.NewGroup("group1_inherited", "Group 1 Inherited", group1)
-		group2 := gr.NewGroup("group2", "Group 2")
+		group2 := gr.NewGroup("group2_test", "Group 2")
 		acl.AddPermission(group1, Read)
 		acl.AddPermission(group2, All)
 		So(len(acl.perms), ShouldEqual, 2)
@@ -64,11 +64,11 @@ func TestAccessControlList(t *testing.T) {
 }
 
 func TestGroupRegistry(t *testing.T) {
-	group1 := Registry.NewGroup("group1", "Group 1")
-	group2 := Registry.NewGroup("group2", "Group 2")
-	group3 := Registry.NewGroup("group3", "Group 3", group1)
-	group4 := Registry.NewGroup("group4", "Group 4", group3)
-	group5 := Registry.NewGroup("group5", "Group 5", group1)
+	group1 := Registry.NewGroup("group1_test", "Group 1")
+	group2 := Registry.NewGroup("group2_test", "Group 2")
+	group3 := Registry.NewGroup("group3_test", "Group 3", group1)
+	group4 := Registry.NewGroup("group4_test", "Group 4", group3)
+	group5 := Registry.NewGroup("group5_test", "Group 5", group1)
 	Convey("Testing Group Registry", t, func() {
 		Convey("Members of a group should be member of parent groups", func() {
 			Registry.AddMembership(2, group1)
