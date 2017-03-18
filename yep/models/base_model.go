@@ -36,6 +36,7 @@ const (
 // declareBaseMixin creates the mixin that implements all the necessary base methods of a model
 func declareBaseMixin() {
 	model := NewMixinModel("BaseMixin")
+	MixInAllModels(model)
 
 	model.AddDateTimeField("CreateDate", SimpleFieldParams{NoCopy: true})
 	model.AddIntegerField("CreateUID", SimpleFieldParams{NoCopy: true})
@@ -43,16 +44,6 @@ func declareBaseMixin() {
 	model.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
 	model.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
 	model.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
-
-	declareComputeMethods(model)
-	declareCRUDMethods(model)
-	declareClientHelperMethods(model)
-	declareSearchMethods(model)
-
-	MixInAllModels(model)
-}
-
-func declareComputeMethods(model *Model) {
 
 	model.AddMethod("ComputeWriteDate",
 		`ComputeWriteDate updates the WriteDate field with the current datetime.`,
@@ -78,9 +69,6 @@ func declareComputeMethods(model *Model) {
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"DisplayName": rc.Call("NameGet").(string)}
 		})
-}
-
-func declareCRUDMethods(model *Model) {
 
 	model.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
@@ -165,9 +153,6 @@ func declareCRUDMethods(model *Model) {
 			newRs := rc.Call("Create", fMap).(RecordCollection)
 			return newRs
 		})
-}
-
-func declareClientHelperMethods(model *Model) {
 
 	model.AddMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
@@ -255,9 +240,7 @@ func declareClientHelperMethods(model *Model) {
 			// TODO Implement Onchange
 			return make(FieldMap)
 		})
-}
 
-func declareSearchMethods(model *Model) {
 	model.AddMethod("Search",
 		`Search returns a new RecordSet filtering on the current one with the
 		additional given Condition`,
