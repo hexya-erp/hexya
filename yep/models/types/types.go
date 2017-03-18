@@ -78,11 +78,14 @@ func NewContext(data ...map[string]interface{}) *Context {
 	}
 }
 
-// Digits is a tuple of 2 ints specifying respectively:
+// Digits holds precision and scale information for a float (numeric) type:
 // - The precision: the total number of digits
 // - The scale: the number of digits to the right of the decimal point
 // (PostgresSQL definitions)
-type Digits [2]int
+type Digits struct {
+	Precision int8
+	Scale     int8
+}
 
 // A FieldType defines a type of a model's field
 type FieldType string

@@ -23,7 +23,7 @@ import (
 
 func declareMethods() {
 	user := models.Registry.MustGet("User")
-	user.CreateMethod("PrefixedUser",
+	user.AddMethod("PrefixedUser",
 		`PrefixedUser is a sample method layer for testing`,
 		func(rs pool.UserSet, prefix string) []string {
 			var res []string
@@ -33,7 +33,7 @@ func declareMethods() {
 			return res
 		})
 
-	user.CreateMethod("DecorateEmail",
+	user.AddMethod("DecorateEmail",
 		`DecorateEmail is a sample method layer for testing`,
 		func(rs pool.UserSet, email string) string {
 			return fmt.Sprintf("<%s>", email)
@@ -46,7 +46,7 @@ func declareMethods() {
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	user.CreateMethod("computeAge",
+	user.AddMethod("computeAge",
 		`ComputeAge is a sample method layer for testing`,
 		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
 			res := pool.UserData{
@@ -64,7 +64,7 @@ func declareMethods() {
 			return res
 		})
 
-	user.CreateMethod("computeDecoratedName", "",
+	user.AddMethod("computeDecoratedName", "",
 		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
 			res := pool.UserData{
 				DecoratedName: rs.PrefixedUser("User")[0],
@@ -73,19 +73,19 @@ func declareMethods() {
 		})
 
 	addressMI := pool.AddressMixIn()
-	addressMI.CreateMethod("SayHello",
+	addressMI.AddMethod("SayHello",
 		`SayHello is a sample method layer for testing`,
 		func(rs pool.AddressMixInSet) string {
 			return "Hello !"
 		})
 
-	addressMI.CreateMethod("PrintAddress",
+	addressMI.AddMethod("PrintAddress",
 		`PrintAddressMixIn is a sample method layer for testing`,
 		func(rs pool.AddressMixInSet) string {
 			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
 		})
 
-	pool.Profile().CreateMethod("PrintAddress",
+	pool.Profile().AddMethod("PrintAddress",
 		`PrintAddress is a sample method layer for testing`,
 		func(rs pool.ProfileSet) string {
 			res := rs.Super()
@@ -107,7 +107,7 @@ func declareMethods() {
 	// Chained declaration
 	activeMI1 := pool.ActiveMixIn()
 	activeMI := activeMI1
-	activeMI.CreateMethod("IsActivated",
+	activeMI.AddMethod("IsActivated",
 		`IsACtivated is a sample method of ActiveMixIn"`,
 		func(rs pool.ActiveMixInSet) bool {
 			return rs.Active()

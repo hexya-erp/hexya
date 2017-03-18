@@ -14,73 +14,53 @@
 
 package defs
 
-import (
-	"github.com/npiganeau/yep/pool"
-	"github.com/npiganeau/yep/yep/models"
-)
+import "github.com/npiganeau/yep/yep/models"
 
 func init() {
-	user := models.NewModel("User", new(struct {
-		ID            int64
-		UserName      string `yep:"unique;string(Name);help(The user's username)"`
-		DecoratedName string `yep:"compute(computeDecoratedName)"`
-		Email         string `yep:"size(100);help(The user's email address);index"`
-		Password      string
-		Status        int16 `yep:"json(status_json)"`
-		IsStaff       bool
-		IsActive      bool
-		Profile       pool.ProfileSet `yep:"type(many2one)"` //;on_delete(set_null)"`
-		Age           int16           `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
-		Posts         pool.PostSet    `yep:"type(one2many);fk(User)"`
-		Nums          int
-		PMoney        float64      `yep:"related(Profile.Money)"`
-		LastPost      pool.PostSet `yep:"type(many2one);embed"`
-	}))
+	user := models.NewModel("User")
+	user.AddCharField("UserName", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
+	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: "computeDecoratedName"})
+	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
+	user.AddCharField("Password", models.StringFieldParams{})
+	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
+	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
+	user.AddBooleanField("IsActive", models.SimpleFieldParams{})
+	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: "Profile"})
+	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
+	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: "Post", ReverseFK: "User"})
+	user.AddFloatField("PMoney", models.FloatFieldParams{Related: "Profile.Money"})
+	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: "Post", Embed: true})
+	user.AddCharField("Email2", models.StringFieldParams{})
+	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
+	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})
 
-	user.Extend(new(struct {
-		Email2    string
-		IsPremium bool
-	}))
+	profile := models.NewModel("Profile")
+	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
+	profile.AddFloatField("Money", models.FloatFieldParams{})
+	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
+	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
+	profile.AddCharField("City", models.StringFieldParams{})
+	profile.AddCharField("Country", models.StringFieldParams{})
 
-	profile := models.NewModel("Profile", new(struct {
-		Age      int16
-		Money    float64
-		User     pool.UserSet `yep:"type(many2one)"`
-		BestPost pool.PostSet `yep:"type(one2one)"`
-	}))
-	profile.Extend(new(struct {
-		City    string
-		Country string
-	}))
+	post := models.NewModel("Post")
+	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
+	post.AddCharField("Title", models.StringFieldParams{})
+	post.AddTextField("Content", models.StringFieldParams{})
+	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: "Tag"})
 
-	models.NewModel("Post", new(struct {
-		User    pool.UserSet `yep:"type(many2one)"`
-		Title   string
-		Content string      `yep:"type(text)"`
-		Tags    pool.TagSet `yep:"type(many2many)"`
-	}))
+	tag := models.NewModel("Tag")
+	tag.AddCharField("Name", models.StringFieldParams{})
+	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
+	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: "Post"})
+	tag.AddCharField("Description", models.StringFieldParams{})
 
-	tag := models.NewModel("Tag", new(struct {
-		Name     string
-		BestPost pool.PostSet `yep:"type(many2one)"`
-		Posts    pool.PostSet `yep:"type(many2many)"`
-	}))
-
-	tag.Extend(new(struct {
-		Description string
-	}))
-
-	addressMI := models.NewMixinModel("AddressMixIn", new(struct {
-		Street string
-		Zip    string
-		City   string
-	}))
-
+	addressMI := models.NewMixinModel("AddressMixIn")
+	addressMI.AddCharField("Street", models.StringFieldParams{})
+	addressMI.AddCharField("Zip", models.StringFieldParams{})
+	addressMI.AddCharField("City", models.StringFieldParams{})
 	profile.MixInModel(addressMI)
 
-	models.NewMixinModel("ActiveMixIn", new(struct {
-		Active bool
-	}))
-
-	models.MixInAllModels("ActiveMixIn")
+	activeMI := models.NewMixinModel("ActiveMixIn")
+	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
+	models.MixInAllModels(activeMI)
 }

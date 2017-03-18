@@ -457,229 +457,176 @@ resUsersModel := pool.ResUsers()
 All models and fields definitions MUST be made in the `init()` of a package
 called `defs` inside the module's main package.
 
-All methods definitions MUST be made in the `init()` the main package or of
+All methods definitions MUST be made in the `init()` of the main package or of
 a package called by the module's main package.
 
 [IMPORTANT]
 ====
-After creating or modifying a model, you must run `yep-generate` to
+After creating or modifying a model, you must run `yep generate` to
 generate the types in the `pool` package before starting the YEP server.
 
-Running `yep-generate` will also allow you to obtain code completion and
+Running `yep generate` will also allow you to obtain code completion and
 inspections on the newly created types.
 ====
 
 === Creating a new model
-`*models.NewModel(modelName string, dataStructPtr interface{}) *Model*`::
+`*models.NewModel(modelName string) *Model*`::
 
-Creates a new model with the given `modelName` and add the fields of
-dataStructPtr to the model. It returns an pointer to the created model
-instance.
+Creates a new model with the given `modelName`. The created model will have a
+single `ID` field which is the model's primary key.
+It returns an pointer to the created model instance.
 
-[source,go]
-----
-course := models.NewModel("Course", new(struct {
-        Name      string             `yep:"string(Name);help(This is the name of the course);required"`
-        Date      models.DateTime    `yep:"string(Date of the Course)"`
-        Teacher   pool.ResPartnerSet `yep:"string(Teacher);type(many2one)"`
-        Date      models.DateTime    `yep:"required"`
-        Attendees pool.ResPartnerSet `yep:"string(Attendees);type(many2many)"`
-    }))
-----
+`*models.NewMixInModel(modelName string) *Model*`::
 
-`*models.NewMixInModel(modelName string, dataStructPtr interface{}) *Model*`::
-
-Creates a new mixin model with the given name and adds all fields of the given
-`dataStructPtr` to the model. Mixin model are not be accessible like a regular
-model but are meant to be mixed in other models.
+Creates a new mixin model with the given name. Mixin model are not be
+accessible like a regular model but are meant to be mixed in other models.
 +
 See <<Model Mix In>>
 
-`*models.NewMixInModel(modelName string, dataStructPtr interface{}) *Model*`::
+`*models.NewMixInModel(modelName string) *Model*`::
 
-Creates a new transient model with the given name and adds all fields of the given
-`dataStructPtr` to the model. Transient model instances have a limited life
-time and are automatically removed from database. They are mainly used for
-wizards.
-
-=== Extending a model
-Models can be extended by 3 different ways:
-
-Extension::
-Directly add fields and methods to existing models.
-
-Mix In::
-Add all fields and methods from a model to another model.
-
-Embedding::
-Allow direct access to all fields of another model. Embedding only applies to
-fields, not methods.
-
-==== Model Extension
-`*(*Model) Extend(dataStructPtr ...interface{})*`::
-Extend this model by adding fields of `dataStructPtr` to the model.
-
-See also <<Defining methods>> to see how to add or override methods in a model.
-
-==== Model Mix In
-`*(*Model) MixInModel(mixInModel *Model)*`::
-Extend this model by importing all fields and methods of `mixInModel`.
-`MixInModel` must have been created by `models.NewMixInModel()` and this model
-must not be a mixin model itself.
-
-`*models.MixInAllModels(mixInModel *Model)*`::
-Extends all models by importing all fields and methods of `mixInModel`.
-`MixInModel` must have been created by `models.NewMixInModel()`
-
-If a field name conflicts with an existing field name in the model, then:
-
-.Field overriding rules
-- Fields defined in the target model override fields defined in any mixin model
-- Fields defined in a specific mixin added with `MixInModel` override fields
-defined in a generic mixin added with `MixInAllModels`.
-- Fields defined in a mixin override fields defined in another mixin of same
-priority (i.e. general or specific) imported before.
-
-If a method name conflicts with an existing method name in the model, then:
-
-.Method overriding rules
-- Methods defined in the target model extend methods of the mixin model.
-- Methods defined in a specific mixin added with `MixInModel` extend methods
-defined in a generic mixin added with `MixInAllModels`.
-- Methods defined in a mixin extend methods defined of another mixin of same
-priority (i.e. general or specific) imported before.
-
-Use `Super()` in extending implementation to access the implementation of
-the lower level mixins.
-
-NOTE: When mixing in a model, the database columns are copied into the table of
-the target model, resulting in an independent model. However, all extensions of
-the mixin model are taken into account and apply to all the target models, even
-if the extension has been defined after the mixing in.
-
-==== Model Embedding
-Model embedding allows a model to read fields of another model just as if they
-were normal fields of the model.
-
-To embed a model, define a `many2one` field pointing at the model to embed and
-add the `embed` tag to it.
-
-NOTE: Embedding does not allow direct access to the embedded model methods.
+Creates a new transient model with the given name. Transient model instances
+have a limited life time and are automatically removed from database. They
+are mainly used for wizards.
 
 === Fields declaration
 
-Models fields are defined through structs with annotated fields, as in the
-example below:
+Models fields are added by specific methods that apply to a model instance as
+in the example below:
 
 [source,go]
 ----
-course := models.NewModel("Course", new(struct {
-    Name      string             `yep:"string(Name);help(This is the name of the course);required"`
-    Date      models.DateTime    `yep:"string(Date of the Course)"`
-    Teacher   pool.ResPartnerSet `yep:"string(Teacher);type(many2one)"`
-    Date      models.DateTime    `yep:"required"`
-    Attendees pool.ResPartnerSet `yep:"string(Attendees);type(many2many)"`
-})
+course := models.NewModel("Course")
+course.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "This is the name of the course", Required: true})
+course.AddDateField("Date", models.SimpleFieldParams{String: "Date of the Course"}
+course.AddMany2OneField("Teacher", models.ForeignKeyParams{RelationModel: "ResPartner", String: "Teacher"}
+course.AddDateTimeField("LimitDate", models.SimpleFieldParams{Required: true}
+course.AddMany2ManyField("Attendees", models.Many2manyFieldParams{RelationModel: "ResPartner", String: "Attendees"}
 ----
 
-==== Struct field annotations
+Available model methods for creating fields are:
 
-The following tags can be used to annotate fields. All are to be set inside a
-`yep` annotation, separated by a semicolon. Where applicable tag parameters
-have to be entered directly, without inverted commas.
+`*AddBinaryField(name string, params SimpleFieldParams)*`::
+A binary field holds arbitrary data that is meant to be delivered to the
+client as a file. Binary fields are mapped to `[]byte` go type.
+`*AddBooleanField(name string, params SimpleFieldParams)*`::
+`*AddCharField(name string, params StringFieldParams)*`::
+A Char field is a string field that is meant to be displayed as a single line
+in the client. Char fields are mapped to go strings.
+`*AddDateField(name string, params SimpleFieldParams)*`::
+Date fields are mapped to models.Date structs.
+`*AddDateTimeField(name string, params SimpleFieldParams)*`::
+DateTime fields are mapped to models.Date structs.
+`*AddFloatField(name string, params FloatFieldParams)*`::
+`*AddHTMLField(name string, params StringFieldParams)*`::
+HTML fields are formatted with their HTML content by the client.
+`*AddIntegerField(name string, params SimpleFieldParams)*`::
+`*AddMany2ManyField(name string, params Many2ManyFieldParams)*`::
+`*AddMany2OneField(name string, params ForeignKeyFieldParams)*`::
+`*AddOne2ManyField(name string, params ReverseFieldParams)*`::
+`*AddOne2OneField(name string, params ForeignKeyFieldParams)*`::
+`*AddRev2OneField(name string, params ReverseFieldParams)*`::
+Rev2One fields are the reverse relation of one2one in the model that does not
+have an FK.
+`*AddSelectionField(name string, params SelectionFieldParams)*`::
+A selection field can have as values only a set of predefined strings.
+`*AddTextField(name string, params StringFieldParams)*`::
+A Text field is a string field that is meant to be displayed on multiple lines
+in the client. Text fields are mapped to go strings.
 
-===== Field type tags
+As in the example below:
 
-`type(__value__)`::
-Defines the type of the field. In most cases, it is implied from the field's Go
-type, but it must be specified in the following cases:
-====
-Relational fields::
-Allowed types are `one2one`, `many2one`, `one2many`, `many2many`
-Special string types::
-* `text` for multiline texts
-* `html` for html strings that must be parsed as such
-* `binary` for binary data stored in the database
-* `selection` for text data that is limited to a few values
-====
 
-`fk(__value__)`::
-Set the foreign key field name in the related model for `one2many` relations.
+==== Overriding fields
 
-`comodel(__value__)`::
-Set the other model for a relation field. This tag is used only in low level
-API. The comodel is normally deduced from the type of the struct field.
+Fields can be overridden by using the `OverrideXXXXXXField` methods:
+[source,go]
+----
+course := pool.Course()
+course.OverrideCharField("Name", models.StringFieldParams{String: "MyName", Help: "This is the new name of the course"})
+----
 
-`m2m_relmodel(__value__)`::
-Set the name of the intermediate model for a `many2many` relation. This tag
-is mandatory only if there are several `many2many` relations between the two
-models.
+When a field is overridden, all its options are overridden by the given params,
+so unspecified options are reset to their go default values and not to the
+value in the original field.
 
-`m2m_ours(__value__)`::
+==== Field parameters
+
+Field parameters are set in the params struct that is passed to the field's
+creation/override method. Params structs only differ by the options available
+to specific types. Below is the list and explanation for each parameter.
+
+===== Field type parameters
+
+`ReverseFK` string::
+Set the foreign key field name in the related model for `one2many` and
+`rev2one` relations.
+
+`RelationModel` string::
+Set the other model for a relation field.
+
+`M2MLinkModelName` string::
+Set the name of the intermediate model for a `many2many` relation. This
+parameter is mandatory only if there are several `many2many` relations
+between the two models.
+
+`M2MOurField` string::
 In a `many2many` relation, set the name of the field of the intermediate model
-that points to this (our) model. This tag is mandatory only if the `many2many`
-relation is pointing to the same model.
+that points to this (our) model. This parameter is mandatory only if the
+`many2many` relation is pointing to the same model.
 
-`m2m_theirs(__value__)`::
+`M2MTheirField` string::
 In a `many2many` relation, set the name of the field of the intermediate model
-that points to the other (their) model, i.e. the model defined by `comodel`.
-This tag is mandatory only if the `many2many` relation is pointing to the
-same model.
+that points to the other (their) model, i.e. the model defined by
+`RelationModel`. This parameter is mandatory only if the `many2many` relation
+is pointing to the same model.
 
-`selection(__value__)`::
-Comma separated list of tuples `__key__|__DisplayString__` for `selection`
-type.
+`Selection` map[string]string::
+Map of predefined allowed values for a Selection field. The map keys are the
+actual values, and the map values are the labels to display for each value.
 
-`size(__value__)`::
+`Size` int::
 Maximum size for the `string` type in database.
 
-`digits(__value__)`::
+`Digits` types.Digit::
 Sets the decimal precision to a Go `float` type to store as a decimal type in
-database. `__value__` must be a `total, decimal` pair.
+database. Digit objects have a `Scale` field that defines the total number of
+digits and a `Precision` field that defines the number of digits after the
+decimal point.
 
-`json(__value__)`::
-Field's json value that will be used for the column name in the database and
+`JSON` string::
+Field's JSON value that will be used for the column name in the database and
 for json serialization to the client.
 
-===== Field's metadata tags
+==== Field's metadata parameters
 
-`string(__value__)`::
+`String` string::
 Field's label inside the application.
-`help(__value__)`::
+`Help` string::
 Field's help typically displayed as tooltip.
 
-===== Field's modifiers tags
+==== Field's modifiers parameters
 
-`required`::
+`Required` bool::
 Defines the field as required (i.e. not null).
 
-`optional`::
-Defines the field as optional. This is the default, the tag exists to override
-existing fields.
-
-`unique`::
+`Unique` bool::
 Defines the field as unique in the database table.
 
-`not-unique`::
-Unsets the `unique` attribute for this field. This is the default.
-
-`index`::
+`Index` bool::
 Creates an index on this field in the database.
 
-`nocopy`::
+`NoCopy` bool::
 Fields marked with this tag will not be copied when a record is duplicated.
 
-`copy`::
-Unset the `nocopy` tag.
+`GroupOperator` string::
+A valid database function name that will be used on this field when aggregating
+the model. It defaults to `sum`.
 
-`group_operator(__value__)`::
-`__value__` must be a valid database function that will be used on this
-field when aggregating the model. It defaults to `sum`.
+==== Computed fields parameters
 
-===== Computed fields tags
-
-`compute(__value__)`::
-Declares this field as a computed field. `__value__` must be the name of a
+`Compute` string::
+Declares this field as a computed field. The value must be the name of a
 method on this RecordSet with the following signature, which returns a
 Record with the values to update and a slice of field names to unset.
 
@@ -688,37 +635,34 @@ Record with the values to update and a slice of field names to unset.
 func (RecordSetType) (*RecordType, []models.FieldNamer)
 ----
 
-`related(__path__)`::
+`Related` string::
 Declares this field as a related field, i.e. a field that is automatically
-synchronized with another field. `__path__` must be a path string to the
+synchronized with another field. The value must be a path string to the
 related field starting from the current RecordSet
 (e.g. `"Customer.Country.Name"`).
 
-`store`::
-For a `computed`, if `store` tag is set, then the field will be stored into
-the database. Recomputation will be triggered by the data in the `depends` tag.
+`Stored` bool::
+For a computed field, if true then the field will be stored into the database.
+Recomputation will be triggered by the data in the `Depends` parameter.
 +
 Storing a computed field allows to make queries on its value and speeds up
 reading of the RecordSet. However, the updates can be slowed down,
 especially when multiple triggers are fired at the same time.
 
-`unstore`::
-Unset the `store` tag on this field. This is the default.
-
-`depends(__paths__)`::
+`Depends` string::
 Defines the fields on which to trigger recomputation of this field. This is
-relevant only for `computed` fields with the `store` tag set.
+relevant only for computed fields with the `Stored` parameter set to true.
 +
-`__paths__` must be a comma separated list of paths to fields used in the
+Value must be a comma separated list of paths to fields used in the
 computation of this field. Paths may go through `one2many` or `many2many`
 fields. In this case all the fields that would match will be used as triggers.
 
-`embed`::
+`Embed` bool::
 Embed the model of the related field into this model. This field must be a
 `many2one` field.
 +
 When embedded, all the fields of the RecordSet pointed by this field
-will be automatically added as `related` fields, so that they can be accessed
+will be automatically added as `Related` fields, so that they can be accessed
 directly from this RecordSet.
 
 NOTE: Only the fields of the embedded model will be accessible from this
@@ -745,6 +689,8 @@ actual implementation. Layer functions must meet the following constraints:
 Creates a new method on this model with the given `methodName` and
 apply the given `layerFunction` as first "layer function". `doc` is the
 documentation of the method.
+
+--
 
 [source,go]
 ----
@@ -791,5 +737,76 @@ as that of the first layer passed to `CreateMethod`.
 layer. While `SuperMulti` returns all returned values as a slice of interface{},
 `Super` only returns the first returned value and discards the others.
 
+
+
 TIP: Prefer RecordSet methods with only one return value whenever possible, as
 using `Super()` is easier and more intuitive than using `SuperMulti()`.
+
+=== Extending a model
+
+Models can be extended by 3 different ways:
+
+Extension::
+Directly add fields and methods to existing models.
+
+Mix In::
+Add all fields and methods from a model to another model.
+
+Embedding::
+Allow direct access to all fields of another model. Embedding only applies to
+fields, not methods.
+
+==== Model Extension
+
+See <<Fields declaration>> for how to add a field in a model. Fields can be
+added to a model in any module, not only the module in which the model is
+created.
+
+See also <<Defining methods>> to see how to add or override methods in a model.
+
+==== Model Mix In
+
+`*(*Model) MixInModel(mixInModel *Model)*`::
+Extend this model by importing all fields and methods of `mixInModel`.
+`MixInModel` must have been created by `models.NewMixInModel()` and this model
+must not be a mixin model itself.
+
+`*models.MixInAllModels(mixInModel *Model)*`::
+Extends all models by importing all fields and methods of `mixInModel`.
+`MixInModel` must have been created by `models.NewMixInModel()`
+
+If a field name conflicts with an existing field name in the model, then:
+
+.Field overriding rules
+- Fields defined in the target model override fields defined in any mixin model
+- Fields defined in a specific mixin added with `MixInModel` override fields
+defined in a generic mixin added with `MixInAllModels`.
+- Fields defined in a mixin override fields defined in another mixin of same
+priority (i.e. general or specific) imported before.
+
+If a method name conflicts with an existing method name in the model, then:
+
+.Method overriding rules
+- Methods defined in the target model extend methods of the mixin model.
+- Methods defined in a specific mixin added with `MixInModel` extend methods
+defined in a generic mixin added with `MixInAllModels`.
+- Methods defined in a mixin extend methods defined of another mixin of same
+priority (i.e. general or specific) imported before.
+
+Use `Super()` in extending implementation to access the implementation of
+the lower level mixins.
+
+NOTE: When mixing in a model, the database columns are copied into the table of
+the target model, resulting in an independent model. However, all extensions of
+the mixin model are taken into account and apply to all the target models, even
+if the extension has been defined after the mixing in.
+
+==== Model Embedding
+
+Model embedding allows a model to read fields of another model just as if they
+were normal fields of the model.
+
+To embed a model, define a `many2one` field pointing at the model to embed and
+add the `embed` tag to it.
+
+NOTE: Embedding does not allow direct access to the embedded model methods.

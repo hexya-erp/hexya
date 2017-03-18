@@ -37,7 +37,7 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Creating user Jane with related Profile and Posts and Tags", func() {
 				profileData := pool.ProfileData{
-					Age:     23,
+					Age:     int16(23),
 					Money:   12345,
 					Street:  "165 5th Avenue",
 					City:    "New York",

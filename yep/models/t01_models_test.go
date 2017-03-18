@@ -23,71 +23,54 @@ import (
 
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
-		user := NewModel("User", new(struct {
-			ID            int64
-			UserName      string `yep:"unique;string(Name);help(The user's username)"`
-			DecoratedName string `yep:"compute(computeDecoratedName)"`
-			Email         string `yep:"size(100);help(The user's email address);index"`
-			Password      string
-			Status        int16 `yep:"json(status_json)"`
-			IsStaff       bool
-			IsActive      bool
-			Profile       RecordCollection `yep:"type(many2one);comodel(Profile)"` //;on_delete(set_null)"`
-			Age           int16            `yep:"compute(computeAge);store;depends(Profile.Age,Profile)"`
-			Posts         RecordCollection `yep:"type(one2many);fk(User);comodel(Post)"`
-			Nums          int
-			unexportBool  bool
-			PMoney        float64          `yep:"related(Profile.Money)"`
-			LastPost      RecordCollection `yep:"embed;type(many2one);comodel(Post)"`
-		}))
+		user := NewModel("User")
+		user.AddCharField("UserName", StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
+		user.AddCharField("DecoratedName", StringFieldParams{Compute: "computeDecoratedName"})
+		user.AddCharField("Email", StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
+		user.AddCharField("Password", StringFieldParams{})
+		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
+		user.AddBooleanField("IsStaff", SimpleFieldParams{})
+		user.AddBooleanField("IsActive", SimpleFieldParams{})
+		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: "Profile"})
+		user.AddIntegerField("Age", SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
+		user.AddOne2ManyField("Posts", ReverseFieldParams{RelationModel: "Post", ReverseFK: "User"})
+		user.AddFloatField("PMoney", FloatFieldParams{Related: "Profile.Money"})
+		user.AddMany2OneField("LastPost", ForeignKeyFieldParams{RelationModel: "Post", Embed: true})
+		user.AddCharField("Email2", StringFieldParams{})
+		user.AddBooleanField("IsPremium", SimpleFieldParams{})
+		user.AddIntegerField("Nums", SimpleFieldParams{GoType: new(int)})
 
-		user.Extend(new(struct {
-			Email2    string
-			IsPremium bool
-		}))
+		profile := NewModel("Profile")
+		profile.AddIntegerField("Age", SimpleFieldParams{GoType: new(int16)})
+		profile.AddFloatField("Money", FloatFieldParams{})
+		profile.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: "User"})
+		profile.AddOne2OneField("BestPost", ForeignKeyFieldParams{RelationModel: "Post"})
+		profile.AddCharField("City", StringFieldParams{})
+		profile.AddCharField("Country", StringFieldParams{})
 
-		addressMI := NewMixinModel("AddressMixIn", new(struct {
-			Street string
-			Zip    string
-			City   string
-		}))
+		post := NewModel("Post")
+		post.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: "User"})
+		post.AddCharField("Title", StringFieldParams{})
+		post.AddTextField("Content", StringFieldParams{})
+		post.AddMany2ManyField("Tags", Many2ManyFieldParams{RelationModel: "Tag"})
 
-		profile := NewModel("Profile", new(struct {
-			Age      int16
-			Money    float64
-			User     RecordCollection `yep:"type(many2one);comodel(User)"`
-			BestPost RecordCollection `yep:"type(one2one);comodel(Post)"`
-		}))
+		tag := NewModel("Tag")
+		tag.AddCharField("Name", StringFieldParams{})
+		tag.AddMany2OneField("BestPost", ForeignKeyFieldParams{RelationModel: "Post"})
+		tag.AddMany2ManyField("Posts", Many2ManyFieldParams{RelationModel: "Post"})
+		tag.AddCharField("Description", StringFieldParams{})
 
+		addressMI := NewMixinModel("AddressMixIn")
+		addressMI.AddCharField("Street", StringFieldParams{})
+		addressMI.AddCharField("Zip", StringFieldParams{})
+		addressMI.AddCharField("City", StringFieldParams{})
 		profile.MixInModel(addressMI)
-		profile.Extend(new(struct {
-			City    string
-			Country string
-		}))
 
-		NewModel("Post", new(struct {
-			User    RecordCollection `yep:"type(many2one);comodel(User)"`
-			Title   string
-			Content string           `yep:"type(text)"`
-			Tags    RecordCollection `yep:"type(many2many);comodel(Tag)"`
-		}))
+		activeMI := NewMixinModel("ActiveMixIn")
+		activeMI.AddBooleanField("Active", SimpleFieldParams{})
+		MixInAllModels(activeMI)
 
-		activeMI := NewMixinModel("ActiveMixIn", new(struct {
-			Active bool
-		}))
-		MixInAllModels("ActiveMixIn")
-
-		tag := NewModel("Tag", new(struct {
-			Name     string
-			BestPost RecordCollection `yep:"type(many2one);comodel(Post)"`
-			Posts    RecordCollection `yep:"type(many2many);comodel(Post)"`
-		}))
-
-		tag.Extend(new(struct {
-			Description string
-		}))
-
-		user.CreateMethod("PrefixedUser", "",
+		user.AddMethod("PrefixedUser", "",
 			func(rc RecordCollection, prefix string) []string {
 				var res []string
 				for _, u := range rc.Records() {
@@ -106,7 +89,7 @@ func TestCreateDB(t *testing.T) {
 				return res
 			})
 
-		user.CreateMethod("DecorateEmail", "",
+		user.AddMethod("DecorateEmail", "",
 			func(rc RecordCollection, email string) string {
 				return fmt.Sprintf("<%s>", email)
 			})
@@ -117,36 +100,36 @@ func TestCreateDB(t *testing.T) {
 				return fmt.Sprintf("[%s]", res)
 			})
 
-		user.CreateMethod("computeDecoratedName", "",
+		user.AddMethod("computeDecoratedName", "",
 			func(rc RecordCollection) FieldMap {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 				return res
 			})
 
-		user.CreateMethod("computeAge", "",
+		user.AddMethod("computeAge", "",
 			func(rc RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
 				res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
 				return res, []FieldNamer{}
 			})
 
-		activeMI.CreateMethod("IsActivated", "",
+		activeMI.AddMethod("IsActivated", "",
 			func(rc RecordCollection) bool {
 				return rc.Get("Active").(bool)
 			})
 
-		addressMI.CreateMethod("SayHello", "",
+		addressMI.AddMethod("SayHello", "",
 			func(rc RecordCollection) string {
 				return "Hello !"
 			})
 
-		addressMI.CreateMethod("PrintAddress", "",
+		addressMI.AddMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
 				return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
 			})
 
-		profile.CreateMethod("PrintAddress", "",
+		profile.AddMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
 				res := rc.Super().(string)
 				return fmt.Sprintf("%s, %s", res, rc.Get("Country"))

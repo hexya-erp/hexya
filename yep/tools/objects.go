@@ -66,6 +66,23 @@ func SnakeCaseString(in string) string {
 	return string(out)
 }
 
+// TitleString convert the given camelCase string to a title string.
+// eg. MyHTMLData => My HTML Data
+func TitleString(in string) string {
+	runes := []rune(in)
+	length := len(runes)
+
+	var out []rune
+	for i := 0; i < length; i++ {
+		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
+			out = append(out, ' ')
+		}
+		out = append(out, runes[i])
+	}
+
+	return string(out)
+}
+
 /*
 GetStructFieldByJSONTag returns a pointer value of the struct field of the given structValue
 with the given JSON tag. If several are found, it returns the first one. If none are
@@ -98,4 +115,12 @@ func UnmarshalJSONValue(data, dst reflect.Value) error {
 	}
 	dst.Elem().Set(umArgs[1].Elem())
 	return nil
+}
+
+// GetDefaultString returns str if it is not an empty string or def otherwise
+func GetDefaultString(str, def string) string {
+	if str == "" {
+		return def
+	}
+	return str
 }

@@ -70,6 +70,10 @@ func createModelLinks() {
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
 	for _, mi := range Registry.registryByName {
+		if mi.options&Many2ManyLinkModel > 0 {
+			// We don"t mix in M2M link models
+			continue
+		}
 		if mi.isMixin() {
 			// We don't mix in mixin models
 			continue

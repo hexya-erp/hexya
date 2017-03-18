@@ -118,8 +118,18 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash.`)
 	modules := generate.GetModulePackages(program)
 	fmt.Println("Ok")
 
-	fmt.Print("Stage 1: Generating temporary structs...")
+	fmt.Print("Stage 1: Generating temporary structs (1/2)...")
 	missingDecls := getMissingDeclarations(modules)
+	generateTempStructs(path.Join(poolDir, TempStructs), missingDecls)
+	fmt.Println("Ok")
+
+	fmt.Print("Stage 1: Generating temporary structs (2/2)...")
+	program, _ = conf.Load()
+	modules = generate.GetModulePackages(program)
+	newMissingDecls := getMissingFields(modules)
+	for k, v := range newMissingDecls {
+		missingDecls[k] = v
+	}
 	generateTempStructs(path.Join(poolDir, TempStructs), missingDecls)
 	fmt.Println("Ok")
 
@@ -153,32 +163,55 @@ func cleanPoolDir(dirName string) {
 // getMissingDeclarations parses the errors from the program for
 // identifiers not declared in package pool, and returns a slice
 // with all these names.
-func getMissingDeclarations(packages []*generate.ModuleInfo) []string {
+func getMissingDeclarations(packages []*generate.ModuleInfo) map[string][]string {
+	res, _ := scanPackagesErrors(packages, "%s not declared by package pool", 1, 1)
+	result := make(map[string][]string)
+	for r := range res {
+		result[r] = []string{}
+	}
+	return result
+}
+
+// getMissingFields returns a map with models as keys and fields as values
+// for missing fields.
+func getMissingFields(packages []*generate.ModuleInfo) map[string][]string {
+	res := make(map[string][]string)
+	_, raws := scanPackagesErrors(packages, "invalid operation: pool.%s (value of type github.com/npiganeau/yep/pool.%s has no field or method %s", 3, 3)
+	for _, lst := range raws {
+		firstItem := *lst[0].(*string)
+		model := firstItem[:len(firstItem)-2]
+		res[model] = append(res[model], *lst[2].(*string))
+	}
+	return res
+}
+
+// scanPackagesErrors parses the errors from the program for
+// identifiers matched by the given error format string at given position.
+// It returns the list of identifiers as first result, and the raw scanned values as second output.
+func scanPackagesErrors(packages []*generate.ModuleInfo, format string, num, pos int) (map[string]bool, [][]interface{}) {
 	// We scan all packages and populate a map to have distinct values
 	missing := make(map[string]bool)
+	var raws [][]interface{}
 	for _, pack := range packages {
 		for _, err := range pack.Errors {
 			typeErr, ok := err.(types.Error)
 			if !ok {
 				continue
 			}
-			var identName string
-			n, e := fmt.Sscanf(typeErr.Msg, "%s not declared by package pool", &identName)
+			identNames := make([]interface{}, num)
+			for i := range identNames {
+				identNames[i] = new(string)
+			}
+			n, e := fmt.Sscanf(typeErr.Msg, format, identNames...)
 			if n == 0 || e != nil {
 				continue
 			}
+			identName := *identNames[pos-1].(*string)
 			missing[identName] = true
+			raws = append(raws, identNames)
 		}
 	}
-
-	// We create our result slice from the missing map
-	res := make([]string, len(missing))
-	var i int
-	for m := range missing {
-		res[i] = m
-		i++
-	}
-	return res
+	return missing, raws
 }
 
 // generateTempStructs creates a temporary file with empty struct
@@ -186,8 +219,27 @@ func getMissingDeclarations(packages []*generate.ModuleInfo) []string {
 //
 // This is typically done so that yep can compile to have access to
 // reflection and generate the final structs.
-func generateTempStructs(fileName string, names []string) {
-	generate.CreateFileFromTemplate(fileName, tempStructsTemplate, names)
+func generateTempStructs(fileName string, names map[string][]string) {
+	var tempStructData struct {
+		Import  string
+		Funcs   map[string][]string
+		Structs []string
+	}
+	tempStructData.Funcs = make(map[string][]string)
+	for name, fields := range names {
+		switch {
+		case len(name) < 4:
+			tempStructData.Funcs[name] = fields
+		case name[len(name)-3:] == "Set":
+			tempStructData.Structs = append(tempStructData.Structs, name)
+		case name[len(name)-4:] == "Data":
+			tempStructData.Structs = append(tempStructData.Structs, name)
+		default:
+			tempStructData.Funcs[name] = fields
+		}
+	}
+	tempStructData.Import = generate.ModelsPath
+	generate.CreateFileFromTemplate(fileName, tempStructsTemplate, tempStructData)
 }
 
 // generateMethodsStructs creates a temporary file with empty methods
@@ -287,8 +339,28 @@ var tempStructsTemplate = template.Must(template.New("").Parse(`
 
 package pool
 
-{{ range . }}
+import "{{ .Import }}"
+
+{{ range.Structs }}
 type {{ . }} struct {}
+{{ end }}
+
+{{ range  $model, $fields := .Funcs }}
+type {{ $model }}Model struct {
+	*models.Model
+	__Name  string
+}
+
+func {{ $model }}() {{ $model }}Model {
+	return {{ $model }}Model{
+		__Name:  "{{ $model }}",
+	}
+}
+{{ range $field := $fields }}
+func (m {{ $model }}Model) {{ $field }}() models.FieldNamer {
+	return models.FieldName("{{ $field }}")
+}
+{{ end }}
 {{ end }}
 `))
 

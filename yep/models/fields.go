@@ -15,11 +15,9 @@
 package models
 
 import (
-	"fmt"
 	"reflect"
-	"sort"
-	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
@@ -42,6 +40,7 @@ type computeData struct {
 
 // fieldsCollection is a collection of fieldInfo instances in a model.
 type fieldsCollection struct {
+	sync.RWMutex
 	registryByName       map[string]*fieldInfo
 	registryByJSON       map[string]*fieldInfo
 	computedFields       []*fieldInfo
@@ -162,10 +161,29 @@ func newFieldsCollection() *fieldsCollection {
 	}
 }
 
-/*
-add adds the given fieldInfo to the fieldsCollection.
-*/
+// add the given fieldInfo to the fieldsCollection.
 func (fc *fieldsCollection) add(fInfo *fieldInfo) {
+	if _, exists := fc.registryByName[fInfo.name]; exists {
+		logging.LogAndPanic(log, "Trying to add already existing field", "model", fInfo.model.name, "field", fInfo.name)
+	}
+	fc.register(fInfo)
+}
+
+// override a fieldInfo in the collection.
+// Mapping is done on the fInfo name.
+func (fc *fieldsCollection) override(fInfo *fieldInfo) {
+	if _, exists := fc.registryByName[fInfo.name]; !exists {
+		logging.LogAndPanic(log, "Trying to override a non-existant field", "model", fInfo.model.name, "field", fInfo.name)
+	}
+	fc.register(fInfo)
+}
+
+// register adds or override the given fInfo in the collection.
+func (fc *fieldsCollection) register(fInfo *fieldInfo) {
+	fc.Lock()
+	defer fc.Unlock()
+
+	checkFieldInfo(fInfo)
 	name := fInfo.name
 	jsonName := fInfo.json
 	fc.registryByName[name] = fInfo
@@ -196,7 +214,6 @@ type fieldInfo struct {
 	index            bool
 	compute          string
 	depends          []string
-	html             bool
 	relatedModelName string
 	relatedModel     *Model
 	reverseFK        string
@@ -245,112 +262,6 @@ func (fi *fieldInfo) isStored() bool {
 	return true
 }
 
-// createFieldInfo creates and returns a new fieldInfo pointer from the given
-// StructField and Model.
-func createFieldInfo(sf reflect.StructField, mi *Model) *fieldInfo {
-	var (
-		attrs map[string]bool
-		tags  map[string]string
-	)
-	parseStructTag(sf.Tag.Get(defaultStructTagName), &attrs, &tags)
-
-	_, stored := attrs["store"]
-	_, required := attrs["required"]
-	_, unique := attrs["unique"]
-	_, index := attrs["index"]
-	_, embed := attrs["embed"]
-	_, noCopy := attrs["nocopy"]
-
-	computeName := tags["compute"]
-	relatedPath := tags["related"]
-	sStr := tags["size"]
-	size, _ := strconv.Atoi(sStr)
-
-	var depends []string
-	if depTag, ok := tags["depends"]; ok {
-		depends = strings.Split(depTag, defaultTagDataDelim)
-	}
-
-	var digits types.Digits
-	if dTag, ok := tags["digits"]; ok {
-		dSlice := strings.Split(dTag, defaultTagDataDelim)
-		d0, _ := strconv.Atoi(dSlice[0])
-		d1, _ := strconv.Atoi(dSlice[1])
-		digits = types.Digits{0: d0, 1: d1}
-	}
-
-	desc := getStringFromMap(tags, "string", sf.Name)
-
-	typStr, ok := tags["type"]
-	typ := types.FieldType(typStr)
-	if !ok {
-		typ = getFieldType(sf.Type)
-	}
-
-	fk := tags["fk"]
-
-	relatedModelName := getStringFromMap(tags, "comodel", defaultCoModel(sf, typ))
-
-	var (
-		m2mRelModel                *Model
-		m2mOurField, m2mTheirField *fieldInfo
-	)
-	if typ == types.Many2Many {
-		our := getStringFromMap(tags, "m2m_ours", mi.name)
-		their := getStringFromMap(tags, "m2m_theirs", relatedModelName)
-		if our == their {
-			logging.LogAndPanic(log, "Many2many relation must have different 'm2m_ours' and 'm2m_theirs'",
-				"model", mi.name, "field", sf.Name, "ours", our, "theirs", their)
-		}
-		modelNames := []string{our, their}
-		sort.Strings(modelNames)
-
-		m2mRelModName := getStringFromMap(tags, "m2m_relmodel", fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1]))
-		m2mRelModel, m2mOurField, m2mTheirField = createM2MRelModelInfo(m2mRelModName, modelNames[0], modelNames[1])
-	}
-
-	if typ.IsStoredRelationType() {
-		sf.Type = reflect.TypeOf(int64(0))
-	} else if typ.IsNonStoredRelationType() {
-		sf.Type = reflect.TypeOf([]int64{})
-	}
-
-	selection, typ := parseSelection(tags["selection"], typ)
-	json := getStringFromMap(tags, "json", snakeCaseFieldName(sf.Name, typ))
-	groupOp := getStringFromMap(tags, "group_operator", "sum")
-
-	fInfo := fieldInfo{
-		name:             sf.Name,
-		acl:              security.NewAccessControlList(),
-		json:             json,
-		model:            mi,
-		compute:          computeName,
-		stored:           stored,
-		required:         required,
-		unique:           unique,
-		index:            index,
-		depends:          depends,
-		description:      desc,
-		help:             tags["help"],
-		fieldType:        typ,
-		groupOperator:    groupOp,
-		structField:      sf,
-		size:             size,
-		digits:           digits,
-		relatedPath:      relatedPath,
-		embed:            embed,
-		noCopy:           noCopy,
-		reverseFK:        fk,
-		m2mRelModel:      m2mRelModel,
-		m2mOurField:      m2mOurField,
-		m2mTheirField:    m2mTheirField,
-		relatedModelName: relatedModelName,
-		selection:        selection,
-	}
-	checkFieldInfo(&fInfo)
-	return &fInfo
-}
-
 // checkFieldInfo makes sanity checks on the given fieldInfo.
 // It panics in case of severe error and logs recoverable errors.
 func checkFieldInfo(fi *fieldInfo) {
@@ -365,7 +276,7 @@ func checkFieldInfo(fi *fieldInfo) {
 		fi.embed = false
 	}
 
-	if fi.structField.Type == reflect.TypeOf(RecordCollection{}) && fi.relatedModelName == "" {
+	if fi.structField.Type == reflect.TypeOf(RecordCollection{}) && fi.relatedModel.name == "" {
 		logging.LogAndPanic(log, "Undefined comodel on related field", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 	}
@@ -379,32 +290,6 @@ func checkFieldInfo(fi *fieldInfo) {
 	if fi.selection != nil && fi.structField.Type.Kind() != reflect.String {
 		logging.LogAndPanic(log, "'selection' tag can only be set on string types", "model", fi.model.name, "field", fi.name)
 	}
-}
-
-// defaultCoModel returns the default comodel name for the given struct field
-// It returns an empty string if this is not a relation field.
-func defaultCoModel(sf reflect.StructField, typ types.FieldType) string {
-	if typ.IsRelationType() && sf.Type != reflect.TypeOf(RecordCollection{}) {
-		return sf.Type.Name()[:len(sf.Type.Name())-3]
-	}
-	return ""
-}
-
-// parseSelection parses the given selection tag into a Selection object or nil
-// if the tag is empty
-func parseSelection(selTag string, typ types.FieldType) (Selection, types.FieldType) {
-	if selTag == "" {
-		return nil, typ
-	}
-
-	selection := make(Selection)
-	for _, sel := range strings.Split(selTag, defaultTagDataDelim) {
-		selParts := strings.Split(sel, "|")
-		code := strings.TrimSpace(selParts[0])
-		value := strings.TrimSpace(selParts[1])
-		selection[code] = value
-	}
-	return selection, types.Selection
 }
 
 // jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
@@ -442,6 +327,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldI
 		tableName: tools.SnakeCaseString(relModelName),
 		fields:    newFieldsCollection(),
 		methods:   newMethodsCollection(),
+		options:   Many2ManyLinkModel,
 	}
 	ourField := &fieldInfo{
 		name:             model1,
@@ -480,10 +366,8 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldI
 	return newMI, ourField, theirField
 }
 
-/*
-processDepends populates the dependencies of each fieldInfo from the depends strings of
-each fieldInfo instances.
-*/
+// processDepends populates the dependencies of each fieldInfo from the depends strings of
+// each fieldInfo instances.
 func processDepends() {
 	for _, mi := range Registry.registryByTableName {
 		for _, fInfo := range mi.fields.registryByJSON {

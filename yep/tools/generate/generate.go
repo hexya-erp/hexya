@@ -187,7 +187,7 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 	// Parse all modules for comments and params names
 	// In the same loop, we both :
 	// - Get method ast data for all functions
-	// - Get the list of methods by parsing 'CreateMethod'
+	// - Get the list of methods by parsing 'AddMethod'
 	meths := make(map[MethodRef]ast.Node)
 	funcs := make(map[ast.Node]MethodASTData)
 	for _, modInfo := range modInfos {
@@ -199,7 +199,7 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 					if !ok {
 						return true
 					}
-					if fNode.Sel.Name != "CreateMethod" {
+					if fNode.Sel.Name != "AddMethod" {
 						return true
 					}
 
@@ -240,7 +240,7 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 func extractModel(ident ast.Expr) (string, error) {
 	switch idt := ident.(type) {
 	case *ast.Ident:
-		// CreateMethod is called on an identifier without selector such as
+		// AddMethod is called on an identifier without selector such as
 		// user.createMethod. In this case, we try to find out the model from
 		// the identifier declaration.
 		switch decl := idt.Obj.Decl.(type) {
@@ -270,7 +270,7 @@ func extractModel(ident ast.Expr) (string, error) {
 			}
 		}
 	case *ast.CallExpr:
-		// CreateMethod is called on a function call.
+		// AddMethod is called on a function call.
 		// We are interested only if it is from the pool package (e.g. pool.User())
 		return extractModelNameFromFunc(idt)
 	}

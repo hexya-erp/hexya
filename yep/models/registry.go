@@ -72,6 +72,9 @@ func (mc *modelCollection) mustGetMixInModel(name string) *Model {
 
 // add the given Model to the modelCollection
 func (mc *modelCollection) add(mi *Model) {
+	if _, exists := mc.get(mi.name); exists {
+		logging.LogAndPanic(log, "Trying to add already existing model", "model", mi.name)
+	}
 	mc.registryByName[mi.name] = mi
 	mc.registryByTableName[mi.tableName] = mi
 }
@@ -95,29 +98,6 @@ type Model struct {
 	fields        *fieldsCollection
 	methods       *methodsCollection
 	mixins        []*Model
-}
-
-// addFieldsFromStruct adds the fields of the given struct to our
-// Model
-func (m *Model) addFieldsFromStruct(structPtr interface{}) {
-	typ := reflect.TypeOf(structPtr)
-	if typ.Kind() != reflect.Ptr {
-		logging.LogAndPanic(log, "StructPtr must be a pointer to a struct", "model", m.name, "received", structPtr)
-	}
-	typ = typ.Elem()
-	for i := 0; i < typ.NumField(); i++ {
-		sf := typ.Field(i)
-		fi := createFieldInfo(sf, m)
-		if fi == nil {
-			// unexported field
-			continue
-		}
-		if fi.json == "id" {
-			// do not change primary key
-			continue
-		}
-		m.fields.add(fi)
-	}
 }
 
 // getRelatedModelInfo returns the Model of the related model when
@@ -265,33 +245,23 @@ func (m *Model) isMixin() bool {
 
 // NewModel creates a new model with the given name and
 // extends it with the given struct pointer.
-func NewModel(name string, structPtr interface{}) *Model {
+func NewModel(name string) *Model {
 	model := createModel(name, Option(0))
-	model.Extend(structPtr)
 	return model
 }
 
 // NewMixinModel creates a new mixin model with the given name and
 // extends it with the given struct pointer.
-func NewMixinModel(name string, structPtr interface{}) *Model {
+func NewMixinModel(name string) *Model {
 	model := createModel(name, MixinModel)
-	model.Extend(structPtr)
 	return model
 }
 
 // NewTransientModel creates a new mixin model with the given name and
 // extends it with the given struct pointers.
-func NewTransientModel(name string, structPtr interface{}) *Model {
+func NewTransientModel(name string) *Model {
 	model := createModel(name, TransientModel)
-	model.Extend(structPtr)
 	return model
-}
-
-// Extend extends the model given by its name with the given struct pointers
-func (m *Model) Extend(structPtrs ...interface{}) {
-	for _, structPtr := range structPtrs {
-		m.addFieldsFromStruct(structPtr)
-	}
 }
 
 // MixInModel extends this Model by importing all fields and methods of mixInModel.
@@ -312,9 +282,8 @@ func (m *Model) MixInModel(mixInModel *Model) {
 // Note that models extension will be deferred at bootstrap time,
 // which means that all models, including those that are not yet
 // defined at the time this function is called, will be extended.
-func MixInAllModels(mixInModel string) {
-	mixInMI := Registry.mustGetMixInModel(mixInModel)
-	Registry.commonMixins = append(Registry.commonMixins, mixInMI)
+func MixInAllModels(mixInModel *Model) {
+	Registry.commonMixins = append(Registry.commonMixins, mixInModel)
 }
 
 // createModel creates and populates a new Model with the given name

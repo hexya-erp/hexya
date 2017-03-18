@@ -28,27 +28,29 @@ const (
 	// MixinModel means that this model will not be accessible like a regular model
 	// but is meant to be mixed in other models.
 	MixinModel
+	// Many2ManyLinkModel is a model that abstracts the link
+	// table of a many2many relationship
+	Many2ManyLinkModel
 )
 
 // declareBaseMixin creates the mixin that implements all the necessary base methods of a model
 func declareBaseMixin() {
-	model := NewMixinModel("BaseMixin", new(struct {
-		ID          int64
-		CreateDate  DateTime `yep:"nocopy"`
-		CreateUID   int64    `yep:"nocopy"`
-		WriteDate   DateTime `yep:"nocopy"`
-		WriteUID    int64    `yep:"nocopy"`
-		LastUpdate  DateTime `yep:"compute(ComputeLastUpdate);json(__last_update)"`
-		DisplayName string   `yep:"compute(ComputeNameGet)"`
-	}))
+	model := NewMixinModel("BaseMixin")
 
-	model.CreateMethod("ComputeWriteDate",
+	model.AddDateTimeField("CreateDate", SimpleFieldParams{NoCopy: true})
+	model.AddIntegerField("CreateUID", SimpleFieldParams{NoCopy: true})
+	model.AddDateTimeField("WriteDate", SimpleFieldParams{NoCopy: true})
+	model.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
+	model.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
+	model.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
+
+	model.AddMethod("ComputeWriteDate",
 		`ComputeWriteDate updates the WriteDate field with the current datetime.`,
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"WriteDate": DateTime(time.Now())}
 		})
 
-	model.CreateMethod("ComputeLastUpdate",
+	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
 		func(rc RecordCollection) FieldMap {
 			lastUpdate := DateTime(time.Now())
@@ -61,20 +63,20 @@ func declareBaseMixin() {
 			return FieldMap{"LastUpdate": lastUpdate}
 		})
 
-	model.CreateMethod("ComputeNameGet",
+	model.AddMethod("ComputeNameGet",
 		`ComputeNameGet updates the DisplayName field with the result of NameGet.`,
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"DisplayName": rc.Call("NameGet").(string)}
 		})
 
-	model.CreateMethod("Create",
+	model.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
 		func(rc RecordCollection, data interface{}) RecordCollection {
 			return rc.create(data)
 		})
 
-	model.CreateMethod("Read",
+	model.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
 		func(rc RecordCollection, fields []string) []FieldMap {
 			res := make([]FieldMap, rc.Len())
@@ -105,7 +107,7 @@ func declareBaseMixin() {
 			return res
 		})
 
-	model.CreateMethod("Load",
+	model.AddMethod("Load",
 		`Load query all data of the RecordCollection and store in cache.
 		fields are the fields to retrieve in the expression format,
 		i.e. "User.Profile.Age" or "user_id.profile_id.age".
@@ -115,7 +117,7 @@ func declareBaseMixin() {
 			return rc.Load(fields...)
 		})
 
-	model.CreateMethod("Write",
+	model.AddMethod("Write",
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
@@ -123,13 +125,13 @@ func declareBaseMixin() {
 			return rc.update(data, fieldsToUnset...)
 		})
 
-	model.CreateMethod("Unlink",
+	model.AddMethod("Unlink",
 		`Unlink deletes the given records in the database.`,
 		func(rc RecordCollection) int64 {
 			return rc.delete()
 		})
 
-	model.CreateMethod("Copy",
+	model.AddMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
 		func(rc RecordCollection) RecordCollection {
@@ -151,7 +153,7 @@ func declareBaseMixin() {
 			return newRs
 		})
 
-	model.CreateMethod("NameGet",
+	model.AddMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc RecordCollection) string {
 			if _, nameExists := rc.model.fields.get("name"); nameExists {
@@ -163,7 +165,7 @@ func declareBaseMixin() {
 			return rc.String()
 		})
 
-	model.CreateMethod("NameSearch",
+	model.AddMethod("NameSearch",
 		`NameSearch searches for records that have a display name matching the given
 		"name" pattern when compared with the given "operator", while also
 		matching the optional search domain ("args").
@@ -187,7 +189,7 @@ func declareBaseMixin() {
 			return res
 		})
 
-	model.CreateMethod("FieldsGet",
+	model.AddMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
 		The embedded fields are included.
 		The string, help, and selection (if present) attributes are translated.`,
@@ -223,14 +225,14 @@ func declareBaseMixin() {
 			return res
 		})
 
-	model.CreateMethod("DefaultGet",
+	model.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
 		func(rc RecordCollection) FieldMap {
 			// TODO Implement DefaultGet
 			return make(FieldMap)
 		})
 
-	model.CreateMethod("Onchange",
+	model.AddMethod("Onchange",
 		`Onchange returns the values that must be modified in the pseudo-record
 		given as params.Values`,
 		func(rc RecordCollection, params OnchangeParams) FieldMap {
@@ -238,14 +240,14 @@ func declareBaseMixin() {
 			return make(FieldMap)
 		})
 
-	model.CreateMethod("Search",
+	model.AddMethod("Search",
 		`Search returns a new RecordSet filtering on the current one with the
 		additional given Condition`,
 		func(rc RecordCollection, cond *Condition) RecordCollection {
 			return rc.Search(cond)
 		})
 
-	model.CreateMethod("Fetch",
+	model.AddMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
 		with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 		if you want to fetch all fields.`,
@@ -253,38 +255,38 @@ func declareBaseMixin() {
 			return rc.Fetch()
 		})
 
-	model.CreateMethod("GroupBy",
+	model.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.GroupBy(exprs...)
 		})
 
-	model.CreateMethod("Limit",
+	model.AddMethod("Limit",
 		`Limit returns a new RecordSet with only the first 'limit' records.`,
 		func(rc RecordCollection, limit int) RecordCollection {
 			return rc.Limit(limit)
 		})
 
-	model.CreateMethod("Offset",
+	model.AddMethod("Offset",
 		`Offset returns a new RecordSet with only the records starting at offset`,
 		func(rc RecordCollection, offset int) RecordCollection {
 			return rc.Offset(offset)
 		})
 
-	model.CreateMethod("OrderBy",
+	model.AddMethod("OrderBy",
 		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.OrderBy(exprs...)
 		})
 
-	model.CreateMethod("Union",
+	model.AddMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
 		func(rc RecordCollection, other RecordCollection) RecordCollection {
 			return rc.Union(other)
 		})
 
-	MixInAllModels("BaseMixin")
+	MixInAllModels(model)
 }
 
 // ConvertLimitToInt converts the given limit as interface{} to an int

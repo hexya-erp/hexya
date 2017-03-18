@@ -49,13 +49,12 @@ var pgTypes = map[types.FieldType]string{
 	types.Date:      "date",
 	types.DateTime:  "timestamp without time zone",
 	types.Integer:   "integer",
-	types.Float:     "double precision",
+	types.Float:     "numeric",
 	types.HTML:      "text",
 	types.Binary:    "bytea",
 	types.Selection: "varchar",
-	//types.REFERENCE: "varchar",
-	types.Many2One: "integer",
-	types.One2One:  "integer",
+	types.Many2One:  "integer",
+	types.One2One:   "integer",
 }
 
 var pgDefaultValues = map[types.FieldType]string{
@@ -69,7 +68,6 @@ var pgDefaultValues = map[types.FieldType]string{
 	types.HTML:      "''",
 	types.Binary:    "''",
 	types.Selection: "''",
-	//types.REFERENCE: "''",
 }
 
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
@@ -105,7 +103,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 	case types.Float:
 		emptyD := types.Digits{}
 		if fi.digits != emptyD {
-			res = fmt.Sprintf("numeric(%d, %d)", (fi.digits)[0], (fi.digits)[1])
+			res = fmt.Sprintf("numeric(%d, %d)", fi.digits.Precision, fi.digits.Scale)
 		}
 	}
 	if d.fieldIsNotNull(fi) {

@@ -163,13 +163,14 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 	return reflect.ValueOf(methodLayerFunction)
 }
 
-// CreateMethod creates a new method on given model name and adds the given fnct
+// AddMethod creates a new method on given model name and adds the given fnct
 // as first layer for this method. Given fnct function must have a RecordSet as
 // first argument.
-func (m *Model) CreateMethod(methodName, doc string, fnct interface{}) {
+func (m *Model) AddMethod(methodName, doc string, fnct interface{}) {
+	m.checkMethodAndFnctType(methodName, fnct)
 	_, exists := m.methods.get(methodName)
 	if exists {
-		logging.LogAndPanic(log, "Call to CreateMethod with an existing method name", "model", m.name, "method", methodName)
+		logging.LogAndPanic(log, "Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
 	}
 	m.methods.set(methodName, newMethodInfo(m, methodName, doc, reflect.ValueOf(fnct)))
 }
@@ -178,6 +179,7 @@ func (m *Model) CreateMethod(methodName, doc string, fnct interface{}) {
 // method of the given model.
 // fnct must be of the same signature as the first layer of this method.
 func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
+	m.checkMethodAndFnctType(methodName, fnct)
 	methInfo, exists := m.methods.get(methodName)
 	if !exists {
 		// We didn't find the method, but maybe it exists in mixins
@@ -220,16 +222,14 @@ func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
 }
 
 // checkMethodAndFnctType checks whether the given arguments are valid for
-// CreateMethod or ExtendMethod
-func checkMethodAndFnctType(modelName, methodName string, fnct interface{}) *Model {
-	mi := Registry.MustGet(modelName)
-	if mi.methods.bootstrapped {
-		logging.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", modelName, "method", methodName)
+// AddMethod or ExtendMethod
+func (m *Model) checkMethodAndFnctType(methodName string, fnct interface{}) {
+	if m.methods.bootstrapped {
+		logging.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
 	}
 
 	val := reflect.ValueOf(fnct)
 	if val.Kind() != reflect.Func {
-		logging.LogAndPanic(log, "fnct parameter must be a function", "model", modelName, "method", methodName, "fnct", fnct)
+		logging.LogAndPanic(log, "fnct parameter must be a function", "model", m.name, "method", methodName, "fnct", fnct)
 	}
-	return mi
 }

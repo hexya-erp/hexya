@@ -15,7 +15,6 @@
 package models
 
 import (
-	"database/sql/driver"
 	"errors"
 	"reflect"
 	"strings"
@@ -24,77 +23,10 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
-const (
-	defaultStructTagName  = "yep"
-	defaultStructTagDelim = ";"
-	defaultTagDataDelim   = ","
-)
-
 var (
-	supportedTag = map[string]int{
-		"type":           2,
-		"fk":             2,
-		"comodel":        2,
-		"m2m_relmodel":   2,
-		"m2m_ours":       2,
-		"m2m_theirs":     2,
-		"selection":      2,
-		"size":           2,
-		"digits":         2,
-		"json":           2,
-		"string":         2,
-		"help":           2,
-		"required":       1,
-		"optional":       1,
-		"unique":         1,
-		"not-unique":     1,
-		"index":          1,
-		"nocopy":         1,
-		"copy":           1,
-		"group_operator": 2,
-		"compute":        2,
-		"related":        2,
-		"store":          1,
-		"unstore":        1,
-		"depends":        2,
-		"embed":          1,
-	}
 	// Testing is true if we are testing the framework
 	Testing bool
 )
-
-/*
-parseStructTag parses the given structField tag string and fills:
-- attrs if the individual tag is boolean
-- tags if the individual tag has a string value
-*/
-func parseStructTag(data string, attrs *map[string]bool, tags *map[string]string) {
-	attr := make(map[string]bool)
-	tag := make(map[string]string)
-	for _, v := range strings.Split(data, defaultStructTagDelim) {
-		v = strings.TrimSpace(v)
-		if supportedTag[v] == 1 {
-			attr[v] = true
-		} else if i := strings.Index(v, "("); i > 0 && strings.Index(v, ")") == len(v)-1 {
-			name := v[:i]
-			if supportedTag[name] == 2 {
-				v = v[i+1 : len(v)-1]
-				tag[name] = v
-			}
-		}
-	}
-	*attrs = attr
-	*tags = tag
-}
-
-// getStringFromMap returns the string at key in sMap, returning defaultValue if not found
-func getStringFromMap(sMap map[string]string, key string, defaultValue string) string {
-	res, ok := sMap[key]
-	if !ok {
-		res = defaultValue
-	}
-	return res
-}
 
 /*
 checkStructPtr checks that the given data is a struct ptr valid for receiving data from
@@ -316,47 +248,6 @@ func nestMap(fMap FieldMap) FieldMap {
 		res[k] = fm
 	}
 	return res
-}
-
-/*
-getFieldType returns the FieldType corresponding to the given reflect.Type.
-*/
-func getFieldType(typ reflect.Type) types.FieldType {
-	switch typ {
-	case reflect.TypeOf(DateTime{}):
-		return types.DateTime
-	case reflect.TypeOf(Date{}):
-		return types.Date
-	}
-
-	k := typ.Kind()
-	if typ.Implements(reflect.TypeOf((*driver.Valuer)(nil)).Elem()) {
-		// If this is a driver.Valuer then we want to check the result type of Value()
-		val := reflect.New(typ)
-		retVals := val.MethodByName("Value").Call([]reflect.Value{})
-		k = reflect.TypeOf(retVals[0].Interface()).Kind()
-	}
-
-	switch {
-	case k == reflect.Bool:
-		return types.Boolean
-	case k >= reflect.Int && k <= reflect.Uint64:
-		return types.Integer
-	case k == reflect.Float32 || k == reflect.Float64:
-		return types.Float
-	case k == reflect.String:
-		return types.Char
-	case k == reflect.Ptr:
-		indTyp := typ.Elem()
-		switch indTyp.Kind() {
-		case reflect.Struct:
-			return types.Many2One
-		case reflect.Slice:
-			return types.One2Many
-		}
-	}
-	logging.LogAndPanic(log, "Unable to match field type with go Type. Please specify 'type()' in struct tag", "type", typ)
-	return types.NoType
 }
 
 // filterOnDBFields returns the given fields slice with only stored fields
