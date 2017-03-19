@@ -297,9 +297,9 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 }
 
 // AddBinaryField adds a database stored binary field with the given name to this Model.
-// Binary fields are mapped to '[]byte' type in go.
+// Binary fields are mapped to string type in go.
 func (m *Model) AddBinaryField(name string, params SimpleFieldParams) {
-	m.addSimpleField(name, params, types.Binary, reflect.TypeOf(*new([]byte)))
+	m.addSimpleField(name, params, types.Binary, reflect.TypeOf(*new(string)))
 }
 
 // AddBooleanField adds a boolean field with the given name to this Model.

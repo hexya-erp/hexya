@@ -266,29 +266,25 @@ func (fi *fieldInfo) isStored() bool {
 // It panics in case of severe error and logs recoverable errors.
 func checkFieldInfo(fi *fieldInfo) {
 	if fi.fieldType.IsReverseRelationType() && fi.reverseFK == "" {
-		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'fk' tag", "model",
+		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'ReverseFK' parameter", "model",
 			fi.model.name, "field", fi.name, "type", fi.fieldType)
 	}
 
 	if fi.embed && !fi.fieldType.IsStoredRelationType() {
-		log.Warn("'embed' should be set only on many2one or one2one fields", "model", fi.model.name, "field", fi.name,
+		log.Warn("'Embed' should be set only on many2one or one2one fields", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 		fi.embed = false
 	}
 
 	if fi.structField.Type == reflect.TypeOf(RecordCollection{}) && fi.relatedModel.name == "" {
-		logging.LogAndPanic(log, "Undefined comodel on related field", "model", fi.model.name, "field", fi.name,
+		logging.LogAndPanic(log, "Undefined relation model on related field", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 	}
 
 	if fi.stored && !fi.isComputedField() {
-		log.Warn("'store' should be set only on computed fields", "model", fi.model.name, "field", fi.name,
+		log.Warn("'stored' should be set only on computed fields", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 		fi.stored = false
-	}
-
-	if fi.selection != nil && fi.structField.Type.Kind() != reflect.String {
-		logging.LogAndPanic(log, "'selection' tag can only be set on string types", "model", fi.model.name, "field", fi.name)
 	}
 }
 

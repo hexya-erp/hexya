@@ -508,7 +508,7 @@ Available model methods for creating fields are:
 
 `*AddBinaryField(name string, params SimpleFieldParams)*`::
 A binary field holds arbitrary data that is meant to be delivered to the
-client as a file. Binary fields are mapped to `[]byte` go type.
+client as a file. Binary fields are mapped to `string` go type.
 `*AddBooleanField(name string, params SimpleFieldParams)*`::
 `*AddCharField(name string, params StringFieldParams)*`::
 A Char field is a string field that is meant to be displayed as a single line
