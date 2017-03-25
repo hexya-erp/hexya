@@ -237,68 +237,77 @@ func LoadFromEtree(element *etree.Element) {
 func updateViewRegistry(viewXML ViewXML) {
 	if viewXML.InheritID != "" {
 		// Update an existing view
-		baseView := Registry.GetByID(viewXML.InheritID)
-		baseElem := xmlutils.XMLToElement(baseView.Arch)
-		specDoc := etree.NewDocument()
-		if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
-			logging.LogAndPanic(log, "Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
-		}
-
-		for _, spec := range specDoc.ChildElements() {
-			xpath := getInheritXPathFromSpec(spec)
-			nodeToModify := baseElem.FindElement(xpath)
-			nextNode := xmlutils.FindNextSibling(nodeToModify)
-			modifyAction := spec.SelectAttr("position")
-			switch modifyAction.Value {
-			case "before":
-				for _, node := range spec.ChildElements() {
-					nodeToModify.Parent().InsertChild(nodeToModify, node)
-				}
-			case "after":
-				for _, node := range spec.ChildElements() {
-					nodeToModify.Parent().InsertChild(nextNode, node)
-				}
-			case "replace":
-				for _, node := range spec.ChildElements() {
-					nodeToModify.Parent().InsertChild(nodeToModify, node)
-				}
-				nodeToModify.Parent().RemoveChild(nodeToModify)
-			case "inside":
-				for _, node := range spec.ChildElements() {
-					nodeToModify.AddChild(node)
-				}
-			case "attributes":
-				for _, node := range spec.FindElements("./attribute") {
-					attrName := node.SelectAttr("name").Value
-					nodeToModify.RemoveAttr(attrName)
-					nodeToModify.CreateAttr(attrName, node.Text())
-				}
-			}
-			//break
-		}
-		baseView.Arch = xmlutils.ElementToXML(baseElem)
+		updateExistingViewFromXML(viewXML)
 	} else {
 		// Create a new view
-		priority := uint8(16)
-		if viewXML.Priority != 0 {
-			priority = viewXML.Priority
-		}
-		name := strings.Replace(viewXML.ID, "_", ".", -1)
-		if viewXML.Name != "" {
-			name = viewXML.Name
-		}
-		// We check/standardize arch by unmarshalling and marshalling it again
-		arch := xmlutils.ElementToXML(xmlutils.XMLToElement(viewXML.Arch))
-		view := View{
-			ID:          viewXML.ID,
-			Name:        name,
-			Model:       viewXML.Model,
-			Priority:    priority,
-			Arch:        arch,
-			FieldParent: viewXML.FieldParent,
-		}
-		Registry.Add(&view)
+		createNewViewFromXML(viewXML)
 	}
+}
+
+// createNewViewFromXML creates and register a new view with the given XML
+func createNewViewFromXML(viewXML ViewXML) {
+	priority := uint8(16)
+	if viewXML.Priority != 0 {
+		priority = viewXML.Priority
+	}
+	name := strings.Replace(viewXML.ID, "_", ".", -1)
+	if viewXML.Name != "" {
+		name = viewXML.Name
+	}
+	// We check/standardize arch by unmarshalling and marshalling it again
+	arch := xmlutils.ElementToXML(xmlutils.XMLToElement(viewXML.Arch))
+	view := View{
+		ID:          viewXML.ID,
+		Name:        name,
+		Model:       viewXML.Model,
+		Priority:    priority,
+		Arch:        arch,
+		FieldParent: viewXML.FieldParent,
+	}
+	Registry.Add(&view)
+}
+
+// updateExistingViewFromXML updates an existing view with the given XML
+// viewXML must have an InheritID
+func updateExistingViewFromXML(viewXML ViewXML) {
+	baseView := Registry.GetByID(viewXML.InheritID)
+	baseElem := xmlutils.XMLToElement(baseView.Arch)
+	specDoc := etree.NewDocument()
+	if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
+		logging.LogAndPanic(log, "Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
+	}
+	for _, spec := range specDoc.ChildElements() {
+		xpath := getInheritXPathFromSpec(spec)
+		nodeToModify := baseElem.FindElement(xpath)
+		nextNode := xmlutils.FindNextSibling(nodeToModify)
+		modifyAction := spec.SelectAttr("position")
+		switch modifyAction.Value {
+		case "before":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.Parent().InsertChild(nodeToModify, node)
+			}
+		case "after":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.Parent().InsertChild(nextNode, node)
+			}
+		case "replace":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.Parent().InsertChild(nodeToModify, node)
+			}
+			nodeToModify.Parent().RemoveChild(nodeToModify)
+		case "inside":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.AddChild(node)
+			}
+		case "attributes":
+			for _, node := range spec.FindElements("./attribute") {
+				attrName := node.SelectAttr("name").Value
+				nodeToModify.RemoveAttr(attrName)
+				nodeToModify.CreateAttr(attrName, node.Text())
+			}
+		}
+	}
+	baseView.Arch = xmlutils.ElementToXML(baseElem)
 }
 
 // getInheritXPathFromSpec returns an XPath string that is suitable for
