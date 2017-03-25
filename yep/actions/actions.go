@@ -118,7 +118,7 @@ func (ar *Collection) Add(a *BaseAction) {
 	ar.Lock()
 	defer ar.Unlock()
 	ar.actions[a.ID] = a
-	ar.links[a.Model] = append(ar.links[a.Model], a)
+	ar.links[a.SrcModel] = append(ar.links[a.SrcModel], a)
 }
 
 // GetById returns the Action with the given id
