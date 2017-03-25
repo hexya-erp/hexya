@@ -37,23 +37,41 @@ func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []int
 	if !ok {
 		logging.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.model.name)
 	}
-	methLayer := methInfo.topLayer
+	methLayer := rc.getExistingLayer(methInfo)
+	if methLayer == nil {
+		methLayer = methInfo.topLayer
+		rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
+	}
 	return rc.callMulti(methLayer, args...)
 }
 
-// Super calls the next method Layer and returns (only) the first result.
-// This method is meant to be used inside a method layer function to call its parent.
-func (rc RecordCollection) Super(args ...interface{}) interface{} {
-	res := rc.SuperMulti(args...)
-	if len(res) == 0 {
-		return nil
+// getExistingLayer returns the first methodLayer in this RecordCollection call stack
+// that matches with the given method. Returns nil, if none was found.
+func (rc RecordCollection) getExistingLayer(methInfo *methodInfo) *methodLayer {
+	for _, ml := range rc.callStack {
+		if ml.methInfo == methInfo {
+			return ml
+		}
 	}
-	return res[0]
+	return nil
 }
 
-// SuperMulti calls the next method Layer.
-// This method is meant to be used inside a method layer function to call its parent.
-func (rc RecordCollection) SuperMulti(args ...interface{}) []interface{} {
+// Super returns a RecordSet with a modified callstack so that call to the current
+// method will execute the next method layer.
+//
+// This method is meant to be used inside a method layer function to call its parent,
+// such as:
+//
+//    func (rs models.RecordCollection) MyMethod() string {
+//        res := rs.Super().MyMethod()
+//        res += " ok!"
+//        return res
+//    }
+//
+// Calls to a different method than the current method will call its next layer only
+// if the current method has been called from a layer of the other method. Otherwise,
+// it will be the same as calling the other method directly.
+func (rc RecordCollection) Super(args ...interface{}) RecordCollection {
 	if len(rc.callStack) == 0 {
 		logging.LogAndPanic(log, "Empty call stack", "model", rc.model.name)
 	}
@@ -62,10 +80,10 @@ func (rc RecordCollection) SuperMulti(args ...interface{}) []interface{} {
 	methLayer := methInfo.getNextLayer(currentLayer)
 	if methLayer == nil {
 		// No parent
-		return nil
+		logging.LogAndPanic(log, "Called Super() on a base method", "model", rc.model.name, "method", methInfo.name)
 	}
-
-	return rc.callMulti(methLayer, args...)
+	rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
+	return rc
 }
 
 // MethodType returns the type of the method given by methName
@@ -79,7 +97,6 @@ func (rc RecordCollection) MethodType(methName string) reflect.Type {
 
 // callMulti is a wrapper around reflect.Value.Call() to use with interface{} type.
 func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
-	rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
 
 	inVals := make([]reflect.Value, len(args)+1)
 	inVals[0] = reflect.ValueOf(rc)

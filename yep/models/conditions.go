@@ -256,7 +256,15 @@ func (c ConditionField) ChildOf(data interface{}) *Condition {
 
 // IsEmpty check the condition arguments are empty or not.
 func (c *Condition) IsEmpty() bool {
-	return len(c.params) == 0
+	switch {
+	case c == nil:
+		return false
+	case len(c.params) == 0:
+		return true
+	case len(c.params) == 1 && c.params[0].cond.IsEmpty():
+		return true
+	}
+	return false
 }
 
 // getAllExpressions returns a list of all exprs used in this condition,

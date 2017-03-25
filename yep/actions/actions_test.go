@@ -22,12 +22,7 @@ import (
 )
 
 var actionDef1 string = `
-<action id="my_action">
-	<name>My Action</name>
-	<type>form</type>
-	<model>ResPartner</model>
-	<view_mode>tree,form</view_mode>
-</action>
+<action id="my_action" name="My Action" type="form" model="ResPartner" view_mode="tree,form"/>
 `
 
 func TestActions(t *testing.T) {

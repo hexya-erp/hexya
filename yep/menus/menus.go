@@ -24,7 +24,10 @@ import (
 )
 
 // Registry is the menu Collection of the application
-var Registry *Collection
+var (
+	Registry     *Collection
+	bootstrapMap map[string]*Menu
+)
 
 // A Collection is a hierarchical and sortable Collection of menus
 type Collection struct {
@@ -53,7 +56,7 @@ func (mc *Collection) Add(m *Menu) {
 	var targetCollection *Collection
 	if m.Parent != nil {
 		if m.Parent.Children == nil {
-			m.Parent.Children = new(Collection)
+			m.Parent.Children = NewCollection()
 		}
 		targetCollection = m.Parent.Children
 		m.Parent.HasChildren = true
@@ -64,14 +67,10 @@ func (mc *Collection) Add(m *Menu) {
 	targetCollection.Menus = append(targetCollection.Menus, m)
 	sort.Sort(targetCollection)
 
-	// We add the menu to the top parent menu map
-	topParent := m
-	for topParent.Parent != nil {
-		topParent = topParent.Parent
-	}
+	// We add the menu to the Registry which is the top collection
 	mc.Lock()
 	defer mc.Unlock()
-	topParent.ParentCollection.menusMap[m.ID] = m
+	Registry.menusMap[m.ID] = m
 }
 
 // GetByID returns the Menu with the given id
@@ -92,6 +91,7 @@ func NewCollection() *Collection {
 type Menu struct {
 	ID               string
 	Name             string
+	ParentID         string
 	Parent           *Menu
 	ParentCollection *Collection
 	Children         *Collection
@@ -113,16 +113,9 @@ func LoadFromEtree(element *etree.Element) {
 		defaultName = menu.Action.Name
 	}
 	menu.Name = element.SelectAttrValue("name", defaultName)
-	parentID := element.SelectAttrValue("parent", "")
-	if parentID != "" {
-		menu.Parent = Registry.GetByID(parentID)
-	}
+	menu.ParentID = element.SelectAttrValue("parent", "")
 	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
 	menu.Sequence = uint8(seq)
 
-	Registry.Add(menu)
-}
-
-func init() {
-	Registry = NewCollection()
+	bootstrapMap[menu.ID] = menu
 }

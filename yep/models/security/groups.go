@@ -169,6 +169,16 @@ func (gc *GroupCollection) UserGroups(uid int64) map[*Group]InheritanceInfo {
 	return gc.memberships[uid]
 }
 
+// AllGroups returns a slice with all the groups of the collection
+func (gc *GroupCollection) AllGroups() []*Group {
+	res := make([]*Group, len(gc.groups))
+	i := 0
+	for _, group := range gc.groups {
+		res[i] = group
+	}
+	return res
+}
+
 // NewGroupCollection returns a pointer to a new empty GroupCollection
 func NewGroupCollection() *GroupCollection {
 	gc := GroupCollection{

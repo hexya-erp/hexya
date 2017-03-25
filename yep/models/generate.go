@@ -378,6 +378,14 @@ func (m {{ $.Name }}Model) {{ .Name }}() {{ $.Name }}{{ .SanType }}ConditionFiel
 
 {{ end }}
 
+// All returns a condition that is used to retrieve all
+// records of {{ .Name }}.
+func (m {{ .Name }}Model) All() {{ .Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: m.Model.All(),
+	}
+}
+
 // {{ .Name }} returns the unique instance of the {{ .Name }}Model type
 // which is used to extend the {{ .Name }} model or to get a {{ .Name }}Set through
 // its NewSet() function.
@@ -520,9 +528,14 @@ func (s {{ .Name }}Set) Records() []{{ .Name }}Set {
 // Create inserts a record in the database from the given {{ .Name }} data.
 // Returns the created {{ .Name }}Set.
 func (s {{ $.Name }}Set) Create(data *{{ .Name }}Data) {{ .Name }}Set {
-	return {{ .Name }}Set{
-		RecordCollection: s.Call("Create", data).(models.RecordCollection),
+	res := s.Call("Create", data)
+	switch resTyped := res.(type) {
+	case models.RecordCollection:
+		return {{ .Name }}Set{RecordCollection: resTyped}
+	case {{ .Name }}Set:
+		return resTyped
 	}
+	return {{ .Name }}Set{}
 }
 
 // Search returns a new {{ $.Name }}Set filtering on the current one with the
@@ -584,10 +597,31 @@ func (s {{ $.Name }}Set) Set{{ .Name }}(value {{ .Type }}) {
 }
 {{ end }}
 
+// Super returns a RecordSet with a modified callstack so that call to the current
+// method will execute the next method layer.
+//
+// This method is meant to be used inside a method layer function to call its parent,
+// such as:
+//
+//    func (rs pool.MyRecordSet) MyMethod() string {
+//        res := rs.Super().MyMethod()
+//        res += " ok!"
+//        return res
+//    }
+//
+// Calls to a different method than the current method will call its next layer only
+// if the current method has been called from a layer of the other method. Otherwise,
+// it will be the same as calling the other method directly.
+func (s {{ .Name }}Set) Super(data ...interface{}) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: s.RecordCollection.Super(),
+	}
+}
+
 {{ range .Methods }}
 {{ .Doc }}
 func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}) {
-{{ if eq .Returns "" }}
+{{- if eq .Returns "" }}
 	s.Call("{{ .Name }}", {{ .Params}})
 {{- else }}
 	res := s.{{ .Call }}("{{ .Name }}", {{ .Params}})

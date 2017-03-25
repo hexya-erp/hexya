@@ -81,7 +81,7 @@ func TestCreateDB(t *testing.T) {
 
 		user.ExtendMethod("PrefixedUser", "",
 			func(rc RecordCollection, prefix string) []string {
-				res := rc.Super(prefix).([]string)
+				res := rc.Super().Call("PrefixedUser", prefix).([]string)
 				for i, u := range rc.Records() {
 					email := u.Get("Email").(string)
 					res[i] = fmt.Sprintf("%s %s", res[i], rc.Call("DecorateEmail", email))
@@ -96,7 +96,7 @@ func TestCreateDB(t *testing.T) {
 
 		user.ExtendMethod("DecorateEmail", "",
 			func(rc RecordCollection, email string) string {
-				res := rc.Super(email).(string)
+				res := rc.Super().Call("DecorateEmail", email).(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 
@@ -131,19 +131,19 @@ func TestCreateDB(t *testing.T) {
 
 		profile.AddMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
-				res := rc.Super().(string)
+				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
 			})
 
 		addressMI.ExtendMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
-				res := rc.Super().(string)
+				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("<%s>", res)
 			})
 
 		profile.ExtendMethod("PrintAddress", "",
 			func(rc RecordCollection) string {
-				res := rc.Super().(string)
+				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 

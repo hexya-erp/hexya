@@ -29,6 +29,7 @@ type SimpleFieldParams struct {
 	GroupOperator string
 	NoCopy        bool
 	GoType        interface{}
+	Translate     bool
 	override      bool
 }
 
@@ -48,6 +49,7 @@ type FloatFieldParams struct {
 	NoCopy        bool
 	Digits        types.Digits
 	GoType        interface{}
+	Translate     bool
 	override      bool
 }
 
@@ -67,6 +69,7 @@ type StringFieldParams struct {
 	NoCopy        bool
 	Size          int
 	GoType        interface{}
+	Translate     bool
 	override      bool
 }
 
@@ -84,6 +87,7 @@ type SelectionFieldParams struct {
 	Related   string
 	NoCopy    bool
 	Selection Selection
+	Translate bool
 	override  bool
 }
 
@@ -101,6 +105,7 @@ type ForeignKeyFieldParams struct {
 	NoCopy        bool
 	RelationModel string
 	Embed         bool
+	Translate     bool
 	override      bool
 }
 
@@ -118,6 +123,7 @@ type ReverseFieldParams struct {
 	NoCopy        bool
 	RelationModel string
 	ReverseFK     string
+	Translate     bool
 	override      bool
 }
 
@@ -137,6 +143,7 @@ type Many2ManyFieldParams struct {
 	M2MLinkModelName string
 	M2MOurField      string
 	M2MTheirField    string
+	Translate        bool
 	override         bool
 }
 

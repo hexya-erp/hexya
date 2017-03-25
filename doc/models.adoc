@@ -598,6 +598,19 @@ decimal point.
 Field's JSON value that will be used for the column name in the database and
 for json serialization to the client.
 
+`GoType` interface{}::
+Specifies the go type to which the field should be mapped. `GoType` should be
+set to a pointer to such a type's value.
++
+If the given type is not a standard type then it must implement `driver.Valuer`
+and `sql.Scanner` interfaces.
+
+[source,go]
+----
+session := models.NewModel("Session")
+session.AddIntegerField("Room No", models.SimpleFieldParams{GoType: new(int16)})
+----
+
 ==== Field's metadata parameters
 
 `String` string::
@@ -671,9 +684,9 @@ model, not its methods.
 === Defining methods
 
 Models' methods are defined in a module and can be overridden by any other
-module, with the ability to call the original method with `Super()`. This way,
-methods can be overridden several times by different modules to iteratively
-add new features.
+module, with the ability to call the original method through `Super()`. This
+way, methods can be overridden several times by different modules to
+iteratively add new features.
 
 Each override of a method is declared by a so-called "layer function" with the
 actual implementation. Layer functions must meet the following constraints:
@@ -714,16 +727,15 @@ Extends the method `methodName` in this model with the given `layerFunction`.
 If `doc` is not the empty string, it is appended to the documentation of the
 method.
 +
-The layer function should call the `Super()` or `SuperMulti()` method of its
-first argument to call the previous layer, and pass it all the other arguments
-of the function layer.
+The layer function should call itself on the RecordSet `Super()` object to
+call the previous layer.
 
 [source,go]
 ----
 pool.ResPartner.ExtendMethod("UpdateBirthday",
     `Extended in myModule to compute age at the same time.`,
     func(rs ResPartnerSet, birthday time.Time) {
-        rs.Super(birthday)
+        rs.Super().UpdateBirthday(birthday)
         rs.SetAge(Time.Now().Year() - birthday.Year())
     })
 ----
@@ -731,16 +743,13 @@ pool.ResPartner.ExtendMethod("UpdateBirthday",
 NOTE: The `functionLayer` passed to `ExtendMethod` must have the same signature
 as that of the first layer passed to `CreateMethod`.
 
-`*Super(args ...interface{}) interface{}*`::
-`*SuperMulti(args ...interface{}) []interface{}*`::
-`Super` and `SuperMulti` are RecordSet methods used to call the previous method
-layer. While `SuperMulti` returns all returned values as a slice of interface{},
-`Super` only returns the first returned value and discards the others.
-
-
-
-TIP: Prefer RecordSet methods with only one return value whenever possible, as
-using `Super()` is easier and more intuitive than using `SuperMulti()`.
+`*Super() RecordSetType*`::
+Returns a RecordSet with a modified callstack so that call to the current
+method will execute the next method layer.
++
+Calls to a different method than the current method will call its next layer only
+if the current method has been called from a layer of the other method. Otherwise,
+it will be the same as calling the other method directly.
 
 === Extending a model
 

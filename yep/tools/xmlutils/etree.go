@@ -36,7 +36,7 @@ func ElementToXML(element *etree.Element) string {
 func XMLToElement(xmlStr string) *etree.Element {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(xmlStr); err != nil {
-		logging.LogAndPanic(log, "Unable to parse XML", "error", "xml", xmlStr)
+		logging.LogAndPanic(log, "Unable to parse XML", "error", err, "xml", xmlStr)
 	}
 	return doc.Root()
 }

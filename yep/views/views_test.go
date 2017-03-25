@@ -22,76 +22,70 @@ import (
 )
 
 var viewDef1 string = `
-<view id="my_id">
-	<name>My View</name>
-	<model>Test__User</model>
-	<arch>
-		<form>
-			<group>
-				<field name="UserName"/>
-				<field name="Age"/>
-			</group>
-		</form>
-	</arch>
+<view id="my_id" name="My View" model="Test__User">
+	<form>
+		<group>
+			<field name="UserName"/>
+			<field name="Age"/>
+		</group>
+	</form>
 </view>
 `
 
 var viewDef2 string = `
-<view id="my_other_id">
-	<name>My Other View</name>
-	<model>Test__Partner</model>
-	<priority>12</priority>
-	<arch>
-		<form>
-			<h1><field name="Name"/></h1>
-			<group name="position_info">
-				<field name="Function"/>
-			</group>
-			<group name="contact_data">
-				<field name="Email"/>
-			</group>
-		</form>
-	</arch>
+<view id="my_other_id" model="Test__Partner" priority="12">
+	<form>
+		<h1><field name="Name"/></h1>
+		<group name="position_info">
+			<field name="Function"/>
+		</group>
+		<group name="contact_data">
+			<field name="Email"/>
+		</group>
+	</form>
 </view>
 `
 
 var viewDef3 string = `
 <view inherit_id="my_other_id">
-	<arch>
-		<group name="position_info" position="inside">
-			<field name="CompanyName"/>
-		</group>
-		<xpath expr="//field[@name='Email']" position="after">
-			<field name="Phone"/>
-		</group>
-	</arch>
+	<group name="position_info" position="inside">
+		<field name="CompanyName"/>
+	</group>
+	<xpath expr="//field[@name='Email']" position="after">
+		<field name="Phone"/>
+	</group>
 </view>
 `
 
 var viewDef4 string = `
 <view inherit_id="my_other_id">
-	<arch>
-		<group name="contact_data" position="before">
-			<group>
-				<field name="Address"/>
-			</group>
-			<hr/>
+	<group name="contact_data" position="before">
+		<group>
+			<field name="Address"/>
 		</group>
-		<h1 position="replace">
-			<h2><field name="Name"/></h2>
-		</group>
-	</arch>
+		<hr/>
+	</group>
+	<h1 position="replace">
+		<h2><field name="Name"/></h2>
+	</group>
 </view>
 `
 
 var viewDef5 string = `
 <view inherit_id="my_other_id">
-	<arch>
-		<xpath expr="//field[@name='Address']/.." position="attributes">
-			<attribute name="name">address</attribute>
-			<attribute name="string">Address</attribute>
-		</xpath>
-	</arch>
+	<xpath expr="//field[@name='Address']/.." position="attributes">
+		<attribute name="name">address</attribute>
+		<attribute name="string">Address</attribute>
+	</xpath>
+</view>
+`
+
+var viewDef6 string = `
+<view id="my_tree_id" model="Test__User">
+	<tree>
+		<field name="UserName"/>
+		<field name="Age"/>
+	</tree>
 </view>
 `
 
@@ -120,7 +114,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view := Registry.GetByID("my_other_id")
 		So(view.ID, ShouldEqual, "my_other_id")
-		So(view.Name, ShouldEqual, "My Other View")
+		So(view.Name, ShouldEqual, "my.other.id")
 		So(view.Model, ShouldEqual, "Test__Partner")
 		So(view.Priority, ShouldEqual, 12)
 		So(view.Arch, ShouldEqual,
@@ -219,5 +213,18 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
+	})
+	Convey("Bootstrapping views", t, func() {
+		LoadFromEtree(xmlutils.XMLToElement(viewDef6))
+		BootStrap()
+		view1 := Registry.GetByID("my_id")
+		view2 := Registry.GetByID("my_other_id")
+		view3 := Registry.GetByID("my_tree_id")
+		So(view1, ShouldNotBeNil)
+		So(view2, ShouldNotBeNil)
+		So(view3, ShouldNotBeNil)
+		So(view1.Type, ShouldEqual, VIEW_TYPE_FORM)
+		So(view2.Type, ShouldEqual, VIEW_TYPE_FORM)
+		So(view3.Type, ShouldEqual, VIEW_TYPE_TREE)
 	})
 }

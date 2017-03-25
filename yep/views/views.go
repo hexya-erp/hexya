@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/npiganeau/yep/yep/models"
@@ -43,15 +44,6 @@ const (
 	VIEW_TYPE_KANBAN   ViewType = "kanban"
 	VIEW_TYPE_SEARCH   ViewType = "search"
 	VIEW_TYPE_QWEB     ViewType = "qweb"
-)
-
-// ViewInheritanceMode defines if this is a primary or an extension view
-type ViewInheritanceMode string
-
-// View inheritance modes
-const (
-	VIEW_PRIMARY   ViewInheritanceMode = "primary"
-	VIEW_EXTENSION ViewInheritanceMode = "extension"
 )
 
 // Registry is the views collection of the application
@@ -96,14 +88,10 @@ func (vr *ViewRef) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalXML is the XML unmarshalling method of ViewRef.
+// UnmarshalXMLAttr is the XML unmarshalling method of ViewRef.
 // It unmarshals null into an empty ViewRef.
-func (vr *ViewRef) UnmarshalXML(decoder *xml.Decoder, start xml.StartElement) error {
-	var dst string
-	if err := decoder.DecodeElement(&dst, &start); err != nil {
-		return err
-	}
-	*vr = MakeViewRef(dst)
+func (vr *ViewRef) UnmarshalXMLAttr(attr xml.Attr) error {
+	*vr = MakeViewRef(attr.Value)
 	return nil
 }
 
@@ -132,7 +120,7 @@ var _ driver.Valuer = &ViewRef{}
 var _ sql.Scanner = &ViewRef{}
 var _ json.Marshaler = &ViewRef{}
 var _ json.Unmarshaler = &ViewRef{}
-var _ xml.Unmarshaler = &ViewRef{}
+var _ xml.UnmarshalerAttr = &ViewRef{}
 
 // ViewTuple is an array of two strings representing a view:
 // - The first one is the ID of the view
@@ -198,6 +186,17 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 	return nil
 }
 
+// GetAllViewsForModel returns a list with all views for the given model
+func (vc *Collection) GetAllViewsForModel(model string) []*View {
+	var res []*View
+	for _, view := range vc.views {
+		if view.Model == model {
+			res = append(res, view)
+		}
+	}
+	return res
+}
+
 // View is the internal definition of a view in the application
 type View struct {
 	ID          string   `json:"id"`
@@ -207,25 +206,19 @@ type View struct {
 	Priority    uint8    `json:"priority"`
 	Arch        string   `json:"arch"`
 	FieldParent string   `json:"field_parent"`
-	Fields      []models.FieldName
-}
-
-// ViewArch is used to unmarshal the arch node of the XML definition
-// of a View.
-type ViewArch struct {
-	XML string `xml:",innerxml"`
+	//Toolbar     actions.Toolbar `json:"toolbar"`
+	Fields []models.FieldName
 }
 
 // ViewXML is used to unmarshal the XML definition of a View
 type ViewXML struct {
-	ID              string              `xml:"id,attr"`
-	Name            string              `xml:"name"`
-	Model           string              `xml:"model"`
-	Priority        uint8               `xml:"priority"`
-	ArchData        ViewArch            `xml:"arch"`
-	InheritID       string              `xml:"inherit_id,attr"`
-	FieldParent     string              `xml:"field_parent"`
-	InheritanceMode ViewInheritanceMode `xml:"mode"`
+	ID          string `xml:"id,attr"`
+	Name        string `xml:"name,attr"`
+	Model       string `xml:"model,attr"`
+	Priority    uint8  `xml:"priority,attr"`
+	Arch        string `xml:",innerxml"`
+	InheritID   string `xml:"inherit_id,attr"`
+	FieldParent string `xml:"field_parent,attr"`
 }
 
 // LoadFromEtree reads the view given etree.Element, creates or updates the view
@@ -247,8 +240,8 @@ func updateViewRegistry(viewXML ViewXML) {
 		baseView := Registry.GetByID(viewXML.InheritID)
 		baseElem := xmlutils.XMLToElement(baseView.Arch)
 		specDoc := etree.NewDocument()
-		if err := specDoc.ReadFromString(viewXML.ArchData.XML); err != nil {
-			logging.LogAndPanic(log, "Unable to read inheritance specs", "error", err, "arch", viewXML.ArchData.XML)
+		if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
+			logging.LogAndPanic(log, "Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
 		}
 
 		for _, spec := range specDoc.ChildElements() {
@@ -290,11 +283,15 @@ func updateViewRegistry(viewXML ViewXML) {
 		if viewXML.Priority != 0 {
 			priority = viewXML.Priority
 		}
+		name := strings.Replace(viewXML.ID, "_", ".", -1)
+		if viewXML.Name != "" {
+			name = viewXML.Name
+		}
 		// We check/standardize arch by unmarshalling and marshalling it again
-		arch := xmlutils.ElementToXML(xmlutils.XMLToElement(viewXML.ArchData.XML))
+		arch := xmlutils.ElementToXML(xmlutils.XMLToElement(viewXML.Arch))
 		view := View{
 			ID:          viewXML.ID,
-			Name:        viewXML.Name,
+			Name:        name,
 			Model:       viewXML.Model,
 			Priority:    priority,
 			Arch:        arch,

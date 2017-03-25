@@ -25,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/npiganeau/yep/yep/actions"
 	"github.com/npiganeau/yep/yep/controllers"
+	"github.com/npiganeau/yep/yep/menus"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/server"
 	"github.com/npiganeau/yep/yep/tools/generate"
@@ -102,6 +103,7 @@ func StartServer(config map[string]interface{}) {
 	views.BootStrap()
 	actions.BootStrap()
 	controllers.BootStrap()
+	menus.BootStrap()
 	server.PostInit()
 	srv := server.GetServer()
 	log.Info("YEP is up and running")

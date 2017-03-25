@@ -42,7 +42,7 @@ func declareMethods() {
 	user.ExtendMethod("DecorateEmail",
 		`DecorateEmailExtension is a sample method layer for testing`,
 		func(rs pool.UserSet, email string) string {
-			res := rs.Super(email).(string)
+			res := rs.Super().DecorateEmail(email)
 			return fmt.Sprintf("[%s]", res)
 		})
 
@@ -57,7 +57,7 @@ func declareMethods() {
 
 	user.ExtendMethod("PrefixedUser", "",
 		func(rs pool.UserSet, prefix string) []string {
-			res := rs.Super(prefix).([]string)
+			res := rs.Super().PrefixedUser(prefix)
 			for i, u := range rs.Records() {
 				res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
 			}
@@ -88,19 +88,19 @@ func declareMethods() {
 	pool.Profile().AddMethod("PrintAddress",
 		`PrintAddress is a sample method layer for testing`,
 		func(rs pool.ProfileSet) string {
-			res := rs.Super()
+			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("%s, %s", res, rs.Country())
 		})
 
 	addressMI.ExtendMethod("PrintAddress", "",
 		func(rs pool.AddressMixInSet) string {
-			res := rs.Super()
+			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("<%s>", res)
 		})
 
 	pool.Profile().ExtendMethod("PrintAddress", "",
 		func(rs pool.ProfileSet) string {
-			res := rs.Super()
+			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("[%s]", res)
 		})
 

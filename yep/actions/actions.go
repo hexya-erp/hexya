@@ -100,6 +100,7 @@ var _ json.Marshaler = &ActionRef{}
 type Collection struct {
 	sync.RWMutex
 	actions map[string]*BaseAction
+	links   map[string][]*BaseAction
 }
 
 // NewActionsCollection returns a pointer to a new
@@ -107,6 +108,7 @@ type Collection struct {
 func NewActionsCollection() *Collection {
 	res := Collection{
 		actions: make(map[string]*BaseAction),
+		links:   make(map[string][]*BaseAction),
 	}
 	return &res
 }
@@ -116,6 +118,7 @@ func (ar *Collection) Add(a *BaseAction) {
 	ar.Lock()
 	defer ar.Unlock()
 	ar.actions[a.ID] = a
+	ar.links[a.Model] = append(ar.links[a.Model], a)
 }
 
 // GetById returns the Action with the given id
@@ -123,41 +126,40 @@ func (ar *Collection) GetById(id string) *BaseAction {
 	return ar.actions[id]
 }
 
-// A BaseAction is the definition of an action. Actions define the
-// behavior of the system in response to user actions.
-type BaseAction struct {
-	ID           string            `json:"id" xml:"id,attr"`
-	Type         ActionType        `json:"type" xml:"type"`
-	Name         string            `json:"name" xml:"name"`
-	Model        string            `json:"res_model" xml:"model"`
-	ResID        int64             `json:"res_id" xml:"res_id"`
-	Groups       []string          `json:"groups_id" xml:"groups"`
-	Domain       string            `json:"domain" xml:"domain"`
-	Help         string            `json:"help" xml:"help"`
-	SearchView   views.ViewRef     `json:"search_view_id" xml:"search_view_id"`
-	SrcModel     string            `json:"src_model" xml:"src_model"`
-	Usage        string            `json:"usage" xml:"usage"`
-	Views        []views.ViewTuple `json:"views" xml:"views"`
-	View         views.ViewRef     `json:"view_id" xml:"view_id"`
-	AutoRefresh  bool              `json:"auto_refresh" xml:"auto_refresh"`
-	ManualSearch bool              `json:"-"`
-	ActViewType  ActionViewType    `json:"-"`
-	ViewMode     string            `json:"view_mode" xml:"view_mode"`
-	ViewIds      []string          `json:"view_ids" xml:"view_ids"`
-	Multi        bool              `json:"multi" xml:"multi"`
-	Target       string            `json:"target" xml:"target"`
-	AutoSearch   bool              `json:"auto_search" xml:"auto_search"`
-	Filter       bool              `json:"filter" xml:"filter"`
-	Limit        int64             `json:"limit" xml:"limit"`
-	Context      *types.Context    `json:"context" xml:"context"`
-	//Flags interface{}`json:"flags"`
+// GetActionLinksForModel returns the list of linked actions
+// for the model with the given name
+func (ar *Collection) GetActionLinksForModel(modelName string) []*BaseAction {
+	return ar.links[modelName]
 }
 
-// A Toolbar holds the actions in the toolbar of the action manager
-type Toolbar struct {
-	Print  []*BaseAction `json:"print"`
-	Action []*BaseAction `json:"action"`
-	Relate []*BaseAction `json:"relate"`
+// A BaseAction is the definition of an action. Actions define the
+// behavior of the system in response to user requests.
+type BaseAction struct {
+	ID           string            `json:"id" xml:"id,attr"`
+	Type         ActionType        `json:"type" xml:"type,attr"`
+	Name         string            `json:"name" xml:"name,attr"`
+	Model        string            `json:"res_model" xml:"model,attr"`
+	ResID        int64             `json:"res_id" xml:"res_id,attr"`
+	Method       string            `json:"method" xml:"method,attr"`
+	Groups       []string          `json:"groups_id" xml:"groups,attr"`
+	Domain       string            `json:"domain" xml:"domain,attr"`
+	Help         string            `json:"help" xml:"help,attr"`
+	SearchView   views.ViewRef     `json:"search_view_id" xml:"search_view_id,attr"`
+	SrcModel     string            `json:"src_model" xml:"src_model,attr"`
+	Usage        string            `json:"usage" xml:"usage,attr"`
+	Views        []views.ViewTuple `json:"views" xml:"views"`
+	View         views.ViewRef     `json:"view_id" xml:"view_id,attr"`
+	AutoRefresh  bool              `json:"auto_refresh" xml:"auto_refresh,attr"`
+	ManualSearch bool              `json:"-" xml:"-"`
+	ActViewType  ActionViewType    `json:"-" xml:"-"`
+	ViewMode     string            `json:"view_mode" xml:"view_mode,attr"`
+	Multi        bool              `json:"multi" xml:"multi,attr"`
+	Target       string            `json:"target" xml:"target,attr"`
+	AutoSearch   bool              `json:"auto_search" xml:"auto_search,attr"`
+	Filter       bool              `json:"filter" xml:"filter,attr"`
+	Limit        int64             `json:"limit" xml:"limit,attr"`
+	Context      *types.Context    `json:"context" xml:"context,attr"`
+	//Flags interface{}`json:"flags"`
 }
 
 // LoadFromEtree reads the action given etree.Element, creates or updates the action
