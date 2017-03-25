@@ -141,8 +141,7 @@ func TestGroupRegistry(t *testing.T) {
 			So(Registry.UserGroups(6), ShouldContainKey, group3)
 			So(Registry.UserGroups(6), ShouldContainKey, group4)
 			So(Registry.UserGroups(6), ShouldContainKey, group5)
-		})
-		Convey("Removing membership should not impact other inherited fields", func() {
+
 			Registry.RemoveMembership(6, group4)
 			So(len(Registry.UserGroups(6)), ShouldEqual, 2)
 			So(Registry.UserGroups(6), ShouldContainKey, group1)
