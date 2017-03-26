@@ -43,12 +43,16 @@ func TestComputedNonStoredFields(t *testing.T) {
 				So(users.DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
 			Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-				users := pool.User().NewSet(env).OrderBy("UserName")
+				users := pool.User().NewSet(env).OrderBy("Name")
 				So(users.Len(), ShouldEqual, 3)
 				userRecs := users.Records()
 				So(userRecs[0].DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 				So(userRecs[1].DecoratedName(), ShouldEqual, "User: John Smith [<jsmith2@example.com>]")
 				So(userRecs[2].DecoratedName(), ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+			})
+			Convey("Testing built-in DisplayName", func() {
+				users := pool.User().NewSet(env).Search(pool.User().Email().Equals("jane.smith@example.com"))
+				So(users.DisplayName(), ShouldEqual, "Jane A. Smith")
 			})
 		})
 	})
@@ -67,7 +71,7 @@ func TestComputedStoredFields(t *testing.T) {
 			})
 			Convey("It's Jane's birthday, change her age, commit and check", func() {
 				jane := pool.User().NewSet(env).Search(pool.User().Email().Equals("jane.smith@example.com"))
-				So(jane.UserName(), ShouldEqual, "Jane A. Smith")
+				So(jane.Name(), ShouldEqual, "Jane A. Smith")
 				So(jane.Profile().Money(), ShouldEqual, 12345)
 				jane.Profile().SetAge(24)
 
@@ -78,7 +82,7 @@ func TestComputedStoredFields(t *testing.T) {
 			Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
 				userWill := pool.User().NewSet(env).Search(pool.User().Email().Equals("will.smith@example.com"))
 				userWill.Load()
-				So(userWill.UserName(), ShouldEqual, "Will Smith")
+				So(userWill.Name(), ShouldEqual, "Will Smith")
 				willProfileData := pool.ProfileData{
 					Age:   34,
 					Money: 5100,
@@ -97,7 +101,7 @@ func TestRelatedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored related fields", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking that users PMoney is correct", func() {
-				userJohn := pool.User().NewSet(env).Search(pool.User().UserName().Equals("John Smith"))
+				userJohn := pool.User().NewSet(env).Search(pool.User().Name().Equals("John Smith"))
 				So(userJohn.Len(), ShouldEqual, 1)
 				So(userJohn.PMoney(), ShouldEqual, 0)
 				userJane := pool.User().NewSet(env).Search(pool.User().Email().Equals("jane.smith@example.com"))

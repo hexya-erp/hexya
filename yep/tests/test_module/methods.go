@@ -28,7 +28,7 @@ func declareMethods() {
 		func(rs pool.UserSet, prefix string) []string {
 			var res []string
 			for _, u := range rs.Records() {
-				res = append(res, fmt.Sprintf("%s: %s", prefix, u.UserName()))
+				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Name()))
 			}
 			return res
 		})

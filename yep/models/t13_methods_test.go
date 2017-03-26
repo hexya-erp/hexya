@@ -43,12 +43,17 @@ func TestComputedNonStoredFields(t *testing.T) {
 				So(users.Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
 			Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-				users := env.Pool("User").OrderBy("UserName").Fetch()
+				users := env.Pool("User").OrderBy("Name").Fetch()
 				So(users.Len(), ShouldEqual, 3)
 				userRecs := users.Records()
 				So(userRecs[0].Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 				So(userRecs[1].Get("DecoratedName"), ShouldEqual, "User: John Smith [<jsmith2@example.com>]")
 				So(userRecs[2].Get("DecoratedName"), ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+			})
+			Convey("Testing built-in DisplayName", func() {
+				users := env.Pool("User")
+				users = users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+				So(users.Get("DisplayName").(string), ShouldEqual, "Jane A. Smith")
 			})
 		})
 	})
@@ -68,7 +73,7 @@ func TestComputedStoredFields(t *testing.T) {
 			})
 			Convey("It's Jane's birthday, change her age, commit and check", func() {
 				jane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
-				So(jane.Get("UserName"), ShouldEqual, "Jane A. Smith")
+				So(jane.Get("Name"), ShouldEqual, "Jane A. Smith")
 				So(jane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
 				jane.Get("Profile").(RecordCollection).Set("Age", 24)
 
@@ -79,7 +84,7 @@ func TestComputedStoredFields(t *testing.T) {
 			Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
 				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
 				userWill.Load()
-				So(userWill.Get("UserName"), ShouldEqual, "Will Smith")
+				So(userWill.Get("Name"), ShouldEqual, "Will Smith")
 				willProfileData := FieldMap{
 					"Age":   34,
 					"Money": 5100,
@@ -99,7 +104,7 @@ func TestRelatedNonStoredFields(t *testing.T) {
 		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			Convey("Checking that users PMoney is correct", func() {
-				userJohn := users.Search(users.Model().Field("UserName").Equals("John Smith"))
+				userJohn := users.Search(users.Model().Field("Name").Equals("John Smith"))
 				So(userJohn.Len(), ShouldEqual, 1)
 				So(userJohn.Get("PMoney"), ShouldEqual, 0)
 				userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))

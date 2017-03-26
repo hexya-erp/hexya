@@ -24,7 +24,7 @@ import (
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
 		user := NewModel("User")
-		user.AddCharField("UserName", StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
+		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
 		user.AddCharField("DecoratedName", StringFieldParams{Compute: "computeDecoratedName"})
 		user.AddCharField("Email", StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
 		user.AddCharField("Password", StringFieldParams{})
@@ -74,7 +74,7 @@ func TestCreateDB(t *testing.T) {
 			func(rc RecordCollection, prefix string) []string {
 				var res []string
 				for _, u := range rc.Records() {
-					res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("UserName")))
+					res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("Name")))
 				}
 				return res
 			})

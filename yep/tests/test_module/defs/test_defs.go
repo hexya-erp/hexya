@@ -18,7 +18,7 @@ import "github.com/npiganeau/yep/yep/models"
 
 func init() {
 	user := models.NewModel("User")
-	user.AddCharField("UserName", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
+	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
 	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: "computeDecoratedName"})
 	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
 	user.AddCharField("Password", models.StringFieldParams{})

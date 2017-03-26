@@ -44,8 +44,8 @@ func TestConditions(t *testing.T) {
 					So(func() { rs.Load() }, ShouldNotPanic)
 				})
 				Convey("Check full query with all conditions", func() {
-					rs = rs.Search(pool.User().ProfileFilteredOn(pool.Profile().Age().GreaterOrEqual(12)).Or().UserName().ILike("John"))
-					c2 := pool.User().UserName().Like("jane").Or().ProfileFilteredOn(pool.Profile().Money().Lower(1234.56))
+					rs = rs.Search(pool.User().ProfileFilteredOn(pool.Profile().Age().GreaterOrEqual(12)).Or().Name().ILike("John"))
+					c2 := pool.User().Name().Like("jane").Or().ProfileFilteredOn(pool.Profile().Money().Lower(1234.56))
 					rs = rs.Search(c2)
 					rs.Load()
 					So(func() { rs.Load() }, ShouldNotPanic)
