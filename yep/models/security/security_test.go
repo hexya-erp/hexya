@@ -70,87 +70,83 @@ func TestGroupRegistry(t *testing.T) {
 	group4 := Registry.NewGroup("group4_test", "Group 4", group3)
 	group5 := Registry.NewGroup("group5_test", "Group 5", group1)
 	Convey("Testing Group Registry", t, func() {
+		Convey("Members of a group should be member of parent groups", func() {
+			Registry.AddMembership(2, group1)
+			So(len(Registry.UserGroups(2)), ShouldEqual, 1)
+			So(Registry.UserGroups(2), ShouldContainKey, group1)
 
-		// members of a group should be members of the parent groups
-		Registry.AddMembership(2, group1)
-		So(len(Registry.UserGroups(2)), ShouldEqual, 1)
-		So(Registry.UserGroups(2), ShouldContainKey, group1)
+			Registry.AddMembership(3, group2)
+			So(len(Registry.UserGroups(3)), ShouldEqual, 1)
+			So(Registry.UserGroups(3), ShouldContainKey, group2)
 
-		Registry.AddMembership(3, group2)
-		So(len(Registry.UserGroups(3)), ShouldEqual, 1)
-		So(Registry.UserGroups(3), ShouldContainKey, group2)
+			Registry.AddMembership(4, group3)
+			So(len(Registry.UserGroups(4)), ShouldEqual, 2)
+			So(Registry.UserGroups(4), ShouldContainKey, group1)
+			So(Registry.UserGroups(4), ShouldContainKey, group3)
 
-		Registry.AddMembership(4, group3)
-		So(len(Registry.UserGroups(4)), ShouldEqual, 2)
-		So(Registry.UserGroups(4), ShouldContainKey, group1)
-		So(Registry.UserGroups(4), ShouldContainKey, group3)
+			Registry.AddMembership(5, group4)
+			So(len(Registry.UserGroups(5)), ShouldEqual, 3)
+			So(Registry.UserGroups(5), ShouldContainKey, group1)
+			So(Registry.UserGroups(5), ShouldContainKey, group3)
+			So(Registry.UserGroups(5), ShouldContainKey, group4)
 
-		Registry.AddMembership(5, group4)
-		So(len(Registry.UserGroups(5)), ShouldEqual, 3)
-		So(Registry.UserGroups(5), ShouldContainKey, group1)
-		So(Registry.UserGroups(5), ShouldContainKey, group3)
-		So(Registry.UserGroups(5), ShouldContainKey, group4)
+			Registry.AddMembership(6, group5)
+			So(len(Registry.UserGroups(6)), ShouldEqual, 2)
+			So(Registry.UserGroups(6), ShouldContainKey, group1)
+			So(Registry.UserGroups(6), ShouldContainKey, group5)
+		})
+		Convey("Removing a group should remove all memberships (incl. inherited)", func() {
+			Registry.UnregisterGroup(group3)
 
-		Registry.AddMembership(6, group5)
-		So(len(Registry.UserGroups(6)), ShouldEqual, 2)
-		So(Registry.UserGroups(6), ShouldContainKey, group1)
-		So(Registry.UserGroups(6), ShouldContainKey, group5)
+			So(Registry.groups, ShouldNotContainKey, group3.ID)
+			So(group4.Inherits, ShouldBeEmpty)
 
-		// Removing a group should remove all memberships (incl. inherited)"
+			So(len(Registry.UserGroups(2)), ShouldEqual, 1)
+			So(len(Registry.UserGroups(3)), ShouldEqual, 1)
+			So(Registry.UserGroups(3), ShouldContainKey, group2)
+			So(Registry.UserGroups(2), ShouldContainKey, group1)
+			So(Registry.UserGroups(4), ShouldBeEmpty)
+			So(len(Registry.UserGroups(5)), ShouldEqual, 1)
+			So(Registry.UserGroups(5), ShouldContainKey, group4)
+			So(len(Registry.UserGroups(6)), ShouldEqual, 2)
+			So(Registry.UserGroups(6), ShouldContainKey, group1)
+			So(Registry.UserGroups(6), ShouldContainKey, group5)
+		})
+		Convey("Removing a membership should remove inherited too", func() {
+			Registry.RemoveMembership(6, group5)
 
-		Registry.UnregisterGroup(group3)
+			So(len(Registry.UserGroups(2)), ShouldEqual, 1)
+			So(len(Registry.UserGroups(3)), ShouldEqual, 1)
+			So(Registry.UserGroups(3), ShouldContainKey, group2)
+			So(Registry.UserGroups(2), ShouldContainKey, group1)
+			So(Registry.UserGroups(4), ShouldBeEmpty)
+			So(len(Registry.UserGroups(5)), ShouldEqual, 1)
+			So(Registry.UserGroups(5), ShouldContainKey, group4)
+			So(Registry.UserGroups(6), ShouldBeEmpty)
+		})
+		Convey("Removing inherited membership should not change anything", func() {
+			group4.Inherits = []*Group{group3}
 
-		So(Registry.groups, ShouldNotContainKey, group3.ID)
-		So(group4.Inherits, ShouldBeEmpty)
+			Registry.AddMembership(6, group5)
+			Registry.AddMembership(6, group4)
+			So(len(Registry.UserGroups(6)), ShouldEqual, 4)
+			So(Registry.UserGroups(6), ShouldContainKey, group1)
+			So(Registry.UserGroups(6), ShouldContainKey, group3)
+			So(Registry.UserGroups(6), ShouldContainKey, group4)
+			So(Registry.UserGroups(6), ShouldContainKey, group5)
 
-		So(len(Registry.UserGroups(2)), ShouldEqual, 1)
-		So(len(Registry.UserGroups(3)), ShouldEqual, 1)
-		So(Registry.UserGroups(3), ShouldContainKey, group2)
-		So(Registry.UserGroups(2), ShouldContainKey, group1)
-		So(Registry.UserGroups(4), ShouldBeEmpty)
-		So(len(Registry.UserGroups(5)), ShouldEqual, 1)
-		So(Registry.UserGroups(5), ShouldContainKey, group4)
-		So(len(Registry.UserGroups(6)), ShouldEqual, 2)
-		So(Registry.UserGroups(6), ShouldContainKey, group1)
-		So(Registry.UserGroups(6), ShouldContainKey, group5)
-
-		// Removing a membership should remove inherited too
-
-		Registry.RemoveMembership(6, group5)
-
-		So(len(Registry.UserGroups(2)), ShouldEqual, 1)
-		So(len(Registry.UserGroups(3)), ShouldEqual, 1)
-		So(Registry.UserGroups(3), ShouldContainKey, group2)
-		So(Registry.UserGroups(2), ShouldContainKey, group1)
-		So(Registry.UserGroups(4), ShouldBeEmpty)
-		So(len(Registry.UserGroups(5)), ShouldEqual, 1)
-		So(Registry.UserGroups(5), ShouldContainKey, group4)
-		So(Registry.UserGroups(6), ShouldBeEmpty)
-
-		// Removing inherited membership should not change anything
-
-		group4.Inherits = []*Group{group3}
-
-		Registry.AddMembership(6, group5)
-		Registry.AddMembership(6, group4)
-		So(len(Registry.UserGroups(6)), ShouldEqual, 4)
-		So(Registry.UserGroups(6), ShouldContainKey, group1)
-		So(Registry.UserGroups(6), ShouldContainKey, group3)
-		So(Registry.UserGroups(6), ShouldContainKey, group4)
-		So(Registry.UserGroups(6), ShouldContainKey, group5)
-
-		Registry.RemoveMembership(6, group3)
-		So(len(Registry.UserGroups(6)), ShouldEqual, 4)
-		So(Registry.UserGroups(6), ShouldContainKey, group1)
-		So(Registry.UserGroups(6), ShouldContainKey, group3)
-		So(Registry.UserGroups(6), ShouldContainKey, group4)
-		So(Registry.UserGroups(6), ShouldContainKey, group5)
-
-		// Removing membership should not impact other inherited groups
-
-		Registry.RemoveMembership(6, group4)
-		So(len(Registry.UserGroups(6)), ShouldEqual, 2)
-		So(Registry.UserGroups(6), ShouldContainKey, group1)
-		So(Registry.UserGroups(6), ShouldContainKey, group5)
+			Registry.RemoveMembership(6, group3)
+			So(len(Registry.UserGroups(6)), ShouldEqual, 4)
+			So(Registry.UserGroups(6), ShouldContainKey, group1)
+			So(Registry.UserGroups(6), ShouldContainKey, group3)
+			So(Registry.UserGroups(6), ShouldContainKey, group4)
+			So(Registry.UserGroups(6), ShouldContainKey, group5)
+		})
+		Convey("Removing membership should not impact other inherited fields", func() {
+			Registry.RemoveMembership(6, group4)
+			So(len(Registry.UserGroups(6)), ShouldEqual, 2)
+			So(Registry.UserGroups(6), ShouldContainKey, group1)
+			So(Registry.UserGroups(6), ShouldContainKey, group5)
+		})
 	})
 }

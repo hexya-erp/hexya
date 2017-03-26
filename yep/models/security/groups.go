@@ -149,6 +149,7 @@ func (gc *GroupCollection) RemoveMembership(uid int64, group *Group) {
 	if _, exists := gc.memberships[uid][group]; !exists {
 		return
 	}
+	gc.Lock()
 	// Remove our group
 	delete(gc.memberships[uid], group)
 	// Remove all inherited groups
@@ -157,6 +158,7 @@ func (gc *GroupCollection) RemoveMembership(uid int64, group *Group) {
 			delete(gc.memberships[uid], grp)
 		}
 	}
+	gc.Unlock()
 	// Re-Add membership for all existing groups to compute inheritance
 	for grp := range gc.memberships[uid] {
 		gc.AddMembership(uid, grp)
