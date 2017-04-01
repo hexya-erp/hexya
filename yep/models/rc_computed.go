@@ -30,7 +30,7 @@ func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 			// probably because it was computed with another field
 			continue
 		}
-		newParams := convertInterfaceToFieldMap(rc.Call(fInfo.compute))
+		newParams := ConvertInterfaceToFieldMap(rc.Call(fInfo.compute))
 		for k, v := range newParams {
 			key, _ := rc.model.fields.get(k)
 			(*params)[key.json] = v
@@ -61,7 +61,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 		recs = recs.Fetch()
 		for _, rec := range recs.Records() {
 			retVal := rec.CallMulti(cData.compute)
-			vals := convertInterfaceToFieldMap(retVal[0])
+			vals := ConvertInterfaceToFieldMap(retVal[0])
 			toUnset := retVal[1].([]FieldNamer)
 			rec.Call("Write", vals, toUnset)
 		}

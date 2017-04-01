@@ -48,6 +48,7 @@ func declareBaseMixin() {
 	declareCRUDMethods()
 	declareRecordSetMethods()
 	declareSearchMethods()
+	declareEnvironmentMethods()
 	MixInAllModels(model)
 }
 
@@ -219,8 +220,8 @@ func declareRecordSetMethods() {
 		func(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 			//TODO The string, help, and selection (if present) attributes are translated.
 			res := make(map[string]*FieldInfo)
-			fields := args.AllFields
-			if len(args.AllFields) == 0 {
+			fields := args.Fields
+			if len(args.Fields) == 0 {
 				for jName := range rc.model.fields.registryByJSON {
 					//if fi.fieldType != tools.MANY2MANY {
 					// We don't want Many2Many as it points to the link table
@@ -314,6 +315,37 @@ func declareSearchMethods() {
 		})
 }
 
+func declareEnvironmentMethods() {
+	model := Registry.MustGet("BaseMixin")
+
+	model.AddMethod("WithEnv",
+		`WithEnv returns a copy of the current RecordSet with the given Environment.`,
+		func(rc RecordCollection, env Environment) RecordCollection {
+			return rc.WithEnv(env)
+		})
+
+	model.AddMethod("WithContext",
+		`WithContext returns a copy of the current RecordSet with
+		its context extended by the given key and value.`,
+		func(rc RecordCollection, key string, value interface{}) RecordCollection {
+			return rc.WithContext(key, value)
+		})
+
+	model.AddMethod("WithNewContext",
+		`WithNewContext returns a copy of the current RecordSet with its context
+	 	replaced by the given one.`,
+		func(rc RecordCollection, context *types.Context) RecordCollection {
+			return rc.WithNewContext(context)
+		})
+
+	model.AddMethod("Sudo",
+		`Sudo returns a new RecordSet with the given userID
+	 	or the superuser ID if not specified`,
+		func(rc RecordCollection, userID ...int64) RecordCollection {
+			return rc.Sudo(userID...)
+		})
+}
+
 // ConvertLimitToInt converts the given limit as interface{} to an int
 func ConvertLimitToInt(limit interface{}) int {
 	var lim int
@@ -359,7 +391,7 @@ type FieldInfo struct {
 // FieldsGetArgs is the args struct for the FieldsGet method
 type FieldsGetArgs struct {
 	// list of fields to document, all if empty or not provided
-	AllFields []FieldName `json:"allfields"`
+	Fields []FieldName `json:"allfields"`
 }
 
 // OnchangeParams is the args struct of the Onchange function

@@ -176,11 +176,16 @@ func getMissingDeclarations(packages []*generate.ModuleInfo) map[string][]string
 // for missing fields.
 func getMissingFields(packages []*generate.ModuleInfo) map[string][]string {
 	res := make(map[string][]string)
+	done := make(map[[2]string]bool)
 	_, raws := scanPackagesErrors(packages, "invalid operation: pool.%s (value of type github.com/npiganeau/yep/pool.%s has no field or method %s", 3, 3)
 	for _, lst := range raws {
 		firstItem := *lst[0].(*string)
 		model := firstItem[:len(firstItem)-2]
-		res[model] = append(res[model], *lst[2].(*string))
+		field := *lst[2].(*string)
+		if !done[[2]string{model, field}] {
+			res[model] = append(res[model], field)
+			done[[2]string{model, field}] = true
+		}
 	}
 	return res
 }
@@ -264,25 +269,24 @@ func generateTempMethods(fileName string) {
 		if len(mData.Params) > 0 {
 			params = strings.Join(mData.Params, " interface{}, ") + " interface{}"
 		}
-		if ref.Model == "BaseMixin" {
-			// BaseMixin methods have already been generated in previous step
+		if mData.PkgPath == generate.ModelsPath {
+			// BaseMixin methods defined in models have already been generated in previous step
 			continue
-		} else {
-			retNews := make([]string, len(mData.ReturnType.Types))
-			for i, rt := range mData.ReturnType.Types {
-				retNews[i] = fmt.Sprintf("*new(%s)", rt)
-			}
-			data.Methods = append(data.Methods, methData{
-				Model:        fmt.Sprintf("%sSet", ref.Model),
-				Name:         ref.Method,
-				Params:       params,
-				ReturnTypes:  strings.Join(retNews, ","),
-				ReturnString: strings.Join(mData.ReturnType.Types, ","),
-			})
-			for _, impPath := range mData.ReturnType.ImportPaths {
-				if impPath != "" && impPath != generate.PoolPath {
-					data.Imports = append(data.Imports, impPath)
-				}
+		}
+		retNews := make([]string, len(mData.ReturnType.Types))
+		for i, rt := range mData.ReturnType.Types {
+			retNews[i] = fmt.Sprintf("*new(%s)", rt)
+		}
+		data.Methods = append(data.Methods, methData{
+			Model:        fmt.Sprintf("%sSet", ref.Model),
+			Name:         ref.Method,
+			Params:       params,
+			ReturnTypes:  strings.Join(retNews, ","),
+			ReturnString: strings.Join(mData.ReturnType.Types, ","),
+		})
+		for _, impPath := range mData.ReturnType.ImportPaths {
+			if impPath != "" && impPath != generate.PoolPath {
+				data.Imports = append(data.Imports, impPath)
 			}
 		}
 	}

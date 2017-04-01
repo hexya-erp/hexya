@@ -71,7 +71,7 @@ func (rc RecordCollection) Ids() []int64 {
 // Instead use rs.Create(), rs.Call("Create") or env.Create()
 func (rc RecordCollection) create(data interface{}) RecordCollection {
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Create)
-	fMap := convertInterfaceToFieldMap(data)
+	fMap := ConvertInterfaceToFieldMap(data)
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Create)
 	rc.addAccessFieldsCreateData(&fMap)
 	rc.model.convertValuesToFieldType(&fMap)
@@ -105,7 +105,7 @@ func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 func (rc RecordCollection) update(data interface{}, fieldsToUnset ...FieldNamer) bool {
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Write)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
-	fMap := convertInterfaceToFieldMap(data)
+	fMap := ConvertInterfaceToFieldMap(data)
 	if _, ok := data.(FieldMap); !ok {
 		for _, f := range fieldsToUnset {
 			if _, exists := fMap[string(f.FieldName())]; !exists {

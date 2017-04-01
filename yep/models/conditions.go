@@ -241,11 +241,17 @@ func (c ConditionField) NotILike(data interface{}) *Condition {
 
 // In appends the 'IN' operator to the current Condition
 func (c ConditionField) In(data interface{}) *Condition {
+	if data == nil || (reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0) {
+		return &c.cs.cond
+	}
 	return c.addOperator(operator.In, sanitizeArgs(data, true))
 }
 
 // NotIn appends the 'NOT IN' operator to the current Condition
 func (c ConditionField) NotIn(data interface{}) *Condition {
+	if data == nil || (reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0) {
+		return &c.cs.cond
+	}
 	return c.addOperator(operator.NotIn, sanitizeArgs(data, true))
 }
 

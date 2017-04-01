@@ -21,7 +21,6 @@ import (
 	"go/ast"
 	"go/build"
 	"go/format"
-	"go/parser"
 	"go/types"
 	"io/ioutil"
 	"strings"
@@ -158,6 +157,7 @@ type TypeData struct {
 
 // A MethodASTData is a holder for a function's doc string and parameters names
 type MethodASTData struct {
+	PkgPath    string
 	Params     []string
 	ReturnType TypeData
 }
@@ -168,7 +168,6 @@ func GetMethodsASTData(paths []string) map[MethodRef]MethodASTData {
 	// Parse source code
 	conf := loader.Config{
 		AllowErrors: true,
-		ParserMode:  parser.ParseComments,
 	}
 	for _, path := range paths {
 		conf.Import(path)
@@ -188,8 +187,6 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 	// In the same loop, we both :
 	// - Get method ast data for all functions
 	// - Get the list of methods by parsing 'AddMethod'
-	meths := make(map[MethodRef]ast.Node)
-	funcs := make(map[ast.Node]MethodASTData)
 	for _, modInfo := range modInfos {
 		for _, file := range modInfo.Files {
 			ast.Inspect(file, func(n ast.Node) bool {
@@ -220,6 +217,7 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 						funcType = fd.Type
 					}
 					res[MethodRef{Model: modelName, Method: methodName}] = MethodASTData{
+						PkgPath:    modInfo.Pkg.Path(),
 						Params:     extractParams(funcType),
 						ReturnType: extractReturnType(funcType, modInfo),
 					}
@@ -227,10 +225,6 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 				return true
 			})
 		}
-	}
-	// Now we extract params from funcs only for methods
-	for ref, meth := range meths {
-		res[ref] = funcs[meth]
 	}
 	return res
 }

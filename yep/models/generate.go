@@ -116,7 +116,7 @@ func generateModelPoolFile(model *Model, fileName string, astData map[generate.M
 	}
 	mData := modelData{
 		Name:           model.name,
-		Deps:           []string{generate.ModelsPath, generate.TypesPath},
+		Deps:           []string{generate.ModelsPath},
 		ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
 	}
 	// Add fields
@@ -546,34 +546,10 @@ func (s {{ $.Name }}Set) Search(condition {{ .Name }}Condition) {{ .Name }}Set {
 	}
 }
 
-// WithEnv returns a copy of the current {{ .Name }}Set with the given Environment.
-func (s {{ .Name }}Set) WithEnv(env models.Environment) {{ .Name }}Set {
-	return {{ .Name }}Set{
-		RecordCollection: s.RecordCollection.WithEnv(env),
-	}
-}
-
-// WithContext returns a copy of the current {{ .Name }}Set with
-// its context extended by the given key and value.
-func (s {{ .Name }}Set) WithContext(key string, value interface{}) {{ .Name }}Set {
-	return {{ .Name }}Set{
-		RecordCollection: s.RecordCollection.WithContext(key, value),
-	}
-}
-
-// WithNewContext returns a copy of the current {{ .Name }}Set with its context
-// replaced by the given one.
-func (s {{ .Name }}Set) WithNewContext(context *types.Context) {{ .Name }}Set {
-	return {{ .Name }}Set{
-		RecordCollection: s.RecordCollection.WithNewContext(context),
-	}
-}
-
-// Sudo returns a new RecordCollection with the given userId
-// or the superuser id if not specified
-func (s {{ .Name }}Set) Sudo(userId ...int64) {{ .Name }}Set {
-	return {{ .Name }}Set{
-		RecordCollection: s.RecordCollection.Sudo(userId...),
+// Model returns an instance of {{ .Name }}Model
+func (s {{ .Name }}Set) Model() {{ .Name }}Model {
+	return {{ .Name }}Model{
+		Model: s.RecordCollection.Model(),
 	}
 }
 
@@ -612,7 +588,7 @@ func (s {{ $.Name }}Set) Set{{ .Name }}(value {{ .Type }}) {
 // Calls to a different method than the current method will call its next layer only
 // if the current method has been called from a layer of the other method. Otherwise,
 // it will be the same as calling the other method directly.
-func (s {{ .Name }}Set) Super(data ...interface{}) {{ .Name }}Set {
+func (s {{ .Name }}Set) Super() {{ .Name }}Set {
 	return {{ .Name }}Set{
 		RecordCollection: s.RecordCollection.Super(),
 	}

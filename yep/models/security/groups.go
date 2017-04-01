@@ -117,8 +117,8 @@ func (gc *GroupCollection) UnregisterGroup(group *Group) {
 	delete(gc.groups, group.ID)
 }
 
-// Get returns the group with the given groupID or nil if not found
-func (gc *GroupCollection) Get(groupID string) *Group {
+// GetGroup returns the group with the given groupID or nil if not found
+func (gc *GroupCollection) GetGroup(groupID string) *Group {
 	return gc.groups[groupID]
 }
 
@@ -163,6 +163,20 @@ func (gc *GroupCollection) RemoveMembership(uid int64, group *Group) {
 	for grp := range gc.memberships[uid] {
 		gc.AddMembership(uid, grp)
 	}
+}
+
+// RemoveAllMembershipsForUser removes the given uid from all groups
+func (gc *GroupCollection) RemoveAllMembershipsForUser(uid int64) {
+	delete(gc.memberships, uid)
+	if uid == SuperUserID {
+		gc.AddMembership(SuperUserID, AdminGroup)
+	}
+}
+
+// HasMembership returns true id the given uid is a member of the given group
+func (gc *GroupCollection) HasMembership(uid int64, group *Group) bool {
+	_, ok := gc.memberships[uid][group]
+	return ok
 }
 
 // UserGroups returns the slice of groups the user with the given

@@ -71,7 +71,7 @@ func (rc RecordCollection) getExistingLayer(methInfo *methodInfo) *methodLayer {
 // Calls to a different method than the current method will call its next layer only
 // if the current method has been called from a layer of the other method. Otherwise,
 // it will be the same as calling the other method directly.
-func (rc RecordCollection) Super(args ...interface{}) RecordCollection {
+func (rc RecordCollection) Super() RecordCollection {
 	if len(rc.callStack) == 0 {
 		logging.LogAndPanic(log, "Empty call stack", "model", rc.model.name)
 	}
