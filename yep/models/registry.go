@@ -345,8 +345,3 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 	}
 	return &res
 }
-
-// All returns an empty condition that matches all records of the model.
-func (m *Model) All() *Condition {
-	return newCondition()
-}

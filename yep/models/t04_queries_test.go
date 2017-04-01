@@ -70,7 +70,7 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) AND ("user__profile".age >= ? ) AND ("user".name LIKE ? OR "user__profile".money < ? ) `)
 				})
 				Convey("Testing query without WHERE clause", func() {
-					rs = env.Pool("User").Search(rs.Model().All())
+					rs = env.Pool("User").Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  `)

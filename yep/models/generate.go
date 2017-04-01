@@ -378,14 +378,6 @@ func (m {{ $.Name }}Model) {{ .Name }}() {{ $.Name }}{{ .SanType }}ConditionFiel
 
 {{ end }}
 
-// All returns a condition that is used to retrieve all
-// records of {{ .Name }}.
-func (m {{ .Name }}Model) All() {{ .Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: m.Model.All(),
-	}
-}
-
 // {{ .Name }} returns the unique instance of the {{ .Name }}Model type
 // which is used to extend the {{ .Name }} model or to get a {{ .Name }}Set through
 // its NewSet() function.

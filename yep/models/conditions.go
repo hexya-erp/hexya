@@ -267,8 +267,6 @@ func (c *Condition) IsEmpty() bool {
 		return false
 	case len(c.params) == 0:
 		return true
-	case len(c.params) == 1 && c.params[0].cond.IsEmpty():
-		return true
 	}
 	return false
 }

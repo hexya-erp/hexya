@@ -294,7 +294,7 @@ func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
 	return newFMap
 }
 
-// ConvertInterfaceToFielMap converts the given data which can be of type:
+// ConvertInterfaceToFieldMap converts the given data which can be of type:
 // - FieldMap
 // - map[string]interface{}
 // - struct pointer
