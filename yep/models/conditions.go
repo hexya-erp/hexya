@@ -149,8 +149,18 @@ func (c ConditionField) FieldName() FieldName {
 var _ FieldNamer = ConditionField{}
 
 // addOperator adds a condition value to the condition with the given operator and data
+// If multi is true, a recordset will be converted into a slice of int64
+// otherwise, it will return an int64 and panic if the recordset is not
+// a singleton
 func (c ConditionField) addOperator(op operator.Operator, data interface{}) *Condition {
 	cond := c.cs.cond
+	data = sanitizeArgs(data, op.IsMulti())
+	if data == nil {
+		return &cond
+	}
+	if op.IsMulti() && reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0 {
+		return &cond
+	}
 	cond.params = append(cond.params, condValue{
 		exprs:    c.exprs,
 		operator: op,
@@ -174,6 +184,9 @@ func sanitizeArgs(args interface{}, multi bool) interface{} {
 		if len(rs.Ids()) > 1 {
 			logging.LogAndPanic(log, "Trying to extract a single ID from a non singleton", "args", args)
 		}
+		if len(rs.Ids()) == 0 {
+			return nil
+		}
 		return rs.Ids()[0]
 	}
 	return args
@@ -181,83 +194,77 @@ func sanitizeArgs(args interface{}, multi bool) interface{} {
 
 // Equals appends the '=' operator to the current Condition
 func (c ConditionField) Equals(data interface{}) *Condition {
-	return c.addOperator(operator.Equals, sanitizeArgs(data, false))
+	return c.addOperator(operator.Equals, data)
 }
 
 // NotEquals appends the '!=' operator to the current Condition
 func (c ConditionField) NotEquals(data interface{}) *Condition {
-	return c.addOperator(operator.NotEquals, sanitizeArgs(data, false))
+	return c.addOperator(operator.NotEquals, data)
 }
 
 // Greater appends the '>' operator to the current Condition
 func (c ConditionField) Greater(data interface{}) *Condition {
-	return c.addOperator(operator.Greater, sanitizeArgs(data, false))
+	return c.addOperator(operator.Greater, data)
 }
 
 // GreaterOrEqual appends the '>=' operator to the current Condition
 func (c ConditionField) GreaterOrEqual(data interface{}) *Condition {
-	return c.addOperator(operator.GreaterOrEqual, sanitizeArgs(data, false))
+	return c.addOperator(operator.GreaterOrEqual, data)
 }
 
 // Lower appends the '<' operator to the current Condition
 func (c ConditionField) Lower(data interface{}) *Condition {
-	return c.addOperator(operator.Lower, sanitizeArgs(data, false))
+	return c.addOperator(operator.Lower, data)
 }
 
 // LowerOrEqual appends the '<=' operator to the current Condition
 func (c ConditionField) LowerOrEqual(data interface{}) *Condition {
-	return c.addOperator(operator.LowerOrEqual, sanitizeArgs(data, false))
+	return c.addOperator(operator.LowerOrEqual, data)
 }
 
 // LikePattern appends the 'LIKE' operator to the current Condition
 func (c ConditionField) LikePattern(data interface{}) *Condition {
-	return c.addOperator(operator.LikePattern, sanitizeArgs(data, false))
+	return c.addOperator(operator.LikePattern, data)
 }
 
 // ILikePattern appends the 'ILIKE' operator to the current Condition
 func (c ConditionField) ILikePattern(data interface{}) *Condition {
-	return c.addOperator(operator.ILikePattern, sanitizeArgs(data, false))
+	return c.addOperator(operator.ILikePattern, data)
 }
 
 // Like appends the 'LIKE %%' operator to the current Condition
 func (c ConditionField) Like(data interface{}) *Condition {
-	return c.addOperator(operator.Like, sanitizeArgs(data, false))
+	return c.addOperator(operator.Like, data)
 }
 
 // NotLike appends the 'NOT LIKE %%' operator to the current Condition
 func (c ConditionField) NotLike(data interface{}) *Condition {
-	return c.addOperator(operator.NotLike, sanitizeArgs(data, false))
+	return c.addOperator(operator.NotLike, data)
 }
 
 // ILike appends the 'ILIKE %%' operator to the current Condition
 func (c ConditionField) ILike(data interface{}) *Condition {
-	return c.addOperator(operator.ILike, sanitizeArgs(data, false))
+	return c.addOperator(operator.ILike, data)
 }
 
 // NotILike appends the 'NOT ILIKE %%' operator to the current Condition
 func (c ConditionField) NotILike(data interface{}) *Condition {
-	return c.addOperator(operator.NotILike, sanitizeArgs(data, false))
+	return c.addOperator(operator.NotILike, data)
 }
 
 // In appends the 'IN' operator to the current Condition
 func (c ConditionField) In(data interface{}) *Condition {
-	if data == nil || (reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0) {
-		return &c.cs.cond
-	}
-	return c.addOperator(operator.In, sanitizeArgs(data, true))
+	return c.addOperator(operator.In, data)
 }
 
 // NotIn appends the 'NOT IN' operator to the current Condition
 func (c ConditionField) NotIn(data interface{}) *Condition {
-	if data == nil || (reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0) {
-		return &c.cs.cond
-	}
-	return c.addOperator(operator.NotIn, sanitizeArgs(data, true))
+	return c.addOperator(operator.NotIn, data)
 }
 
 // ChildOf appends the 'child of' operator to the current Condition
 func (c ConditionField) ChildOf(data interface{}) *Condition {
-	return c.addOperator(operator.ChildOf, sanitizeArgs(data, false))
+	return c.addOperator(operator.ChildOf, data)
 }
 
 // IsEmpty check the condition arguments are empty or not.
@@ -266,6 +273,8 @@ func (c *Condition) IsEmpty() bool {
 	case c == nil:
 		return false
 	case len(c.params) == 0:
+		return true
+	case len(c.params) == 1 && c.params[0].cond.IsEmpty():
 		return true
 	}
 	return false

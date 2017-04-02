@@ -283,6 +283,13 @@ func declareSearchMethods() {
 			return rc.Fetch()
 		})
 
+	model.AddMethod("FetchAll",
+		`FetchAll returns a RecordSet with all items of the table, regardless of the
+		current RecordSet query. It is mainly meant to be used on an empty RecordSet`,
+		func(rc RecordCollection) RecordCollection {
+			return rc.FetchAll()
+		})
+
 	model.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {

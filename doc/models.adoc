@@ -153,6 +153,9 @@ Deletes the database records that are linked with this RecordSet.
 Populates this RecordSet with the data from the database matching the current
 search condition. If fields are given, only those fields are fetched and the
 other fields of the Records are set to their `go` zero value.
++
+Calling Load on an empty RecordSet with an empty query will have no effect.
+To load a whole table, use `FetchAll()`.
 
 NOTE: Call to `Load()` is optional. It will be automatically called (without
 fields arguments) on the first call to a getter or when calling `Records()`.
@@ -175,6 +178,10 @@ for _, p := range partners.Records() {
 // John Smith 1982-06-03
 // John Doo 1975-01-06
 ----
+
+`*FetchAll() RecordSetType*`::
+Returns a RecordSet with all items of the table, regardless of the current
+RecordSet query. It is mainly meant to be used on an empty RecordSet.
 
 ==== Search Methods
 

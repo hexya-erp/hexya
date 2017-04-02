@@ -41,6 +41,7 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 type Query struct {
 	recordSet RecordCollection
 	cond      *Condition
+	fetchAll  bool
 	limit     int
 	offset    int
 	groups    []string
@@ -370,6 +371,9 @@ func (q *Query) tablesSQL(fExprs [][]string) string {
 // i.e. this query will search all the database.
 func (q *Query) isEmpty() bool {
 	if !q.cond.IsEmpty() {
+		return false
+	}
+	if q.fetchAll {
 		return false
 	}
 	if q.limit != 0 {

@@ -232,7 +232,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 			Convey("Checking record rules", func() {
 				pool.User().AllowModelAccess(group1, security.Read)
-				users := pool.User().NewSet(env).Load()
+				users := pool.User().NewSet(env).FetchAll()
 				So(users.Len(), ShouldEqual, 3)
 
 				rule := models.RecordRule{
@@ -251,7 +251,7 @@ func TestSearchRecordSet(t *testing.T) {
 				}
 				pool.User().AddRecordRule(&notUsedRule)
 
-				users = pool.User().NewSet(env).Load()
+				users = pool.User().NewSet(env).FetchAll()
 				So(users.Len(), ShouldEqual, 2)
 				So(users.Records()[0].Name(), ShouldBeIn, []string{"Jane Smith", "John Smith"})
 				pool.User().DenyModelAccess(group1, security.Read)
@@ -273,10 +273,18 @@ func TestAdvancedQueries(t *testing.T) {
 				So(users.Len(), ShouldEqual, 1)
 				So(users.ID(), ShouldEqual, jane.ID())
 			})
+			Convey("Empty RecordSet on m2o relation fields", func() {
+				users := pool.User().NewSet(env).Search(pool.User().Profile().Equals(pool.Profile().NewSet(env)))
+				So(users.Len(), ShouldEqual, 0)
+			})
 			Convey("Condition on m2o relation fields with IN operator", func() {
 				users := pool.User().NewSet(env).Search(pool.User().Profile().In(jane.Profile()))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.ID(), ShouldEqual, jane.ID())
+			})
+			Convey("Empty RecordSet on m2o relation fields with IN operator", func() {
+				users := pool.User().NewSet(env).Search(pool.User().Profile().In(pool.Profile().NewSet(env)))
+				So(users.Len(), ShouldEqual, 0)
 			})
 		})
 	})
@@ -407,7 +415,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 			Convey("Checking record rules", func() {
 				pool.User().AllowModelAccess(group1, security.Read|security.Write)
-				userJane := pool.User().NewSet(env).Load()
+				userJane := pool.User().NewSet(env).FetchAll()
 				So(userJane.Len(), ShouldEqual, 3)
 
 				rule := models.RecordRule{

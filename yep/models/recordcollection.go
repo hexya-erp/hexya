@@ -280,10 +280,18 @@ func (rc RecordCollection) GroupBy(exprs ...string) RecordCollection {
 func (rc RecordCollection) Fetch() RecordCollection {
 	if !rc.fetched && !rc.query.isEmpty() {
 		// We do not load empty queries to keep empty record sets empty
-		// Call Load instead to load all the records of the table
+		// Call FetchAll instead to load all the records of the table
 		return rc.Load("id")
 	}
 	return rc
+}
+
+// FetchAll returns a RecordSet with all items of the table, regardless of the
+// current RecordSet query. It is mainly meant to be used on an empty RecordSet
+func (rc RecordCollection) FetchAll() RecordCollection {
+	rSet := rc.env.Pool(rc.ModelName())
+	rSet.query.fetchAll = true
+	return rSet
 }
 
 // SearchCount fetch from the database the number of records that match the RecordSet conditions
@@ -302,6 +310,10 @@ func (rc RecordCollection) SearchCount() int {
 // model are retrieved. Non-DB fields must be explicitly given in
 // fields to be retrieved.
 func (rc RecordCollection) Load(fields ...string) RecordCollection {
+	if rc.query.isEmpty() {
+		// Never load RecordSets without query.
+		return rc
+	}
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Read)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
 	var results []FieldMap

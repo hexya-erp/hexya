@@ -43,8 +43,18 @@ var allowedOperators = map[Operator]bool{
 	ChildOf:        true,
 }
 
-// IsValidOperator returns true if op is a known operator.
-func IsValidOperator(op Operator) bool {
-	_, res := allowedOperators[op]
+var multiOperator = map[Operator]bool{
+	In:    true,
+	NotIn: true,
+}
+
+// IsMulti returns true if the operator expects a array as arguments
+func (o Operator) IsMulti() bool {
+	return multiOperator[o]
+}
+
+// IsValid returns true if o is a known operator.
+func (o Operator) IsValid() bool {
+	_, res := allowedOperators[o]
 	return res
 }

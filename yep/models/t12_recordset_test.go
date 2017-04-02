@@ -181,7 +181,9 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 
 			Convey("Testing search all users", func() {
-				usersAll := env.Pool("User").OrderBy("Name").Load()
+				usersAll := env.Pool("User").FetchAll()
+				So(usersAll.Len(), ShouldEqual, 3)
+				usersAll = env.Pool("User").OrderBy("Name")
 				So(usersAll.Len(), ShouldEqual, 3)
 				Convey("Reading first user with Get", func() {
 					So(usersAll.Get("Name"), ShouldEqual, "Jane Smith")
@@ -236,7 +238,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 			Convey("Checking record rules", func() {
 				userModel.AllowModelAccess(group1, security.Read)
-				users := env.Pool("User").Load()
+				users := env.Pool("User").FetchAll()
 				So(users.Len(), ShouldEqual, 3)
 
 				rule := RecordRule{
@@ -255,7 +257,7 @@ func TestSearchRecordSet(t *testing.T) {
 				}
 				userModel.AddRecordRule(&notUsedRule)
 
-				users = env.Pool("User").Load()
+				users = env.Pool("User").FetchAll()
 				So(users.Len(), ShouldEqual, 2)
 				So(users.Records()[0].Get("Name"), ShouldBeIn, []string{"Jane Smith", "John Smith"})
 				userModel.DenyModelAccess(group1, security.Read)
@@ -284,6 +286,11 @@ func TestAdvancedQueries(t *testing.T) {
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
+			Convey("Empty recordset", func() {
+				profile := env.Pool("Profile")
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").Equals(profile))
+				So(users.Len(), ShouldEqual, 0)
+			})
 			Convey("Condition on m2o relation fields with IN operator and ids", func() {
 				profileID := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profileID))
@@ -295,6 +302,11 @@ func TestAdvancedQueries(t *testing.T) {
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profile))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Empty recordset with IN operator", func() {
+				profile := env.Pool("Profile")
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profile))
+				So(users.Len(), ShouldEqual, 0)
 			})
 		})
 	})
@@ -442,7 +454,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 			Convey("Checking record rules", func() {
 				userModel.AllowModelAccess(group1, security.Read|security.Write)
-				userJane := env.Pool("User").Load()
+				userJane := env.Pool("User").FetchAll()
 				So(userJane.Len(), ShouldEqual, 3)
 
 				rule := RecordRule{
