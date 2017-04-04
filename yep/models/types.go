@@ -150,6 +150,15 @@ func (fm *FieldMap) SubstituteKeys(substs []KeySubstitution) {
 	}
 }
 
+// Copy returns a shallow copy of this FieldMap
+func (fm FieldMap) Copy() FieldMap {
+	res := make(FieldMap, len(fm))
+	for k, v := range fm {
+		res[k] = v
+	}
+	return res
+}
+
 // RecordIDWithName is a tuple with an ID and the display name of a record
 type RecordIDWithName struct {
 	ID   int64

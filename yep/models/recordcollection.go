@@ -142,7 +142,7 @@ func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 // invalidates the cache for the record
 func (rc RecordCollection) doUpdate(fMap FieldMap) {
 	defer func() {
-		for _, id := range rc.ids {
+		for _, id := range rc.Ids() {
 			rc.env.cache.invalidateRecord(rc.model, id)
 		}
 	}()

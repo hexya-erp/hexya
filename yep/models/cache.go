@@ -17,11 +17,15 @@ package models
 import (
 	"errors"
 	"strings"
+	"sync"
 )
 
 // A cache holds records field values for caching the database to
 // improve performance.
-type cache map[RecordRef]FieldMap
+type cache struct {
+	sync.RWMutex
+	data map[RecordRef]FieldMap
+}
 
 // addEntry to the cache. fieldName must be a simple field name (no path)
 func (c *cache) addEntry(mi *Model, ID int64, fieldName string, value interface{}) {
@@ -32,10 +36,12 @@ func (c *cache) addEntry(mi *Model, ID int64, fieldName string, value interface{
 
 // addEntryByRef adds an entry to the cache from a RecordRef and a field json name
 func (c *cache) addEntryByRef(ref RecordRef, jsonName string, value interface{}) {
-	if _, ok := (*c)[ref]; !ok {
-		(*c)[ref] = make(FieldMap)
+	c.Lock()
+	defer c.Unlock()
+	if _, ok := c.data[ref]; !ok {
+		c.data[ref] = make(FieldMap)
 	}
-	(*c)[ref][jsonName] = value
+	c.data[ref][jsonName] = value
 }
 
 // addRecord successively adds each entry of the given FieldMap to the cache.
@@ -62,7 +68,9 @@ func (c *cache) addRecord(mi *Model, ID int64, fMap FieldMap) {
 
 // invalidateRecord removes an entire record from the cache
 func (c *cache) invalidateRecord(mi *Model, ID int64) {
-	delete((*c), RecordRef{ModelName: mi.name, ID: ID})
+	c.Lock()
+	defer c.Unlock()
+	delete(c.data, RecordRef{ModelName: mi.name, ID: ID})
 }
 
 // get returns the cache value of the given fieldName
@@ -70,14 +78,14 @@ func (c *cache) invalidateRecord(mi *Model, ID int64) {
 // relative to this Model (e.g. "User.Profile.Age").
 func (c *cache) get(mi *Model, ID int64, fieldName string) interface{} {
 	ref, fName, _ := c.getRelatedRef(mi, ID, fieldName)
-	res := (*c)[ref][fName]
-	return res
+	return c.data[ref][fName]
 }
 
 // getRecord returns the whole record specified by modelName and ID
 // as it is currently in cache.
 func (c *cache) getRecord(modelName string, ID int64) FieldMap {
-	return (*c)[RecordRef{ModelName: modelName, ID: ID}]
+	ref := RecordRef{ModelName: modelName, ID: ID}
+	return c.data[ref].Copy()
 }
 
 // checkIfInCache returns true if all fields given by fieldNames are available
@@ -89,7 +97,7 @@ func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string) bool
 			if err != nil {
 				return false
 			}
-			if _, ok := (*c)[ref][path]; !ok {
+			if _, ok := c.data[ref][path]; !ok {
 				return false
 			}
 		}
@@ -114,6 +122,8 @@ func (c *cache) getRelatedRef(mi *Model, ID int64, path string) (RecordRef, stri
 
 // newCache creates a pointer to a new cache instance.
 func newCache() *cache {
-	res := make(cache)
+	res := cache{
+		data: make(map[RecordRef]FieldMap),
+	}
 	return &res
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/server"
 	"github.com/npiganeau/yep/yep/tools/logging"
 	"github.com/spf13/viper"
 )
@@ -73,6 +74,10 @@ func InitializeTests(moduleName string) {
 
 	models.DBConnect(driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", dbName, user, password))
 	models.BootStrap()
+
+	for _, module := range server.Modules {
+		module.PostInit()
+	}
 }
 
 // TearDownTests tears down the tests for the given module

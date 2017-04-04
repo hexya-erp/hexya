@@ -167,7 +167,9 @@ func (gc *GroupCollection) RemoveMembership(uid int64, group *Group) {
 
 // RemoveAllMembershipsForUser removes the given uid from all groups
 func (gc *GroupCollection) RemoveAllMembershipsForUser(uid int64) {
+	gc.Lock()
 	delete(gc.memberships, uid)
+	gc.Unlock()
 	if uid == SuperUserID {
 		gc.AddMembership(SuperUserID, AdminGroup)
 	}
@@ -182,7 +184,11 @@ func (gc *GroupCollection) HasMembership(uid int64, group *Group) bool {
 // UserGroups returns the slice of groups the user with the given
 // uid belongs to, including inherited groups.
 func (gc *GroupCollection) UserGroups(uid int64) map[*Group]InheritanceInfo {
-	return gc.memberships[uid]
+	res := make(map[*Group]InheritanceInfo, len(gc.memberships[uid]))
+	for k, v := range gc.memberships[uid] {
+		res[k] = v
+	}
+	return res
 }
 
 // AllGroups returns a slice with all the groups of the collection
@@ -191,6 +197,7 @@ func (gc *GroupCollection) AllGroups() []*Group {
 	i := 0
 	for _, group := range gc.groups {
 		res[i] = group
+		i++
 	}
 	return res
 }

@@ -409,7 +409,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) {
 	if m2mRelModName == "" {
 		m2mRelModName = fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1])
 	}
-	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, modelNames[0], modelNames[1])
+	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, our, their)
 
 	json, str := getJSONAndString(name, types.Float, params.JSON, params.String)
 	fInfo := &fieldInfo{
