@@ -321,8 +321,8 @@ func createModel(name string, options Option) *Model {
 // If fieldName is already the json name, returns it without modifying it.
 // fieldName may be a dot separated path from this model.
 // It panics if the path is invalid.
-func (m *Model) JSONizeFieldName(fieldName FieldName) FieldName {
-	return FieldName(jsonizePath(m, string(fieldName)))
+func (m *Model) JSONizeFieldName(fieldName string) string {
+	return jsonizePath(m, string(fieldName))
 }
 
 // Field starts a condition on this model

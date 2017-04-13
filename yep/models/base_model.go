@@ -244,6 +244,7 @@ func declareRecordSetMethods() {
 					Store:      fInfo.isStored(),
 					String:     fInfo.description,
 					Relation:   relation,
+					Required:   fInfo.required,
 				}
 			}
 			return res
