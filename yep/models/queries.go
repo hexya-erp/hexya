@@ -140,7 +140,7 @@ func (q *Query) sqlLimitOffsetClause() string {
 // of this Query
 func (q *Query) sqlOrderByClause() string {
 	if len(q.orders) == 0 {
-		return ""
+		return "ORDER BY id "
 	}
 
 	var fExprs [][]string

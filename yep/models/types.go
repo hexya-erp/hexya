@@ -35,7 +35,7 @@ func (d Date) IsNull() bool {
 // MarshalJSON for Date type
 func (d Date) MarshalJSON() ([]byte, error) {
 	if d.IsNull() {
-		return []byte("null"), nil
+		return []byte("false"), nil
 	}
 	dateStr := time.Time(d).Format("2006-01-02")
 	dateStr = fmt.Sprintf(`"%s"`, dateStr)
@@ -75,7 +75,7 @@ func Now() DateTime {
 // MarshalJSON for DateTime type
 func (d DateTime) MarshalJSON() ([]byte, error) {
 	if d.IsNull() {
-		return []byte("null"), nil
+		return []byte("false"), nil
 	}
 	dateStr := time.Time(d).Format("2006-01-02 15:04:05")
 	dateStr = fmt.Sprintf(`"%s"`, dateStr)
