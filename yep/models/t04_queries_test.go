@@ -31,13 +31,13 @@ func TestConditions(t *testing.T) {
 				Convey("Simple query with database field names", func() {
 					rs = env.Pool("User").Search(rs.Model().FilteredOn("profile_id", env.Pool("Profile").Model().Field("best_post_id.title").Equals("foo")))
 					sql, args := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) ORDER BY id `)
 					So(args, ShouldContain, "foo")
 				})
 				Convey("Simple query with struct field names", func() {
 					fields := []string{"Name", "Profile.BestPost.Title"}
 					sql, args := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) ORDER BY id `)
 					So(args, ShouldContain, "foo")
 				})
 				Convey("Simple query with args inflation", func() {
@@ -47,7 +47,7 @@ func TestConditions(t *testing.T) {
 					rs2 := env.Pool("User").Search(rs.Model().Field("Nums").Equals(getUserID))
 					fields := []string{"Name"}
 					sql, args := rs2.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".nums = ? ) `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".nums = ? ) ORDER BY id `)
 					So(len(args), ShouldEqual, 1)
 					So(args, ShouldContain, security.SuperUserID)
 				})
@@ -67,13 +67,13 @@ func TestConditions(t *testing.T) {
 					So(args, ShouldContain, "%jane%")
 					So(args, ShouldContain, 1234.56)
 					sql, _ = rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) AND ("user__profile".age >= ? ) AND ("user".name LIKE ? OR "user__profile".money < ? ) `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) AND ("user__profile".age >= ? ) AND ("user".name LIKE ? OR "user__profile".money < ? ) ORDER BY id `)
 				})
 				Convey("Testing query without WHERE clause", func() {
 					rs = env.Pool("User").Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  ORDER BY id `)
 				})
 			})
 		}
