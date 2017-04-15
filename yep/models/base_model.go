@@ -31,7 +31,20 @@ const (
 	// Many2ManyLinkModel is a model that abstracts the link
 	// table of a many2many relationship
 	Many2ManyLinkModel
+	// ManualModel is a model whose table is not automatically generated in the
+	// database. Such models include SQL views and materialized SQL views.
+	ManualModel
 )
+
+//  declareCommonMixin creates the common mixin that is needed for all models
+func declareCommonMixin() {
+	commonMixin := NewMixinModel("CommonMixin")
+	declareCRUDMethods()
+	declareRecordSetMethods()
+	declareSearchMethods()
+	declareEnvironmentMethods()
+	MixInAllModels(commonMixin)
+}
 
 // declareBaseMixin creates the mixin that implements all the necessary base methods of a model
 func declareBaseMixin() {
@@ -45,10 +58,6 @@ func declareBaseMixin() {
 	model.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
 
 	declareComputeMethods()
-	declareCRUDMethods()
-	declareRecordSetMethods()
-	declareSearchMethods()
-	declareEnvironmentMethods()
 	MixInAllModels(model)
 }
 
@@ -85,16 +94,16 @@ func declareComputeMethods() {
 
 // declareCRUDMethods declares RecordSet CRUD methods
 func declareCRUDMethods() {
-	model := Registry.MustGet("BaseMixin")
+	commonMixin := Registry.MustGet("CommonMixin")
 
-	model.AddMethod("Create",
+	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
 		func(rc RecordCollection, data interface{}) RecordCollection {
 			return rc.create(data)
 		})
 
-	model.AddMethod("Read",
+	commonMixin.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
 		func(rc RecordCollection, fields []string) []FieldMap {
 			res := make([]FieldMap, rc.Len())
@@ -125,7 +134,7 @@ func declareCRUDMethods() {
 			return res
 		})
 
-	model.AddMethod("Load",
+	commonMixin.AddMethod("Load",
 		`Load query all data of the RecordCollection and store in cache.
 		fields are the fields to retrieve in the expression format,
 		i.e. "User.Profile.Age" or "user_id.profile_id.age".
@@ -135,7 +144,7 @@ func declareCRUDMethods() {
 			return rc.Load(fields...)
 		})
 
-	model.AddMethod("Write",
+	commonMixin.AddMethod("Write",
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
@@ -143,13 +152,13 @@ func declareCRUDMethods() {
 			return rc.update(data, fieldsToUnset...)
 		})
 
-	model.AddMethod("Unlink",
+	commonMixin.AddMethod("Unlink",
 		`Unlink deletes the given records in the database.`,
 		func(rc RecordCollection) int64 {
 			return rc.delete()
 		})
 
-	model.AddMethod("Copy",
+	commonMixin.AddMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
 		func(rc RecordCollection) RecordCollection {
@@ -175,9 +184,9 @@ func declareCRUDMethods() {
 
 // declareRecordSetMethods declares general RecordSet methods
 func declareRecordSetMethods() {
-	model := Registry.MustGet("BaseMixin")
+	commonMixin := Registry.MustGet("CommonMixin")
 
-	model.AddMethod("NameGet",
+	commonMixin.AddMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc RecordCollection) string {
 			if _, nameExists := rc.model.fields.get("name"); nameExists {
@@ -189,7 +198,7 @@ func declareRecordSetMethods() {
 			return rc.String()
 		})
 
-	model.AddMethod("NameSearch",
+	commonMixin.AddMethod("NameSearch",
 		`NameSearch searches for records that have a display name matching the given
 		"name" pattern when compared with the given "operator", while also
 		matching the optional search domain ("args").
@@ -213,7 +222,7 @@ func declareRecordSetMethods() {
 			return res
 		})
 
-	model.AddMethod("FieldsGet",
+	commonMixin.AddMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
 		The embedded fields are included.
 		The string, help, and selection (if present) attributes are translated.`,
@@ -250,14 +259,14 @@ func declareRecordSetMethods() {
 			return res
 		})
 
-	model.AddMethod("DefaultGet",
+	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
 		func(rc RecordCollection) FieldMap {
 			// TODO Implement DefaultGet
 			return make(FieldMap)
 		})
 
-	model.AddMethod("Onchange",
+	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified in the pseudo-record
 		given as params.Values`,
 		func(rc RecordCollection, params OnchangeParams) FieldMap {
@@ -267,16 +276,16 @@ func declareRecordSetMethods() {
 }
 
 func declareSearchMethods() {
-	model := Registry.MustGet("BaseMixin")
+	commonMixin := Registry.MustGet("CommonMixin")
 
-	model.AddMethod("Search",
+	commonMixin.AddMethod("Search",
 		`Search returns a new RecordSet filtering on the current one with the
 		additional given Condition`,
 		func(rc RecordCollection, cond *Condition) RecordCollection {
 			return rc.Search(cond)
 		})
 
-	model.AddMethod("Fetch",
+	commonMixin.AddMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
 		with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 		if you want to fetch all fields.`,
@@ -284,38 +293,38 @@ func declareSearchMethods() {
 			return rc.Fetch()
 		})
 
-	model.AddMethod("FetchAll",
+	commonMixin.AddMethod("FetchAll",
 		`FetchAll returns a RecordSet with all items of the table, regardless of the
 		current RecordSet query. It is mainly meant to be used on an empty RecordSet`,
 		func(rc RecordCollection) RecordCollection {
 			return rc.FetchAll()
 		})
 
-	model.AddMethod("GroupBy",
+	commonMixin.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.GroupBy(exprs...)
 		})
 
-	model.AddMethod("Limit",
+	commonMixin.AddMethod("Limit",
 		`Limit returns a new RecordSet with only the first 'limit' records.`,
 		func(rc RecordCollection, limit int) RecordCollection {
 			return rc.Limit(limit)
 		})
 
-	model.AddMethod("Offset",
+	commonMixin.AddMethod("Offset",
 		`Offset returns a new RecordSet with only the records starting at offset`,
 		func(rc RecordCollection, offset int) RecordCollection {
 			return rc.Offset(offset)
 		})
 
-	model.AddMethod("OrderBy",
+	commonMixin.AddMethod("OrderBy",
 		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.OrderBy(exprs...)
 		})
 
-	model.AddMethod("Union",
+	commonMixin.AddMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
 		func(rc RecordCollection, other RecordCollection) RecordCollection {
@@ -324,29 +333,29 @@ func declareSearchMethods() {
 }
 
 func declareEnvironmentMethods() {
-	model := Registry.MustGet("BaseMixin")
+	commonMixin := Registry.MustGet("CommonMixin")
 
-	model.AddMethod("WithEnv",
+	commonMixin.AddMethod("WithEnv",
 		`WithEnv returns a copy of the current RecordSet with the given Environment.`,
 		func(rc RecordCollection, env Environment) RecordCollection {
 			return rc.WithEnv(env)
 		})
 
-	model.AddMethod("WithContext",
+	commonMixin.AddMethod("WithContext",
 		`WithContext returns a copy of the current RecordSet with
 		its context extended by the given key and value.`,
 		func(rc RecordCollection, key string, value interface{}) RecordCollection {
 			return rc.WithContext(key, value)
 		})
 
-	model.AddMethod("WithNewContext",
+	commonMixin.AddMethod("WithNewContext",
 		`WithNewContext returns a copy of the current RecordSet with its context
 	 	replaced by the given one.`,
 		func(rc RecordCollection, context *types.Context) RecordCollection {
 			return rc.WithNewContext(context)
 		})
 
-	model.AddMethod("Sudo",
+	commonMixin.AddMethod("Sudo",
 		`Sudo returns a new RecordSet with the given userID
 	 	or the superuser ID if not specified`,
 		func(rc RecordCollection, userID ...int64) RecordCollection {

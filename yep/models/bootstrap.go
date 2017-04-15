@@ -38,7 +38,6 @@ func BootStrap() {
 	inflateMixIns()
 	inflateEmbeddings()
 	syncRelatedFieldInfo()
-	syncDatabase()
 	generateMethodsDoc()
 	bootStrapMethods()
 	processDepends()
@@ -78,7 +77,12 @@ func inflateMixIns() {
 			// We don't mix in mixin models
 			continue
 		}
-		allMixIns := append(Registry.commonMixins, mi.mixins...)
+		var allMixIns []*Model
+		if mi.isManual() {
+			allMixIns = mi.mixins
+		} else {
+			allMixIns = append(Registry.commonMixins, mi.mixins...)
+		}
 		for _, mixInMI := range allMixIns {
 			// Add mixIn fields
 			for fName, fi := range mixInMI.fields.registryByName {
@@ -184,30 +188,34 @@ func syncRelatedFieldInfo() {
 	}
 }
 
-// syncDatabase creates or updates database tables with the data in the model registry
-func syncDatabase() {
+// SyncDatabase creates or updates database tables with the data in the model registry
+func SyncDatabase() {
 	adapter := adapters[db.DriverName()]
 	dbTables := adapter.tables()
 	// Create or update existing tables
-	for tableName, mi := range Registry.registryByTableName {
-		if mi.isMixin() {
+	for tableName, model := range Registry.registryByTableName {
+		if model.isMixin() {
 			// Don't create table for mixin models
 			continue
 		}
-		if _, ok := dbTables[tableName]; !ok {
-			createDBTable(mi.tableName)
+		if model.isManual() {
+			// Don't create table for manual models
+			continue
 		}
-		updateDBColumns(mi)
-		updateDBIndexes(mi)
+		if _, ok := dbTables[tableName]; !ok {
+			createDBTable(model.tableName)
+		}
+		updateDBColumns(model)
+		updateDBIndexes(model)
 	}
 	// Drop DB tables that are not in the models
 	for dbTable := range adapter.tables() {
 		var modelExists bool
-		for tableName, mi := range Registry.registryByTableName {
+		for tableName, model := range Registry.registryByTableName {
 			if dbTable != tableName {
 				continue
 			}
-			if mi.isMixin() {
+			if model.isMixin() {
 				// We don't want a table for mixin models
 				continue
 			}

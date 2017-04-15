@@ -74,10 +74,9 @@ func InitializeTests(moduleName string) {
 
 	models.DBConnect(driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", dbName, user, password))
 	models.BootStrap()
+	models.SyncDatabase()
 
-	for _, module := range server.Modules {
-		module.PostInit()
-	}
+	server.PostInitModules()
 }
 
 // TearDownTests tears down the tests for the given module

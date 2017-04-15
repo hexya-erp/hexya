@@ -31,8 +31,8 @@ ORM
 - [X] Handle serialization transaction isolation with appropriate retries
 - [X] Improved model creation/extension API
 - [X] Add more type safety in the condition builder
+- [X] Support for SQL views and materialized views
 - [ ] Pagination API for RecordSets
-- [ ] Support for SQL views and materialized views
 - [ ] Implement "group by" queries
 - [ ] Implement efficient 'child_of' domain operator
 - [ ] Database foreign keys to related fields

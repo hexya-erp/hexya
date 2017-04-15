@@ -63,4 +63,8 @@ func init() {
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
 	models.MixInAllModels(activeMI)
+
+	viewModel := models.NewManualModel("UserView")
+	viewModel.AddCharField("Name", models.StringFieldParams{})
+	viewModel.AddCharField("City", models.StringFieldParams{})
 }

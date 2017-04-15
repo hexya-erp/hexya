@@ -70,6 +70,10 @@ func TestCreateDB(t *testing.T) {
 		activeMI.AddBooleanField("Active", SimpleFieldParams{})
 		MixInAllModels(activeMI)
 
+		viewModel := NewManualModel("UserView")
+		viewModel.AddCharField("Name", StringFieldParams{})
+		viewModel.AddCharField("City", StringFieldParams{})
+
 		user.AddMethod("PrefixedUser", "",
 			func(rc RecordCollection, prefix string) []string {
 				var res []string
@@ -148,7 +152,7 @@ func TestCreateDB(t *testing.T) {
 			})
 
 		// Creating a dummy table to check that it is correctly removed by Bootstrap
-		db.MustExec("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
+		dbExecuteNoTx("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
 	})
 
 	Convey("Database creation should run fine", t, func() {
@@ -157,11 +161,22 @@ func TestCreateDB(t *testing.T) {
 		})
 		Convey("Bootstrap should not panic", func() {
 			So(BootStrap, ShouldNotPanic)
+			So(SyncDatabase, ShouldNotPanic)
+		})
+		Convey("Creating SQL view should run fine", func() {
+			So(func() {
+				dbExecuteNoTx(`DROP VIEW IF EXISTS user_view;
+					CREATE VIEW user_view AS (
+						SELECT u.id, u.name, p.city, u.active
+						FROM "user" u
+							LEFT JOIN "profile" p ON p.id = u.profile_id
+					)`)
+			}, ShouldNotPanic)
 		})
 		Convey("All models should have a DB table", func() {
 			dbTables := testAdapter.tables()
 			for tableName, mi := range Registry.registryByTableName {
-				if mi.isMixin() {
+				if mi.isMixin() || mi.isManual() {
 					continue
 				}
 				So(dbTables[tableName], ShouldBeTrue)
@@ -175,7 +190,7 @@ func TestCreateDB(t *testing.T) {
 	})
 	Convey("Truncating all tables...", t, func() {
 		for tn, mi := range Registry.registryByTableName {
-			if mi.isMixin() {
+			if mi.isMixin() || mi.isManual() {
 				continue
 			}
 			dbExecuteNoTx(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))

@@ -243,6 +243,14 @@ func (m *Model) isMixin() bool {
 	return false
 }
 
+// isManual returns true if this is a manual model.
+func (m *Model) isManual() bool {
+	if m.options&ManualModel > 0 {
+		return true
+	}
+	return false
+}
+
 // NewModel creates a new model with the given name and
 // extends it with the given struct pointer.
 func NewModel(name string) *Model {
@@ -261,6 +269,15 @@ func NewMixinModel(name string) *Model {
 // extends it with the given struct pointers.
 func NewTransientModel(name string) *Model {
 	model := createModel(name, TransientModel)
+	model.MixInModel(Registry.MustGet("CommonMixin"))
+	return model
+}
+
+// NewManualModel creates a model whose table is not automatically generated
+// in the database. This is particularly useful for SQL view models.
+func NewManualModel(name string) *Model {
+	model := createModel(name, ManualModel)
+	model.MixInModel(Registry.MustGet("CommonMixin"))
 	return model
 }
 
@@ -278,6 +295,9 @@ func (m *Model) MixInModel(mixInModel *Model) {
 // Mixins added with this method have lower priority than MixIns
 // that are directly applied to a model, which have themselves a
 // lower priority than the fields and methods of the model.
+//
+// Only standard models will be mixed in. Manual or transient models
+// should be explicitly mixed in if wanted.
 //
 // Note that models extension will be deferred at bootstrap time,
 // which means that all models, including those that are not yet

@@ -103,9 +103,13 @@ func init() {
 // - runs successively all PostInit() func of all modules,
 // - loads html templates from all modules.
 func PostInit() {
+	PostInitModules()
+	yepServer.LoadHTMLGlob(generate.YEPDir + "/yep/server/templates/**/*.html")
+}
+
+// PostInitModules calls successively all PostInit functions of all installed modules
+func PostInitModules() {
 	for _, module := range Modules {
 		module.PostInit()
 	}
-
-	yepServer.LoadHTMLGlob(generate.YEPDir + "/yep/server/templates/**/*.html")
 }

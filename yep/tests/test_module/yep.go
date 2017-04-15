@@ -16,6 +16,9 @@ package testmodule
 
 import (
 	// Import models definition of this module
+	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/models/security"
+	"github.com/npiganeau/yep/yep/server"
 	_ "github.com/npiganeau/yep/yep/tests/test_module/defs"
 )
 
@@ -26,4 +29,17 @@ const (
 
 func init() {
 	declareMethods()
+	server.RegisterModule(&server.Module{
+		Name: MODULE_NAME,
+		PostInit: func() {
+			models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				env.Cr().Execute(`DROP VIEW IF EXISTS user_view;
+					CREATE VIEW user_view AS (
+						SELECT u.id, u.name, p.city, u.active
+						FROM "user" u
+							LEFT JOIN "profile" p ON p.id = u.profile_id
+					)`)
+			})
+		},
+	})
 }
