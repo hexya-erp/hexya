@@ -15,10 +15,10 @@
 package testmodule
 
 import (
-	// Import models definition of this module
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/server"
+	// Import models definition of this module
 	_ "github.com/npiganeau/yep/yep/tests/test_module/defs"
 )
 

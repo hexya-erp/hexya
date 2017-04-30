@@ -25,12 +25,17 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+// An OnDeleteAction defines what to be done with this record when
+// the target record is deleted.
 type OnDeleteAction string
 
 const (
-	SetNull  OnDeleteAction = "set null"
+	// SetNull sets the foreign key to null in referencing records. This is the default
+	SetNull OnDeleteAction = "set null"
+	// Restrict throws an error if there are record referencing the deleted one.
 	Restrict OnDeleteAction = "restrict"
-	Cascade  OnDeleteAction = "cascade"
+	// Cascade deletes all referencing records.
+	Cascade OnDeleteAction = "cascade"
 )
 
 /*
