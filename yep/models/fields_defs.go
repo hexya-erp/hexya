@@ -106,6 +106,7 @@ type ForeignKeyFieldParams struct {
 	RelationModel string
 	Embed         bool
 	Translate     bool
+	OnDelete      OnDeleteAction
 	override      bool
 }
 
@@ -242,6 +243,10 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		Type: reflect.TypeOf(*new(int64)),
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
+	onDelete := SetNull
+	if params.OnDelete != "" {
+		onDelete = params.OnDelete
+	}
 	fInfo := &fieldInfo{
 		model:            m,
 		acl:              security.NewAccessControlList(),
@@ -260,6 +265,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		embed:            params.Embed,
 		relatedModelName: params.RelationModel,
 		fieldType:        fieldType,
+		onDelete:         onDelete,
 	}
 	if params.override {
 		m.fields.override(fInfo)

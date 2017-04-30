@@ -17,6 +17,7 @@ package tests
 import (
 	"testing"
 
+	"github.com/npiganeau/yep-base/web/domains"
 	"github.com/npiganeau/yep/pool"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/models/security"
@@ -41,7 +42,7 @@ func TestDomains(t *testing.T) {
 					0: []interface{}{"Name", "like", "Smith"},
 					1: []interface{}{"Age", "=", 24},
 				}
-				dom1Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: models.ParseDomain(dom1)})
+				dom1Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: domains.ParseDomain(dom1)})
 				So(dom1Users.Len(), ShouldEqual, 1)
 				So(dom1Users.Name(), ShouldEqual, "Jane A. Smith")
 			})
@@ -51,7 +52,7 @@ func TestDomains(t *testing.T) {
 					1: []interface{}{"Name", "like", "Will"},
 					2: []interface{}{"Email", "ilike", "Jane.Smith"},
 				}
-				dom2Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: models.ParseDomain(dom2)}).OrderBy("Name")
+				dom2Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: domains.ParseDomain(dom2)}).OrderBy("Name")
 				So(dom2Users.Len(), ShouldEqual, 2)
 				userRecs := dom2Users.Records()
 				So(userRecs[0].Name(), ShouldEqual, "Jane A. Smith")
@@ -66,7 +67,7 @@ func TestDomains(t *testing.T) {
 					4: []interface{}{"Age", "<", 25},
 					5: []interface{}{"Email", "not like", "will.smith"},
 				}
-				dom3Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: models.ParseDomain(dom3)}).OrderBy("Name")
+				dom3Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: domains.ParseDomain(dom3)}).OrderBy("Name")
 				So(dom3Users.Len(), ShouldEqual, 1)
 				So(dom3Users.Name(), ShouldEqual, "Jane A. Smith")
 			})

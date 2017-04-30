@@ -116,9 +116,9 @@ func (t FieldType) IsRelationType() bool {
 	return t == Many2Many || t == Many2One || t == One2Many || t == One2One || t == Rev2One
 }
 
-// IsStoredRelationType returns true for relation types
+// IsFKRelationType returns true for relation types
 // that are stored in the model's table (i.e. M2O and O2O)
-func (t FieldType) IsStoredRelationType() bool {
+func (t FieldType) IsFKRelationType() bool {
 	return t == Many2One || t == One2One
 }
 

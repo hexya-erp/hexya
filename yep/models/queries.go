@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/models/operator"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -78,8 +79,8 @@ func (q *Query) conditionSQLClause(c *Condition) (string, SQLParams) {
 	)
 
 	first := true
-	for _, val := range c.params {
-		vSQL, vArgs := q.condValueSQLClause(val, first)
+	for _, val := range c.predicates {
+		vSQL, vArgs := q.predicateSQLClause(val, first)
 		first = false
 		sql += vSQL
 		args = args.Extend(vArgs)
@@ -87,10 +88,10 @@ func (q *Query) conditionSQLClause(c *Condition) (string, SQLParams) {
 	return sql, args
 }
 
-// sqlClause returns the sql WHERE clause for this condValue.
+// sqlClause returns the sql WHERE clause for this predicate.
 // If 'first' is given and true, then the sql clause is not prefixed with
 // 'AND' and panics if isOr is true.
-func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLParams) {
+func (q *Query) predicateSQLClause(p predicate, first ...bool) (string, SQLParams) {
 	var (
 		sql     string
 		args    SQLParams
@@ -100,26 +101,39 @@ func (q *Query) condValueSQLClause(cv condValue, first ...bool) (string, SQLPara
 	if len(first) > 0 {
 		isFirst = first[0]
 	}
-	if cv.isOr && !isFirst {
+	if p.isOr && !isFirst {
 		sql += "OR "
 	} else if !isFirst {
 		sql += "AND "
 	}
-	if cv.isNot {
+	if p.isNot {
 		sql += "NOT "
 	}
 
-	if cv.isCond {
-		subSQL, subArgs := q.conditionSQLClause(cv.cond)
+	if p.isCond {
+		subSQL, subArgs := q.conditionSQLClause(p.cond)
 		sql += fmt.Sprintf(`(%s) `, subSQL)
 		args = args.Extend(subArgs)
-	} else {
-		exprs := jsonizeExpr(q.recordSet.model, cv.exprs)
-		field := q.joinedFieldExpression(exprs)
-		opSql, arg := adapter.operatorSQL(cv.operator, cv.arg)
-		sql += fmt.Sprintf(`%s %s `, field, opSql)
-		args = append(args, arg)
+		return sql, args
 	}
+
+	exprs := jsonizeExpr(q.recordSet.model, p.exprs)
+	field := q.joinedFieldExpression(exprs)
+	if p.arg == nil {
+		switch p.operator {
+		case operator.Equals:
+			sql += fmt.Sprintf(`%s IS NULL `, field)
+		case operator.NotEquals:
+			sql += fmt.Sprintf(`%s IS NOT NULL `, field)
+		default:
+			logging.LogAndPanic(log, "Null argument can only be used with = and != operators", "operator", p.operator)
+		}
+		return sql, args
+	}
+
+	opSql, arg := adapter.operatorSQL(p.operator, p.arg)
+	sql += fmt.Sprintf(`%s %s `, field, opSql)
+	args = append(args, arg)
 	return sql, args
 }
 
@@ -131,7 +145,7 @@ func (q *Query) sqlLimitOffsetClause() string {
 		res = fmt.Sprintf(`LIMIT %d `, q.limit)
 	}
 	if q.offset > 0 {
-		res += fmt.Sprintf(`OFFSET %d `, q.offset)
+		res += fmt.Sprintf(`OFFSET %d`, q.offset)
 	}
 	return res
 }
@@ -140,7 +154,7 @@ func (q *Query) sqlLimitOffsetClause() string {
 // of this Query
 func (q *Query) sqlOrderByClause() string {
 	if len(q.orders) == 0 {
-		return "ORDER BY id "
+		return "ORDER BY id"
 	}
 
 	var fExprs [][]string
@@ -158,7 +172,22 @@ func (q *Query) sqlOrderByClause() string {
 		resSlice[i] = q.joinedFieldExpression(field)
 		resSlice[i] += fmt.Sprintf(" %s", directions[i])
 	}
-	return fmt.Sprintf("ORDER BY %s ", strings.Join(resSlice, ", "))
+	return fmt.Sprintf("ORDER BY %s", strings.Join(resSlice, ", "))
+}
+
+// sqlGroupByClause returns the sql string for the GROUP BY clause
+// of this Query
+func (q *Query) sqlGroupByClause() string {
+	var fExprs [][]string
+	for _, group := range q.groups {
+		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(group, ExprSep))
+		fExprs = append(fExprs, oExprs)
+	}
+	resSlice := make([]string, len(q.groups))
+	for i, field := range fExprs {
+		resSlice[i] = q.joinedFieldExpression(field)
+	}
+	return fmt.Sprintf("GROUP BY %s", strings.Join(resSlice, ", "))
 }
 
 // deleteQuery returns the SQL query string and parameters to delete
@@ -177,21 +206,24 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	if len(data) == 0 {
 		logging.LogAndPanic(log, "No data given for insert")
 	}
-	cols := make([]string, len(data))
-	vals := make(SQLParams, len(data))
 	var (
-		i   int
-		sql string
+		cols []string
+		vals SQLParams
+		i    int
+		sql  string
 	)
 	for k, v := range data {
 		fi := q.recordSet.model.fields.mustGet(k)
-		cols[i] = fi.json
-		vals[i] = v
+		if fi.fieldType.IsFKRelationType() && !fi.required && v.(int64) == 0 {
+			continue
+		}
+		cols = append(cols, fi.json)
+		vals = append(vals, v)
 		i++
 	}
 	tableName := adapter.quoteTableName(q.recordSet.model.tableName)
 	fields := strings.Join(cols, ", ")
-	values := "?" + strings.Repeat(", ?", len(vals)-1)
+	values := "?" + strings.Repeat(", ?", i-1)
 	sql = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id", tableName, fields, values)
 	return sql, vals
 }
@@ -206,10 +238,70 @@ func (q *Query) countQuery() (string, SQLParams) {
 
 // selectQuery returns the SQL query string and parameters to retrieve
 // the rows pointed at by this Query object.
-// fields is the list of fields to retrieve. Each field is a dot-separated
+// fields is the list of fields to retrieve.
+//
+// This query must not have a Group By clause.
+//
+// Each field is a dot-separated
 // expression pointing at the field, either as names or columns
 // (e.g. 'User.Name' or 'user_id.name')
 func (q *Query) selectQuery(fields []string) (string, SQLParams) {
+	if len(q.groups) > 0 {
+		logging.LogAndPanic(log, "Calling selectQuery on a Group By query")
+	}
+	fieldExprs, allExprs := q.selectData(fields)
+	// Build up the query
+	// Fields
+	fieldsSQL := q.fieldsSQL(fieldExprs)
+	// Tables
+	tablesSQL := q.tablesSQL(allExprs)
+	// Where clause and args
+	whereSQL, args := q.sqlWhereClause()
+	orderSQL := q.sqlOrderByClause()
+	limitSQL := q.sqlLimitOffsetClause()
+	selQuery := fmt.Sprintf(`SELECT DISTINCT %s FROM %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, orderSQL, limitSQL)
+	return selQuery, args
+}
+
+// selectGroupQuery returns the SQL query string and parameters to retrieve
+// the result of this Query object, which must include a Group By.
+// fields is the list of fields to retrieve.
+//
+// This query must have a Group By clause.
+//
+// fields keys are a dot-separated expression pointing at the field, either
+// as names or columns (e.g. 'User.Name' or 'user_id.name').
+// fields values are
+func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
+	if len(q.groups) == 0 {
+		logging.LogAndPanic(log, "Calling selectGroupQuery on a query without Group By clause")
+	}
+	fieldsList := make([]string, len(fields))
+	i := 0
+	for f := range fields {
+		fieldsList[i] = f
+		i++
+	}
+	fieldExprs, allExprs := q.selectData(fieldsList)
+	// Build up the query
+	// Fields
+	fieldsSQL := q.fieldsGroupSQL(fieldExprs, fields)
+	// Tables
+	tablesSQL := q.tablesSQL(allExprs)
+	// Where clause and args
+	whereSQL, args := q.sqlWhereClause()
+	// Group by clause
+	groupSQL := q.sqlGroupByClause()
+	orderSQL := q.sqlOrderByClause()
+	limitSQL := q.sqlLimitOffsetClause()
+	selQuery := fmt.Sprintf(`SELECT DISTINCT %s FROM %s %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
+	return selQuery, args
+}
+
+// selectData returns for this query:
+// - Expressions defined by the given fields and that must appear in the field list of the select clause.
+// - All expressions that also include expressions used in the where clause.
+func (q *Query) selectData(fields []string) ([][]string, [][]string) {
 	addNameSearchesToCondition(q.recordSet.model, q.cond)
 	inflate2ManyConditions(q.recordSet.model, q.cond)
 	// Get all expressions, first given by fields
@@ -224,18 +316,8 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 		fieldExprs = append(fieldExprs, oExprs)
 	}
 	// Then given by condition
-	fExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
-	// Build up the query
-	// Fields
-	fieldsSQL := q.fieldsSQL(fieldExprs)
-	// Tables
-	tablesSQL := q.tablesSQL(fExprs)
-	// Where clause and args
-	whereSQL, args := q.sqlWhereClause()
-	whereSQL += q.sqlOrderByClause()
-	whereSQL += q.sqlLimitOffsetClause()
-	selQuery := fmt.Sprintf(`SELECT DISTINCT %s FROM %s %s`, fieldsSQL, tablesSQL, whereSQL)
-	return selQuery, args
+	allExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
+	return fieldExprs, allExprs
 }
 
 // updateQuery returns the SQL update string and parameters to update
@@ -276,6 +358,22 @@ func (q *Query) fieldsSQL(fieldExprs [][]string) string {
 	return strings.Join(fStr, ", ")
 }
 
+// fieldsGroupSQL returns the SQL string for the given field expressions
+// in a select query with a GROUP BY clause.
+// Parameter must be with the following format (column names):
+// [['user_id', 'name'] ['id'] ['profile_id', 'age']]
+func (q *Query) fieldsGroupSQL(fieldExprs [][]string, fields map[string]string) string {
+	fStr := make([]string, len(fieldExprs)+1)
+	for i, exprs := range fieldExprs {
+		aggFnct := fields[strings.Join(exprs, ExprSep)]
+		joins := q.generateTableJoins(exprs)
+		num := len(joins)
+		fStr[i] = fmt.Sprintf("%s(%s.%s) AS %s", aggFnct, joins[num-1].alias, exprs[num-1], strings.Join(exprs, sqlSep))
+	}
+	fStr[len(fieldExprs)] = "count(1) AS __count"
+	return strings.Join(fStr, ", ")
+}
+
 // joinedFieldExpression joins the given expressions into a fields sql string
 // ['profile_id' 'user_id' 'name'] => "profiles__users".name
 // ['age'] => "mytable".age
@@ -294,18 +392,15 @@ func (q *Query) joinedFieldExpression(exprs []string, withAlias ...bool) string 
 func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	adapter := adapters[db.DriverName()]
 	var joins []tableJoin
-
+	curMI := q.recordSet.model
 	// Create the tableJoin for the current table
-	currentTableName := adapter.quoteTableName(q.recordSet.model.tableName)
-	currentTJ := tableJoin{
+	currentTableName := adapter.quoteTableName(curMI.tableName)
+	curTJ := &tableJoin{
 		tableName: currentTableName,
 		joined:    false,
 		alias:     currentTableName,
 	}
-	joins = append(joins, currentTJ)
-
-	curMI := q.recordSet.model
-	curTJ := &currentTJ
+	joins = append(joins, *curTJ)
 	alias := curMI.tableName
 	exprsLen := len(fieldExprs)
 	for i, expr := range fieldExprs {

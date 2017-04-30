@@ -25,6 +25,14 @@ import (
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
+type OnDeleteAction string
+
+const (
+	SetNull  OnDeleteAction = "set null"
+	Restrict OnDeleteAction = "restrict"
+	Cascade  OnDeleteAction = "cascade"
+)
+
 /*
 computeData holds data to recompute another field.
 - Model is a pointer to the Model instance to recompute
@@ -230,6 +238,8 @@ type fieldInfo struct {
 	dependencies     []computeData
 	embed            bool
 	noCopy           bool
+	relatedTarget    bool
+	onDelete         OnDeleteAction
 }
 
 // isComputedField returns true if this field is computed
@@ -270,7 +280,7 @@ func checkFieldInfo(fi *fieldInfo) {
 			fi.model.name, "field", fi.name, "type", fi.fieldType)
 	}
 
-	if fi.embed && !fi.fieldType.IsStoredRelationType() {
+	if fi.embed && !fi.fieldType.IsFKRelationType() {
 		log.Warn("'Embed' should be set only on many2one or one2one fields", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 		fi.embed = false
@@ -335,6 +345,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldI
 		fieldType:        types.Many2One,
 		relatedModelName: model1,
 		index:            true,
+		onDelete:         Cascade,
 		structField: reflect.StructField{
 			Name: model1,
 			Type: reflect.TypeOf(int64(0)),
@@ -352,6 +363,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldI
 		fieldType:        types.Many2One,
 		relatedModelName: model2,
 		index:            true,
+		onDelete:         Cascade,
 		structField: reflect.StructField{
 			Name: model2,
 			Type: reflect.TypeOf(int64(0)),

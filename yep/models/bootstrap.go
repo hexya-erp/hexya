@@ -93,6 +93,7 @@ func inflateMixIns() {
 				}
 				newFI := *fi
 				newFI.model = mi
+				newFI.relatedTarget = true
 				mi.fields.add(&newFI)
 			}
 			// Add mixIn methods
@@ -207,6 +208,10 @@ func SyncDatabase() {
 		}
 		updateDBColumns(model)
 		updateDBIndexes(model)
+	}
+	// Setup foreign key constraints
+	for _, model := range Registry.registryByTableName {
+		updateDBForeignKeyConstraints(model)
 	}
 	// Drop DB tables that are not in the models
 	for dbTable := range adapter.tables() {
@@ -349,27 +354,69 @@ func dropDBColumn(tableName, colName string) {
 	dbExecuteNoTx(query)
 }
 
-// updateDBIndexes creates or updates indexes based on the data of
-// the given Model
-func updateDBIndexes(mi *Model) {
+// updateDBForeignKeyConstraints creates or updates fk constraints
+// based on the data of the given Model
+func updateDBForeignKeyConstraints(m *Model) {
 	adapter := adapters[db.DriverName()]
-	// update column indexes
-	for colName, fi := range mi.fields.registryByJSON {
-		if !fi.index {
-			continue
-		}
-		if !adapter.indexExists(mi.tableName, fmt.Sprintf("%s_%s_index", mi.tableName, colName)) {
-			createColumnIndex(mi.tableName, colName)
+	for colName, fi := range m.fields.registryByJSON {
+		fkContraintInDB := adapter.constraintExists(fmt.Sprintf("%s_%s_fkey", m.tableName, colName))
+		fieldIsFK := fi.fieldType.IsFKRelationType() && fi.isStored() && !fi.relatedTarget
+		switch {
+		case fieldIsFK && !fkContraintInDB:
+			createFKConstraint(m.tableName, colName, fi.relatedModel.tableName, string(fi.onDelete))
+		case !fieldIsFK && fkContraintInDB:
+			dropFKConstraint(m.tableName, colName)
 		}
 	}
 }
 
-// createIndex creates an column index for colName in the given table
+// createFKConstraint creates an FK constraint for the given column that references the given targetTable
+func createFKConstraint(tableName, colName, targetTable, ondelete string) {
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`
+		ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s ON DELETE %s
+	`, adapter.quoteTableName(tableName), fmt.Sprintf("%s_%s_fkey", tableName, colName), colName, adapter.quoteTableName(targetTable), ondelete)
+	dbExecuteNoTx(query)
+}
+
+// dropFKConstraint drops an FK constraint for colName in the given table
+func dropFKConstraint(tableName, colName string) {
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`
+		ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s
+	`, adapter.quoteTableName(tableName), fmt.Sprintf("%s_%s_fkey", tableName, colName))
+	dbExecuteNoTx(query)
+}
+
+// updateDBIndexes creates or updates indexes based on the data of
+// the given Model
+func updateDBIndexes(m *Model) {
+	adapter := adapters[db.DriverName()]
+	for colName, fi := range m.fields.registryByJSON {
+		indexInDB := adapter.indexExists(m.tableName, fmt.Sprintf("%s_%s_index", m.tableName, colName))
+		switch {
+		case fi.index && !indexInDB:
+			createColumnIndex(m.tableName, colName)
+		case !fi.index && indexInDB:
+			dropColumnIndex(m.tableName, colName)
+		}
+	}
+}
+
+// createColumnIndex creates an column index for colName in the given table
 func createColumnIndex(tableName, colName string) {
 	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`
 		CREATE INDEX %s ON %s (%s)
 	`, fmt.Sprintf("%s_%s_index", tableName, colName), adapter.quoteTableName(tableName), colName)
+	dbExecuteNoTx(query)
+}
+
+// dropColumnIndex drops a column index for colName in the given table
+func dropColumnIndex(tableName, colName string) {
+	query := fmt.Sprintf(`
+		DROP INDEX IF EXISTS %s
+	`, fmt.Sprintf("%s_%s_index", tableName, colName))
 	dbExecuteNoTx(query)
 }
 

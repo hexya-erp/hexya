@@ -290,7 +290,7 @@ func TestAdvancedQueries(t *testing.T) {
 			})
 			Convey("Empty RecordSet on m2o relation fields", func() {
 				users := pool.User().NewSet(env).Search(pool.User().Profile().Equals(pool.Profile().NewSet(env)))
-				So(users.Len(), ShouldEqual, 0)
+				So(users.Len(), ShouldEqual, 2)
 			})
 			Convey("Condition on m2o relation fields with IN operator", func() {
 				users := pool.User().NewSet(env).Search(pool.User().Profile().In(jane.Profile()))

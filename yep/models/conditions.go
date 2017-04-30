@@ -28,7 +28,7 @@ const (
 	sqlSep  = "__"
 )
 
-type condValue struct {
+type predicate struct {
 	exprs    []string
 	operator operator.Operator
 	arg      interface{}
@@ -40,7 +40,7 @@ type condValue struct {
 
 // A Condition represents a WHERE clause of an SQL query.
 type Condition struct {
-	params []condValue
+	predicates []predicate
 }
 
 // newCondition returns a new condition struct
@@ -58,7 +58,7 @@ func (c Condition) And() *ConditionStart {
 // AndCond completes the current condition with the given cond as an AND clause
 // between brackets : c.And(cond) => c AND (cond)
 func (c Condition) AndCond(cond *Condition) *Condition {
-	c.params = append(c.params, condValue{cond: cond, isCond: true})
+	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true})
 	return &c
 }
 
@@ -73,7 +73,7 @@ func (c Condition) AndNot() *ConditionStart {
 // AndNotCond completes the current condition with an AND NOT clause between
 // brackets : c.AndNot(cond) => c AND NOT (cond)
 func (c Condition) AndNotCond(cond *Condition) *Condition {
-	c.params = append(c.params, condValue{cond: cond, isCond: true, isNot: true})
+	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isNot: true})
 	return &c
 }
 
@@ -87,7 +87,7 @@ func (c Condition) Or() *ConditionStart {
 // OrCond completes the current condition both with an OR clause between
 // brackets : c.Or(cond) => c OR (cond)
 func (c Condition) OrCond(cond *Condition) *Condition {
-	c.params = append(c.params, condValue{cond: cond, isCond: true, isOr: true})
+	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true})
 	return &c
 }
 
@@ -102,8 +102,13 @@ func (c Condition) OrNot() *ConditionStart {
 // OrNotCond completes the current condition both with an OR NOT clause between
 // brackets : c.OrNot(cond) => c OR NOT (cond)
 func (c Condition) OrNotCond(cond *Condition) *Condition {
-	c.params = append(c.params, condValue{cond: cond, isCond: true, isOr: true, isNot: true})
+	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true, isNot: true})
 	return &c
+}
+
+// Serialize returns the condition as a list which mimics Odoo domains.
+func (c Condition) Serialize() []interface{} {
+	return serializePredicates(c.predicates)
 }
 
 // A ConditionStart is an object representing a Condition when
@@ -127,10 +132,10 @@ func (cs ConditionStart) Field(name string) *ConditionField {
 // filters the result with the given condition
 func (cs ConditionStart) FilteredOn(field string, condition *Condition) *Condition {
 	res := cs.cond
-	for i, p := range condition.params {
-		condition.params[i].exprs = append([]string{field}, p.exprs...)
+	for i, p := range condition.predicates {
+		condition.predicates[i].exprs = append([]string{field}, p.exprs...)
 	}
-	res.params = append(res.params, condition.params...)
+	res.predicates = append(res.predicates, condition.predicates...)
 	return &res
 }
 
@@ -148,20 +153,20 @@ func (c ConditionField) FieldName() FieldName {
 
 var _ FieldNamer = ConditionField{}
 
-// addOperator adds a condition value to the condition with the given operator and data
+// AddOperator adds a condition value to the condition with the given operator and data
 // If multi is true, a recordset will be converted into a slice of int64
 // otherwise, it will return an int64 and panic if the recordset is not
-// a singleton
-func (c ConditionField) addOperator(op operator.Operator, data interface{}) *Condition {
+// a singleton.
+//
+// This method is low level and should be avoided. Use operator methods such as Equals()
+// instead.
+func (c ConditionField) AddOperator(op operator.Operator, data interface{}) *Condition {
 	cond := c.cs.cond
 	data = sanitizeArgs(data, op.IsMulti())
-	if data == nil {
+	if data != nil && op.IsMulti() && reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0 {
 		return &cond
 	}
-	if op.IsMulti() && reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0 {
-		return &cond
-	}
-	cond.params = append(cond.params, condValue{
+	cond.predicates = append(cond.predicates, predicate{
 		exprs:    c.exprs,
 		operator: op,
 		arg:      data,
@@ -194,77 +199,77 @@ func sanitizeArgs(args interface{}, multi bool) interface{} {
 
 // Equals appends the '=' operator to the current Condition
 func (c ConditionField) Equals(data interface{}) *Condition {
-	return c.addOperator(operator.Equals, data)
+	return c.AddOperator(operator.Equals, data)
 }
 
 // NotEquals appends the '!=' operator to the current Condition
 func (c ConditionField) NotEquals(data interface{}) *Condition {
-	return c.addOperator(operator.NotEquals, data)
+	return c.AddOperator(operator.NotEquals, data)
 }
 
 // Greater appends the '>' operator to the current Condition
 func (c ConditionField) Greater(data interface{}) *Condition {
-	return c.addOperator(operator.Greater, data)
+	return c.AddOperator(operator.Greater, data)
 }
 
 // GreaterOrEqual appends the '>=' operator to the current Condition
 func (c ConditionField) GreaterOrEqual(data interface{}) *Condition {
-	return c.addOperator(operator.GreaterOrEqual, data)
+	return c.AddOperator(operator.GreaterOrEqual, data)
 }
 
 // Lower appends the '<' operator to the current Condition
 func (c ConditionField) Lower(data interface{}) *Condition {
-	return c.addOperator(operator.Lower, data)
+	return c.AddOperator(operator.Lower, data)
 }
 
 // LowerOrEqual appends the '<=' operator to the current Condition
 func (c ConditionField) LowerOrEqual(data interface{}) *Condition {
-	return c.addOperator(operator.LowerOrEqual, data)
+	return c.AddOperator(operator.LowerOrEqual, data)
 }
 
 // LikePattern appends the 'LIKE' operator to the current Condition
 func (c ConditionField) LikePattern(data interface{}) *Condition {
-	return c.addOperator(operator.LikePattern, data)
+	return c.AddOperator(operator.LikePattern, data)
 }
 
 // ILikePattern appends the 'ILIKE' operator to the current Condition
 func (c ConditionField) ILikePattern(data interface{}) *Condition {
-	return c.addOperator(operator.ILikePattern, data)
+	return c.AddOperator(operator.ILikePattern, data)
 }
 
 // Like appends the 'LIKE %%' operator to the current Condition
 func (c ConditionField) Like(data interface{}) *Condition {
-	return c.addOperator(operator.Like, data)
+	return c.AddOperator(operator.Like, data)
 }
 
 // NotLike appends the 'NOT LIKE %%' operator to the current Condition
 func (c ConditionField) NotLike(data interface{}) *Condition {
-	return c.addOperator(operator.NotLike, data)
+	return c.AddOperator(operator.NotLike, data)
 }
 
 // ILike appends the 'ILIKE %%' operator to the current Condition
 func (c ConditionField) ILike(data interface{}) *Condition {
-	return c.addOperator(operator.ILike, data)
+	return c.AddOperator(operator.ILike, data)
 }
 
 // NotILike appends the 'NOT ILIKE %%' operator to the current Condition
 func (c ConditionField) NotILike(data interface{}) *Condition {
-	return c.addOperator(operator.NotILike, data)
+	return c.AddOperator(operator.NotILike, data)
 }
 
 // In appends the 'IN' operator to the current Condition
 func (c ConditionField) In(data interface{}) *Condition {
-	return c.addOperator(operator.In, data)
+	return c.AddOperator(operator.In, data)
 }
 
 // NotIn appends the 'NOT IN' operator to the current Condition
 func (c ConditionField) NotIn(data interface{}) *Condition {
-	return c.addOperator(operator.NotIn, data)
+	return c.AddOperator(operator.NotIn, data)
 }
 
 // ChildOf appends the 'child of' operator to the current Condition
 func (c ConditionField) ChildOf(data interface{}) *Condition {
-	return c.addOperator(operator.ChildOf, data)
+	return c.AddOperator(operator.ChildOf, data)
 }
 
 // IsEmpty check the condition arguments are empty or not.
@@ -272,9 +277,9 @@ func (c *Condition) IsEmpty() bool {
 	switch {
 	case c == nil:
 		return false
-	case len(c.params) == 0:
+	case len(c.predicates) == 0:
 		return true
-	case len(c.params) == 1 && c.params[0].cond.IsEmpty():
+	case len(c.predicates) == 1 && c.predicates[0].cond.IsEmpty():
 		return true
 	}
 	return false
@@ -285,10 +290,10 @@ func (c *Condition) IsEmpty() bool {
 // Expressions are given in field json format
 func (c Condition) getAllExpressions(mi *Model) [][]string {
 	var res [][]string
-	for _, cv := range c.params {
-		res = append(res, jsonizeExpr(mi, cv.exprs))
-		if cv.cond != nil {
-			res = append(res, cv.cond.getAllExpressions(mi)...)
+	for _, p := range c.predicates {
+		res = append(res, jsonizeExpr(mi, p.exprs))
+		if p.cond != nil {
+			res = append(res, p.cond.getAllExpressions(mi)...)
 		}
 	}
 	return res
@@ -297,14 +302,14 @@ func (c Condition) getAllExpressions(mi *Model) [][]string {
 // substituteExprs recursively replaces condition exprs that match substs keys
 // with the corresponding substs values.
 func (c *Condition) substituteExprs(mi *Model, substs map[string][]string) {
-	for i, cv := range c.params {
+	for i, p := range c.predicates {
 		for k, v := range substs {
-			if len(cv.exprs) > 0 && jsonizeExpr(mi, cv.exprs)[0] == k {
-				c.params[i].exprs = v
+			if len(p.exprs) > 0 && jsonizeExpr(mi, p.exprs)[0] == k {
+				c.predicates[i].exprs = v
 			}
 		}
-		if cv.cond != nil {
-			cv.cond.substituteExprs(mi, substs)
+		if p.cond != nil {
+			p.cond.substituteExprs(mi, substs)
 		}
 	}
 }
@@ -312,12 +317,12 @@ func (c *Condition) substituteExprs(mi *Model, substs map[string][]string) {
 // evaluateArgFunctions recursively evaluates all args in the queries that are
 // functions and substitute it with the result.
 func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
-	for i, cv := range c.params {
-		if cv.cond != nil {
-			cv.cond.evaluateArgFunctions(rc)
+	for i, p := range c.predicates {
+		if p.cond != nil {
+			p.cond.evaluateArgFunctions(rc)
 		}
 
-		fnctVal := reflect.ValueOf(cv.arg)
+		fnctVal := reflect.ValueOf(p.arg)
 		if fnctVal.Kind() != reflect.Func {
 			continue
 		}
@@ -334,6 +339,6 @@ func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
 		}
 
 		res := fnctVal.Call([]reflect.Value{argValue})
-		c.params[i].arg = res[0].Interface()
+		c.predicates[i].arg = res[0].Interface()
 	}
 }

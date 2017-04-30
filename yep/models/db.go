@@ -56,6 +56,8 @@ type dbAdapter interface {
 	quoteTableName(string) string
 	// indexExists returns true if an index with the given name exists in the given table
 	indexExists(table string, name string) bool
+	// constraintExists returns true if a constraint with the given name exists
+	constraintExists(name string) bool
 	// setTransactionIsolation returns the SQL string to set the transaction isolation
 	// level to serializable
 	setTransactionIsolation() string

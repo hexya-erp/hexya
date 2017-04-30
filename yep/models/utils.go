@@ -103,7 +103,7 @@ func jsonizeExpr(mi *Model, exprs []string) []string {
 // inflate2ManyConditions modifies the query to handle searches on
 // one2many and many2many fields.
 func inflate2ManyConditions(mi *Model, cond *Condition) {
-	for i, cv := range cond.params {
+	for i, cv := range cond.predicates {
 		if cv.cond != nil {
 			inflate2ManyConditions(mi, cv.cond)
 			continue
@@ -112,7 +112,7 @@ func inflate2ManyConditions(mi *Model, cond *Condition) {
 		fi := mi.getRelatedFieldInfo(path)
 		switch fi.fieldType {
 		case types.One2Many:
-			cond.params[i].exprs = append(cv.exprs, "id")
+			cond.predicates[i].exprs = append(cv.exprs, "id")
 		case types.Many2Many:
 		case types.Rev2One:
 		}
@@ -122,32 +122,32 @@ func inflate2ManyConditions(mi *Model, cond *Condition) {
 // addNameSearchesToCondition recursively modifies the given condition to search
 // on the name of the related records if they point to a relation field.
 func addNameSearchesToCondition(mi *Model, cond *Condition) {
-	for i, cv := range cond.params {
-		switch cv.arg.(type) {
-		case bool:
-			cond.params[i].arg = int64(0)
-		case string:
-			cond.params[i].exprs = addNameSearchToExprs(mi, cv.exprs)
+	for i, p := range cond.predicates {
+		if len(p.exprs) == 0 {
+			continue
 		}
-		if cv.cond != nil {
-			addNameSearchesToCondition(mi, cv.cond)
+		fi := mi.getRelatedFieldInfo(strings.Join(p.exprs, ExprSep))
+		if !fi.isRelationField() {
+			continue
+		}
+		switch p.arg.(type) {
+		case bool:
+			cond.predicates[i].arg = int64(0)
+		case string:
+			cond.predicates[i].exprs = addNameSearchToExprs(mi, fi, p.exprs)
+		}
+		if p.cond != nil {
+			addNameSearchesToCondition(mi, p.cond)
 		}
 	}
 }
 
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
-func addNameSearchToExprs(mi *Model, exprs []string) []string {
-	if len(exprs) == 0 {
-		return exprs
-	}
-	path := strings.Join(exprs, ExprSep)
-	fi := mi.getRelatedFieldInfo(path)
-	if fi.isRelationField() {
-		_, exists := fi.relatedModel.fields.get("name")
-		if exists {
-			exprs = append(exprs, "name")
-		}
+func addNameSearchToExprs(mi *Model, fi *fieldInfo, exprs []string) []string {
+	_, exists := fi.relatedModel.fields.get("name")
+	if exists {
+		exprs = append(exprs, "name")
 	}
 	return exprs
 }
@@ -251,8 +251,8 @@ func nestMap(fMap FieldMap) FieldMap {
 }
 
 // filterOnDBFields returns the given fields slice with only stored fields
-// This function also adds the "id" field to the list if not present
-func filterOnDBFields(mi *Model, fields []string) []string {
+// This function also adds the "id" field to the list if not present unless dontAddID is true
+func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 	var res []string
 	// Check if fields are stored
 	for _, field := range fields {
@@ -278,8 +278,10 @@ func filterOnDBFields(mi *Model, fields []string) []string {
 			res = append(res, strings.Join(resExprs, ExprSep))
 		}
 	}
-
-	return addIDIfNotPresent(res)
+	if len(dontAddID) == 0 || !dontAddID[0] {
+		res = addIDIfNotPresent(res)
+	}
+	return res
 }
 
 // filterMapOnStoredFields returns a new FieldMap from fMap
@@ -328,4 +330,82 @@ func addIDIfNotPresent(fields []string) []string {
 		fields = append(fields, "id")
 	}
 	return fields
+}
+
+// convertToStringSlice converts the given FieldNamer slice into a slice of strings
+func convertToStringSlice(fieldNames []FieldNamer) []string {
+	res := make([]string, len(fieldNames))
+	for i, v := range fieldNames {
+		res[i] = string(v.FieldName())
+	}
+	return res
+}
+
+// ConvertToFieldNameSlice converts the given string fields slice into a slice of FieldNames
+func ConvertToFieldNameSlice(fields []string) []FieldNamer {
+	res := make([]FieldNamer, len(fields))
+	for i, v := range fields {
+		res[i] = FieldName(v)
+	}
+	return res
+}
+
+// getGroupCondition returns the condition to retrieve the individual aggregated rows in vals
+// knowing that they were grouped by groups
+func getGroupCondition(groups []string, vals map[string]interface{}) *Condition {
+	res := newCondition()
+	for _, group := range groups {
+		res = res.And().Field(group).Equals(vals[group])
+	}
+	return res
+}
+
+// serializePredicates returns a list that mimics Odoo domains from the given
+// condition values.
+func serializePredicates(predicates []predicate) []interface{} {
+	var res []interface{}
+	i := 0
+	for i < len(predicates) {
+		if predicates[i].isOr {
+			subRes := []interface{}{"|"}
+			subRes = appendPredicateToSerial(subRes, predicates[i])
+			subRes, i = consumeAndPredicates(i+1, predicates, subRes)
+			res = append(subRes, res...)
+		} else {
+			res, i = consumeAndPredicates(i, predicates, res)
+		}
+	}
+	return res
+}
+
+// consumeAndPredicates appends res with all successive AND predicates
+// starting from position i and returns the next position as second argument.
+func consumeAndPredicates(i int, predicates []predicate, res []interface{}) ([]interface{}, int) {
+	if i >= len(predicates) || predicates[i].isOr {
+		return res, i
+	}
+	j := i
+	for j < len(predicates)-1 {
+		if predicates[j+1].isOr {
+			break
+		}
+		j++
+	}
+	for k := i; k < j; k++ {
+		res = append(res, "&")
+		res = appendPredicateToSerial(res, predicates[k])
+	}
+	res = appendPredicateToSerial(res, predicates[j])
+	return res, j + 1
+}
+
+// appendPredicateToSerial appends the given predicate to the given serialized
+// predicate list and returns the result.
+func appendPredicateToSerial(res []interface{}, predicate predicate) []interface{} {
+	if predicate.isCond {
+		res = append(res, serializePredicates(predicate.cond.predicates)...)
+	} else {
+		res = append(res, []interface{}{strings.Join(predicate.exprs, ExprSep), predicate.operator, predicate.arg})
+	}
+	return res
 }

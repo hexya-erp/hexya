@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -268,8 +269,12 @@ func (rc RecordCollection) OrderBy(exprs ...string) RecordCollection {
 }
 
 // GroupBy returns a new RecordSet grouped with the given GROUP BY expressions
-func (rc RecordCollection) GroupBy(exprs ...string) RecordCollection {
+func (rc RecordCollection) GroupBy(fields ...FieldNamer) RecordCollection {
 	rc.query = rc.query.clone()
+	exprs := make([]string, len(fields))
+	for i, f := range fields {
+		exprs[i] = string(f.FieldName())
+	}
 	rc.query.groups = append(rc.query.groups, exprs...)
 	return rc
 }
@@ -297,9 +302,10 @@ func (rc RecordCollection) FetchAll() RecordCollection {
 // SearchCount fetch from the database the number of records that match the RecordSet conditions
 // It panics in case of error
 func (rc RecordCollection) SearchCount() int {
-	sql, args := rc.query.countQuery()
+	rSet := rc.Limit(0)
+	sql, args := rSet.query.countQuery()
 	var res int
-	rc.env.cr.Get(&res, sql, args...)
+	rSet.env.cr.Get(&res, sql, args...)
 	return res
 }
 
@@ -313,6 +319,9 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	if rc.query.isEmpty() {
 		// Never load RecordSets without query.
 		return rc
+	}
+	if len(rc.query.groups) > 0 {
+		logging.LogAndPanic(log, "Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
 	}
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Read)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
@@ -461,8 +470,7 @@ func (rc RecordCollection) First(structPtr interface{}) {
 	mapToStruct(rSet, structPtr, fMap)
 }
 
-// All Returns a copy of all records of the RecordCollection.
-// It returns an empty slice if the RecordSet is empty.
+// All fetches a copy of all records of the RecordCollection and populates structSlicePtr.
 func (rc RecordCollection) All(structSlicePtr interface{}) {
 	rSet := rc.Fetch()
 	if err := checkStructSlicePtr(structSlicePtr); err != nil {
@@ -481,6 +489,67 @@ func (rc RecordCollection) All(structSlicePtr interface{}) {
 		mapToStruct(rSet, newStructPtr, fMap)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
 	}
+}
+
+// Aggregates returns the result of this RecordCollection query, which must by a grouped query.
+func (rc RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregateRow {
+	if len(rc.query.groups) == 0 {
+		logging.LogAndPanic(log, "Trying to get aggregates of a non-grouped query", "model", rc.model)
+	}
+	mustCheckModelPermission(rc.model, rc.env.uid, security.Read)
+	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
+	fields := filterOnAuthorizedFields(rSet.model, rSet.env.uid, convertToStringSlice(fieldNames), security.Read)
+	subFields, rSet := rSet.substituteRelatedFields(fields)
+	dbFields := filterOnDBFields(rSet.model, subFields, true)
+
+	if len(rSet.query.orders) == 0 {
+		rSet = rSet.OrderBy(rSet.query.groups...)
+	}
+	fieldsOperatorMap := rSet.fieldsGroupOperators(dbFields)
+	sql, args := rSet.query.selectGroupQuery(fieldsOperatorMap)
+	var res []GroupAggregateRow
+	rows := dbQuery(rSet.env.cr.tx, sql, args...)
+	defer rows.Close()
+
+	for rows.Next() {
+		vals := make(map[string]interface{})
+		err := sqlx.MapScan(rows, vals)
+		if err != nil {
+			logging.LogAndPanic(log, err.Error(), "model", rSet.ModelName(), "fields", fields)
+		}
+		cnt := vals["__count"].(int64)
+		delete(vals, "__count")
+		line := GroupAggregateRow{
+			Values:    vals,
+			Count:     int(cnt),
+			Condition: getGroupCondition(rc.query.groups, vals),
+		}
+		res = append(res, line)
+	}
+	return res
+}
+
+// fieldsGroupOperators returns a map of fields to retrieve in a group by query.
+// The returned map has a field as key, and sql aggregate function as value.
+// it also includes 'field_count' for grouped fields
+func (rc RecordCollection) fieldsGroupOperators(fields []string) map[string]string {
+	groups := make(map[string]bool)
+	for _, g := range rc.query.groups {
+		groups[rc.model.JSONizeFieldName(g)] = true
+	}
+	res := make(map[string]string)
+	for _, dbf := range fields {
+		if groups[dbf] {
+			res[dbf] = ""
+			continue
+		}
+		fi := rc.model.getRelatedFieldInfo(dbf)
+		if fi.fieldType != types.Float && fi.fieldType != types.Integer {
+			continue
+		}
+		res[dbf] = fi.groupOperator
+	}
+	return res
 }
 
 // Records returns the slice of RecordCollection singletons that constitute this

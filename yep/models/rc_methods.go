@@ -97,7 +97,6 @@ func (rc RecordCollection) MethodType(methName string) reflect.Type {
 
 // callMulti is a wrapper around reflect.Value.Call() to use with interface{} type.
 func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
-
 	inVals := make([]reflect.Value, len(args)+1)
 	inVals[0] = reflect.ValueOf(rc)
 	for i, arg := range args {

@@ -146,8 +146,19 @@ func sanitizedFieldType(mi *Model, typ reflect.Type) (string, bool) {
 // if not already imported. deps is the map of already imported paths and is updated
 // by this function.
 func addDependency(data *modelData, typ reflect.Type, deps *map[string]bool) {
-	for typ.Kind() == reflect.Ptr || typ.Kind() == reflect.Slice || typ.Kind() == reflect.Map {
+	switch typ.Kind() {
+	case reflect.Ptr:
 		typ = typ.Elem()
+	case reflect.Slice:
+		el := typ.Elem()
+		if typ.Name() == fmt.Sprintf("[]%s", el.Name()) {
+			typ = el
+		}
+	case reflect.Map:
+		el := typ.Elem()
+		if strings.Contains(typ.Name(), el.Name()) {
+			typ = el
+		}
 	}
 	fDep := typ.PkgPath()
 	if fDep != "" && !(*deps)[fDep] {

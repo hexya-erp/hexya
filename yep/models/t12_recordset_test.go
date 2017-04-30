@@ -26,8 +26,10 @@ func TestCreateRecordSet(t *testing.T) {
 		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Creating simple user John with no relations and checking ID", func() {
 				userJohnData := FieldMap{
-					"Name":  "John Smith",
-					"Email": "jsmith@example.com",
+					"Name":    "John Smith",
+					"Email":   "jsmith@example.com",
+					"IsStaff": true,
+					"Nums":    1,
 				}
 				users := env.Pool("User").Call("Create", userJohnData).(RecordCollection)
 				So(users.Len(), ShouldEqual, 1)
@@ -48,6 +50,7 @@ func TestCreateRecordSet(t *testing.T) {
 					"Name":    "Jane Smith",
 					"Email":   "jane.smith@example.com",
 					"Profile": profile,
+					"Nums":    2,
 				}
 				userJane := env.Pool("User").Call("Create", userJaneData).(RecordCollection)
 				So(userJane.Len(), ShouldEqual, 1)
@@ -91,8 +94,10 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Creating a user Will Smith", func() {
 				userWillData := FieldMap{
-					"Name":  "Will Smith",
-					"Email": "will.smith@example.com",
+					"Name":    "Will Smith",
+					"Email":   "will.smith@example.com",
+					"IsStaff": true,
+					"Nums":    3,
 				}
 				userWill := env.Pool("User").Call("Create", userWillData).(RecordCollection)
 				So(userWill.Len(), ShouldEqual, 1)
@@ -304,7 +309,7 @@ func TestAdvancedQueries(t *testing.T) {
 			Convey("Empty recordset", func() {
 				profile := env.Pool("Profile")
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").Equals(profile))
-				So(users.Len(), ShouldEqual, 0)
+				So(users.Len(), ShouldEqual, 2)
 			})
 			Convey("Condition on m2o relation fields with IN operator and ids", func() {
 				profileID := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
@@ -357,6 +362,27 @@ func TestAdvancedQueries(t *testing.T) {
 	})
 }
 
+func TestGroupedQueries(t *testing.T) {
+	Convey("Testing grouped queries", t, func() {
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			Convey("Simple grouped query on the whole table", func() {
+				groupedUsers := env.Pool("User").GroupBy(FieldName("IsStaff")).Aggregates(FieldName("IsStaff"), FieldName("Nums"))
+				So(len(groupedUsers), ShouldEqual, 2)
+				So(groupedUsers[0].Values, ShouldContainKey, "is_staff")
+				So(groupedUsers[0].Values, ShouldContainKey, "nums")
+				So(groupedUsers[1].Values, ShouldContainKey, "is_staff")
+				So(groupedUsers[1].Values, ShouldContainKey, "nums")
+				So(groupedUsers[0].Values["is_staff"], ShouldBeFalse)
+				So(groupedUsers[0].Values["nums"], ShouldEqual, 2)
+				So(groupedUsers[0].Count, ShouldEqual, 1)
+				So(groupedUsers[1].Values["is_staff"], ShouldBeTrue)
+				So(groupedUsers[1].Values["nums"], ShouldEqual, 4)
+				So(groupedUsers[1].Count, ShouldEqual, 2)
+			})
+		})
+	})
+}
+
 func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
 		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
@@ -385,7 +411,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				users := env.Pool("User").Search(cond).Load()
 				So(users.Len(), ShouldEqual, 2)
 				userRecs := users.Records()
-				So(userRecs[0].Get("IsStaff").(bool), ShouldBeFalse)
+				So(userRecs[0].Get("IsStaff").(bool), ShouldBeTrue)
 				So(userRecs[1].Get("IsStaff").(bool), ShouldBeFalse)
 				So(userRecs[0].Get("IsActive").(bool), ShouldBeFalse)
 				So(userRecs[1].Get("IsActive").(bool), ShouldBeFalse)

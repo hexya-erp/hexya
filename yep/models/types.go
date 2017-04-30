@@ -16,7 +16,6 @@ package models
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -159,37 +158,6 @@ func (fm FieldMap) Copy() FieldMap {
 	return res
 }
 
-// RecordIDWithName is a tuple with an ID and the display name of a record
-type RecordIDWithName struct {
-	ID   int64
-	Name string
-}
-
-// MarshalJSON for RecordIDWithName type
-func (rf RecordIDWithName) MarshalJSON() ([]byte, error) {
-	arr := [2]interface{}{
-		0: rf.ID,
-		1: rf.Name,
-	}
-	res, err := json.Marshal(arr)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(res), nil
-}
-
-// UnmarshalJSON for RecordIDWithName type
-func (rf *RecordIDWithName) UnmarshalJSON(data []byte) error {
-	var arr [2]interface{}
-	err := json.Unmarshal(data, &arr)
-	if err != nil {
-		return err
-	}
-	rf.ID = arr[0].(int64)
-	rf.Name = arr[1].(string)
-	return nil
-}
-
 // A RecordRef uniquely identifies a Record by giving its model and ID.
 type RecordRef struct {
 	ModelName string
@@ -225,4 +193,14 @@ var _ FieldNamer = FieldName("")
 // its FieldName() method
 type FieldNamer interface {
 	FieldName() FieldName
+}
+
+// A GroupAggregateRow holds a row of results of a query with a group by clause
+// - Values holds the values of the actual query
+// - Count is the number of lines aggregated into this one
+// - Condition can be used to query the aggregated rows separately if needed
+type GroupAggregateRow struct {
+	Values    FieldMap
+	Count     int
+	Condition *Condition
 }

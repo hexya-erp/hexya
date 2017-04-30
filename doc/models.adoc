@@ -588,6 +588,10 @@ that points to the other (their) model, i.e. the model defined by
 `RelationModel`. This parameter is mandatory only if the `many2many` relation
 is pointing to the same model.
 
+`OnDelete` OnDeleteAction::
+Defines what to do with this record if the target record is deleted. Possible
+values are `models.SetNull` (default), `models.Restrict` and `models.Cascade`.
+
 `Selection` map[string]string::
 Map of predefined allowed values for a Selection field. The map keys are the
 actual values, and the map values are the labels to display for each value.

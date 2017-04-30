@@ -17,7 +17,6 @@ package models
 import (
 	"time"
 
-	"github.com/npiganeau/yep/yep/models/operator"
 	"github.com/npiganeau/yep/yep/models/types"
 )
 
@@ -113,22 +112,7 @@ func declareCRUDMethods() {
 			for i, rec := range rc.Records() {
 				res[i] = make(FieldMap)
 				for _, fName := range fields {
-					value := rec.Get(fName)
-					if relRC, ok := value.(RecordCollection); ok {
-						relRC = relRC.Fetch()
-						fi := rc.model.fields.mustGet(fName)
-						switch {
-						case fi.fieldType.Is2OneRelationType():
-							if rcId := relRC.Get("id"); rcId != 0 {
-								value = [2]interface{}{rcId, relRC.Call("NameGet").(string)}
-							} else {
-								value = nil
-							}
-						case fi.fieldType.Is2ManyRelationType():
-							value = relRC.Ids()
-						}
-					}
-					res[i][fName] = value
+					res[i][fName] = rec.Get(fName)
 				}
 			}
 			return res
@@ -198,30 +182,6 @@ func declareRecordSetMethods() {
 			return rc.String()
 		})
 
-	commonMixin.AddMethod("NameSearch",
-		`NameSearch searches for records that have a display name matching the given
-		"name" pattern when compared with the given "operator", while also
-		matching the optional search domain ("args").
-
-		This is used for example to provide suggestions based on a partial
-		value for a relational field. Sometimes be seen as the inverse
-		function of NameGet but it is not guaranteed to be.`,
-		func(rc RecordCollection, params NameSearchParams) []RecordIDWithName {
-			searchRs := rc.Search(rc.Model().Field("Name").addOperator(params.Operator, params.Name)).Limit(ConvertLimitToInt(params.Limit))
-			if extraCondition := ParseDomain(params.Args); extraCondition != nil {
-				searchRs = searchRs.Search(extraCondition)
-			}
-
-			searchRs.Load("ID", "DisplayName")
-
-			res := make([]RecordIDWithName, searchRs.Len())
-			for i, rec := range searchRs.Records() {
-				res[i].ID = rec.Get("id").(int64)
-				res[i].Name = rec.Get("display_name").(string)
-			}
-			return res
-		})
-
 	commonMixin.AddMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
 		The embedded fields are included.
@@ -257,6 +217,16 @@ func declareRecordSetMethods() {
 				}
 			}
 			return res
+		})
+
+	commonMixin.AddMethod("FieldGet",
+		`FieldGet returns the definition of the given field.
+		The string, help, and selection (if present) attributes are translated.`,
+		func(rc RecordCollection, field FieldNamer) *FieldInfo {
+			args := FieldsGetArgs{
+				Fields: []FieldName{field.FieldName()},
+			}
+			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[string(field.FieldName())]
 		})
 
 	commonMixin.AddMethod("DefaultGet",
@@ -302,7 +272,7 @@ func declareSearchMethods() {
 
 	commonMixin.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
-		func(rc RecordCollection, exprs ...string) RecordCollection {
+		func(rc RecordCollection, exprs ...FieldNamer) RecordCollection {
 			return rc.GroupBy(exprs...)
 		})
 
@@ -377,14 +347,6 @@ func ConvertLimitToInt(limit interface{}) int {
 	return lim
 }
 
-// NameSearchParams is the args struct for the NameSearch function
-type NameSearchParams struct {
-	Args     Domain            `json:"args"`
-	Name     string            `json:"name"`
-	Operator operator.Operator `json:"operator"`
-	Limit    interface{}       `json:"limit"`
-}
-
 // FieldInfo is the exportable field information struct
 type FieldInfo struct {
 	ChangeDefault    bool                   `json:"change_default"`
@@ -401,7 +363,7 @@ type FieldInfo struct {
 	Type             types.FieldType        `json:"type"`
 	Store            bool                   `json:"store"`
 	String           string                 `json:"string"`
-	Domain           Domain                 `json:"domain"`
+	Domain           *Condition             `json:"domain"`
 	Relation         string                 `json:"relation"`
 }
 

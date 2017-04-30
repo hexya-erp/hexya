@@ -356,11 +356,11 @@ func (m *Model) Field(name string) *ConditionField {
 // FilteredOn adds a condition with a table join on the given field and
 // filters the result with the given condition
 func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
-	res := Condition{params: make([]condValue, len(condition.params))}
+	res := Condition{predicates: make([]predicate, len(condition.predicates))}
 	i := 0
-	for _, p := range condition.params {
+	for _, p := range condition.predicates {
 		p.exprs = append([]string{field}, p.exprs...)
-		res.params[i] = p
+		res.predicates[i] = p
 		i++
 	}
 	return &res

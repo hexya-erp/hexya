@@ -124,14 +124,13 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 // fieldIsNull returns true if the given fieldInfo results in a
 // NOT NULL column in database.
 func (d *postgresAdapter) fieldIsNotNull(fi *fieldInfo) bool {
-	if fi.fieldType.IsStoredRelationType() {
+	if fi.fieldType.IsFKRelationType() {
 		if fi.required {
 			return true
 		}
-	} else {
-		return true
+		return false
 	}
-	return false
+	return true
 }
 
 // fieldSQLDefault returns the SQL default value of the fieldInfo
@@ -179,6 +178,14 @@ func (d *postgresAdapter) columns(tableName string) map[string]ColumnData {
 // indexExists returns true if an index with the given name exists in the given table
 func (d *postgresAdapter) indexExists(table string, name string) bool {
 	query := fmt.Sprintf("SELECT COUNT(*) FROM pg_indexes WHERE tablename = '%s' AND indexname = '%s'", table, name)
+	var cnt int
+	dbGetNoTx(&cnt, query)
+	return cnt > 0
+}
+
+// constraintExists returns true if a constraint with the given name exists in the given table
+func (d *postgresAdapter) constraintExists(name string) bool {
+	query := fmt.Sprintf("SELECT COUNT(*) FROM pg_constraint WHERE conname = '%s'", name)
 	var cnt int
 	dbGetNoTx(&cnt, query)
 	return cnt > 0
