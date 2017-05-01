@@ -275,6 +275,10 @@ func generateTempMethods(fileName string) {
 		}
 		retNews := make([]string, len(mData.ReturnType.Types))
 		for i, rt := range mData.ReturnType.Types {
+			if rt == "models.RecordCollection" {
+				rt = fmt.Sprintf("%sSet", ref.Model)
+				mData.ReturnType.Types[i] = rt
+			}
 			retNews[i] = fmt.Sprintf("*new(%s)", rt)
 		}
 		data.Methods = append(data.Methods, methData{
