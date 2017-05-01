@@ -36,7 +36,7 @@ func TestConditions(t *testing.T) {
 					getUserID := func(rs pool.UserSet) int {
 						return int(rs.Env().Uid())
 					}
-					rs2 := pool.User().NewSet(env).Search(pool.User().Nums().EqualsFunc(getUserID))
+					rs2 := pool.User().Search(env, pool.User().Nums().EqualsFunc(getUserID))
 					So(func() { rs2.Load() }, ShouldNotPanic)
 				})
 				Convey("Check WHERE clause with additionnal filter", func() {

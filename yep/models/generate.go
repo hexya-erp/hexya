@@ -369,6 +369,22 @@ func (m {{ .Name }}Model) NewSet(env models.Environment) {{ .Name }}Set {
 	}
 }
 
+// Create creates a new {{ .Name }} record and returns the newly created
+// {{ .Name }}Set instance.
+func (m {{ .Name }}Model) Create(env models.Environment, data interface{}) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: m.Model.Create(env, data),
+	}
+}
+
+// Search searches the database and returns a new {{ .Name }}Set instance
+// with the records found.
+func (m {{ .Name }}Model) Search(env models.Environment, cond {{ .Name }}Condition) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: m.Model.Search(env, cond.Condition),
+	}
+}
+
 {{ range .Fields }}
 {{ if .TypeIsRS }}
 // {{ .Name }}FilteredOn adds a condition with a table join on the given field and

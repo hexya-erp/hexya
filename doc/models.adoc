@@ -107,10 +107,25 @@ RecordSet of the type of the related model.
 
 ==== CRUD Methods
 
-`*Create(data *RecordType) RecordSetType*`::
+`*(Model) Create(env Environment, data *RecordType) RecordSetType*`::
 Insert a new record in the database with the given data and returns the
 inserted Record. Fields which are not given a value are set to the type's zero
 value.
+
+[source,go]
+----
+customer := pool.ResPartner().Create(env, pool.ResPartnerData{
+    Name: "Jane Smith",
+    Email: "jsmith@example.com",
+    Position: "Sale's Manager",
+})
+fmt.Println(customer.Name())
+// Returns:
+// Jane Smith
+----
+
+You can also use the `Create` alias on a RecordSet instance. In this case,
+the actual values of the RecordSet are silently ignored.
 
 [source,go]
 ----
@@ -122,10 +137,8 @@ customer := pool.ResPartner().NewSet(env).Create(pool.ResPartnerData{
 fmt.Println(customer.Name())
 // Returns:
 // Jane Smith
-----
 
-IMPORTANT: `Create` is meant to be called on an empty RecordSet.
-Thus, it discards any value already loaded.
+----
 
 `*Write(data *RecordType, fieldsToUnset ...models.FieldName) bool*`::
 Update records in the database with the given data. Updates are made with a
@@ -134,7 +147,7 @@ value, then all non-zero values of data are updated.
 
 [source,go]
 ----
-partner := pool.ResPartner().NewSet(env).Search(pool.ResPartner().Where().Company().Name().Equals("NDP Systèmes"))
+partner := pool.ResPartner().Search(env, pool.ResPartner().Where().Company().Name().Equals("NDP Systèmes"))
 partner.Write(pool.ResPartner{
     Lang: "fr_FR",
 })
@@ -185,15 +198,19 @@ RecordSet query. It is mainly meant to be used on an empty RecordSet.
 
 ==== Search Methods
 
-`*Search(condition ConditionType) RecordSetType*`::
-Apply the given search condition to the given RecordSet.
+`*(Model) Search(env Environment, condition ConditionType) RecordSetType*`::
+Search the database for matching records and return them as RecordSet.
 A new Condition instance can be created from a model instance.
 
 [source,go]
 ----
 cond := pool.ResUsers().Email().ILike("example.com").Or().Email().ILike("example.net")
-users := pool.ResUsers().NewSet(env).Search(cond)
+users := pool.ResUsers().Search(env, cond)
 ----
+
+`*(RecordSet) Search(condition ConditionType) RecordSetType*`::
+Apply the given search condition to the given RecordSet. This will narrow the
+RecordSet current filter.
 
 ====
 .Available methods on Condition type
@@ -225,14 +242,15 @@ eg. `func(rs pool.ResPartnerSet) int64`
 The function will be evaluated at the time of the query by passing it the
 RecordSet we are querying and the result will be substituted in the query.
 ====
-
-Searches can also be performed on joined model fields with the 
+====
+.Searches on joined tables
+Searches can also be performed on joined model fields with the
 `__FK__FilteredOn()` methods:
 
 [source,go]
 ----
 cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().Function().ILike("manager"))
-users := pool.ResUsers().NewSet(env).Search(cond)
+users := pool.ResUsers().Search(env, cond)
 ----
 
 Conditions with `__FK__FilteredOn()` can be nested:
@@ -248,6 +266,7 @@ They can also be mixed with simple conditions:
 ----
 cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().Function().ILike("manager")).And().Login().ILike("John")
 ----
+====
 
 `*SearchCount() int*`::
 Return the number of records matching the search condition.
@@ -398,8 +417,8 @@ instead.
 
 [source,go]
 ----
-noReplyUser := pool.ResUsers().NewSet(env).Search(pool.ResUsers().Email().Equals("no-reply@ndp-systemes.fr")).Limit(1)
-partners := pool.ResPartner().NewSet(env).Search(pool.ResPartner().Name().ILike("John"))
+noReplyUser := pool.ResUsers().Search(env, pool.ResUsers().Email().Equals("no-reply@ndp-systemes.fr")).Limit(1)
+partners := pool.ResPartner().Search(env, pool.ResPartner().Name().ILike("John"))
 
 partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
 ----

@@ -28,13 +28,13 @@ func TestDomains(t *testing.T) {
 	Convey("Testing Domains", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Creating an extra user", func() {
-				profile := pool.Profile().NewSet(env).Create(&pool.ProfileData{Age: 45})
+				profile := pool.Profile().Create(env, &pool.ProfileData{Age: 45})
 				userData := pool.UserData{
 					Name:    "Martin Weston",
 					Email:   "mweston@example.com",
 					Profile: profile,
 				}
-				user := pool.User().NewSet(env).Create(&userData)
+				user := pool.User().Create(env, &userData)
 				So(user.Profile().Age(), ShouldEqual, 45)
 			})
 			Convey("Testing simple [(A), (B)] domain", func() {
@@ -42,7 +42,7 @@ func TestDomains(t *testing.T) {
 					0: []interface{}{"Name", "like", "Smith"},
 					1: []interface{}{"Age", "=", 24},
 				}
-				dom1Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: domains.ParseDomain(dom1)})
+				dom1Users := pool.User().Search(env, pool.UserCondition{Condition: domains.ParseDomain(dom1)})
 				So(dom1Users.Len(), ShouldEqual, 1)
 				So(dom1Users.Name(), ShouldEqual, "Jane A. Smith")
 			})
@@ -52,7 +52,7 @@ func TestDomains(t *testing.T) {
 					1: []interface{}{"Name", "like", "Will"},
 					2: []interface{}{"Email", "ilike", "Jane.Smith"},
 				}
-				dom2Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: domains.ParseDomain(dom2)}).OrderBy("Name")
+				dom2Users := pool.User().Search(env, pool.UserCondition{Condition: domains.ParseDomain(dom2)}).OrderBy("Name")
 				So(dom2Users.Len(), ShouldEqual, 2)
 				userRecs := dom2Users.Records()
 				So(userRecs[0].Name(), ShouldEqual, "Jane A. Smith")
@@ -67,7 +67,7 @@ func TestDomains(t *testing.T) {
 					4: []interface{}{"Age", "<", 25},
 					5: []interface{}{"Email", "not like", "will.smith"},
 				}
-				dom3Users := pool.User().NewSet(env).Search(pool.UserCondition{Condition: domains.ParseDomain(dom3)}).OrderBy("Name")
+				dom3Users := pool.User().Search(env, pool.UserCondition{Condition: domains.ParseDomain(dom3)}).OrderBy("Name")
 				So(dom3Users.Len(), ShouldEqual, 1)
 				So(dom3Users.Name(), ShouldEqual, "Jane A. Smith")
 			})

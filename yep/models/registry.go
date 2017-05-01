@@ -365,3 +365,13 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 	}
 	return &res
 }
+
+// Create creates a new record in this model with the given data.
+func (m *Model) Create(env Environment, data interface{}) RecordCollection {
+	return env.Pool(m.name).Call("Create", data).(RecordCollection)
+}
+
+// Search searches the database and returns records matching the given condition.
+func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
+	return env.Pool(m.name).Call("Search", cond).(RecordCollection)
+}
