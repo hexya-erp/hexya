@@ -99,7 +99,7 @@ func (gc *GroupCollection) UnregisterGroup(group *Group) {
 	for id, grp := range gc.groups {
 		for i, iGrp := range grp.Inherits {
 			if iGrp.ID == group.ID {
-				// safe delete
+				// memory safe delete
 				copy(gc.groups[id].Inherits[i:], gc.groups[id].Inherits[i+1:])
 				length := len(gc.groups[id].Inherits)
 				gc.groups[id].Inherits[length-1] = nil
@@ -126,10 +126,6 @@ func (gc *GroupCollection) GetGroup(groupID string) *Group {
 // given group and also to all groups that inherit this group.
 // inherit is set to true when this method is called on an inherited group
 func (gc *GroupCollection) AddMembership(uid int64, group *Group, inherit ...bool) {
-	mode := NativeGroup
-	if len(inherit) > 0 && inherit[0] {
-		mode = InheritedGroup
-	}
 	var inheritingGroups []*Group
 	gc.inheritedBy(group, &inheritingGroups)
 	for _, grp := range inheritingGroups {
@@ -137,6 +133,10 @@ func (gc *GroupCollection) AddMembership(uid int64, group *Group, inherit ...boo
 	}
 	gc.Lock()
 	defer gc.Unlock()
+	mode := NativeGroup
+	if len(inherit) > 0 && inherit[0] {
+		mode = InheritedGroup
+	}
 	if _, exists := gc.memberships[uid]; !exists {
 		gc.memberships[uid] = make(map[*Group]InheritanceInfo)
 	}
@@ -149,7 +149,18 @@ func (gc *GroupCollection) RemoveMembership(uid int64, group *Group) {
 	if _, exists := gc.memberships[uid][group]; !exists {
 		return
 	}
+	gc.doRemoveMembership(uid, group)
+	// Re-Add membership for all existing groups to compute inheritance
+	for grp := range gc.memberships[uid] {
+		gc.AddMembership(uid, grp)
+	}
+}
+
+// doRemoveMembership actually removes the user with the given uid from the
+// given Group and all groups that inherit from this Group.
+func (gc *GroupCollection) doRemoveMembership(uid int64, group *Group) {
 	gc.Lock()
+	defer gc.Unlock()
 	// Remove our group
 	delete(gc.memberships[uid], group)
 	// Remove all inherited groups
@@ -158,21 +169,21 @@ func (gc *GroupCollection) RemoveMembership(uid int64, group *Group) {
 			delete(gc.memberships[uid], grp)
 		}
 	}
-	gc.Unlock()
-	// Re-Add membership for all existing groups to compute inheritance
-	for grp := range gc.memberships[uid] {
-		gc.AddMembership(uid, grp)
-	}
 }
 
 // RemoveAllMembershipsForUser removes the given uid from all groups
 func (gc *GroupCollection) RemoveAllMembershipsForUser(uid int64) {
-	gc.Lock()
-	delete(gc.memberships, uid)
-	gc.Unlock()
+	gc.doRemoveAllMembershipsForUser(uid)
 	if uid == SuperUserID {
 		gc.AddMembership(SuperUserID, AdminGroup)
 	}
+}
+
+// doRemoveAllMembershipsForUser actually removes the given uid from all groups
+func (gc *GroupCollection) doRemoveAllMembershipsForUser(uid int64) {
+	gc.Lock()
+	defer gc.Unlock()
+	delete(gc.memberships, uid)
 }
 
 // HasMembership returns true id the given uid is a member of the given group

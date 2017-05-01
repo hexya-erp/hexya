@@ -132,6 +132,7 @@ func TestGroupRegistry(t *testing.T) {
 			So(len(Registry.UserGroups(6)), ShouldEqual, 4)
 			So(Registry.UserGroups(6), ShouldContainKey, group1)
 			So(Registry.UserGroups(6), ShouldContainKey, group3)
+			So(Registry.UserGroups(6)[group3], ShouldEqual, InheritedGroup)
 			So(Registry.UserGroups(6), ShouldContainKey, group4)
 			So(Registry.UserGroups(6), ShouldContainKey, group5)
 
@@ -139,6 +140,7 @@ func TestGroupRegistry(t *testing.T) {
 			So(len(Registry.UserGroups(6)), ShouldEqual, 4)
 			So(Registry.UserGroups(6), ShouldContainKey, group1)
 			So(Registry.UserGroups(6), ShouldContainKey, group3)
+			So(Registry.UserGroups(6)[group3], ShouldEqual, InheritedGroup)
 			So(Registry.UserGroups(6), ShouldContainKey, group4)
 			So(Registry.UserGroups(6), ShouldContainKey, group5)
 		})
