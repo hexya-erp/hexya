@@ -69,13 +69,14 @@ func (rc RecordCollection) Ids() []int64 {
 // create inserts a new record in the database with the given data.
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
-// Instead use rs.Create(), rs.Call("Create") or env.Create()
+// Instead use rs.Call("Create")
 func (rc RecordCollection) create(data interface{}) RecordCollection {
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Create)
 	fMap := ConvertInterfaceToFieldMap(data)
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Create)
 	rc.addAccessFieldsCreateData(&fMap)
 	rc.model.convertValuesToFieldType(&fMap)
+	fMap = rc.createEmbeddedRecords(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
 	storedFieldMap := filterMapOnStoredFields(rc.model, fMap)
@@ -92,6 +93,51 @@ func (rc RecordCollection) create(data interface{}) RecordCollection {
 	return rSet
 }
 
+// createEmbeddedRecords creates the records that are embedded in this
+// one if they don't already exist. It returns the given fMap with the
+// ids inserted for the embedded records.
+func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
+	type modelAndValues struct {
+		model  string
+		values FieldMap
+	}
+	embeddedData := make(map[string]modelAndValues)
+	// 1. We create entries in our map for each embedded field if they don't already have an id
+	for fName, fi := range rc.model.fields.registryByName {
+		if !fi.embed {
+			continue
+		}
+		if id, ok := fMap[fName].(int64); ok && id != int64(0) {
+			continue
+		}
+		embeddedData[fName] = modelAndValues{
+			model:  fi.relatedModelName,
+			values: make(FieldMap),
+		}
+	}
+	// 2. We populate our map with the values for each embedded record
+	for fName, value := range fMap {
+		fi := rc.Model().fields.mustGet(fName)
+		if fi.relatedPath == "" {
+			continue
+		}
+		exprs := strings.Split(fi.relatedPath, ExprSep)
+		if len(exprs) != 2 {
+			continue
+		}
+		fm, ok := embeddedData[exprs[0]]
+		if !ok {
+			continue
+		}
+		fm.values[exprs[1]] = value
+	}
+	// 3. We create the embedded records
+	for fieldName, vals := range embeddedData {
+		fMap[fieldName] = rc.env.Pool(vals.model).create(vals.values).ids[0]
+	}
+	return fMap
+}
+
 // addAccessFieldsCreateData adds appropriate CreateDate and CreateUID fields to
 // the given FieldMap.
 func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
@@ -102,7 +148,7 @@ func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // update updates the database with the given data and returns the number of updated rows.
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
-// Instead use rs.Write() or rs.Call("Write")
+// Instead use rs.Call("Write")
 func (rc RecordCollection) update(data interface{}, fieldsToUnset ...FieldNamer) bool {
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Write)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)

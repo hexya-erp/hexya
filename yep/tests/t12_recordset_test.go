@@ -112,8 +112,16 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				So(func() { pool.User().NewSet(env).Create(&userTomData) }, ShouldPanic)
 			})
-			Convey("Adding model access rights to user 2 and check creation", func() {
+			Convey("Adding model access rights to user 2 and check failure again", func() {
 				pool.User().AllowModelAccess(group1, security.Create)
+				userTomData := pool.UserData{
+					Name:  "Tom Smith",
+					Email: "tsmith@example.com",
+				}
+				So(func() { pool.User().NewSet(env).Create(&userTomData) }, ShouldPanic)
+			})
+			Convey("Adding model access rights to user 2 for posts and it works", func() {
+				pool.Post().AllowModelAccess(group1, security.Create)
 				userTomData := pool.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",

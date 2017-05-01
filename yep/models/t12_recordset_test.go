@@ -110,6 +110,7 @@ func TestCreateRecordSet(t *testing.T) {
 		SimulateInNewEnvironment(2, func(env Environment) {
 			security.Registry.AddMembership(2, group1)
 			userModel := Registry.MustGet("User")
+			postModel := Registry.MustGet("Post")
 
 			Convey("Checking that user 2 cannot create records", func() {
 				userTomData := FieldMap{
@@ -118,8 +119,16 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
-			Convey("Adding model access rights to user 2 and check creation", func() {
+			Convey("Adding model access rights to user 2 and check failure again", func() {
 				userModel.AllowModelAccess(group1, security.Create)
+				userTomData := FieldMap{
+					"Name":  "Tom Smith",
+					"Email": "tsmith@example.com",
+				}
+				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
+			})
+			Convey("Adding model access rights to user 2 for posts and it works", func() {
+				postModel.AllowModelAccess(group1, security.Create)
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",

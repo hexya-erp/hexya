@@ -247,6 +247,11 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 	if params.OnDelete != "" {
 		onDelete = params.OnDelete
 	}
+	required := params.Required
+	if params.Embed {
+		onDelete = Cascade
+		required = true
+	}
 	fInfo := &fieldInfo{
 		model:            m,
 		acl:              security.NewAccessControlList(),
@@ -255,7 +260,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		description:      str,
 		help:             params.Help,
 		stored:           params.Stored,
-		required:         params.Required,
+		required:         required,
 		index:            params.Index,
 		compute:          params.Compute,
 		depends:          params.Depends,
