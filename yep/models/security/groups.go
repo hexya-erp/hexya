@@ -74,7 +74,7 @@ func (gc *GroupCollection) NewGroup(ID, name string, inherits ...*Group) *Group 
 }
 
 // RegisterGroup adds the given group to this GroupCollection
-// If group with the same name exists, it is replaced by this one.
+// If group with the same ID exists, this methods panics.
 func (gc *GroupCollection) RegisterGroup(group *Group) {
 	gc.Lock()
 	defer gc.Unlock()
@@ -164,8 +164,8 @@ func (gc *GroupCollection) doRemoveMembership(uid int64, group *Group) {
 	// Remove our group
 	delete(gc.memberships[uid], group)
 	// Remove all inherited groups
-	for grp, ii := range gc.memberships[uid] {
-		if ii == InheritedGroup {
+	for _, grp := range group.Inherits {
+		if gc.memberships[uid][grp] == InheritedGroup {
 			delete(gc.memberships[uid], grp)
 		}
 	}

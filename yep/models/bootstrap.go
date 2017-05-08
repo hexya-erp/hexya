@@ -55,7 +55,7 @@ func createModelLinks() {
 				ok        bool
 			)
 			if fi.fieldType.IsRelationType() {
-				relatedMI, ok = Registry.get(fi.relatedModelName)
+				relatedMI, ok = Registry.Get(fi.relatedModelName)
 				if !ok {
 					logging.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
 				}
@@ -69,12 +69,8 @@ func createModelLinks() {
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
 	for _, mi := range Registry.registryByName {
-		if mi.options&Many2ManyLinkModel > 0 {
-			// We don"t mix in M2M link models
-			continue
-		}
-		if mi.isMixin() {
-			// We don't mix in mixin models
+		if mi.isM2MLink() || mi.isMixin() {
+			// We don"t mix in M2M link or mixin models
 			continue
 		}
 		var allMixIns []*Model
@@ -93,7 +89,6 @@ func inflateMixIns() {
 				}
 				newFI := *fi
 				newFI.model = mi
-				newFI.relatedTarget = true
 				mi.fields.add(&newFI)
 			}
 			// Add mixIn methods
@@ -211,6 +206,9 @@ func SyncDatabase() {
 	}
 	// Setup foreign key constraints
 	for _, model := range Registry.registryByTableName {
+		if model.isMixin() {
+			continue
+		}
 		updateDBForeignKeyConstraints(model)
 	}
 	// Drop DB tables that are not in the models
@@ -229,6 +227,24 @@ func SyncDatabase() {
 		}
 		if !modelExists {
 			dropDBTable(dbTable)
+		}
+	}
+	// Create sequences
+	for _, sequence := range Registry.sequences {
+		adapter.createSequence(sequence.JSON)
+	}
+	// Drop unused sequences
+	for _, dbSeq := range adapter.sequences("%_manseq") {
+		var sequenceExists bool
+		for _, sequence := range Registry.sequences {
+			if sequence.JSON != dbSeq {
+				continue
+			}
+			sequenceExists = true
+			break
+		}
+		if !sequenceExists {
+			adapter.dropSequence(dbSeq)
 		}
 	}
 }
@@ -360,7 +376,7 @@ func updateDBForeignKeyConstraints(m *Model) {
 	adapter := adapters[db.DriverName()]
 	for colName, fi := range m.fields.registryByJSON {
 		fkContraintInDB := adapter.constraintExists(fmt.Sprintf("%s_%s_fkey", m.tableName, colName))
-		fieldIsFK := fi.fieldType.IsFKRelationType() && fi.isStored() && !fi.relatedTarget
+		fieldIsFK := fi.fieldType.IsFKRelationType() && fi.isStored()
 		switch {
 		case fieldIsFK && !fkContraintInDB:
 			createFKConstraint(m.tableName, colName, fi.relatedModel.tableName, string(fi.onDelete))

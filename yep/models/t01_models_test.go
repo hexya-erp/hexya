@@ -39,6 +39,7 @@ func TestCreateDB(t *testing.T) {
 		user.AddCharField("Email2", StringFieldParams{})
 		user.AddBooleanField("IsPremium", SimpleFieldParams{})
 		user.AddIntegerField("Nums", SimpleFieldParams{GoType: new(int)})
+		user.AddFloatField("Size", FloatFieldParams{})
 
 		profile := NewModel("Profile")
 		profile.AddIntegerField("Age", SimpleFieldParams{GoType: new(int16)})

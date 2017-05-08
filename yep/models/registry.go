@@ -16,6 +16,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -39,10 +40,11 @@ type modelCollection struct {
 	commonMixins        []*Model
 	registryByName      map[string]*Model
 	registryByTableName map[string]*Model
+	sequences           map[string]*Sequence
 }
 
-// get the given Model by name or by table name
-func (mc *modelCollection) get(nameOrJSON string) (mi *Model, ok bool) {
+// Get the given Model by name or by table name
+func (mc *modelCollection) Get(nameOrJSON string) (mi *Model, ok bool) {
 	mi, ok = mc.registryByName[nameOrJSON]
 	if !ok {
 		mi, ok = mc.registryByTableName[nameOrJSON]
@@ -53,11 +55,30 @@ func (mc *modelCollection) get(nameOrJSON string) (mi *Model, ok bool) {
 // MustGet the given Model by name or by table name.
 // It panics if the Model does not exist
 func (mc *modelCollection) MustGet(nameOrJSON string) *Model {
-	mi, ok := mc.get(nameOrJSON)
+	mi, ok := mc.Get(nameOrJSON)
 	if !ok {
 		logging.LogAndPanic(log, "Unknown model", "model", nameOrJSON)
 	}
 	return mi
+}
+
+// GetSequence the given Sequence by name or by db name
+func (mc *modelCollection) GetSequence(nameOrJSON string) (s *Sequence, ok bool) {
+	s, ok = mc.sequences[nameOrJSON]
+	if !ok {
+		s, ok = mc.sequences[nameOrJSON]
+	}
+	return
+}
+
+// MustGet the given sequence by name or by db name.
+// It panics if the Sequence does not exist
+func (mc *modelCollection) MustGetSequence(nameOrJSON string) *Sequence {
+	s, ok := mc.GetSequence(nameOrJSON)
+	if !ok {
+		logging.LogAndPanic(log, "Unknown sequence", "sequence", nameOrJSON)
+	}
+	return s
 }
 
 // mustGetMixInModel returns the Model of the given mixin name.
@@ -72,7 +93,7 @@ func (mc *modelCollection) mustGetMixInModel(name string) *Model {
 
 // add the given Model to the modelCollection
 func (mc *modelCollection) add(mi *Model) {
-	if _, exists := mc.get(mi.name); exists {
+	if _, exists := mc.Get(mi.name); exists {
 		logging.LogAndPanic(log, "Trying to add already existing model", "model", mi.name)
 	}
 	mc.registryByName[mi.name] = mi
@@ -84,6 +105,7 @@ func newModelCollection() *modelCollection {
 	return &modelCollection{
 		registryByName:      make(map[string]*Model),
 		registryByTableName: make(map[string]*Model),
+		sequences:           make(map[string]*Sequence),
 	}
 }
 
@@ -251,10 +273,29 @@ func (m *Model) isManual() bool {
 	return false
 }
 
+// isSystem returns true if this is a system model.
+func (m *Model) isSystem() bool {
+	if m.options&SystemModel > 0 {
+		return true
+	}
+	return false
+}
+
+// isSystem returns true if this is a n M2M Link model.
+func (m *Model) isM2MLink() bool {
+	if m.options&Many2ManyLinkModel > 0 {
+		return true
+	}
+	return false
+}
+
 // NewModel creates a new model with the given name and
 // extends it with the given struct pointer.
 func NewModel(name string) *Model {
 	model := createModel(name, Option(0))
+	model.MixInModel(Registry.MustGet("CommonMixin"))
+	model.MixInModel(Registry.MustGet("BaseMixin"))
+	model.MixInModel(Registry.MustGet("ModelMixin"))
 	return model
 }
 
@@ -270,6 +311,7 @@ func NewMixinModel(name string) *Model {
 func NewTransientModel(name string) *Model {
 	model := createModel(name, TransientModel)
 	model.MixInModel(Registry.MustGet("CommonMixin"))
+	model.MixInModel(Registry.MustGet("BaseMixin"))
 	return model
 }
 
@@ -374,4 +416,27 @@ func (m *Model) Create(env Environment, data interface{}) RecordCollection {
 // Search searches the database and returns records matching the given condition.
 func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
 	return env.Pool(m.name).Call("Search", cond).(RecordCollection)
+}
+
+// A Sequence holds the metadata of a DB sequence
+type Sequence struct {
+	Name string
+	JSON string
+}
+
+// NewSequence creates a new Sequence and returns a pointer to it
+func NewSequence(name string) *Sequence {
+	json := fmt.Sprintf("%s_manseq", tools.SnakeCaseString(name))
+	seq := &Sequence{
+		Name: name,
+		JSON: json,
+	}
+	Registry.sequences[name] = seq
+	return seq
+}
+
+// NextValue returns the next value of this Sequence
+func (s *Sequence) NextValue() int64 {
+	adapter := adapters[db.DriverName()]
+	return adapter.nextSequenceValue(s.JSON)
 }

@@ -74,6 +74,7 @@ func (rc RecordCollection) create(data interface{}) RecordCollection {
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Create)
 	fMap := ConvertInterfaceToFieldMap(data)
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Create)
+	rc.applyDefaults(&fMap)
 	rc.addAccessFieldsCreateData(&fMap)
 	rc.model.convertValuesToFieldType(&fMap)
 	fMap = rc.createEmbeddedRecords(fMap)
@@ -107,7 +108,7 @@ func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 		if !fi.embed {
 			continue
 		}
-		if id, ok := fMap[fName].(int64); ok && id != int64(0) {
+		if id, ok := fMap[fi.json].(int64); ok && id != int64(0) {
 			continue
 		}
 		embeddedData[fName] = modelAndValues{
@@ -138,11 +139,27 @@ func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 	return fMap
 }
 
+// applyDefaults adds the default value to the given fMap values which
+// are equal to their Go type zero value
+func (rc RecordCollection) applyDefaults(fMap *FieldMap) {
+	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
+		if fi.defaultFunc == nil {
+			continue
+		}
+		val := reflect.ValueOf((*fMap)[fName])
+		if !val.IsValid() || val == reflect.Zero(val.Type()) {
+			(*fMap)[fName] = fi.defaultFunc(rc.Env(), FieldMap{})
+		}
+	}
+}
+
 // addAccessFieldsCreateData adds appropriate CreateDate and CreateUID fields to
 // the given FieldMap.
 func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
-	(*fMap)["CreateDate"] = Now()
-	(*fMap)["CreateUID"] = rc.env.uid
+	if !rc.model.isSystem() {
+		(*fMap)["CreateDate"] = Now()
+		(*fMap)["CreateUID"] = rc.env.uid
+	}
 }
 
 // update updates the database with the given data and returns the number of updated rows.
@@ -180,8 +197,10 @@ func (rc RecordCollection) update(data interface{}, fieldsToUnset ...FieldNamer)
 // addAccessFieldsUpdateData adds appropriate WriteDate and WriteUID fields to
 // the given FieldMap.
 func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
-	(*fMap)["WriteDate"] = Now()
-	(*fMap)["WriteUID"] = rc.env.uid
+	if !rc.model.isSystem() {
+		(*fMap)["WriteDate"] = Now()
+		(*fMap)["WriteUID"] = rc.env.uid
+	}
 }
 
 // doUpdate just updates the database records pointed at by

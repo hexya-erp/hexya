@@ -191,6 +191,34 @@ func (d *postgresAdapter) constraintExists(name string) bool {
 	return cnt > 0
 }
 
+// createSequence creates a DB sequence with the given name
+func (d *postgresAdapter) createSequence(name string) {
+	query := fmt.Sprintf("CREATE SEQUENCE %s", name)
+	dbExecuteNoTx(query)
+}
+
+// dropSequence drops the DB sequence with the given name
+func (d *postgresAdapter) dropSequence(name string) {
+	query := fmt.Sprintf("DROP SEQUENCE IF EXISTS %s", name)
+	dbExecuteNoTx(query)
+}
+
+// nextSequenceValue returns the next value of the given given sequence
+func (d *postgresAdapter) nextSequenceValue(name string) int64 {
+	query := fmt.Sprintf("SELECT nextval('%s')", name)
+	var val int64
+	dbGetNoTx(&val, query)
+	return val
+}
+
+// sequences returns a list of all sequences matching the given SQL pattern
+func (d *postgresAdapter) sequences(pattern string) []string {
+	query := "SELECT sequence_name FROM information_schema.sequences WHERE sequence_name ILIKE ?"
+	var res []string
+	dbSelectNoTx(&res, query, pattern)
+	return res
+}
+
 // setTransactionIsolation returns the SQL string to set the
 // transaction isolation level to serializable
 func (d *postgresAdapter) setTransactionIsolation() string {

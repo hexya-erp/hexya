@@ -68,5 +68,15 @@ Modules
 - [ ] Internal resource XML data files
     - [X] New schema for internal resources XML
     - [ ] Make yep-generate create XSD for XML autocompletion
-- [ ] Add support for data & demo JSON files
-- [ ] Add support for CSV data files
+- [X] Add support for CSV data files
+
+Documentation
+-------------
+- [X] Installation guide
+- [X] Models API reference
+- [X] Security reference
+- [ ] Views reference
+- [ ] Actions and menus reference
+- [ ] Low level models API reference
+- [ ] Module development tutorial
+- [ ] Testing YEP

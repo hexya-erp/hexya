@@ -107,6 +107,7 @@ func filterOnAuthorizedFields(mi *Model, uid int64, fields []string, perm securi
 
 // filterMapOnAuthorizedFields returns a new FieldMap from fMap
 // with only the fields on which the given uid user has access.
+// All field names are JSONized.
 func filterMapOnAuthorizedFields(mi *Model, fMap FieldMap, uid int64, perm security.Permission) FieldMap {
 	perm = perm & (security.Read | security.Write | security.Create)
 	if perm == 0 {
@@ -118,7 +119,7 @@ func filterMapOnAuthorizedFields(mi *Model, fMap FieldMap, uid int64, perm secur
 	for field, value := range fMap {
 		fi := mi.getRelatedFieldInfo(field)
 		if checkFieldPermission(fi, uid, perm) {
-			newFMap[field] = value
+			newFMap[fi.json] = value
 		}
 	}
 	return newFMap

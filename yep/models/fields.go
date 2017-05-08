@@ -243,7 +243,7 @@ type fieldInfo struct {
 	dependencies     []computeData
 	embed            bool
 	noCopy           bool
-	relatedTarget    bool
+	defaultFunc      func(Environment, FieldMap) interface{}
 	onDelete         OnDeleteAction
 }
 
@@ -320,7 +320,7 @@ func snakeCaseFieldName(fName string, typ types.FieldType) string {
 // It returns the Model of the intermediate model, the fieldInfo of that model
 // pointing to our model, and the fieldInfo pointing to the other model.
 func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldInfo, *fieldInfo) {
-	if relMI, exists := Registry.get(relModelName); exists {
+	if relMI, exists := Registry.Get(relModelName); exists {
 		var m1, m2 *fieldInfo
 		for fName, fi := range relMI.fields.registryByName {
 			if fName == model1 {

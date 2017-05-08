@@ -13,7 +13,7 @@ services:
 
 before_install:
   - go get -t github.com/npiganeau/yep
-  - yep generate -t ./yep/tests/test_module
+  - yep generate -t ./yep/tests/testmodule
 
 before_script:
   - psql -c 'create database yep_test_models;' -U postgres

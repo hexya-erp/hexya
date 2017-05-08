@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tests
+package testllmodule
 
-import (
-	"testing"
+import "github.com/npiganeau/yep/yep/models"
 
-	_ "github.com/lib/pq"
-	_ "github.com/npiganeau/yep/yep/tests/testmodule"
-)
-
-func TestMain(m *testing.M) {
-	RunTests(m, "tests")
+func declareMethods() {
+	user := models.Registry.MustGet("User")
+	user.AddMethod("computeAge",
+		`ComputeAge is a sample method layer for testing`,
+		func(rc models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+			res := models.FieldMap{
+				"Age": rc.Get("Profile").(models.RecordCollection).Get("Age"),
+			}
+			return res, []models.FieldNamer{models.FieldName("Age")}
+		})
 }

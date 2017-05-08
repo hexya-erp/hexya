@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/npiganeau/yep/yep/models"
+	"github.com/npiganeau/yep/yep/server"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +33,7 @@ func UpdateDB(config map[string]interface{}) {
 	connectToDB()
 	models.BootStrap()
 	models.SyncDatabase()
+	server.LoadDataRecords()
 	log.Info("Database updated successfully")
 }
 

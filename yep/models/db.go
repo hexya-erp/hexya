@@ -61,6 +61,14 @@ type dbAdapter interface {
 	// setTransactionIsolation returns the SQL string to set the transaction isolation
 	// level to serializable
 	setTransactionIsolation() string
+	// createSequence creates a DB sequence with the given name
+	createSequence(name string)
+	// dropSequence drop the DB sequence with the given name
+	dropSequence(name string)
+	// nextSequenceValue returns the next value of the given given sequence
+	nextSequenceValue(name string) int64
+	// sequences returns a list of all sequences matching the given SQL pattern
+	sequences(pattern string) []string
 }
 
 // registerDBAdapter adds a adapter to the adapters registry
@@ -163,6 +171,16 @@ func dbSelect(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) 
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	err := cr.Select(dest, query, args...)
+	logSQLResult(err, t, query, args)
+}
+
+// dbSelect is a wrapper around sqlx.Select outside a transaction
+// It gets the value of a multiple rows found by the given query and arguments
+// dest must be a slice. It panics in case of error
+func dbSelectNoTx(dest interface{}, query string, args ...interface{}) {
+	query, args = sanitizeQuery(query, args...)
+	t := time.Now()
+	err := db.Select(dest, query, args...)
 	logSQLResult(err, t, query, args)
 }
 

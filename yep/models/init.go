@@ -34,4 +34,5 @@ func init() {
 	// declare base and common mixins
 	declareBaseMixin()
 	declareCommonMixin()
+	declareModelMixin()
 }

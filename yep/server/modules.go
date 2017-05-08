@@ -15,6 +15,7 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/npiganeau/yep/yep/actions"
 	"github.com/npiganeau/yep/yep/menus"
+	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/generate"
 	"github.com/npiganeau/yep/yep/tools/logging"
@@ -89,45 +91,44 @@ func cleanModuleSymlinks() {
 // LoadInternalResources loads all data in the 'views' directory, that are
 // - views,
 // - actions,
-// - menu items,
+// - menu items
+// Internal resources are defined in XML files.
 func LoadInternalResources() {
+	loadData("views", "xml", loadXMLResourceFile)
+}
+
+// LoadDataRecords loads all the data records in the 'data' directory into the database.
+// Data records are defined in CSV files.
+func LoadDataRecords() {
+	loadData("data", "csv", models.LoadCSVDataFile)
+}
+
+// loadData loads the files in the given dir with the given extension (without .)
+// using the loader function.
+func loadData(dir, ext string, loader func(string)) {
 	for _, mod := range Modules {
-		dataDir := path.Join(generate.YEPDir, "yep", "server", "views", mod.Name)
+		dataDir := path.Join(generate.YEPDir, "yep", "server", dir, mod.Name)
 		if _, err := os.Stat(dataDir); err != nil {
-			// No data dir in this module
+			// No views dir in this module
 			continue
 		}
-		loadData(dataDir)
-	}
-}
-
-// loadData loads the data defined in the given data directory.
-func loadData(dataDir string) {
-	dataFiles, err := filepath.Glob(dataDir + "/*")
-	if err != nil {
-		logging.LogAndPanic(log, "Unable to scan directory for data files", "dir", dataDir)
-	}
-	for _, dataFile := range dataFiles {
-		if path.Ext(dataFile) == ".xml" {
-			loadXMLDataFile(dataFile)
-		} else if path.Ext(dataFile) != ".csv" {
-			loadCSVDataFile(dataFile)
+		dataFiles, err := filepath.Glob(fmt.Sprintf("%s/*.%s", dataDir, ext))
+		if err != nil {
+			logging.LogAndPanic(log, "Unable to scan directory for data files", "dir", dataDir, "type", ext, "error", err)
+		}
+		for _, dataFile := range dataFiles {
+			loader(dataFile)
 		}
 	}
 }
 
-// loadXMLDataFile loads the data from an XML data file into memory.
-func loadXMLDataFile(fileName string) {
+// loadXMLResourceFile loads the data from an XML data file into memory.
+func loadXMLResourceFile(fileName string) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromFile(fileName); err != nil {
 		logging.LogAndPanic(log, "Error loading XML data file", "file", fileName, "error", err)
 	}
-	//var noupdate bool
 	for _, dataTag := range doc.FindElements("yep/data") {
-		//noupdateStr := dataTag.SelectAttrValue("noupdate", "false")
-		//if strings.ToLower(noupdateStr) == "true" {
-		//	noupdate = true
-		//}
 		for _, object := range dataTag.ChildElements() {
 			switch object.Tag {
 			case "view":
@@ -136,15 +137,9 @@ func loadXMLDataFile(fileName string) {
 				actions.LoadFromEtree(object)
 			case "menuitem":
 				menus.LoadFromEtree(object)
-			case "record":
 			default:
 				logging.LogAndPanic(log, "Unknown XML tag", "tag", object.Tag)
 			}
 		}
 	}
-}
-
-// loadCSVDataFile loads the data from a CSV data file into memory.
-func loadCSVDataFile(fileName string) {
-	// TODO
 }

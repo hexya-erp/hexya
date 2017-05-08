@@ -125,16 +125,21 @@ func TestGroupRegistry(t *testing.T) {
 			So(Registry.UserGroups(6), ShouldBeEmpty)
 		})
 		Convey("Removing inherited membership should not change anything", func() {
+			// Recreating group 3
+			group3 = Registry.NewGroup("group3_test", "Group 3", group1)
 			group4.Inherits = []*Group{group3}
 
 			Registry.AddMembership(6, group5)
 			Registry.AddMembership(6, group4)
 			So(len(Registry.UserGroups(6)), ShouldEqual, 4)
 			So(Registry.UserGroups(6), ShouldContainKey, group1)
+			So(Registry.UserGroups(6)[group1], ShouldEqual, InheritedGroup)
 			So(Registry.UserGroups(6), ShouldContainKey, group3)
 			So(Registry.UserGroups(6)[group3], ShouldEqual, InheritedGroup)
 			So(Registry.UserGroups(6), ShouldContainKey, group4)
+			So(Registry.UserGroups(6)[group4], ShouldEqual, NativeGroup)
 			So(Registry.UserGroups(6), ShouldContainKey, group5)
+			So(Registry.UserGroups(6)[group5], ShouldEqual, NativeGroup)
 
 			Registry.RemoveMembership(6, group3)
 			So(len(Registry.UserGroups(6)), ShouldEqual, 4)

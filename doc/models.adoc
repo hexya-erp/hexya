@@ -662,6 +662,13 @@ Creates an index on this field in the database.
 `NoCopy` bool::
 Fields marked with this tag will not be copied when a record is duplicated.
 
+`Default` func(Environment, FieldMap) interface{}::
+Function that will be called upon record creation to set unspecified field
+values. The given FieldMap holds the values passed to the Create function.
++
+This function is also called by clients to set a default value in the user
+interface before calling Create. In this case, the FieldMap will be empty.
+
 `GroupOperator` string::
 A valid database function name that will be used on this field when aggregating
 the model. It defaults to `sum`.
@@ -849,3 +856,25 @@ To embed a model, define a `many2one` field pointing at the model to embed and
 add the `embed` tag to it.
 
 NOTE: Embedding does not allow direct access to the embedded model methods.
+
+== Sequences
+You can use the ORM to create and use custom sequences.
+
+You can create a new database sequence with the `models.NewSequence()`
+function. You can then use the `NextValue()` method to get the next value.
+
+Use `models.MustGetSequence()` to retrieve a sequence.
+
+NOTE: Since sequences are not rollbacked, several calls to `NextValue()` do
+not necessarily give two following numbers.
+
+[source,go]
+----
+seq := models.NewSequence("MySequence")
+
+seq2 := models.MustGetSequence("MySequence")
+for i := 0; i < 10; i++ {
+    val := seq2.NextValue()
+    fmt.Println("Sequence: ", i, val)
+}
+----

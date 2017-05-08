@@ -15,6 +15,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/npiganeau/yep/yep/models/types"
@@ -33,35 +34,45 @@ const (
 	// ManualModel is a model whose table is not automatically generated in the
 	// database. Such models include SQL views and materialized SQL views.
 	ManualModel
+	// SystemModel is a model that is used internally by the YEP Framework
+	SystemModel
 )
 
 //  declareCommonMixin creates the common mixin that is needed for all models
 func declareCommonMixin() {
-	commonMixin := NewMixinModel("CommonMixin")
+	NewMixinModel("CommonMixin")
 	declareCRUDMethods()
 	declareRecordSetMethods()
 	declareSearchMethods()
 	declareEnvironmentMethods()
-	MixInAllModels(commonMixin)
 }
 
 // declareBaseMixin creates the mixin that implements all the necessary base methods of a model
 func declareBaseMixin() {
-	model := NewMixinModel("BaseMixin")
+	baseMixin := NewMixinModel("BaseMixin")
+	baseMixin.AddDateTimeField("CreateDate", SimpleFieldParams{NoCopy: true})
+	baseMixin.AddIntegerField("CreateUID", SimpleFieldParams{NoCopy: true})
+	baseMixin.AddDateTimeField("WriteDate", SimpleFieldParams{NoCopy: true})
+	baseMixin.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
+	baseMixin.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
+	declareBaseComputeMethods()
+}
 
-	model.AddDateTimeField("CreateDate", SimpleFieldParams{NoCopy: true})
-	model.AddIntegerField("CreateUID", SimpleFieldParams{NoCopy: true})
-	model.AddDateTimeField("WriteDate", SimpleFieldParams{NoCopy: true})
-	model.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
-	model.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
-	model.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
+func declareModelMixin() {
+	idSeq := NewSequence("YEPExternalID")
 
-	declareComputeMethods()
-	MixInAllModels(model)
+	modelMixin := NewMixinModel("ModelMixin")
+	modelMixin.AddCharField("YEPExternalID", StringFieldParams{Unique: true, Index: true,
+		Default: func(env Environment, values FieldMap) interface{} {
+			return fmt.Sprintf("__yep_external_id__%d", idSeq.NextValue())
+		},
+	})
+	modelMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
+	declareModelComputeMethods()
 }
 
 // declareComputeMethods declares methods used to compute fields
-func declareComputeMethods() {
+func declareBaseComputeMethods() {
 	model := Registry.MustGet("BaseMixin")
 
 	model.AddMethod("ComputeWriteDate",
@@ -82,6 +93,10 @@ func declareComputeMethods() {
 			}
 			return FieldMap{"LastUpdate": lastUpdate}
 		})
+}
+
+func declareModelComputeMethods() {
+	model := Registry.MustGet("ModelMixin")
 
 	model.AddMethod("ComputeNameGet",
 		`ComputeNameGet updates the DisplayName field with the result of NameGet.`,

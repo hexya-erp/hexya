@@ -30,6 +30,7 @@ type SimpleFieldParams struct {
 	NoCopy        bool
 	GoType        interface{}
 	Translate     bool
+	Default       func(Environment, FieldMap) interface{}
 	override      bool
 }
 
@@ -50,6 +51,7 @@ type FloatFieldParams struct {
 	Digits        types.Digits
 	GoType        interface{}
 	Translate     bool
+	Default       func(Environment, FieldMap) interface{}
 	override      bool
 }
 
@@ -70,6 +72,7 @@ type StringFieldParams struct {
 	Size          int
 	GoType        interface{}
 	Translate     bool
+	Default       func(Environment, FieldMap) interface{}
 	override      bool
 }
 
@@ -88,6 +91,7 @@ type SelectionFieldParams struct {
 	NoCopy    bool
 	Selection Selection
 	Translate bool
+	Default   func(Environment, FieldMap) interface{}
 	override  bool
 }
 
@@ -107,6 +111,7 @@ type ForeignKeyFieldParams struct {
 	Embed         bool
 	Translate     bool
 	OnDelete      OnDeleteAction
+	Default       func(Environment, FieldMap) interface{}
 	override      bool
 }
 
@@ -125,6 +130,7 @@ type ReverseFieldParams struct {
 	RelationModel string
 	ReverseFK     string
 	Translate     bool
+	Default       func(Environment, FieldMap) interface{}
 	override      bool
 }
 
@@ -145,6 +151,7 @@ type Many2ManyFieldParams struct {
 	M2MOurField      string
 	M2MTheirField    string
 	Translate        bool
+	Default          func(Environment, FieldMap) interface{}
 	override         bool
 }
 
@@ -189,6 +196,7 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		noCopy:        params.NoCopy,
 		structField:   structField,
 		fieldType:     fieldType,
+		defaultFunc:   params.Default,
 	}
 	if params.override {
 		m.fields.override(fInfo)
@@ -227,6 +235,7 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		structField:   structField,
 		size:          params.Size,
 		fieldType:     fieldType,
+		defaultFunc:   params.Default,
 	}
 	if params.override {
 		m.fields.override(fInfo)
@@ -271,6 +280,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		relatedModelName: params.RelationModel,
 		fieldType:        fieldType,
 		onDelete:         onDelete,
+		defaultFunc:      params.Default,
 	}
 	if params.override {
 		m.fields.override(fInfo)
@@ -305,6 +315,7 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		relatedModelName: params.RelationModel,
 		reverseFK:        params.ReverseFK,
 		fieldType:        fieldType,
+		defaultFunc:      params.Default,
 	}
 	if params.override {
 		m.fields.override(fInfo)
@@ -375,6 +386,7 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) {
 		structField:   structField,
 		digits:        params.Digits,
 		fieldType:     types.Float,
+		defaultFunc:   params.Default,
 	}
 	if params.override {
 		m.fields.override(fInfo)
@@ -443,6 +455,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) {
 		m2mOurField:      m2mOurField,
 		m2mTheirField:    m2mTheirField,
 		fieldType:        types.Many2Many,
+		defaultFunc:      params.Default,
 	}
 	if params.override {
 		m.fields.override(fInfo)
@@ -497,6 +510,7 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) {
 		structField: structField,
 		selection:   params.Selection,
 		fieldType:   types.Selection,
+		defaultFunc: params.Default,
 	}
 	if params.override {
 		m.fields.override(fInfo)

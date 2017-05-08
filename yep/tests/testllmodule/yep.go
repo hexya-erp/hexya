@@ -12,34 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package testmodule
+package testllmodule
 
 import (
-	"github.com/npiganeau/yep/yep/models"
-	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/server"
 	// Import models definition of this module
-	_ "github.com/npiganeau/yep/yep/tests/test_module/defs"
+	_ "github.com/npiganeau/yep/yep/tests/testllmodule/defs"
 )
 
 // Module data declaration
 const (
-	MODULE_NAME string = "test_module"
+	MODULE_NAME string = "testllmodule"
 )
 
 func init() {
 	declareMethods()
 	server.RegisterModule(&server.Module{
-		Name: MODULE_NAME,
-		PostInit: func() {
-			models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
-				env.Cr().Execute(`DROP VIEW IF EXISTS user_view;
-					CREATE VIEW user_view AS (
-						SELECT u.id, u.name, p.city, u.active
-						FROM "user" u
-							LEFT JOIN "profile" p ON p.id = u.profile_id
-					)`)
-			})
-		},
+		Name:     MODULE_NAME,
+		PostInit: func() {},
 	})
 }

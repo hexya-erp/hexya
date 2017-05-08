@@ -1,0 +1,53 @@
+= Data Loading
+Author Nicolas Piganeau
+:prewrap!:
+:toc:
+
+== Introduction
+In many cases, it is necessary to include configuration data into the database
+just for the logic to work. In order to manage the configuration of this data,
+the YEP framework provides a way to load data through the use of CSV files.
+
+== CSV Files
+All files that will be put in the `data` subdirectory of a module will be
+automatically loaded in the database following these rules:
+
+- The name of the CSV file must be the name of a model defined in the framework
+either in this module or in dependencies of this module.
+- The header line of the CSV defines the field names either as their real name
+or their column (JSON) name.
+- Each line is a record, with the values for each field.
+- If an `ID` column is defined, it must be populated with a unique string for
+each record known as its "external ID". If it is not defined, the framework
+will provide one for each record.
+- Foreign key fields must be set with the related record external ID
+- Many-to-Many fields must be set with a `|` separated list of external IDs
+- If a record with the given external ID already exists, then the line is
+silently discarded, unless the CSV file name is postponed with `_update` such
+as `Model_update.csv`. In this case, the existing value is overridden by the
+value in the file.
+
+== Examples
+
+[source,csv]
+.User.csv
+----
+ID,Name,Nums,IsStaff,Size
+peter_id,Peter,1,true,1.78
+mary_id,Mary,3,false,1.59
+nick_id_3,Nick,8,true,1.85
+----
+.Tag_update.csv
+----
+ID,Name
+tag_book,Book
+tag_app,Application
+tag_film,Film
+tag_music,Music
+----
+.Post.csv
+----
+ID,User,Title,Content,Tags
+post_id_1,peter_id,Peter's Post,This is peter's post content,tag_book|tag_film
+post_id_2,nick_id,Nick's Post,No content,tag_book|tag_music|tag_app
+----
