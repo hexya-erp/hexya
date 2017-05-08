@@ -151,8 +151,10 @@ func (gc *GroupCollection) RemoveMembership(uid int64, group *Group) {
 	}
 	gc.doRemoveMembership(uid, group)
 	// Re-Add membership for all existing groups to compute inheritance
-	for grp := range gc.memberships[uid] {
-		gc.AddMembership(uid, grp)
+	for grp, ii := range gc.memberships[uid] {
+		if ii == NativeGroup {
+			gc.AddMembership(uid, grp)
+		}
 	}
 }
 

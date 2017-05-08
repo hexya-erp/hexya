@@ -229,6 +229,13 @@ func SyncDatabase() {
 			dropDBTable(dbTable)
 		}
 	}
+	updateDBSequences()
+}
+
+// updateDBSequences synchronizes sequences between the DB
+// and the registry.
+func updateDBSequences() {
+	adapter := adapters[db.DriverName()]
 	// Create sequences
 	for _, sequence := range Registry.sequences {
 		adapter.createSequence(sequence.JSON)

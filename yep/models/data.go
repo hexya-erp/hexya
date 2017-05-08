@@ -53,38 +53,7 @@ func LoadCSVDataFile(fileName string) {
 				break
 			}
 
-			values := make(map[string]interface{})
-			for i := 0; i < len(headers); i++ {
-				fi := Registry.MustGet(modelName).getRelatedFieldInfo(headers[i])
-				var val interface{}
-				switch {
-				case headers[i] == "id":
-					val = record[i]
-				case fi.fieldType == types.Integer:
-					val, err = strconv.ParseInt(record[i], 0, 64)
-					if err != nil {
-						logging.LogAndPanic(log, "Error while converting integer", "line", line, "field", headers[i], "value", record[i], "error", err)
-					}
-				case fi.fieldType == types.Float:
-					val, err = strconv.ParseFloat(record[i], 64)
-					if err != nil {
-						logging.LogAndPanic(log, "Error while converting float", "line", line, "field", headers[i], "value", record[i], "error", err)
-					}
-				case fi.fieldType.IsFKRelationType():
-					relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("YEPExternalID").Equals(record[i]))
-					if relRC.Len() != 1 {
-						logging.LogAndPanic(log, "Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
-					}
-					val = relRC.Ids()[0]
-				case fi.fieldType == types.Many2Many:
-					ids := strings.Split(record[i], "|")
-					relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("YEPExternalID").In(ids))
-					val = relRC.Ids()
-				default:
-					val = record[i]
-				}
-				values[headers[i]] = val
-			}
+			values := getRecordValuesMap(headers, modelName, record, env, line)
 
 			externalID := values["id"]
 			delete(values, "id")
@@ -103,4 +72,43 @@ func LoadCSVDataFile(fileName string) {
 	if err != nil {
 		logging.LogAndPanic(log, "Error while loading data", "error", err)
 	}
+}
+
+func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int) FieldMap {
+	values := make(map[string]interface{})
+	for i := 0; i < len(headers); i++ {
+		fi := Registry.MustGet(modelName).getRelatedFieldInfo(headers[i])
+		var (
+			val interface{}
+			err error
+		)
+		switch {
+		case headers[i] == "id":
+			val = record[i]
+		case fi.fieldType == types.Integer:
+			val, err = strconv.ParseInt(record[i], 0, 64)
+			if err != nil {
+				logging.LogAndPanic(log, "Error while converting integer", "line", line, "field", headers[i], "value", record[i], "error", err)
+			}
+		case fi.fieldType == types.Float:
+			val, err = strconv.ParseFloat(record[i], 64)
+			if err != nil {
+				logging.LogAndPanic(log, "Error while converting float", "line", line, "field", headers[i], "value", record[i], "error", err)
+			}
+		case fi.fieldType.IsFKRelationType():
+			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("YEPExternalID").Equals(record[i]))
+			if relRC.Len() != 1 {
+				logging.LogAndPanic(log, "Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
+			}
+			val = relRC.Ids()[0]
+		case fi.fieldType == types.Many2Many:
+			ids := strings.Split(record[i], "|")
+			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("YEPExternalID").In(ids))
+			val = relRC.Ids()
+		default:
+			val = record[i]
+		}
+		values[headers[i]] = val
+	}
+	return values
 }
