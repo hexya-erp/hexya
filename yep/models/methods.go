@@ -14,11 +14,7 @@
 
 package models
 
-import (
-	"reflect"
-
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "reflect"
 
 // methodsCache is the methodInfo collection
 type methodsCollection struct {
@@ -42,7 +38,7 @@ func (mc *methodsCollection) mustGet(methodName string) *methodInfo {
 			model = f.mi.name
 			break
 		}
-		logging.LogAndPanic(log, "Unknown field in model", "model", model, "method", methodName)
+		log.Panic("Unknown field in model", "model", model, "method", methodName)
 	}
 	return methInfo
 }
@@ -108,7 +104,7 @@ type methodLayer struct {
 func newMethodInfo(mi *Model, methodName, doc string, val reflect.Value) *methodInfo {
 	funcType := val.Type()
 	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-		logging.LogAndPanic(log, "Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
+		log.Panic("Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
 	}
 
 	methInfo := methodInfo{
@@ -170,7 +166,7 @@ func (m *Model) AddMethod(methodName, doc string, fnct interface{}) {
 	m.checkMethodAndFnctType(methodName, fnct)
 	_, exists := m.methods.get(methodName)
 	if exists {
-		logging.LogAndPanic(log, "Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
+		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
 	}
 	m.methods.set(methodName, newMethodInfo(m, methodName, doc, reflect.ValueOf(fnct)))
 }
@@ -193,7 +189,7 @@ func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
 			}
 		}
 		if !found {
-			logging.LogAndPanic(log, "Call to ExtendMethod on non existent method", "model", m.name, "method", methodName)
+			log.Panic("Call to ExtendMethod on non existent method", "model", m.name, "method", methodName)
 		}
 		// The method exists in a mixin so we create it here with our layer.
 		// Bootstrap will take care of putting them the right way round afterwards.
@@ -202,16 +198,16 @@ func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
 	val := reflect.ValueOf(fnct)
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {
 		if methInfo.methodType.In(i) != val.Type().In(i) {
-			logging.LogAndPanic(log, "Function signature does not match", "model", m.name, "method", methodName,
+			log.Panic("Function signature does not match", "model", m.name, "method", methodName,
 				"argument", i, "expected", methInfo.methodType.In(i), "received", val.Type().In(i))
 		}
 	}
 	if methInfo.methodType.NumOut() > 0 && methInfo.methodType.Out(0) != val.Type().Out(0) {
-		logging.LogAndPanic(log, "Function return type does not match", "model", m.name, "method", methodName,
+		log.Panic("Function return type does not match", "model", m.name, "method", methodName,
 			"expected", methInfo.methodType.Out(0), "received", val.Type().Out(0))
 	}
 	if methInfo.methodType.IsVariadic() != val.Type().IsVariadic() {
-		logging.LogAndPanic(log, "Variadic mismatch", "model", m.name, "method", methodName,
+		log.Panic("Variadic mismatch", "model", m.name, "method", methodName,
 			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
 	}
 	if !exists {
@@ -225,11 +221,11 @@ func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
 // AddMethod or ExtendMethod
 func (m *Model) checkMethodAndFnctType(methodName string, fnct interface{}) {
 	if m.methods.bootstrapped {
-		logging.LogAndPanic(log, "Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
+		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
 	}
 
 	val := reflect.ValueOf(fnct)
 	if val.Kind() != reflect.Func {
-		logging.LogAndPanic(log, "fnct parameter must be a function", "model", m.name, "method", methodName, "fnct", fnct)
+		log.Panic("fnct parameter must be a function", "model", m.name, "method", methodName, "fnct", fnct)
 	}
 }

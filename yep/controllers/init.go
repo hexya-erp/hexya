@@ -4,12 +4,11 @@
 package controllers
 
 import (
-	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/server"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
-var log log15.Logger
+var log *logging.Logger
 
 // BootStrap creates the actual controllers from the controllers registry.
 // This function must be called before starting the http server.

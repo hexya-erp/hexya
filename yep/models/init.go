@@ -15,13 +15,12 @@
 package models
 
 import (
-	"github.com/inconshreveable/log15"
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
-var log log15.Logger
+var log *logging.Logger
 
 func init() {
 	log = logging.GetLogger("models")

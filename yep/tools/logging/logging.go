@@ -29,7 +29,8 @@ import (
 )
 
 var (
-	log       log15.Logger
+	// log is the base logger of the framework
+	log       *Logger
 	dunno     = []byte("???")
 	centerDot = []byte("·")
 	dot       = []byte(".")
@@ -37,7 +38,36 @@ var (
 )
 
 func init() {
-	log = log15.New()
+	log = NewLogger()
+}
+
+// A Logger writes logs to a handler
+type Logger struct {
+	log15.Logger
+}
+
+// NewLogger returns a pointer to a new Logger instance
+func NewLogger(ctx ...interface{}) *Logger {
+	return &Logger{
+		Logger: log15.New(ctx...),
+	}
+}
+
+// New returns a new Logger that has this logger's context plus the given context
+func (l *Logger) New(ctx ...interface{}) *Logger {
+	return &Logger{
+		Logger: l.Logger.New(ctx...),
+	}
+}
+
+// Panic logs as an error the given message and context and then panics.
+func (l *Logger) Panic(msg string, ctx ...interface{}) {
+	pc, _, _, _ := runtime.Caller(1)
+	ctx = append(ctx, "caller", string(function(pc)))
+	l.Error(msg, ctx...)
+
+	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctx)
+	panic(fullMsg)
 }
 
 // Initialize starts the base logger used by all YEP components
@@ -71,21 +101,10 @@ func Initialize() {
 }
 
 // GetLogger returns a context logger for the given module
-func GetLogger(moduleName string) log15.Logger {
+func GetLogger(moduleName string) *Logger {
 	l := log.New("module", moduleName)
 	l.SetHandler(log15.CallerFuncHandler(l.GetHandler()))
 	return l
-}
-
-// LogAndPanic is a helper function for logging an error message on
-// the given logger and then panic with the same error message.
-func LogAndPanic(log log15.Logger, msg string, ctx ...interface{}) {
-	pc, _, _, _ := runtime.Caller(1)
-	ctx = append(ctx, "caller", string(function(pc)))
-	log.Error(msg, ctx...)
-
-	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctx)
-	panic(fullMsg)
 }
 
 // LogPanicData logs the panic data with stacktrace and return an
@@ -164,11 +183,11 @@ func function(pc uintptr) []byte {
 	return name
 }
 
-// Log15ForGin returns a gin.HandlerFunc (middleware) that logs requests using log15.
+// LogForGin returns a gin.HandlerFunc (middleware) that logs requests using Logger.
 //
 // Requests with errors are logged using log15.Error().
 // Requests without errors are logged using log15.Info().
-func Log15ForGin(logger log15.Logger) gin.HandlerFunc {
+func LogForGin(logger *Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		// some evil middlewares modify this value

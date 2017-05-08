@@ -24,7 +24,6 @@ import (
 
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools/etree"
-	"github.com/npiganeau/yep/yep/tools/logging"
 	"github.com/npiganeau/yep/yep/tools/xmlutils"
 	"github.com/npiganeau/yep/yep/views"
 )
@@ -168,7 +167,7 @@ func LoadFromEtree(element *etree.Element) {
 	xmlBytes := []byte(xmlutils.ElementToXML(element))
 	var action BaseAction
 	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
-		logging.LogAndPanic(log, "Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
+		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
 	Registry.Add(&action)
 }

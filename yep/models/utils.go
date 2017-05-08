@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/npiganeau/yep/yep/models/types"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 var (
@@ -94,7 +93,7 @@ func jsonizeExpr(mi *Model, exprs []string) []string {
 		if fi.relatedModel != nil {
 			res = append(res, jsonizeExpr(fi.relatedModel, exprs[1:])...)
 		} else {
-			logging.LogAndPanic(log, "Field is not a relation in model", "field", exprs[0], "model", mi.name)
+			log.Panic("Field is not a relation in model", "field", exprs[0], "model", mi.name)
 		}
 	}
 	return res
@@ -167,7 +166,7 @@ func structToMap(structPtr interface{}) FieldMap {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		logging.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
+		log.Panic("structPtr must be a pointer to a struct", "structPtr", structPtr)
 	}
 	res := make(FieldMap)
 	for i := 0; i < ind.NumField(); i++ {
@@ -190,14 +189,14 @@ func mapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		logging.LogAndPanic(log, "structPtr must be a pointer to a struct", "structPtr", structPtr)
+		log.Panic("structPtr must be a pointer to a struct", "structPtr", structPtr)
 	}
 	for i := 0; i < ind.NumField(); i++ {
 		fVal := ind.Field(i)
 		sf := ind.Type().Field(i)
 		fi, ok := rc.model.fields.get(sf.Name)
 		if !ok {
-			logging.LogAndPanic(log, "Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
+			log.Panic("Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
 		}
 
 		mValue, mValExists := fMap[fi.json]
@@ -271,7 +270,7 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 					resExprs = append(resExprs, subFieldRes[0])
 				}
 			} else {
-				logging.LogAndPanic(log, "Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
+				log.Panic("Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
 			}
 		}
 		if len(resExprs) > 0 {
@@ -310,7 +309,7 @@ func ConvertInterfaceToFieldMap(data interface{}) FieldMap {
 		fMap = FieldMap(d)
 	default:
 		if err := checkStructPtr(data); err != nil {
-			logging.LogAndPanic(log, err.Error(), "data", data)
+			log.Panic(err.Error(), "data", data)
 		}
 		fMap = structToMap(data)
 	}

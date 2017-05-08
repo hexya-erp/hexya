@@ -13,7 +13,6 @@ import (
 
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // LoadCSVDataFile loads the data of the given file into the database.
@@ -21,7 +20,7 @@ func LoadCSVDataFile(fileName string) {
 	csvFile, err := os.Open(fileName)
 	defer csvFile.Close()
 	if err != nil {
-		logging.LogAndPanic(log, "Unable to open CSV data file", "error", err, "fileName", fileName)
+		log.Panic("Unable to open CSV data file", "error", err, "fileName", fileName)
 	}
 
 	elements := strings.Split(path.Base(fileName), "_")
@@ -36,7 +35,7 @@ func LoadCSVDataFile(fileName string) {
 	r := csv.NewReader(csvFile)
 	headers, err := r.Read()
 	if err != nil {
-		logging.LogAndPanic(log, "Unable to read CSV headers in data file", "error", err, "fileName", fileName)
+		log.Panic("Unable to read CSV headers in data file", "error", err, "fileName", fileName)
 	}
 
 	err = ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
@@ -70,7 +69,7 @@ func LoadCSVDataFile(fileName string) {
 		}
 	})
 	if err != nil {
-		logging.LogAndPanic(log, "Error while loading data", "error", err)
+		log.Panic("Error while loading data", "error", err)
 	}
 }
 
@@ -88,17 +87,17 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 		case fi.fieldType == types.Integer:
 			val, err = strconv.ParseInt(record[i], 0, 64)
 			if err != nil {
-				logging.LogAndPanic(log, "Error while converting integer", "line", line, "field", headers[i], "value", record[i], "error", err)
+				log.Panic("Error while converting integer", "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
 		case fi.fieldType == types.Float:
 			val, err = strconv.ParseFloat(record[i], 64)
 			if err != nil {
-				logging.LogAndPanic(log, "Error while converting float", "line", line, "field", headers[i], "value", record[i], "error", err)
+				log.Panic("Error while converting float", "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
 		case fi.fieldType.IsFKRelationType():
 			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("YEPExternalID").Equals(record[i]))
 			if relRC.Len() != 1 {
-				logging.LogAndPanic(log, "Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
+				log.Panic("Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
 			}
 			val = relRC.Ids()[0]
 		case fi.fieldType == types.Many2Many:

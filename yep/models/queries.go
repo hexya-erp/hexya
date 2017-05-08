@@ -20,7 +20,6 @@ import (
 
 	"github.com/npiganeau/yep/yep/models/operator"
 	"github.com/npiganeau/yep/yep/models/types"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // An SQLParams is a list of parameters that are passed to the
@@ -126,7 +125,7 @@ func (q *Query) predicateSQLClause(p predicate, first ...bool) (string, SQLParam
 		case operator.NotEquals:
 			sql += fmt.Sprintf(`%s IS NOT NULL `, field)
 		default:
-			logging.LogAndPanic(log, "Null argument can only be used with = and != operators", "operator", p.operator)
+			log.Panic("Null argument can only be used with = and != operators", "operator", p.operator)
 		}
 		return sql, args
 	}
@@ -204,7 +203,7 @@ func (q *Query) deleteQuery() (string, SQLParams) {
 func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	if len(data) == 0 {
-		logging.LogAndPanic(log, "No data given for insert")
+		log.Panic("No data given for insert")
 	}
 	var (
 		cols []string
@@ -247,7 +246,7 @@ func (q *Query) countQuery() (string, SQLParams) {
 // (e.g. 'User.Name' or 'user_id.name')
 func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	if len(q.groups) > 0 {
-		logging.LogAndPanic(log, "Calling selectQuery on a Group By query")
+		log.Panic("Calling selectQuery on a Group By query")
 	}
 	fieldExprs, allExprs := q.selectData(fields)
 	// Build up the query
@@ -274,7 +273,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 // fields values are
 func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 	if len(q.groups) == 0 {
-		logging.LogAndPanic(log, "Calling selectGroupQuery on a query without Group By clause")
+		log.Panic("Calling selectGroupQuery on a query without Group By clause")
 	}
 	fieldsList := make([]string, len(fields))
 	i := 0
@@ -325,7 +324,7 @@ func (q *Query) selectData(fields []string) ([][]string, [][]string) {
 func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
 	if len(data) == 0 {
-		logging.LogAndPanic(log, "No data given for update")
+		log.Panic("No data given for update")
 	}
 	cols := make([]string, len(data))
 	vals := make(SQLParams, len(data))
@@ -406,7 +405,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	for i, expr := range fieldExprs {
 		fi, ok := curMI.fields.get(expr)
 		if !ok {
-			logging.LogAndPanic(log, "Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
+			log.Panic("Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
 		}
 		if fi.relatedModel == nil || i == exprsLen-1 {
 			// Don't create an extra join if our field is not a relation field

@@ -14,10 +14,7 @@
 
 package xmlutils
 
-import (
-	"github.com/npiganeau/yep/yep/tools/etree"
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "github.com/npiganeau/yep/yep/tools/etree"
 
 // ElementToXML returns the XML string of the given element and
 // all its children.
@@ -27,7 +24,7 @@ func ElementToXML(element *etree.Element) string {
 	doc.IndentTabs()
 	xmlStr, err := doc.WriteToString()
 	if err != nil {
-		logging.LogAndPanic(log, "Unable to marshal element", "error", err, "element", element)
+		log.Panic("Unable to marshal element", "error", err, "element", element)
 	}
 	return xmlStr
 }
@@ -36,7 +33,7 @@ func ElementToXML(element *etree.Element) string {
 func XMLToElement(xmlStr string) *etree.Element {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(xmlStr); err != nil {
-		logging.LogAndPanic(log, "Unable to parse XML", "error", err, "xml", xmlStr)
+		log.Panic("Unable to parse XML", "error", err, "xml", xmlStr)
 	}
 	return doc.Root()
 }

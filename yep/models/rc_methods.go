@@ -14,11 +14,7 @@
 
 package models
 
-import (
-	"reflect"
-
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "reflect"
 
 // Call calls the given method name methName on the given RecordCollection
 // with the given arguments and returns (only) the first result as interface{}.
@@ -35,7 +31,7 @@ func (rc RecordCollection) Call(methName string, args ...interface{}) interface{
 func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
 	methInfo, ok := rc.model.methods.get(methName)
 	if !ok {
-		logging.LogAndPanic(log, "Unknown method in model", "method", methName, "model", rc.model.name)
+		log.Panic("Unknown method in model", "method", methName, "model", rc.model.name)
 	}
 	methLayer := rc.getExistingLayer(methInfo)
 	if methLayer == nil {
@@ -73,14 +69,14 @@ func (rc RecordCollection) getExistingLayer(methInfo *methodInfo) *methodLayer {
 // it will be the same as calling the other method directly.
 func (rc RecordCollection) Super() RecordCollection {
 	if len(rc.callStack) == 0 {
-		logging.LogAndPanic(log, "Empty call stack", "model", rc.model.name)
+		log.Panic("Empty call stack", "model", rc.model.name)
 	}
 	currentLayer := rc.callStack[0]
 	methInfo := currentLayer.methInfo
 	methLayer := methInfo.getNextLayer(currentLayer)
 	if methLayer == nil {
 		// No parent
-		logging.LogAndPanic(log, "Called Super() on a base method", "model", rc.model.name, "method", methInfo.name)
+		log.Panic("Called Super() on a base method", "model", rc.model.name, "method", methInfo.name)
 	}
 	rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
 	return rc
@@ -90,7 +86,7 @@ func (rc RecordCollection) Super() RecordCollection {
 func (rc RecordCollection) MethodType(methName string) reflect.Type {
 	methInfo, ok := rc.model.methods.get(methName)
 	if !ok {
-		logging.LogAndPanic(log, "Unknown method in model", "model", rc.model.name, "method", methName)
+		log.Panic("Unknown method in model", "model", rc.model.name, "method", methName)
 	}
 	return methInfo.methodType
 }

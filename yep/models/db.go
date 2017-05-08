@@ -20,7 +20,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/models/operator"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 var (
@@ -200,7 +199,7 @@ func dbQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
 func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
 	q, args, err := sqlx.In(query, args...)
 	if err != nil {
-		logging.LogAndPanic(log, "Unable to expand 'IN' statement", "error", err, "query", query, "args", args)
+		log.Panic("Unable to expand 'IN' statement", "error", err, "query", query, "args", args)
 	}
 	q = sqlx.Rebind(sqlx.BindType(db.DriverName()), q)
 	return q, args
@@ -211,7 +210,7 @@ func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
 func logSQLResult(err error, start time.Time, query string, args ...interface{}) {
 	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(start))
 	if err != nil {
-		logging.LogAndPanic(logCtx, "Error while executing query", "error", err, "query", query, "args", args)
+		logCtx.Panic("Error while executing query", "error", err, "query", query, "args", args)
 	}
 	logCtx.Debug("Query executed")
 }

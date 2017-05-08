@@ -14,11 +14,7 @@
 
 package security
 
-import (
-	"sync"
-
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "sync"
 
 // An AccessControlList defines the permissions for given groups.
 // It is meant to be a property of an object (namely a field or a model).
@@ -55,7 +51,7 @@ func (acl *AccessControlList) ReplacePermission(group *Group, perm Permission) {
 // either directly granted to it or granted to one of its inherited groups.
 func (acl *AccessControlList) CheckPermission(group *Group, perm Permission) bool {
 	if perm == 0 {
-		logging.LogAndPanic(log, "Trying to check nil permission for group", "group", group.Name)
+		log.Panic("Trying to check nil permission for group", "group", group.Name)
 	}
 	if acl.perms[group]&perm == perm {
 		return true

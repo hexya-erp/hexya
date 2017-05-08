@@ -14,10 +14,7 @@
 
 package models
 
-import (
-	"github.com/npiganeau/yep/yep/models/security"
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "github.com/npiganeau/yep/yep/models/security"
 
 // AllowModelAccess grants the given permission to the given group for the given model.
 // This also sets the permissions for all fields of the model.
@@ -71,7 +68,7 @@ func mustCheckModelPermission(mi *Model, uid int64, perm security.Permission) {
 			return
 		}
 	}
-	logging.LogAndPanic(log, "User does not have required permission on model", "uid", uid, "model", mi.name, "permission", perm)
+	log.Panic("User does not have required permission on model", "uid", uid, "model", mi.name, "permission", perm)
 }
 
 // checkFieldPermission checks if the given uid has the given perm on the given field info.

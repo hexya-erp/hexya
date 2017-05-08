@@ -25,7 +25,6 @@ import (
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // Registry is the registry of all Model instances.
@@ -57,7 +56,7 @@ func (mc *modelCollection) Get(nameOrJSON string) (mi *Model, ok bool) {
 func (mc *modelCollection) MustGet(nameOrJSON string) *Model {
 	mi, ok := mc.Get(nameOrJSON)
 	if !ok {
-		logging.LogAndPanic(log, "Unknown model", "model", nameOrJSON)
+		log.Panic("Unknown model", "model", nameOrJSON)
 	}
 	return mi
 }
@@ -76,7 +75,7 @@ func (mc *modelCollection) GetSequence(nameOrJSON string) (s *Sequence, ok bool)
 func (mc *modelCollection) MustGetSequence(nameOrJSON string) *Sequence {
 	s, ok := mc.GetSequence(nameOrJSON)
 	if !ok {
-		logging.LogAndPanic(log, "Unknown sequence", "sequence", nameOrJSON)
+		log.Panic("Unknown sequence", "sequence", nameOrJSON)
 	}
 	return s
 }
@@ -86,7 +85,7 @@ func (mc *modelCollection) MustGetSequence(nameOrJSON string) *Sequence {
 func (mc *modelCollection) mustGetMixInModel(name string) *Model {
 	mixInMI := mc.MustGet(name)
 	if !mixInMI.isMixin() {
-		logging.LogAndPanic(log, "Model is not a mixin model", "model", name)
+		log.Panic("Model is not a mixin model", "model", name)
 	}
 	return mixInMI
 }
@@ -94,7 +93,7 @@ func (mc *modelCollection) mustGetMixInModel(name string) *Model {
 // add the given Model to the modelCollection
 func (mc *modelCollection) add(mi *Model) {
 	if _, exists := mc.Get(mi.name); exists {
-		logging.LogAndPanic(log, "Trying to add already existing model", "model", mi.name)
+		log.Panic("Trying to add already existing model", "model", mi.name)
 	}
 	mc.registryByName[mi.name] = mi
 	mc.registryByTableName[mi.tableName] = mi
@@ -242,7 +241,7 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 				} else if fType == reflect.TypeOf([]int64{}) {
 					val = reflect.ValueOf(ids)
 				} else {
-					logging.LogAndPanic(log, "Non consistent type", "model", m.name, "field", colName, "type", fType, "value", fMapValue)
+					log.Panic("Non consistent type", "model", m.name, "field", colName, "type", fType, "value", fMapValue)
 				}
 			} else {
 				val = reflect.ValueOf(fMapValue)
@@ -328,7 +327,7 @@ func NewManualModel(name string) *Model {
 // overridden by the them when applicable.
 func (m *Model) MixInModel(mixInModel *Model) {
 	if m.isMixin() {
-		logging.LogAndPanic(log, "Trying to mixin a mixin model", "model", m.name, "mixin", mixInModel)
+		log.Panic("Trying to mixin a mixin model", "model", m.name, "mixin", mixInModel)
 	}
 	m.mixins = append(m.mixins, mixInModel)
 }

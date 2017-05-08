@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/npiganeau/yep/yep/models/security"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // BootStrap freezes model, fields and method caches and syncs the database structure
@@ -27,7 +26,7 @@ import (
 func BootStrap() {
 	log.Info("Bootstrapping models")
 	if Registry.bootstrapped == true {
-		logging.LogAndPanic(log, "Trying to bootstrap models twice !")
+		log.Panic("Trying to bootstrap models twice !")
 	}
 	Registry.Lock()
 	defer Registry.Unlock()
@@ -57,7 +56,7 @@ func createModelLinks() {
 			if fi.fieldType.IsRelationType() {
 				relatedMI, ok = Registry.Get(fi.relatedModelName)
 				if !ok {
-					logging.LogAndPanic(log, "Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
+					log.Panic("Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
 				}
 			}
 			fi.relatedModel = relatedMI
@@ -312,7 +311,7 @@ func updateDBColumns(mi *Model) {
 // createDBColumn insert the column described by fieldInfo in the database
 func createDBColumn(fi *fieldInfo) {
 	if !fi.isStored() {
-		logging.LogAndPanic(log, "createDBColumn should not be called on non stored fields", "model", fi.model.name, "field", fi.json)
+		log.Panic("createDBColumn should not be called on non stored fields", "model", fi.model.name, "field", fi.json)
 	}
 	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`

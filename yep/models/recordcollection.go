@@ -23,7 +23,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // RecordCollection is a generic struct representing several
@@ -218,7 +217,7 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 		sql, args := rc.query.updateQuery(fMap)
 		res := rc.env.cr.Execute(sql, args...)
 		if num, _ := res.RowsAffected(); num == 0 {
-			logging.LogAndPanic(log, "Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
+			log.Panic("Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
 		}
 	}
 }
@@ -386,7 +385,7 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 		return rc
 	}
 	if len(rc.query.groups) > 0 {
-		logging.LogAndPanic(log, "Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
+		log.Panic("Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
 	}
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Read)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
@@ -405,7 +404,7 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 		line := make(FieldMap)
 		err := rSet.model.scanToFieldMap(rows, &line)
 		if err != nil {
-			logging.LogAndPanic(log, err.Error(), "model", rSet.ModelName(), "fields", fields)
+			log.Panic(err.Error(), "model", rSet.ModelName(), "fields", fields)
 		}
 		results = append(results, line)
 		rSet.env.cache.addRecord(rSet.model, line["id"].(int64), line)
@@ -520,7 +519,7 @@ func (rc RecordCollection) Set(fieldName string, value interface{}) {
 func (rc RecordCollection) First(structPtr interface{}) {
 	rSet := rc.Fetch()
 	if err := checkStructPtr(structPtr); err != nil {
-		logging.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structPtr)
+		log.Panic("Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structPtr)
 	}
 	if rSet.IsEmpty() {
 		return
@@ -539,7 +538,7 @@ func (rc RecordCollection) First(structPtr interface{}) {
 func (rc RecordCollection) All(structSlicePtr interface{}) {
 	rSet := rc.Fetch()
 	if err := checkStructSlicePtr(structSlicePtr); err != nil {
-		logging.LogAndPanic(log, "Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structSlicePtr)
+		log.Panic("Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structSlicePtr)
 	}
 	val := reflect.ValueOf(structSlicePtr)
 	// sspType is []*struct
@@ -559,7 +558,7 @@ func (rc RecordCollection) All(structSlicePtr interface{}) {
 // Aggregates returns the result of this RecordCollection query, which must by a grouped query.
 func (rc RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregateRow {
 	if len(rc.query.groups) == 0 {
-		logging.LogAndPanic(log, "Trying to get aggregates of a non-grouped query", "model", rc.model)
+		log.Panic("Trying to get aggregates of a non-grouped query", "model", rc.model)
 	}
 	mustCheckModelPermission(rc.model, rc.env.uid, security.Read)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
@@ -580,7 +579,7 @@ func (rc RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregate
 		vals := make(map[string]interface{})
 		err := sqlx.MapScan(rows, vals)
 		if err != nil {
-			logging.LogAndPanic(log, err.Error(), "model", rSet.ModelName(), "fields", fields)
+			log.Panic(err.Error(), "model", rSet.ModelName(), "fields", fields)
 		}
 		cnt := vals["__count"].(int64)
 		delete(vals, "__count")
@@ -632,7 +631,7 @@ func (rc RecordCollection) Records() []RecordCollection {
 // EnsureOne panics if rc is not a singleton
 func (rc RecordCollection) EnsureOne() {
 	if rc.Len() != 1 {
-		logging.LogAndPanic(log, "Expected singleton", "model", rc.ModelName(), "received", rc)
+		log.Panic("Expected singleton", "model", rc.ModelName(), "received", rc)
 	}
 }
 
@@ -657,7 +656,7 @@ func (rc RecordCollection) Model() *Model {
 // set of unique records.
 func (rc RecordCollection) Union(other RecordCollection) RecordCollection {
 	if rc.ModelName() != other.ModelName() {
-		logging.LogAndPanic(log, "Unable to union RecordCollections of different models", "this", rc.ModelName(),
+		log.Panic("Unable to union RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
 	}
 	thisRC := rc.Fetch()

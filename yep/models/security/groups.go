@@ -14,11 +14,7 @@
 
 package security
 
-import (
-	"sync"
-
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "sync"
 
 const (
 	// SuperUserID is the uid of the administrator
@@ -79,7 +75,7 @@ func (gc *GroupCollection) RegisterGroup(group *Group) {
 	gc.Lock()
 	defer gc.Unlock()
 	if _, exists := gc.groups[group.ID]; exists {
-		logging.LogAndPanic(log, "Trying register a new group with an existing ID", "ID", group.ID)
+		log.Panic("Trying register a new group with an existing ID", "ID", group.ID)
 	}
 	gc.groups[group.ID] = group
 }

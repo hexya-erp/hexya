@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/npiganeau/yep/yep/models/operator"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // ExprSep define the expression separation
@@ -187,7 +186,7 @@ func sanitizeArgs(args interface{}, multi bool) interface{} {
 			return rs.Ids()
 		}
 		if len(rs.Ids()) > 1 {
-			logging.LogAndPanic(log, "Trying to extract a single ID from a non singleton", "args", args)
+			log.Panic("Trying to extract a single ID from a non singleton", "args", args)
 		}
 		if len(rs.Ids()) == 0 {
 			return nil

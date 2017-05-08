@@ -19,11 +19,10 @@ import (
 	"encoding/xml"
 	"io/ioutil"
 
-	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
-var log log15.Logger
+var log *logging.Logger
 
 type basicXML struct {
 	XMLName xml.Name
@@ -40,11 +39,11 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte) {
 		var content basicXML
 		cnt, err := ioutil.ReadFile(fileName)
 		if err != nil {
-			logging.LogAndPanic(log, "Unable to open file", "file", fileName, "error", err)
+			log.Panic("Unable to open file", "file", fileName, "error", err)
 		}
 		err = xml.Unmarshal(cnt, &content)
 		if err != nil {
-			logging.LogAndPanic(log, "Unable to parse file", "file", fileName, "error", err)
+			log.Panic("Unable to parse file", "file", fileName, "error", err)
 		}
 		if reStruct.XMLName.Local == "" {
 			reStruct.XMLName = content.XMLName
@@ -53,7 +52,7 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte) {
 	}
 	res, err := xml.Marshal(reStruct)
 	if err != nil {
-		logging.LogAndPanic(log, "Unable to convert back to XML", "error", err)
+		log.Panic("Unable to convert back to XML", "error", err)
 	}
 	return res, sha1.Sum(res)
 }

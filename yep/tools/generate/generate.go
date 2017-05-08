@@ -26,7 +26,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/tools/logging"
 	"golang.org/x/tools/go/loader"
 )
@@ -45,7 +44,7 @@ const (
 )
 
 var (
-	log log15.Logger
+	log *logging.Logger
 	// YEPDir is the directory of the base yep package
 	YEPDir string
 )
@@ -56,13 +55,13 @@ func CreateFileFromTemplate(fileName string, template *template.Template, data i
 	template.Execute(&srcBuffer, data)
 	srcData, err := format.Source(srcBuffer.Bytes())
 	if err != nil {
-		logging.LogAndPanic(log, "Error while formatting generated source file", "error", err, "fileName",
+		log.Panic("Error while formatting generated source file", "error", err, "fileName",
 			fileName, "mData", fmt.Sprintf("%#v", data), "src", srcBuffer.String())
 	}
 	// Write to file
 	err = ioutil.WriteFile(fileName, srcData, 0644)
 	if err != nil {
-		logging.LogAndPanic(log, "Error while saving generated source file", "error", err, "fileName", fileName)
+		log.Panic("Error while saving generated source file", "error", err, "fileName", fileName)
 	}
 }
 
@@ -170,7 +169,7 @@ func GetMethodsASTData(paths []string) map[MethodRef]MethodASTData {
 	}
 	program, err := conf.Load()
 	if err != nil {
-		logging.LogAndPanic(log, "Unable to load program", "error", err, "paths", paths)
+		log.Panic("Unable to load program", "error", err, "paths", paths)
 	}
 	modInfos := GetModulePackages(program)
 	return GetMethodsASTDataForModules(modInfos)
@@ -198,7 +197,7 @@ func GetMethodsASTDataForModules(modInfos []*ModuleInfo) map[MethodRef]MethodAST
 
 					modelName, err := extractModel(fNode.X)
 					if err != nil {
-						logging.LogAndPanic(log, "Unable to extract model while visiting AST", "error", err)
+						log.Panic("Unable to extract model while visiting AST", "error", err)
 					}
 					methodName := ""
 					if mn, ok := node.Args[0].(*ast.BasicLit); ok {

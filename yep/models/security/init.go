@@ -14,12 +14,9 @@
 
 package security
 
-import (
-	"github.com/inconshreveable/log15"
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "github.com/npiganeau/yep/yep/tools/logging"
 
-var log log15.Logger
+var log *logging.Logger
 
 func init() {
 	log = logging.GetLogger("security")

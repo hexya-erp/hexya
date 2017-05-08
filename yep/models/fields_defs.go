@@ -11,7 +11,6 @@ import (
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // A SimpleFieldParams holds all the possible options for a simple (not relational) field
@@ -422,7 +421,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) {
 		their = params.RelationModel
 	}
 	if our == their {
-		logging.LogAndPanic(log, "Many2many relation must have different 'm2m_ours' and 'm2m_theirs'",
+		log.Panic("Many2many relation must have different 'm2m_ours' and 'm2m_theirs'",
 			"model", m.name, "field", name, "ours", our, "theirs", their)
 	}
 

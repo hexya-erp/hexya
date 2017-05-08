@@ -19,7 +19,6 @@ import (
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/tools/generate"
 	"github.com/npiganeau/yep/yep/tools/logging"
 )
@@ -76,7 +75,7 @@ type JSONRPCError struct {
 }
 
 var yepServer *Server
-var log log15.Logger
+var log *logging.Logger
 
 // GetServer return the http server instance
 func GetServer() *Server {
@@ -92,7 +91,7 @@ func init() {
 		[]byte("!WY9Q|}09!4Ke=@w0HS|]$u,p1f^k(5T"))
 	yepServer.Use(gin.Recovery())
 	yepServer.Use(sessions.Sessions("yep-session", store))
-	yepServer.Use(logging.Log15ForGin(log))
+	yepServer.Use(logging.LogForGin(log))
 	cleanModuleSymlinks()
 }
 

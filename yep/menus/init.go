@@ -3,12 +3,9 @@
 
 package menus
 
-import (
-	"github.com/inconshreveable/log15"
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "github.com/npiganeau/yep/yep/tools/logging"
 
-var log log15.Logger
+var log *logging.Logger
 
 // BootStrap the menus by linking parents and children
 // and populates the Registry
@@ -17,7 +14,7 @@ func BootStrap() {
 		if menu.ParentID != "" {
 			parentMenu := bootstrapMap[menu.ParentID]
 			if parentMenu == nil {
-				logging.LogAndPanic(log, "Unknown parent menu ID", "parentID", menu.ParentID)
+				log.Panic("Unknown parent menu ID", "parentID", menu.ParentID)
 			}
 			menu.Parent = parentMenu
 		}

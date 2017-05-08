@@ -23,7 +23,6 @@ import (
 	"text/template"
 
 	"github.com/gin-gonic/gin"
-	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/actions"
 	"github.com/npiganeau/yep/yep/controllers"
 	"github.com/npiganeau/yep/yep/menus"
@@ -38,7 +37,7 @@ import (
 
 const startFileName = "start.go"
 
-var log log15.Logger
+var log *logging.Logger
 
 var serverCmd = &cobra.Command{
 	Use:   "server [projectDir]",

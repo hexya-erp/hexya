@@ -6,12 +6,11 @@ package actions
 import (
 	"strings"
 
-	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/tools/logging"
 	"github.com/npiganeau/yep/yep/views"
 )
 
-var log log15.Logger
+var log *logging.Logger
 
 // BootStrap actions.
 // This function must be called prior to any access to the actions Registry.

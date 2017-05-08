@@ -3,10 +3,7 @@
 
 package controllers
 
-import (
-	"github.com/npiganeau/yep/yep/server"
-	"github.com/npiganeau/yep/yep/tools/logging"
-)
+import "github.com/npiganeau/yep/yep/server"
 
 // Registry is the central collection of all the application controllers
 var Registry *Group
@@ -44,7 +41,7 @@ func newGroup(relativePath string) *Group {
 // It panics if the group already exists.
 func (g *Group) AddGroup(relativePath string) *Group {
 	if _, exists := g.groups[relativePath]; exists {
-		logging.LogAndPanic(log, "Group already exists in this group", "path", relativePath, "group", g.relativePath)
+		log.Panic("Group already exists in this group", "path", relativePath, "group", g.relativePath)
 	}
 	newGrp := newGroup(relativePath)
 	g.groups[relativePath] = newGrp
@@ -60,7 +57,7 @@ func (g *Group) AddController(method, relativePath string, fnct server.HandlerFu
 		Path:   relativePath,
 	}
 	if _, exists := g.controllers[route]; exists {
-		logging.LogAndPanic(log, "Trying to add a controller that already exists", "method", method, "path", relativePath)
+		log.Panic("Trying to add a controller that already exists", "method", method, "path", relativePath)
 	}
 	controller := &Controller{
 		route:    route,
@@ -85,7 +82,7 @@ func (g *Group) ExtendController(method, relativePath string, fnct server.Handle
 		Path:   relativePath,
 	}
 	if _, exists := g.controllers[route]; !exists {
-		logging.LogAndPanic(log, "Trying to extend a non-existent controller",
+		log.Panic("Trying to extend a non-existent controller",
 			"method", method, "path", relativePath)
 	}
 	g.controllers[route].handlers = append([]server.HandlerFunc{fnct}, g.controllers[route].handlers...)
@@ -105,7 +102,7 @@ func (g *Group) OverrideController(method, relativePath string, fnct server.Hand
 		Path:   relativePath,
 	}
 	if _, exists := g.controllers[route]; !exists {
-		logging.LogAndPanic(log, "Trying to override a non-existent controller",
+		log.Panic("Trying to override a non-existent controller",
 			"method", method, "path", relativePath)
 	}
 	g.controllers[route].handlers = append([]server.HandlerFunc{fnct})
@@ -115,7 +112,7 @@ func (g *Group) OverrideController(method, relativePath string, fnct server.Hand
 // the static files found at fsPath on the file system.
 func (g *Group) AddStatic(relativePath, fsPath string) {
 	if _, exists := g.static[relativePath]; exists {
-		logging.LogAndPanic(log, "Static path already exists in this group", "path", relativePath, "group", g.relativePath)
+		log.Panic("Static path already exists in this group", "path", relativePath, "group", g.relativePath)
 	}
 	g.static[relativePath] = fsPath
 }
@@ -135,7 +132,7 @@ func (g *Group) AddMiddleWare(fnct server.HandlerFunc) {
 func (g *Group) GetGroup(relativePath string) *Group {
 	group, exists := g.groups[relativePath]
 	if !exists {
-		logging.LogAndPanic(log, "Group not found", "group", relativePath, "base", g.relativePath)
+		log.Panic("Group not found", "group", relativePath, "base", g.relativePath)
 	}
 	return group
 }

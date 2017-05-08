@@ -26,7 +26,6 @@ import (
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/etree"
 	"github.com/npiganeau/yep/yep/tools/generate"
-	"github.com/npiganeau/yep/yep/tools/logging"
 	"github.com/npiganeau/yep/yep/views"
 )
 
@@ -67,7 +66,7 @@ func RegisterModule(mod *Module) {
 func createModuleSymlinks(mod *Module) {
 	_, fileName, _, ok := runtime.Caller(2)
 	if !ok {
-		logging.LogAndPanic(log, "Unable to find caller", "module", mod.Name)
+		log.Panic("Unable to find caller", "module", mod.Name)
 	}
 	for _, dir := range symlinkDirs {
 		srcPath := path.Join(path.Dir(fileName), dir)
@@ -114,7 +113,7 @@ func loadData(dir, ext string, loader func(string)) {
 		}
 		dataFiles, err := filepath.Glob(fmt.Sprintf("%s/*.%s", dataDir, ext))
 		if err != nil {
-			logging.LogAndPanic(log, "Unable to scan directory for data files", "dir", dataDir, "type", ext, "error", err)
+			log.Panic("Unable to scan directory for data files", "dir", dataDir, "type", ext, "error", err)
 		}
 		for _, dataFile := range dataFiles {
 			loader(dataFile)
@@ -126,7 +125,7 @@ func loadData(dir, ext string, loader func(string)) {
 func loadXMLResourceFile(fileName string) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromFile(fileName); err != nil {
-		logging.LogAndPanic(log, "Error loading XML data file", "file", fileName, "error", err)
+		log.Panic("Error loading XML data file", "file", fileName, "error", err)
 	}
 	for _, dataTag := range doc.FindElements("yep/data") {
 		for _, object := range dataTag.ChildElements() {
@@ -138,7 +137,7 @@ func loadXMLResourceFile(fileName string) {
 			case "menuitem":
 				menus.LoadFromEtree(object)
 			default:
-				logging.LogAndPanic(log, "Unknown XML tag", "tag", object.Tag)
+				log.Panic("Unknown XML tag", "tag", object.Tag)
 			}
 		}
 	}

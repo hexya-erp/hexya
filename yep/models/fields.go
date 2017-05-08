@@ -22,7 +22,6 @@ import (
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
-	"github.com/npiganeau/yep/yep/tools/logging"
 )
 
 // An OnDeleteAction defines what to be done with this record when
@@ -82,7 +81,7 @@ func (fc *fieldsCollection) mustGet(name string) *fieldInfo {
 			model = f.model.name
 			break
 		}
-		logging.LogAndPanic(log, "Unknown field in model", "model", model, "field", name)
+		log.Panic("Unknown field in model", "model", model, "field", name)
 	}
 	return fi
 }
@@ -177,7 +176,7 @@ func newFieldsCollection() *fieldsCollection {
 // add the given fieldInfo to the fieldsCollection.
 func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 	if _, exists := fc.registryByName[fInfo.name]; exists {
-		logging.LogAndPanic(log, "Trying to add already existing field", "model", fInfo.model.name, "field", fInfo.name)
+		log.Panic("Trying to add already existing field", "model", fInfo.model.name, "field", fInfo.name)
 	}
 	fc.register(fInfo)
 }
@@ -186,7 +185,7 @@ func (fc *fieldsCollection) add(fInfo *fieldInfo) {
 // Mapping is done on the fInfo name.
 func (fc *fieldsCollection) override(fInfo *fieldInfo) {
 	if _, exists := fc.registryByName[fInfo.name]; !exists {
-		logging.LogAndPanic(log, "Trying to override a non-existent field", "model", fInfo.model.name, "field", fInfo.name)
+		log.Panic("Trying to override a non-existent field", "model", fInfo.model.name, "field", fInfo.name)
 	}
 	fc.register(fInfo)
 }
@@ -281,7 +280,7 @@ func (fi *fieldInfo) isStored() bool {
 // It panics in case of severe error and logs recoverable errors.
 func checkFieldInfo(fi *fieldInfo) {
 	if fi.fieldType.IsReverseRelationType() && fi.reverseFK == "" {
-		logging.LogAndPanic(log, "'one2many' and 'rev2one' fields must define an 'ReverseFK' parameter", "model",
+		log.Panic("'one2many' and 'rev2one' fields must define an 'ReverseFK' parameter", "model",
 			fi.model.name, "field", fi.name, "type", fi.fieldType)
 	}
 
@@ -292,7 +291,7 @@ func checkFieldInfo(fi *fieldInfo) {
 	}
 
 	if fi.structField.Type == reflect.TypeOf(RecordCollection{}) && fi.relatedModel.name == "" {
-		logging.LogAndPanic(log, "Undefined relation model on related field", "model", fi.model.name, "field", fi.name,
+		log.Panic("Undefined relation model on related field", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 	}
 
@@ -423,7 +422,7 @@ func checkComputeMethodsSignature() {
 			msg = "Too many return values for compute method"
 		}
 		if msg != "" {
-			logging.LogAndPanic(log, msg, "model", method.mi.name, "method", method.name)
+			log.Panic(msg, "model", method.mi.name, "method", method.name)
 		}
 	}
 	for _, mi := range Registry.registryByName {

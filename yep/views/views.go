@@ -25,7 +25,6 @@ import (
 
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/etree"
-	"github.com/npiganeau/yep/yep/tools/logging"
 	"github.com/npiganeau/yep/yep/tools/xmlutils"
 )
 
@@ -182,7 +181,7 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 			return view
 		}
 	}
-	logging.LogAndPanic(log, "No view of this type in model", "type", viewType, "model", model)
+	log.Panic("No view of this type in model", "type", viewType, "model", model)
 	return nil
 }
 
@@ -227,7 +226,7 @@ func LoadFromEtree(element *etree.Element) {
 	xmlBytes := []byte(xmlutils.ElementToXML(element))
 	var viewXML ViewXML
 	if err := xml.Unmarshal(xmlBytes, &viewXML); err != nil {
-		logging.LogAndPanic(log, "Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
+		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
 	updateViewRegistry(viewXML)
 }
@@ -274,7 +273,7 @@ func updateExistingViewFromXML(viewXML ViewXML) {
 	baseElem := xmlutils.XMLToElement(baseView.Arch)
 	specDoc := etree.NewDocument()
 	if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
-		logging.LogAndPanic(log, "Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
+		log.Panic("Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
 	}
 	for _, spec := range specDoc.ChildElements() {
 		xpath := getInheritXPathFromSpec(spec)
@@ -319,7 +318,7 @@ func getInheritXPathFromSpec(spec *etree.Element) string {
 		xpath = spec.SelectAttr("expr").Value
 	} else {
 		if len(spec.Attr) < 1 || len(spec.Attr) > 2 {
-			logging.LogAndPanic(log, "Invalid view inherit spec", "spec", xmlutils.ElementToXML(spec))
+			log.Panic("Invalid view inherit spec", "spec", xmlutils.ElementToXML(spec))
 		}
 		var attrStr string
 		for _, attr := range spec.Attr {

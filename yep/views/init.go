@@ -4,13 +4,12 @@
 package views
 
 import (
-	"github.com/inconshreveable/log15"
 	"github.com/npiganeau/yep/yep/models"
 	"github.com/npiganeau/yep/yep/tools/logging"
 	"github.com/npiganeau/yep/yep/tools/xmlutils"
 )
 
-var log log15.Logger
+var log *logging.Logger
 
 //BootStrap makes the necessary updates to view definitions. In particular:
 //- sets the type of the view from the arch root.
