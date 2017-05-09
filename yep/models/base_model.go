@@ -67,6 +67,7 @@ func declareModelMixin() {
 			return fmt.Sprintf("__yep_external_id__%d", idSeq.NextValue())
 		},
 	})
+	modelMixin.AddIntegerField("YEPVersion", SimpleFieldParams{GoType: new(int)})
 	modelMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
 	declareModelComputeMethods()
 }

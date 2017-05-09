@@ -25,10 +25,18 @@ func LoadCSVDataFile(fileName string) {
 
 	elements := strings.Split(path.Base(fileName), "_")
 	modelName := strings.Split(elements[0], ".")[0]
-	update := false
+	var (
+		update  bool
+		version int
+	)
 	if len(elements) == 2 {
-		if strings.ToLower(strings.Split(elements[1], ".")[0]) == "update" {
+		mod := strings.Split(elements[1], ".")[0]
+		ver, err := strconv.Atoi(mod)
+		switch {
+		case strings.ToLower(mod) == "update":
 			update = true
+		case err == nil:
+			version = ver
 		}
 	}
 
@@ -57,13 +65,15 @@ func LoadCSVDataFile(fileName string) {
 			externalID := values["id"]
 			delete(values, "id")
 			values["yep_external_id"] = externalID
+			values["yep_version"] = version
 			rec := rc.Call("Search", rc.Model().Field("YEPExternalID").Equals(externalID)).(RecordCollection).Limit(1)
 			switch {
 			case rec.Len() == 0:
 				rc.Call("Create", values)
-			case rec.Len() == 1 && update:
-				rec := rc.Call("Search", rc.Model().Field("YEPExternalID").Equals(externalID)).(RecordCollection)
-				rec.Call("Write", values)
+			case rec.Len() == 1:
+				if version > rec.Get("YEPVersion").(int) || update {
+					rec.Call("Write", values)
+				}
 			}
 			line++
 		}

@@ -22,10 +22,20 @@ each record known as its "external ID". If it is not defined, the framework
 will provide one for each record.
 - Foreign key fields must be set with the related record external ID
 - Many-to-Many fields must be set with a `|` separated list of external IDs
-- If a record with the given external ID already exists, then the line is
-silently discarded, unless the CSV file name is postponed with `_update` such
-as `Model_update.csv`. In this case, the existing value is overridden by the
-value in the file.
+
+== Versions
+Versions of data can be handled through the name of the CSV file.
+
+- By default, if a record with the given external ID already exists, then the
+line is silently discarded.
+- If the CSV file name is postponed with `_` and a version number such as
+`Model_3.csv`, a record with an existing external ID will be overridden only if
+the version number of the file is above the version of the record in the
+database. Records with non existing external ID will be inserted with the
+version of the file name.
+- If the CSV file name is postponed with `_update` such as `Model_update.csv`,
+records with existing IDs are all overridden by the records in the file, and
+their version number in the database is reset to 0.
 
 == Examples
 
@@ -45,7 +55,7 @@ tag_app,Application
 tag_film,Film
 tag_music,Music
 ----
-.Post.csv
+.Post_1.csv
 ----
 ID,User,Title,Content,Tags
 post_id_1,peter_id,Peter's Post,This is peter's post content,tag_book|tag_film
