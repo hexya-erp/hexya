@@ -87,7 +87,7 @@ func jsonizeExpr(mi *Model, exprs []string) []string {
 		return []string{}
 	}
 	var res []string
-	fi := mi.fields.mustGet(exprs[0])
+	fi := mi.fields.MustGet(exprs[0])
 	res = append(res, fi.json)
 	if len(exprs) > 1 {
 		if fi.relatedModel != nil {
@@ -143,7 +143,7 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
-func addNameSearchToExprs(mi *Model, fi *fieldInfo, exprs []string) []string {
+func addNameSearchToExprs(mi *Model, fi *Field, exprs []string) []string {
 	_, exists := fi.relatedModel.fields.get("name")
 	if exists {
 		exprs = append(exprs, "name")
@@ -256,7 +256,7 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 	// Check if fields are stored
 	for _, field := range fields {
 		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
-		fi := mi.fields.mustGet(fieldExprs[0])
+		fi := mi.fields.MustGet(fieldExprs[0])
 		var resExprs []string
 		if fi.isStored() {
 			resExprs = append(resExprs, fi.json)

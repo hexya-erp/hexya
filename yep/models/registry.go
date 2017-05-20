@@ -116,8 +116,8 @@ type Model struct {
 	acl           *security.AccessControlList
 	rulesRegistry *recordRuleRegistry
 	tableName     string
-	fields        *fieldsCollection
-	methods       *methodsCollection
+	fields        *FieldsCollection
+	methods       *MethodsCollection
 	mixins        []*Model
 }
 
@@ -139,7 +139,7 @@ func (m *Model) getRelatedModelInfo(path string, skipLast ...bool) *Model {
 
 	exprs := strings.Split(path, ExprSep)
 	jsonizeExpr(m, exprs)
-	fi := m.fields.mustGet(exprs[0])
+	fi := m.fields.MustGet(exprs[0])
 	if fi.relatedModel == nil || (len(exprs) == 1 && skip) {
 		// The field is a non relational field, so we are already
 		// on the related Model. Or we have only 1 exprs and we skip the last one.
@@ -151,9 +151,9 @@ func (m *Model) getRelatedModelInfo(path string, skipLast ...bool) *Model {
 	return fi.relatedModel
 }
 
-// getRelatedFieldIfo returns the fieldInfo of the related field when
+// getRelatedFieldIfo returns the Field of the related field when
 // following path. Path can be formed from field names or JSON names.
-func (m *Model) getRelatedFieldInfo(path string) *fieldInfo {
+func (m *Model) getRelatedFieldInfo(path string) *Field {
 	colExprs := strings.Split(path, ExprSep)
 	var rmi *Model
 	num := len(colExprs)
@@ -162,7 +162,7 @@ func (m *Model) getRelatedFieldInfo(path string) *fieldInfo {
 	} else {
 		rmi = m
 	}
-	fi := rmi.fields.mustGet(colExprs[num-1])
+	fi := rmi.fields.MustGet(colExprs[num-1])
 	return fi
 }
 
@@ -195,7 +195,7 @@ func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 		(*dest)[colName] = dbVal
 	}
 
-	// Step 3: We convert values with the type of the corresponding fieldInfo
+	// Step 3: We convert values with the type of the corresponding Field
 	// if the value is not nil.
 	m.convertValuesToFieldType(dest)
 	return r.Err()
@@ -288,6 +288,16 @@ func (m *Model) isM2MLink() bool {
 	return false
 }
 
+// Fields returns the fields collection of this model
+func (m *Model) Fields() *FieldsCollection {
+	return m.fields
+}
+
+// Methods returns the methods collection of this model
+func (m *Model) Methods() *MethodsCollection {
+	return m.methods
+}
+
 // NewModel creates a new model with the given name and
 // extends it with the given struct pointer.
 func NewModel(name string) *Model {
@@ -359,7 +369,7 @@ func createModel(name string, options Option) *Model {
 		fields:        newFieldsCollection(),
 		methods:       newMethodsCollection(),
 	}
-	pk := &fieldInfo{
+	pk := &Field{
 		name:      "ID",
 		json:      "id",
 		acl:       security.NewAccessControlList(),

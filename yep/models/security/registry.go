@@ -17,7 +17,7 @@ package security
 import "sync"
 
 // An AccessControlList defines the permissions for given groups.
-// It is meant to be a property of an object (namely a field or a model).
+// It is meant to be a property of a field.
 type AccessControlList struct {
 	sync.RWMutex
 	perms map[*Group]Permission
@@ -62,10 +62,20 @@ func (acl *AccessControlList) CheckPermission(group *Group, perm Permission) boo
 	return false
 }
 
+// Permissions returns the list of all permissions of this ACL
+func (acl *AccessControlList) Permissions() map[*Group]Permission {
+	res := make(map[*Group]Permission)
+	for k, v := range acl.perms {
+		res[k] = v
+	}
+	return res
+}
+
 // NewAccessControlList returns a pointer to a new empty AccessControlList
 func NewAccessControlList() *AccessControlList {
 	acl := AccessControlList{
 		perms: make(map[*Group]Permission),
 	}
+	acl.perms[GroupEveryone] = All
 	return &acl
 }

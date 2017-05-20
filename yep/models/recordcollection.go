@@ -28,13 +28,12 @@ import (
 // RecordCollection is a generic struct representing several
 // records of a model.
 type RecordCollection struct {
-	model     *Model
-	callStack []*methodLayer
-	query     *Query
-	env       *Environment
-	ids       []int64
-	fetched   bool
-	filtered  bool
+	model    *Model
+	query    *Query
+	env      *Environment
+	ids      []int64
+	fetched  bool
+	filtered bool
 }
 
 // String returns the string representation of a RecordSet
@@ -70,9 +69,9 @@ func (rc RecordCollection) Ids() []int64 {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Create")
 func (rc RecordCollection) create(data interface{}) RecordCollection {
-	mustCheckModelPermission(rc.model, rc.env.uid, security.Create)
+	rc.checkExecutionPermission(rc.model.methods.MustGet("Create"))
 	fMap := ConvertInterfaceToFieldMap(data)
-	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Create)
+	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	rc.applyDefaults(&fMap)
 	rc.addAccessFieldsCreateData(&fMap)
 	rc.model.convertValuesToFieldType(&fMap)
@@ -117,7 +116,7 @@ func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 	}
 	// 2. We populate our map with the values for each embedded record
 	for fName, value := range fMap {
-		fi := rc.Model().fields.mustGet(fName)
+		fi := rc.Model().fields.MustGet(fName)
 		if fi.relatedPath == "" {
 			continue
 		}
@@ -133,7 +132,8 @@ func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 	}
 	// 3. We create the embedded records
 	for fieldName, vals := range embeddedData {
-		fMap[fieldName] = rc.env.Pool(vals.model).create(vals.values).ids[0]
+		// We do not call "create" directly to have the caller set in the callstack for permissions
+		fMap[fieldName] = rc.env.Pool(vals.model).Call("Create", vals.values).(RecordCollection).ids[0]
 	}
 	return fMap
 }
@@ -166,7 +166,6 @@ func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
 func (rc RecordCollection) update(data interface{}, fieldsToUnset ...FieldNamer) bool {
-	mustCheckModelPermission(rc.model, rc.env.uid, security.Write)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
 	fMap := ConvertInterfaceToFieldMap(data)
 	if _, ok := data.(FieldMap); !ok {
@@ -206,6 +205,7 @@ func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 // this RecordCollection with the given fieldMap. It also
 // invalidates the cache for the record
 func (rc RecordCollection) doUpdate(fMap FieldMap) {
+	rc.checkExecutionPermission(rc.model.methods.MustGet("Write"))
 	defer func() {
 		for _, id := range rc.Ids() {
 			rc.env.cache.invalidateRecord(rc.model, id)
@@ -255,7 +255,7 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 	var toLoad []string
 	toSubstitute := make(map[string]string)
 	for field := range fMap {
-		fi := rSet.model.fields.mustGet(field)
+		fi := rSet.model.fields.MustGet(field)
 		if !fi.isRelatedField() {
 			continue
 		}
@@ -291,11 +291,11 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 	}
 }
 
-// delete deletes the database record of this RecordSet and returns the number of deleted rows.
+// unlink deletes the database record of this RecordSet and returns the number of deleted rows.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Unlink() or rs.Call("Unlink")
-func (rc RecordCollection) delete() int64 {
-	mustCheckModelPermission(rc.model, rc.env.uid, security.Unlink)
+func (rc RecordCollection) unlink() int64 {
+	rc.checkExecutionPermission(rc.model.methods.MustGet("Unlink"))
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Unlink)
 	sql, args := rSet.query.deleteQuery()
 	res := rSet.env.cr.Execute(sql, args...)
@@ -380,6 +380,7 @@ func (rc RecordCollection) SearchCount() int {
 // model are retrieved. Non-DB fields must be explicitly given in
 // fields to be retrieved.
 func (rc RecordCollection) Load(fields ...string) RecordCollection {
+	rc.checkExecutionPermission(rc.model.methods.MustGet("Load"))
 	if rc.query.isEmpty() {
 		// Never load RecordSets without query.
 		return rc
@@ -387,7 +388,6 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	if len(rc.query.groups) > 0 {
 		log.Panic("Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
 	}
-	mustCheckModelPermission(rc.model, rc.env.uid, security.Read)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
 	var results []FieldMap
 	if len(fields) == 0 {
@@ -451,7 +451,7 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc RecordCollection) Get(fieldName string) interface{} {
 	rSet := rc.Fetch()
-	fi := rSet.model.fields.mustGet(fieldName)
+	fi := rSet.model.fields.MustGet(fieldName)
 	var res interface{}
 
 	switch {
@@ -560,7 +560,6 @@ func (rc RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregate
 	if len(rc.query.groups) == 0 {
 		log.Panic("Trying to get aggregates of a non-grouped query", "model", rc.model)
 	}
-	mustCheckModelPermission(rc.model, rc.env.uid, security.Read)
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
 	fields := filterOnAuthorizedFields(rSet.model, rSet.env.uid, convertToStringSlice(fieldNames), security.Read)
 	subFields, rSet := rSet.substituteRelatedFields(fields)

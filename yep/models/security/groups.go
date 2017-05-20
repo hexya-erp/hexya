@@ -19,8 +19,10 @@ import "sync"
 const (
 	// SuperUserID is the uid of the administrator
 	SuperUserID int64 = 1
-	// AdminGroupID is the string ID of the group with all permissions
-	AdminGroupID string = "admin"
+	// GroupAdminID is the string ID of the group with all permissions
+	GroupAdminID string = "admin"
+	// GroupEveryoneID is the string ID of the group everyone belongs to
+	GroupEveryoneID string = "everyone"
 
 	// NativeGroup means that this user has been explicitly given membership in this group
 	NativeGroup InheritanceInfo = iota
@@ -31,8 +33,12 @@ const (
 // Registry of all security groups of the application
 var Registry *GroupCollection
 
-// AdminGroup which has all permissions
-var AdminGroup *Group
+var (
+	// GroupAdmin which has all permissions
+	GroupAdmin *Group
+	// GroupEveryone is a group that all users automatically belong to.
+	GroupEveryone *Group
+)
 
 // InheritanceInfo enables us to know if a user is part of a group
 // natively or by inheritance.
@@ -173,7 +179,7 @@ func (gc *GroupCollection) doRemoveMembership(uid int64, group *Group) {
 func (gc *GroupCollection) RemoveAllMembershipsForUser(uid int64) {
 	gc.doRemoveAllMembershipsForUser(uid)
 	if uid == SuperUserID {
-		gc.AddMembership(SuperUserID, AdminGroup)
+		gc.AddMembership(SuperUserID, GroupAdmin)
 	}
 }
 
@@ -186,6 +192,9 @@ func (gc *GroupCollection) doRemoveAllMembershipsForUser(uid int64) {
 
 // HasMembership returns true id the given uid is a member of the given group
 func (gc *GroupCollection) HasMembership(uid int64, group *Group) bool {
+	if group == GroupEveryone {
+		return true
+	}
 	_, ok := gc.memberships[uid][group]
 	return ok
 }
@@ -193,10 +202,11 @@ func (gc *GroupCollection) HasMembership(uid int64, group *Group) bool {
 // UserGroups returns the slice of groups the user with the given
 // uid belongs to, including inherited groups.
 func (gc *GroupCollection) UserGroups(uid int64) map[*Group]InheritanceInfo {
-	res := make(map[*Group]InheritanceInfo, len(gc.memberships[uid]))
+	res := make(map[*Group]InheritanceInfo, len(gc.memberships[uid])+1)
 	for k, v := range gc.memberships[uid] {
 		res[k] = v
 	}
+	res[GroupEveryone] = NativeGroup
 	return res
 }
 

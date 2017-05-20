@@ -72,6 +72,7 @@ type modelData struct {
 	Deps           []string
 	Fields         []fieldData
 	Methods        []methodData
+	AllMethods     []string
 	ConditionFuncs []string
 	Types          []fieldType
 }
@@ -235,6 +236,7 @@ func addFieldTypesToModelData(mData *modelData, model *Model) {
 // deps is the map of already imported paths and is updated by this function.
 func addMethodsToModelData(mData *modelData, mi *Model, astData map[generate.MethodRef]generate.MethodASTData, deps *map[string]bool) {
 	for methodName, methInfo := range mi.methods.registry {
+		mData.AllMethods = append(mData.AllMethods, methodName)
 		if specificMethods[methodName] {
 			continue
 		}
@@ -385,6 +387,20 @@ func (m {{ .Name }}Model) Search(env models.Environment, cond {{ .Name }}Conditi
 	}
 }
 
+// Fields returns the Field Collection of the {{ .Name }} Model
+func (m {{ .Name }}Model) Fields() {{ .Name }}FieldsCollection {
+	return {{ .Name }}FieldsCollection {
+		FieldsCollection: m.Model.Fields(),
+	}
+}
+
+// Methods returns the Method Collection of the {{ .Name }} Model
+func (m {{ .Name }}Model) Methods() {{ .Name }}MethodsCollection {
+	return {{ .Name }}MethodsCollection {
+		MethodsCollection: m.Model.Methods(),
+	}
+}
+
 {{ range .Fields }}
 {{ if .TypeIsRS }}
 // {{ .Name }}FilteredOn adds a condition with a table join on the given field and
@@ -413,6 +429,36 @@ func {{ .Name }}() {{ .Name }}Model {
 		Model: models.Registry.MustGet("{{ .Name }}"),
 	}
 }
+
+// ------- FIELD COLLECTION ----------
+
+// A {{ .Name }}FieldsCollection is the collection of fields
+// of the {{ .Name }} model.
+type {{ .Name }}FieldsCollection struct {
+	*models.FieldsCollection
+}
+
+{{ range .Fields }}
+// {{ .Name }} returns a pointer to the {{ .Name }} Field.
+func (c {{ $.Name }}FieldsCollection) {{ .Name }}() *models.Field {
+	return c.MustGet("{{ .Name }}")
+}
+{{ end }}
+
+// ------- METHOD COLLECTION ----------
+
+// A {{ .Name }}MethodsCollection is the collection of methods
+// of the {{ .Name }} model.
+type {{ .Name }}MethodsCollection struct {
+	*models.MethodsCollection
+}
+
+{{ range .AllMethods }}
+// {{ . }} returns a pointer to the {{ . }} Method.
+func (c {{ $.Name }}MethodsCollection) {{ . }}() *models.Method {
+	return c.MustGet("{{ . }}")
+}
+{{ end }}
 
 // ------- CONDITION ---------
 

@@ -50,20 +50,20 @@ type computeData struct {
 	path      string
 }
 
-// fieldsCollection is a collection of fieldInfo instances in a model.
-type fieldsCollection struct {
+// FieldsCollection is a collection of Field instances in a model.
+type FieldsCollection struct {
 	sync.RWMutex
-	registryByName       map[string]*fieldInfo
-	registryByJSON       map[string]*fieldInfo
-	computedFields       []*fieldInfo
-	computedStoredFields []*fieldInfo
-	relatedFields        []*fieldInfo
+	registryByName       map[string]*Field
+	registryByJSON       map[string]*Field
+	computedFields       []*Field
+	computedStoredFields []*Field
+	relatedFields        []*Field
 	bootstrapped         bool
 }
 
-// get returns the fieldInfo of the field with the given name.
+// get returns the Field of the field with the given name.
 // name can be either the name of the field or its JSON name.
-func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
+func (fc *FieldsCollection) get(name string) (fi *Field, ok bool) {
 	fi, ok = fc.registryByName[name]
 	if !ok {
 		fi, ok = fc.registryByJSON[name]
@@ -71,9 +71,9 @@ func (fc *fieldsCollection) get(name string) (fi *fieldInfo, ok bool) {
 	return
 }
 
-// MustGet returns the fieldInfo of the field with the given name or panics
+// MustGet returns the Field of the field with the given name or panics
 // name can be either the name of the field or its JSON name.
-func (fc *fieldsCollection) mustGet(name string) *fieldInfo {
+func (fc *FieldsCollection) MustGet(name string) *Field {
 	fi, ok := fc.get(name)
 	if !ok {
 		var model string
@@ -88,7 +88,7 @@ func (fc *fieldsCollection) mustGet(name string) *fieldInfo {
 
 // storedFieldNames returns a slice with the names of all the stored fields
 // If fields are given, return only names in the list
-func (fc *fieldsCollection) storedFieldNames(fieldNames ...string) []string {
+func (fc *FieldsCollection) storedFieldNames(fieldNames ...string) []string {
 	var res []string
 	for fName, fi := range fc.registryByName {
 		var keepField bool
@@ -111,7 +111,7 @@ func (fc *fieldsCollection) storedFieldNames(fieldNames ...string) []string {
 
 // relatedNonStoredFieldNames returns a slice with all the related
 // non-stored field names.
-func (fc *fieldsCollection) relatedNonStoredFieldNames() []string {
+func (fc *FieldsCollection) relatedNonStoredFieldNames() []string {
 	var res []string
 	for _, fi := range fc.relatedFields {
 		if !fi.stored {
@@ -123,7 +123,7 @@ func (fc *fieldsCollection) relatedNonStoredFieldNames() []string {
 
 // nonRelatedFieldJSONNames returns a slice with the JSON names of all the fields that
 // are not relations.
-func (fc *fieldsCollection) nonRelationFieldJSONNames() []string {
+func (fc *FieldsCollection) nonRelationFieldJSONNames() []string {
 	var res []string
 	for fName, fi := range fc.registryByJSON {
 		if fi.relatedModel == nil {
@@ -134,11 +134,11 @@ func (fc *fieldsCollection) nonRelationFieldJSONNames() []string {
 }
 
 /*
-getComputedFields returns the slice of fieldInfo of the computed, but not
+getComputedFields returns the slice of Field of the computed, but not
 stored fields of the given modelName.
-If fields are given, return only fieldInfo instances in the list
+If fields are given, return only Field instances in the list
 */
-func (fc *fieldsCollection) getComputedFields(fields ...string) (fil []*fieldInfo) {
+func (fc *FieldsCollection) getComputedFields(fields ...string) (fil []*Field) {
 	fInfos := fc.computedFields
 	if len(fields) > 0 {
 		for _, f := range fields {
@@ -156,34 +156,34 @@ func (fc *fieldsCollection) getComputedFields(fields ...string) (fil []*fieldInf
 }
 
 /*
-getComputedStoredFields returns the slice of fieldInfo of the computed and stored
+getComputedStoredFields returns the slice of Field of the computed and stored
 fields of the given modelName.
 */
-func (fc *fieldsCollection) getComputedStoredFields() (fil []*fieldInfo) {
+func (fc *FieldsCollection) getComputedStoredFields() (fil []*Field) {
 	fil = fc.computedStoredFields
 	return
 }
 
-// newFieldsCollection returns a pointer to a new empty fieldsCollection with
+// newFieldsCollection returns a pointer to a new empty FieldsCollection with
 // all maps initialized.
-func newFieldsCollection() *fieldsCollection {
-	return &fieldsCollection{
-		registryByName: make(map[string]*fieldInfo),
-		registryByJSON: make(map[string]*fieldInfo),
+func newFieldsCollection() *FieldsCollection {
+	return &FieldsCollection{
+		registryByName: make(map[string]*Field),
+		registryByJSON: make(map[string]*Field),
 	}
 }
 
-// add the given fieldInfo to the fieldsCollection.
-func (fc *fieldsCollection) add(fInfo *fieldInfo) {
+// add the given Field to the FieldsCollection.
+func (fc *FieldsCollection) add(fInfo *Field) {
 	if _, exists := fc.registryByName[fInfo.name]; exists {
 		log.Panic("Trying to add already existing field", "model", fInfo.model.name, "field", fInfo.name)
 	}
 	fc.register(fInfo)
 }
 
-// override a fieldInfo in the collection.
+// override a Field in the collection.
 // Mapping is done on the fInfo name.
-func (fc *fieldsCollection) override(fInfo *fieldInfo) {
+func (fc *FieldsCollection) override(fInfo *Field) {
 	if _, exists := fc.registryByName[fInfo.name]; !exists {
 		log.Panic("Trying to override a non-existent field", "model", fInfo.model.name, "field", fInfo.name)
 	}
@@ -191,7 +191,7 @@ func (fc *fieldsCollection) override(fInfo *fieldInfo) {
 }
 
 // register adds or override the given fInfo in the collection.
-func (fc *fieldsCollection) register(fInfo *fieldInfo) {
+func (fc *FieldsCollection) register(fInfo *Field) {
 	fc.Lock()
 	defer fc.Unlock()
 
@@ -212,8 +212,8 @@ func (fc *fieldsCollection) register(fInfo *fieldInfo) {
 	}
 }
 
-// fieldInfo holds the meta information about a field
-type fieldInfo struct {
+// Field holds the meta information about a field
+type Field struct {
 	model            *Model
 	acl              *security.AccessControlList
 	name             string
@@ -230,8 +230,8 @@ type fieldInfo struct {
 	relatedModel     *Model
 	reverseFK        string
 	m2mRelModel      *Model
-	m2mOurField      *fieldInfo
-	m2mTheirField    *fieldInfo
+	m2mOurField      *Field
+	m2mTheirField    *Field
 	selection        Selection
 	fieldType        types.FieldType
 	groupOperator    string
@@ -247,38 +247,38 @@ type fieldInfo struct {
 }
 
 // isComputedField returns true if this field is computed
-func (fi *fieldInfo) isComputedField() bool {
-	return fi.compute != ""
+func (f *Field) isComputedField() bool {
+	return f.compute != ""
 }
 
 // isComputedField returns true if this field is related
-func (fi *fieldInfo) isRelatedField() bool {
-	return fi.relatedPath != ""
+func (f *Field) isRelatedField() bool {
+	return f.relatedPath != ""
 }
 
 // isRelationField returns true if this field points to another model
-func (fi *fieldInfo) isRelationField() bool {
+func (f *Field) isRelationField() bool {
 	// We check on relatedModelName and not relatedModel to be able
 	// to use this method even if the models have not been bootstrapped yet.
-	return fi.relatedModelName != ""
+	return f.relatedModelName != ""
 }
 
 // isStored returns true if this field is stored in database
-func (fi *fieldInfo) isStored() bool {
-	if fi.fieldType.IsNonStoredRelationType() {
+func (f *Field) isStored() bool {
+	if f.fieldType.IsNonStoredRelationType() {
 		// reverse fields are not stored
 		return false
 	}
-	if (fi.isComputedField() || fi.isRelatedField()) && !fi.stored {
+	if (f.isComputedField() || f.isRelatedField()) && !f.stored {
 		// Computed and related non stored fields are not stored
 		return false
 	}
 	return true
 }
 
-// checkFieldInfo makes sanity checks on the given fieldInfo.
+// checkFieldInfo makes sanity checks on the given Field.
 // It panics in case of severe error and logs recoverable errors.
-func checkFieldInfo(fi *fieldInfo) {
+func checkFieldInfo(fi *Field) {
 	if fi.fieldType.IsReverseRelationType() && fi.reverseFK == "" {
 		log.Panic("'one2many' and 'rev2one' fields must define an 'ReverseFK' parameter", "model",
 			fi.model.name, "field", fi.name, "type", fi.fieldType)
@@ -316,11 +316,11 @@ func snakeCaseFieldName(fName string, typ types.FieldType) string {
 
 // createM2MRelModelInfo creates a Model relModelName (if it does not exist)
 // for the m2m relation defined between model1 and model2.
-// It returns the Model of the intermediate model, the fieldInfo of that model
-// pointing to our model, and the fieldInfo pointing to the other model.
-func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldInfo, *fieldInfo) {
+// It returns the Model of the intermediate model, the Field of that model
+// pointing to our model, and the Field pointing to the other model.
+func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field, *Field) {
 	if relMI, exists := Registry.Get(relModelName); exists {
-		var m1, m2 *fieldInfo
+		var m1, m2 *Field
 		for fName, fi := range relMI.fields.registryByName {
 			if fName == model1 {
 				m1 = fi
@@ -339,7 +339,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldI
 		methods:   newMethodsCollection(),
 		options:   Many2ManyLinkModel,
 	}
-	ourField := &fieldInfo{
+	ourField := &Field{
 		name:             model1,
 		json:             tools.SnakeCaseString(model1) + "_id",
 		acl:              security.NewAccessControlList(),
@@ -357,7 +357,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldI
 	}
 	newMI.fields.add(ourField)
 
-	theirField := &fieldInfo{
+	theirField := &Field{
 		name:             model2,
 		json:             tools.SnakeCaseString(model2) + "_id",
 		acl:              security.NewAccessControlList(),
@@ -378,8 +378,8 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *fieldI
 	return newMI, ourField, theirField
 }
 
-// processDepends populates the dependencies of each fieldInfo from the depends strings of
-// each fieldInfo instances.
+// processDepends populates the dependencies of each Field from the depends strings of
+// each Field instances.
 func processDepends() {
 	for _, mi := range Registry.registryByTableName {
 		for _, fInfo := range mi.fields.registryByJSON {
@@ -395,7 +395,7 @@ func processDepends() {
 						path:      path,
 					}
 					refModelInfo := mi.getRelatedModelInfo(path)
-					refField := refModelInfo.fields.mustGet(refName)
+					refField := refModelInfo.fields.MustGet(refName)
 					refField.dependencies = append(refField.dependencies, targetComputeData)
 				}
 			}
@@ -406,7 +406,7 @@ func processDepends() {
 // checkComputeMethodsSignature checks all methods used in computed
 // fields and check their signature. It panics if it is not the case.
 func checkComputeMethodsSignature() {
-	checkMethType := func(method *methodInfo, stored bool) {
+	checkMethType := func(method *Method, stored bool) {
 		methType := method.methodType
 		var msg string
 		switch {
@@ -422,16 +422,16 @@ func checkComputeMethodsSignature() {
 			msg = "Too many return values for compute method"
 		}
 		if msg != "" {
-			log.Panic(msg, "model", method.mi.name, "method", method.name)
+			log.Panic(msg, "model", method.model.name, "method", method.name)
 		}
 	}
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.computedFields {
-			method := mi.methods.mustGet(fi.compute)
+			method := mi.methods.MustGet(fi.compute)
 			checkMethType(method, false)
 		}
 		for _, fi := range mi.fields.computedStoredFields {
-			method := mi.methods.mustGet(fi.compute)
+			method := mi.methods.MustGet(fi.compute)
 			checkMethType(method, true)
 		}
 	}

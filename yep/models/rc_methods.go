@@ -14,7 +14,11 @@
 
 package models
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/npiganeau/yep/yep/models/security"
+)
 
 // Call calls the given method name methName on the given RecordCollection
 // with the given arguments and returns (only) the first result as interface{}.
@@ -34,18 +38,21 @@ func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []int
 		log.Panic("Unknown method in model", "method", methName, "model", rc.model.name)
 	}
 	methLayer := rc.getExistingLayer(methInfo)
+	rSet := rc
 	if methLayer == nil {
 		methLayer = methInfo.topLayer
-		rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
+		newEnv := rc.Env()
+		newEnv.callStack = append([]*methodLayer{methLayer}, newEnv.callStack...)
+		rSet = rSet.WithEnv(newEnv)
 	}
-	return rc.callMulti(methLayer, args...)
+	return rSet.callMulti(methLayer, args...)
 }
 
 // getExistingLayer returns the first methodLayer in this RecordCollection call stack
 // that matches with the given method. Returns nil, if none was found.
-func (rc RecordCollection) getExistingLayer(methInfo *methodInfo) *methodLayer {
-	for _, ml := range rc.callStack {
-		if ml.methInfo == methInfo {
+func (rc RecordCollection) getExistingLayer(methInfo *Method) *methodLayer {
+	for _, ml := range rc.env.callStack {
+		if ml.method == methInfo {
 			return ml
 		}
 	}
@@ -68,18 +75,19 @@ func (rc RecordCollection) getExistingLayer(methInfo *methodInfo) *methodLayer {
 // if the current method has been called from a layer of the other method. Otherwise,
 // it will be the same as calling the other method directly.
 func (rc RecordCollection) Super() RecordCollection {
-	if len(rc.callStack) == 0 {
+	if len(rc.env.callStack) == 0 {
 		log.Panic("Empty call stack", "model", rc.model.name)
 	}
-	currentLayer := rc.callStack[0]
-	methInfo := currentLayer.methInfo
+	currentLayer := rc.env.callStack[0]
+	methInfo := currentLayer.method
 	methLayer := methInfo.getNextLayer(currentLayer)
 	if methLayer == nil {
 		// No parent
 		log.Panic("Called Super() on a base method", "model", rc.model.name, "method", methInfo.name)
 	}
-	rc.callStack = append([]*methodLayer{methLayer}, rc.callStack...)
-	return rc
+	newEnv := rc.Env()
+	newEnv.callStack = append([]*methodLayer{methLayer}, newEnv.callStack...)
+	return rc.WithEnv(newEnv)
 }
 
 // MethodType returns the type of the method given by methName
@@ -93,6 +101,7 @@ func (rc RecordCollection) MethodType(methName string) reflect.Type {
 
 // callMulti is a wrapper around reflect.Value.Call() to use with interface{} type.
 func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
+	rc.checkExecutionPermission(methLayer.method)
 	inVals := make([]reflect.Value, len(args)+1)
 	inVals[0] = reflect.ValueOf(rc)
 	for i, arg := range args {
@@ -106,4 +115,27 @@ func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}
 		res[i] = retVal.Index(i).Interface()
 	}
 	return res
+}
+
+// checkExecutionPermission panics if the current user is not allowed to
+// execute the given method
+func (rc RecordCollection) checkExecutionPermission(method *Method) {
+	var caller *Method
+	if len(rc.env.callStack) > 1 {
+		caller = rc.env.callStack[1].method
+	}
+	userGroups := security.Registry.UserGroups(rc.env.uid)
+	// Check if we have global permission
+	for group := range userGroups {
+		if method.groups[group] {
+			return
+		}
+		if caller == nil {
+			continue
+		}
+		if method.groupsCallers[callerGroup{caller: caller, group: group}] {
+			return
+		}
+	}
+	log.Panic("You are not allowed to execute this method", "model", rc.ModelName(), "method", method.name, "uid", rc.env.uid)
 }

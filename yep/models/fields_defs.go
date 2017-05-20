@@ -167,8 +167,8 @@ func getJSONAndString(name string, typ types.FieldType, json, str string) (strin
 	return json, str
 }
 
-// addSimpleField adds or overrides a new simple field with the given data and returns the fieldInfo
-func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType types.FieldType, typ reflect.Type) *fieldInfo {
+// addSimpleField adds or overrides a new simple field with the given data and returns the Field
+func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType types.FieldType, typ reflect.Type) *Field {
 	if params.GoType != nil {
 		typ = reflect.TypeOf(params.GoType).Elem()
 	}
@@ -177,7 +177,7 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
-	fInfo := &fieldInfo{
+	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
 		name:          name,
@@ -205,8 +205,8 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 	return fInfo
 }
 
-// addStringField adds or overrides a new string field with the given data and returns the fieldInfo
-func (m *Model) addStringField(name string, params StringFieldParams, fieldType types.FieldType, typ reflect.Type) *fieldInfo {
+// addStringField adds or overrides a new string field with the given data and returns the Field
+func (m *Model) addStringField(name string, params StringFieldParams, fieldType types.FieldType, typ reflect.Type) *Field {
 	if params.GoType != nil {
 		typ = reflect.TypeOf(params.GoType).Elem()
 	}
@@ -215,7 +215,7 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
-	fInfo := &fieldInfo{
+	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
 		name:          name,
@@ -244,8 +244,8 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 	return fInfo
 }
 
-// addForeignKeyField adds or overrides a new FK field with the given data and returns the fieldInfo
-func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fieldType types.FieldType, typ reflect.Type) *fieldInfo {
+// addForeignKeyField adds or overrides a new FK field with the given data and returns the Field
+func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fieldType types.FieldType, typ reflect.Type) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new(int64)),
@@ -260,7 +260,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		onDelete = Cascade
 		required = true
 	}
-	fInfo := &fieldInfo{
+	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
 		name:             name,
@@ -289,14 +289,14 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 	return fInfo
 }
 
-// addReverseField adds or overrides a new reverse field with the given data and returns the fieldInfo
-func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldType types.FieldType, typ reflect.Type) *fieldInfo {
+// addReverseField adds or overrides a new reverse field with the given data and returns the Field
+func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldType types.FieldType, typ reflect.Type) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new([]int64)),
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
-	fInfo := &fieldInfo{
+	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
 		name:             name,
@@ -326,37 +326,37 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 
 // AddBinaryField adds a database stored binary field with the given name to this Model.
 // Binary fields are mapped to string type in go.
-func (m *Model) AddBinaryField(name string, params SimpleFieldParams) {
-	m.addSimpleField(name, params, types.Binary, reflect.TypeOf(*new(string)))
+func (m *Model) AddBinaryField(name string, params SimpleFieldParams) *Field {
+	return m.addSimpleField(name, params, types.Binary, reflect.TypeOf(*new(string)))
 }
 
 // AddBooleanField adds a boolean field with the given name to this Model.
-func (m *Model) AddBooleanField(name string, params SimpleFieldParams) {
-	m.addSimpleField(name, params, types.Boolean, reflect.TypeOf(true))
+func (m *Model) AddBooleanField(name string, params SimpleFieldParams) *Field {
+	return m.addSimpleField(name, params, types.Boolean, reflect.TypeOf(true))
 }
 
 // AddCharField adds a single line text field with the given name to this Model.
 // Char fields are mapped to strings in go. There is no limitation in the size
 // of the string, unless specified in the parameters.
-func (m *Model) AddCharField(name string, params StringFieldParams) {
-	m.addStringField(name, params, types.Char, reflect.TypeOf(*new(string)))
+func (m *Model) AddCharField(name string, params StringFieldParams) *Field {
+	return m.addStringField(name, params, types.Char, reflect.TypeOf(*new(string)))
 }
 
 // AddDateField adds a date field with the given name to this Model.
 // Date fields are mapped to Date type.
-func (m *Model) AddDateField(name string, params SimpleFieldParams) {
-	m.addSimpleField(name, params, types.Date, reflect.TypeOf(*new(Date)))
+func (m *Model) AddDateField(name string, params SimpleFieldParams) *Field {
+	return m.addSimpleField(name, params, types.Date, reflect.TypeOf(*new(Date)))
 }
 
 // AddDateTimeField adds a datetime field with the given name to this Model.
 // DateTime fields are mapped to DateTime type.
-func (m *Model) AddDateTimeField(name string, params SimpleFieldParams) {
-	m.addSimpleField(name, params, types.DateTime, reflect.TypeOf(*new(DateTime)))
+func (m *Model) AddDateTimeField(name string, params SimpleFieldParams) *Field {
+	return m.addSimpleField(name, params, types.DateTime, reflect.TypeOf(*new(DateTime)))
 }
 
 // AddFloatField adds a float field with the given name to this Model.
 // Float fields are mapped to go float64 type and stored as numeric in database.
-func (m *Model) AddFloatField(name string, params FloatFieldParams) {
+func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 	typ := reflect.TypeOf(*new(float64))
 	if params.GoType != nil {
 		typ = reflect.TypeOf(params.GoType).Elem()
@@ -366,7 +366,7 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) {
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, types.Float, params.JSON, params.String)
-	fInfo := &fieldInfo{
+	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
 		name:          name,
@@ -392,22 +392,23 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) {
 	} else {
 		m.fields.add(fInfo)
 	}
+	return fInfo
 }
 
 // AddHTMLField adds an html field with the given name to this Model.
 // HTML fields are mapped to string type in go.
-func (m *Model) AddHTMLField(name string, params StringFieldParams) {
-	m.addStringField(name, params, types.HTML, reflect.TypeOf(*new(string)))
+func (m *Model) AddHTMLField(name string, params StringFieldParams) *Field {
+	return m.addStringField(name, params, types.HTML, reflect.TypeOf(*new(string)))
 }
 
 // AddIntegerField adds an integer field with the given name to this Model.
 // Integer fields are mapped to int64 type in go.
-func (m *Model) AddIntegerField(name string, params SimpleFieldParams) {
-	m.addSimpleField(name, params, types.Integer, reflect.TypeOf(*new(int64)))
+func (m *Model) AddIntegerField(name string, params SimpleFieldParams) *Field {
+	return m.addSimpleField(name, params, types.Integer, reflect.TypeOf(*new(int64)))
 }
 
 // AddMany2ManyField adds a many2many field with the given name to this Model.
-func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) {
+func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new([]int64)),
@@ -434,7 +435,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) {
 	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, our, their)
 
 	json, str := getJSONAndString(name, types.Float, params.JSON, params.String)
-	fInfo := &fieldInfo{
+	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
 		name:             name,
@@ -461,37 +462,39 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) {
 	} else {
 		m.fields.add(fInfo)
 	}
+	return fInfo
 }
 
 // AddMany2OneField adds a many2one field with the given name to this Model.
-func (m *Model) AddMany2OneField(name string, params ForeignKeyFieldParams) {
-	m.addForeignKeyField(name, params, types.Many2One, reflect.TypeOf(*new(int64)))
+func (m *Model) AddMany2OneField(name string, params ForeignKeyFieldParams) *Field {
+	return m.addForeignKeyField(name, params, types.Many2One, reflect.TypeOf(*new(int64)))
 }
 
 // AddOne2ManyField adds a one2many field with the given name to this Model.
-func (m *Model) AddOne2ManyField(name string, params ReverseFieldParams) {
-	m.addReverseField(name, params, types.One2Many, reflect.TypeOf(*new(int64)))
+func (m *Model) AddOne2ManyField(name string, params ReverseFieldParams) *Field {
+	return m.addReverseField(name, params, types.One2Many, reflect.TypeOf(*new(int64)))
 }
 
 // AddOne2OneField adds a one2one field with the given name to this Model.
-func (m *Model) AddOne2OneField(name string, params ForeignKeyFieldParams) {
+func (m *Model) AddOne2OneField(name string, params ForeignKeyFieldParams) *Field {
 	fInfo := m.addForeignKeyField(name, params, types.One2One, reflect.TypeOf(*new(int64)))
 	fInfo.unique = true
+	return fInfo
 }
 
 // AddRev2OneField adds a rev2one field with the given name to this Model.
-func (m *Model) AddRev2OneField(name string, params ReverseFieldParams) {
-	m.addReverseField(name, params, types.Rev2One, reflect.TypeOf(*new(int64)))
+func (m *Model) AddRev2OneField(name string, params ReverseFieldParams) *Field {
+	return m.addReverseField(name, params, types.Rev2One, reflect.TypeOf(*new(int64)))
 }
 
 // AddSelectionField adds a selection field with the given name to this Model.
-func (m *Model) AddSelectionField(name string, params SelectionFieldParams) {
+func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new(Selection)),
 	}
 	json, str := getJSONAndString(name, types.Float, params.JSON, params.String)
-	fInfo := &fieldInfo{
+	fInfo := &Field{
 		model:       m,
 		acl:         security.NewAccessControlList(),
 		name:        name,
@@ -516,13 +519,14 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) {
 	} else {
 		m.fields.add(fInfo)
 	}
+	return fInfo
 }
 
 // AddTextField adds a multi line text field with the given name to this Model.
 // Text fields are mapped to strings in go. There is no limitation in the size
 // of the string, unless specified in the parameters.
-func (m *Model) AddTextField(name string, params StringFieldParams) {
-	m.addStringField(name, params, types.Text, reflect.TypeOf(*new(string)))
+func (m *Model) AddTextField(name string, params StringFieldParams) *Field {
+	return m.addStringField(name, params, types.Text, reflect.TypeOf(*new(string)))
 }
 
 // OverrideBinaryField overrides the database stored binary field with the given name of this Model.

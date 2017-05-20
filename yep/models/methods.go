@@ -14,111 +14,161 @@
 
 package models
 
-import "reflect"
+import (
+	"reflect"
+	"sync"
 
-// methodsCache is the methodInfo collection
-type methodsCollection struct {
-	registry     map[string]*methodInfo
+	"github.com/npiganeau/yep/yep/models/security"
+)
+
+// MethodsCollection is the Method collection
+type MethodsCollection struct {
+	registry     map[string]*Method
 	bootstrapped bool
 }
 
-// get returns the methodInfo of the given method.
-func (mc *methodsCollection) get(methodName string) (mi *methodInfo, ok bool) {
+// get returns the Method of the given method.
+func (mc *MethodsCollection) get(methodName string) (mi *Method, ok bool) {
 	mi, ok = mc.registry[methodName]
 	return
 }
 
-// MustGet returns the methodInfo of the given method. It panics if the
+// MustGet returns the Method of the given method. It panics if the
 // method is not found.
-func (mc *methodsCollection) mustGet(methodName string) *methodInfo {
+func (mc *MethodsCollection) MustGet(methodName string) *Method {
 	methInfo, ok := mc.get(methodName)
 	if !ok {
 		var model string
 		for _, f := range mc.registry {
-			model = f.mi.name
+			model = f.model.name
 			break
 		}
-		log.Panic("Unknown field in model", "model", model, "method", methodName)
+		log.Panic("Unknown method in model", "model", model, "method", methodName)
 	}
 	return methInfo
 }
 
-// set adds the given methodInfo to the methodsCollection.
-func (mc *methodsCollection) set(methodName string, methInfo *methodInfo) {
+// set adds the given Method to the MethodsCollection.
+func (mc *MethodsCollection) set(methodName string, methInfo *Method) {
 	mc.registry[methodName] = methInfo
 }
 
-// newMethodsCollection returns a pointer to a new methodsCollection
-func newMethodsCollection() *methodsCollection {
-	mc := methodsCollection{
-		registry: make(map[string]*methodInfo),
+// newMethodsCollection returns a pointer to a new MethodsCollection
+func newMethodsCollection() *MethodsCollection {
+	mc := MethodsCollection{
+		registry: make(map[string]*Method),
 	}
 	return &mc
 }
 
-// A methodInfo is a definition of a model's method
-type methodInfo struct {
-	name       string
-	mi         *Model
-	doc        string
-	methodType reflect.Type
-	topLayer   *methodLayer
-	nextLayer  map[*methodLayer]*methodLayer
+// A callerGroup is the concatenation of a caller method and a security group
+// It is used to lookup execution permissions.
+type callerGroup struct {
+	caller *Method
+	group  *security.Group
 }
 
-// addMethodLayer adds the given layer to this methodInfo.
-func (methInfo *methodInfo) addMethodLayer(val reflect.Value, doc string) {
+// A Method is a definition of a model's method
+type Method struct {
+	sync.RWMutex
+	name          string
+	model         *Model
+	doc           string
+	methodType    reflect.Type
+	topLayer      *methodLayer
+	nextLayer     map[*methodLayer]*methodLayer
+	groups        map[*security.Group]bool
+	groupsCallers map[callerGroup]bool
+}
+
+// addMethodLayer adds the given layer to this Method.
+func (m *Method) addMethodLayer(val reflect.Value, doc string) {
+	m.Lock()
+	defer m.Unlock()
 	ml := methodLayer{
 		funcValue: wrapFunctionForMethodLayer(val),
-		methInfo:  methInfo,
+		method:    m,
 		doc:       doc,
 	}
-	methInfo.nextLayer[&ml] = methInfo.topLayer
-	methInfo.topLayer = &ml
+	m.nextLayer[&ml] = m.topLayer
+	m.topLayer = &ml
 }
 
-func (methInfo *methodInfo) getNextLayer(methodLayer *methodLayer) *methodLayer {
-	return methInfo.nextLayer[methodLayer]
+func (m *Method) getNextLayer(methodLayer *methodLayer) *methodLayer {
+	return m.nextLayer[methodLayer]
 }
 
 // invertedLayers returns the list of method layers starting
 // from the base methods and going up all inherited layers
-func (methInfo *methodInfo) invertedLayers() []*methodLayer {
+func (m *Method) invertedLayers() []*methodLayer {
 	var layersInv []*methodLayer
-	for cl := methInfo.topLayer; cl != nil; cl = methInfo.getNextLayer(cl) {
+	for cl := m.topLayer; cl != nil; cl = m.getNextLayer(cl) {
 		layersInv = append([]*methodLayer{cl}, layersInv...)
 	}
 	return layersInv
 }
 
+// AllowGroup grants the execution permission on this method to the given group
+// If callers are defined, then the permission is granted only when this method
+// is called from one of the callers, otherwise it is granted from any caller.
+func (m *Method) AllowGroup(group *security.Group, callers ...*Method) *Method {
+	m.Lock()
+	defer m.Unlock()
+	if len(callers) == 0 {
+		m.groups[group] = true
+		return m
+	}
+	for _, caller := range callers {
+		m.groupsCallers[callerGroup{caller: caller, group: group}] = true
+	}
+	return m
+}
+
+// RevokeGroup revokes the execution permission on the method to the given group
+// if it has been given previously, otherwise does nothing.
+// Note that this methods revokes all permissions, whatever the caller.
+func (m *Method) RevokeGroup(group *security.Group) *Method {
+	m.Lock()
+	defer m.Unlock()
+	delete(m.groups, group)
+	for cg := range m.groupsCallers {
+		if cg.group == group {
+			delete(m.groupsCallers, cg)
+		}
+	}
+	return m
+}
+
 // methodLayer is one layer of a method, that is one function defined in a module
 type methodLayer struct {
-	methInfo  *methodInfo
+	method    *Method
 	mixedIn   bool
 	funcValue reflect.Value
 	doc       string
 }
 
-// newMethodInfo creates a new method ref with the given func value as first layer.
+// newMethod creates a new method ref with the given func value as first layer.
 // First argument of given function must implement RecordSet.
-func newMethodInfo(mi *Model, methodName, doc string, val reflect.Value) *methodInfo {
+func newMethod(m *Model, methodName, doc string, val reflect.Value) *Method {
 	funcType := val.Type()
 	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-		log.Panic("Function must have a `RecordSet` as first argument to be used as method.", "model", mi.name, "method", methodName, "type", funcType.In(0))
+		log.Panic("Function must have a `RecordSet` as first argument to be used as method.", "model", m.name, "method", methodName, "type", funcType.In(0))
 	}
 
-	methInfo := methodInfo{
-		mi:         mi,
-		name:       methodName,
-		methodType: val.Type(),
-		nextLayer:  make(map[*methodLayer]*methodLayer),
+	method := Method{
+		model:         m,
+		name:          methodName,
+		methodType:    val.Type(),
+		nextLayer:     make(map[*methodLayer]*methodLayer),
+		groups:        make(map[*security.Group]bool),
+		groupsCallers: make(map[callerGroup]bool),
 	}
-	methInfo.topLayer = &methodLayer{
+	method.topLayer = &methodLayer{
 		funcValue: wrapFunctionForMethodLayer(val),
-		methInfo:  &methInfo,
+		method:    &method,
 		doc:       doc,
 	}
-	return &methInfo
+	return &method
 }
 
 // wrapFunctionForMethodLayer take the given fnct Value and wrap it in a
@@ -162,13 +212,22 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 // AddMethod creates a new method on given model name and adds the given fnct
 // as first layer for this method. Given fnct function must have a RecordSet as
 // first argument.
-func (m *Model) AddMethod(methodName, doc string, fnct interface{}) {
-	m.checkMethodAndFnctType(methodName, fnct)
+// It returns a pointer to the newly created Method instance.
+func (m *Model) AddMethod(methodName, doc string, fnct interface{}) *Method {
+	if m.methods.bootstrapped {
+		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
+	}
+	val := reflect.ValueOf(fnct)
+	if val.Kind() != reflect.Func {
+		log.Panic("fnct parameter must be a function", "model", m.name, "method", methodName, "fnct", fnct)
+	}
 	_, exists := m.methods.get(methodName)
 	if exists {
 		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
 	}
-	m.methods.set(methodName, newMethodInfo(m, methodName, doc, reflect.ValueOf(fnct)))
+	newMethod := newMethod(m, methodName, doc, reflect.ValueOf(fnct))
+	m.methods.set(methodName, newMethod)
+	return newMethod
 }
 
 // ExtendMethod adds the given fnct function as a new layer on the given
@@ -193,7 +252,7 @@ func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
 		}
 		// The method exists in a mixin so we create it here with our layer.
 		// Bootstrap will take care of putting them the right way round afterwards.
-		methInfo = newMethodInfo(m, methodName, doc, reflect.ValueOf(fnct))
+		methInfo = newMethod(m, methodName, doc, reflect.ValueOf(fnct))
 	}
 	val := reflect.ValueOf(fnct)
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {

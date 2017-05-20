@@ -14,14 +14,13 @@
 
 package security
 
-// A Permission defines which of the 4 CRUD rights apply.
+// A Permission defines which of the read, write or unlink rights apply.
 type Permission uint8
 
-// The five Permissions are Create, Read, Write, Unlink and All.
+// The four Permissions are Read, Write, Unlink and All.
 const (
-	Create = 1 << Permission(iota)
-	Read
+	Read = 1 << Permission(iota)
 	Write
 	Unlink
-	All = Create | Read | Write | Unlink
+	All = Read | Write | Unlink
 )

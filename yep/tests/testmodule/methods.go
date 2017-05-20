@@ -72,6 +72,11 @@ func declareMethods() {
 			return &res, []models.FieldNamer{pool.User().DecoratedName()}
 		})
 
+	user.AddMethod("UpdateCity", "",
+		func(rs pool.UserSet, value string) {
+			rs.Profile().SetCity(value)
+		})
+
 	addressMI := pool.AddressMixIn()
 	addressMI.AddMethod("SayHello",
 		`SayHello is a sample method layer for testing`,

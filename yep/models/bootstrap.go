@@ -88,7 +88,13 @@ func inflateMixIns() {
 				}
 				newFI := *fi
 				newFI.model = mi
+				newFI.acl = security.NewAccessControlList()
+				// TODO handle M2M fields
 				mi.fields.add(&newFI)
+				// We add the permissions of the mixin to the target model
+				for group, perm := range fi.acl.Permissions() {
+					newFI.acl.AddPermission(group, perm)
+				}
 			}
 			// Add mixIn methods
 			for methName, methInfo := range mixInMI.methods.registry {
@@ -111,23 +117,29 @@ func inflateMixIns() {
 						ml := methodLayer{
 							funcValue: wrapFunctionForMethodLayer(lf.funcValue),
 							mixedIn:   true,
-							methInfo:  emi,
+							method:    emi,
 						}
 						emi.nextLayer[&ml] = firstMixedLayer
 						firstMixedLayer = &ml
 					}
 					emi.nextLayer[lastImplLayer] = firstMixedLayer
 				} else {
-					newMethInfo := &methodInfo{
-						mi:         mi,
-						name:       methName,
-						methodType: methInfo.methodType,
-						nextLayer:  make(map[*methodLayer]*methodLayer),
+					newMethInfo := &Method{
+						model:         mi,
+						name:          methName,
+						methodType:    methInfo.methodType,
+						nextLayer:     make(map[*methodLayer]*methodLayer),
+						groups:        make(map[*security.Group]bool),
+						groupsCallers: make(map[callerGroup]bool),
 					}
 					for i := 0; i < len(layersInv); i++ {
 						newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
 					}
 					mi.methods.set(methName, newMethInfo)
+				}
+				// Copy groups to our methods in the target model
+				for group := range methInfo.groups {
+					mi.methods.MustGet(methName).groups[group] = true
 				}
 			}
 		}
@@ -147,7 +159,7 @@ func inflateEmbeddings() {
 					// in our model (shadowing).
 					continue
 				}
-				fInfo := fieldInfo{
+				fInfo := Field{
 					name:        relName,
 					json:        relFI.json,
 					acl:         security.NewAccessControlList(),
@@ -163,8 +175,8 @@ func inflateEmbeddings() {
 	}
 }
 
-// syncRelatedFieldInfo overwrites the fieldInfo data of the related fields
-// with the data of the fieldInfo of the target.
+// syncRelatedFieldInfo overwrites the Field data of the related fields
+// with the data of the Field of the target.
 func syncRelatedFieldInfo() {
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.registryByName {
@@ -308,8 +320,8 @@ func updateDBColumns(mi *Model) {
 	}
 }
 
-// createDBColumn insert the column described by fieldInfo in the database
-func createDBColumn(fi *fieldInfo) {
+// createDBColumn insert the column described by Field in the database
+func createDBColumn(fi *Field) {
 	if !fi.isStored() {
 		log.Panic("createDBColumn should not be called on non stored fields", "model", fi.model.name, "field", fi.json)
 	}
@@ -321,8 +333,8 @@ func createDBColumn(fi *fieldInfo) {
 	dbExecuteNoTx(query)
 }
 
-// updateDBColumnDataType updates the data type in database for the given fieldInfo
-func updateDBColumnDataType(fi *fieldInfo) {
+// updateDBColumnDataType updates the data type in database for the given Field
+func updateDBColumnDataType(fi *Field) {
 	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`
 		ALTER TABLE %s
@@ -331,8 +343,8 @@ func updateDBColumnDataType(fi *fieldInfo) {
 	dbExecuteNoTx(query)
 }
 
-// updateDBColumnNullable updates the NULL/NOT NULL data in database for the given fieldInfo
-func updateDBColumnNullable(fi *fieldInfo) {
+// updateDBColumnNullable updates the NULL/NOT NULL data in database for the given Field
+func updateDBColumnNullable(fi *Field) {
 	adapter := adapters[db.DriverName()]
 	var verb string
 	if adapter.fieldIsNotNull(fi) {
@@ -347,8 +359,8 @@ func updateDBColumnNullable(fi *fieldInfo) {
 	dbExecuteNoTx(query)
 }
 
-// updateDBColumnDefault updates the default value in database for the given fieldInfo
-func updateDBColumnDefault(fi *fieldInfo) {
+// updateDBColumnDefault updates the default value in database for the given Field
+func updateDBColumnDefault(fi *Field) {
 	adapter := adapters[db.DriverName()]
 	defValue := adapter.fieldSQLDefault(fi)
 	var query string
@@ -483,9 +495,12 @@ func bootStrapMethods() {
 	}
 }
 
-// setupSecurity adds all permissions to the admin group for all models
+// setupSecurity adds execution permission to the
+// admin group for all methods
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
-		model.AllowModelAccess(security.AdminGroup, security.All)
+		for _, meth := range model.methods.registry {
+			meth.groups[security.GroupAdmin] = true
+		}
 	}
 }

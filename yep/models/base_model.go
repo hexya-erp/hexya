@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 )
 
@@ -80,7 +81,7 @@ func declareBaseComputeMethods() {
 		`ComputeWriteDate updates the WriteDate field with the current datetime.`,
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"WriteDate": DateTime(time.Now())}
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
@@ -93,7 +94,7 @@ func declareBaseComputeMethods() {
 				lastUpdate = rc.Get("CreateDate").(DateTime)
 			}
 			return FieldMap{"LastUpdate": lastUpdate}
-		})
+		}).AllowGroup(security.GroupEveryone)
 }
 
 func declareModelComputeMethods() {
@@ -103,7 +104,7 @@ func declareModelComputeMethods() {
 		`ComputeNameGet updates the DisplayName field with the result of NameGet.`,
 		func(rc RecordCollection) FieldMap {
 			return FieldMap{"DisplayName": rc.Call("NameGet").(string)}
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 }
 
@@ -155,7 +156,7 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Unlink",
 		`Unlink deletes the given records in the database.`,
 		func(rc RecordCollection) int64 {
-			return rc.delete()
+			return rc.unlink()
 		})
 
 	commonMixin.AddMethod("Copy",
@@ -196,7 +197,7 @@ func declareRecordSetMethods() {
 				return rc.Get("name").(string)
 			}
 			return rc.String()
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
@@ -208,14 +209,14 @@ func declareRecordSetMethods() {
 			fields := args.Fields
 			if len(args.Fields) == 0 {
 				for jName := range rc.model.fields.registryByJSON {
-					//if fi.fieldType != tools.MANY2MANY {
+					//if f.fieldType != tools.MANY2MANY {
 					// We don't want Many2Many as it points to the link table
 					fields = append(fields, FieldName(jName))
 					//}
 				}
 			}
 			for _, f := range fields {
-				fInfo := rc.model.fields.mustGet(string(f))
+				fInfo := rc.model.fields.MustGet(string(f))
 				var relation string
 				if fInfo.relatedModel != nil {
 					relation = fInfo.relatedModel.name
@@ -233,7 +234,7 @@ func declareRecordSetMethods() {
 				}
 			}
 			return res
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("FieldGet",
 		`FieldGet returns the definition of the given field.
@@ -243,14 +244,14 @@ func declareRecordSetMethods() {
 				Fields: []FieldName{field.FieldName()},
 			}
 			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[string(field.FieldName())]
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
 		func(rc RecordCollection) FieldMap {
 			// TODO Implement DefaultGet
 			return make(FieldMap)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified in the pseudo-record
@@ -258,7 +259,7 @@ func declareRecordSetMethods() {
 		func(rc RecordCollection, params OnchangeParams) FieldMap {
 			// TODO Implement Onchange
 			return make(FieldMap)
-		})
+		}).AllowGroup(security.GroupEveryone)
 }
 
 func declareSearchMethods() {
@@ -269,7 +270,7 @@ func declareSearchMethods() {
 		additional given Condition`,
 		func(rc RecordCollection, cond *Condition) RecordCollection {
 			return rc.Search(cond)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
@@ -277,45 +278,45 @@ func declareSearchMethods() {
 		if you want to fetch all fields.`,
 		func(rc RecordCollection) RecordCollection {
 			return rc.Fetch()
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("FetchAll",
 		`FetchAll returns a RecordSet with all items of the table, regardless of the
 		current RecordSet query. It is mainly meant to be used on an empty RecordSet`,
 		func(rc RecordCollection) RecordCollection {
 			return rc.FetchAll()
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc RecordCollection, exprs ...FieldNamer) RecordCollection {
 			return rc.GroupBy(exprs...)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Limit",
 		`Limit returns a new RecordSet with only the first 'limit' records.`,
 		func(rc RecordCollection, limit int) RecordCollection {
 			return rc.Limit(limit)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Offset",
 		`Offset returns a new RecordSet with only the records starting at offset`,
 		func(rc RecordCollection, offset int) RecordCollection {
 			return rc.Offset(offset)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("OrderBy",
 		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.OrderBy(exprs...)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
 		func(rc RecordCollection, other RecordCollection) RecordCollection {
 			return rc.Union(other)
-		})
+		}).AllowGroup(security.GroupEveryone)
 }
 
 func declareEnvironmentMethods() {
@@ -325,28 +326,28 @@ func declareEnvironmentMethods() {
 		`WithEnv returns a copy of the current RecordSet with the given Environment.`,
 		func(rc RecordCollection, env Environment) RecordCollection {
 			return rc.WithEnv(env)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("WithContext",
 		`WithContext returns a copy of the current RecordSet with
 		its context extended by the given key and value.`,
 		func(rc RecordCollection, key string, value interface{}) RecordCollection {
 			return rc.WithContext(key, value)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("WithNewContext",
 		`WithNewContext returns a copy of the current RecordSet with its context
 	 	replaced by the given one.`,
 		func(rc RecordCollection, context *types.Context) RecordCollection {
 			return rc.WithNewContext(context)
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Sudo",
 		`Sudo returns a new RecordSet with the given userID
 	 	or the superuser ID if not specified`,
 		func(rc RecordCollection, userID ...int64) RecordCollection {
 			return rc.Sudo(userID...)
-		})
+		}).AllowGroup(security.GroupEveryone)
 }
 
 // ConvertLimitToInt converts the given limit as interface{} to an int

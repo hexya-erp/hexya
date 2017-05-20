@@ -119,6 +119,11 @@ func TestCreateDB(t *testing.T) {
 				return res, []FieldNamer{}
 			})
 
+		user.AddMethod("UpdateCity", "",
+			func(rc RecordCollection, value string) {
+				rc.Get("Profile").(RecordCollection).Set("City", value)
+			})
+
 		activeMI.AddMethod("IsActivated", "",
 			func(rc RecordCollection) bool {
 				return rc.Get("Active").(bool)

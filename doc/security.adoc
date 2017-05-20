@@ -17,91 +17,141 @@ permissions.
 - A user can belong to one or several groups, and thus inherit from the
 permissions of the groups.
 
+=== Mechanisms
+
+Permissions are given to groups by three distinct mechanisms:
+
+Method Execution Control::
+Model methods can be executed only by members of given groups. This includes
+CRUD methods.
+
+Field Access Control::
+Fields in models can be given `Read` and/or `Write` permissions to specific
+groups to fine tune their access.
+
+Record Rules::
+Grant permissions (`Read`, `Write`, `Unlink`) on some records of a model only
+
 === Permissions
 
-There are four permissions that can be set on models, fields or records.
-They are defined in the `security` package.
+There are four permissions defined in the `security` package.
 
 [source,go]
 ----
 type Permission uint8
 
 const (
-    Create = 1 << Permission(iota)
-    Read
+    Read = 1 << Permission(iota)
     Write
     Unlink
-    All = Create | Read | Write | Unlink
+    All = Read | Write | Unlink
 )
 ----
-Permissions are given to groups by two distinct mechanisms:
 
-Access Control::
-Grant permissions on models and fields
+They are used when defining Record Rules of Field Access Controls.
 
-Record Rules::
-Grant permissions on some records of a model only
+== Method Execution Control (MEC)
 
-== Access Control
+=== Rationale
 
-Access Control defines the permissions for a group on models and fields.
-They apply to all the records of a model.
+Unlike other frameworks, YEP does not enforce access control lists to its
+objects, but instead control execution of model methods. While this system
+still enables mocking ACLs by controlling the execution of CRUD methods, it is
+much more powerful as it allows to give access to a model depending on the
+context.
 
-=== Models Access Control
+For example, suppose that we have a group of salesmen and a group of stock
+pickers. In normal operation, salesmen deal with sale orders and pickers deal
+with picking lists and we do not want them to have access to the other's
+objects. However, when a picker has finished picking an order and shipped it,
+we want to update the sale order to the `Shipped` state:
 
-By default, a model has an access control list that only allows the members
-of the AdminGroup to access it. Access Control at the model level can be set
-with the `AllowModelAccess()` and `DenyModelAccess()` functions.
+ - With classical ACLs, we would need to grant the pickers the permission to
+write sale orders (or at least its `State` field) or `sudo` the operation
+which leads to potential security risk.
+ - With MEC, we can define a specific method on sale orders (`SetToShipped()`)
+that only updates the status of the sale order to `Shipped` and we
+will grant execution permission on this method to stock pickers.
++
+`SetToShipped()` will be allowed to update the sale order without `sudo`
+because we will have allowed execution on the `Write()` method to stock pickers
+only when called from `SetToShipped()`.
 
-`*(*Model) AllowModelAccess(group *security.Group, perm security.Permission)*`::
-Grant the given `perm` permission to the given `group` for the given `model`.
+=== Defining Method Execution Permissions
+
+By default, only members of `security.AdminGroup` are allowed to execute a
+method. Other groups should be manually added to allowed groups.
+
+`*(*Method) AllowGroup(group *security.Group, callers ...*Method) *Method*`::
+Grant the execution permission on the method to the given group. If callers
+are defined, then the permission is granted only when this method is called
+from one of the callers, otherwise it is granted whatever the caller.
+
+`*(*Method) RevokeGroup(group *security.Group) *Method*`::
+Revoke the execution permission on the method to the given group if it has been
+given previously, otherwise does nothing. This methods revokes all permissions,
+whatever the caller.
+
+NOTE: These methods return a pointer to the receiver so that they can be
+chained
+
+[source,go]
+----
+users := pool.ResUsers()
+users.AddMethod("SayHello",
+    "SayHello returns Hello",
+    func(rs pool.ResUsersSet) {
+        return "Hello"
+    }).
+    AllowGroup(sale.GroupSalesman).
+    AllowGroup(stock.GroupPicker, pool.ResUsers().Methods().Create())
+    // Pickers can say hello only from the 'Create' method
+----
+
+== Field Access Control (FAC)
+
+=== Rationale
+
+While MEC is the main security mechanism used in YEP, it is sometimes necessary
+to limit read or write access for some users to some fields. This is
+particularly true in the user interface.
+
+This is done through Field Access Control. The following rules apply:
+
+- If a user without `Read` permission on a field retrieve a record, the value of
+the field will be replaced by its Go zero value.
+- If a user without `Write` permission on a field writes a record, the value of
+the field will not be updated.
+- Clients *should* make this behaviour explicit in their UI by removing non
+readable fields and marking as read only fields without `Write` permission.
+
+=== Defining Field Access Permissions
+
+Two permissions are applicable to fields: `security.Read` and
+`security.Write`.
+
+By default, `security.GroupEveryone` is granted `security.Read` and
+`security.Write` permissions on all fields.
+
+Field permissions can be modified with the following methods:
+
+`*(*Field) GrantAccess(group *security.Group, perm security.Permission) *Field*`::
+Grant the given `perm` to the given `group` on this field.
+
+`*(*Field) RevokeAccess(group *security.Group, perm security.Permission) *Field*`::
+Revoke the given `perm` to the given `group` on this field if it has been
+granted previously, otherwise does nothing.
+
+NOTE: These methods return a pointer to the receiver so that they can be
+chained.
 
 [source,go]
 salesManager := models.GroupsRegistry.Get("sale_manager")
-pool.ResPartner().AllowModelAccess(salesManager, security.Create|security.Read)
+pool.ResPartner().Fields().Phone().
+    RevokeAccess(security.GroupEveryOne, security.Read).
+    AllowAccess(salesManager, security.Read)
 
-`*(*Model) DenyModelAccess(group *security.Group, perm security.Permission)*`::
-Deny the `perm` permission to the given `group` for the given `model`.
-
-Permissions are evaluated in the order of insertion. This means that the
-overriding order of modules is preserved.
-
-TIP: Avoid using `DenyModelAccess` whenever possible. Since no permissions are
-granted by default, prefer granting permissions only to groups who need them.
-This will make the application much easier to debug.
-
-=== Fields Access Control
-
-Only three permissions are applicable to fields: `security.Read`,
-`security.Write` and 'security.Create'.
-
-They are set by default on all fields of models which are granted
-the respective permission.
-
-Field permissions can be modified with the following functions:
-
-`*(*Model) AllowFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
-Grant the given `perm` to the given `group` on the given `field` of `model`.
-
-[source,go]
-salesManager := models.GroupsRegistry.Get("sale_manager")
-pool.ResPartner().AllowFieldAccess(pool.ResPartner_Function, salesManager, security.Read)
-
-`*(*Model) DenyFieldAccess(field FieldName, group *security.Group, perm security.Permission)*`::
-Deny the given `perm` to the given `group` on the given `field`.
-
-Generally speaking, the permission on the model and on the fields must match
-for the action to be performed. In particular:
-
-- When reading a record, fields without `security.Read` permission are not
-retrieved and equal to their go zero value.
-- When creating a record, fields without `security.Create` permission are
-set to their go zero value.
-- When updating a record, fields without `security.Write` permission are not
-updated (silently).
-- When deleting a record, fields permissions are not evaluated.
-
-== Record Rules
+== Record Rules (RR)
 
 === Definition
 Record Rules allow to grant or deny a group some permissions on a selection of
@@ -128,9 +178,6 @@ operation the rule will be called. For example, if `security.Read` is set then
 the rule will be applied only on reading operations. Condition value may be
 functions just like any other Condition. This may be particularly useful to
 get the current user.
-
-NOTE: Setting the `security.Create` on the RecordRule has no effect since
-there is no record yet during creation.
 
 === Adding or removing Record Rules
 

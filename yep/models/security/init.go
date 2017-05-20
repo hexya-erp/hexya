@@ -23,6 +23,7 @@ func init() {
 
 	Registry = NewGroupCollection()
 	AuthenticationRegistry = new(AuthBackendRegistry)
-	AdminGroup = Registry.NewGroup(AdminGroupID, "Admin Group")
-	Registry.AddMembership(SuperUserID, AdminGroup)
+	GroupAdmin = Registry.NewGroup(GroupAdminID, "Admin Group")
+	Registry.AddMembership(SuperUserID, GroupAdmin)
+	GroupEveryone = Registry.NewGroup(GroupEveryoneID, "Everyone")
 }

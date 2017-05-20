@@ -26,7 +26,8 @@ ORM
     - [X] ReadWrite related fields
     - [X] Searchable related fields
 - [X] Security
-    - [X] CRUD permissions to models and fields
+    - [X] Permissions to execute methods
+    - [X] CRUD permissions to fields
     - [X] Record rules on models
 - [X] Handle serialization transaction isolation with appropriate retries
 - [X] Improved model creation/extension API
@@ -54,6 +55,7 @@ Server
 - [X] Unified logging system
 - [X] Automate routing and include for `static` dir in modules
 - [X] Improve yep CLI with a cobra commander
+- [ ] Implement yep REPL console
 
 Client
 ------

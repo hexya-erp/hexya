@@ -39,18 +39,18 @@ type dbAdapter interface {
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
 	operatorSQL(operator.Operator, interface{}) (string, interface{})
 	// typeSQL returns the SQL type string, including columns constraints if any
-	typeSQL(fi *fieldInfo) string
+	typeSQL(fi *Field) string
 	// columnSQLDefinition returns the SQL type string, including columns constraints if any
-	columnSQLDefinition(fi *fieldInfo) string
-	// fieldSQLDefault returns the SQL default value of the fieldInfo
-	fieldSQLDefault(fi *fieldInfo) string
+	columnSQLDefinition(fi *Field) string
+	// fieldSQLDefault returns the SQL default value of the Field
+	fieldSQLDefault(fi *Field) string
 	// tables returns a map of table names of the database
 	tables() map[string]bool
 	// columns returns a list of ColumnData for the given tableName
 	columns(tableName string) map[string]ColumnData
-	// fieldIsNull returns true if the given fieldInfo results in a
+	// fieldIsNull returns true if the given Field results in a
 	// NOT NULL column in database.
-	fieldIsNotNull(fi *fieldInfo) bool
+	fieldIsNotNull(fi *Field) bool
 	// quoteTableName returns the given table name with sql quotes
 	quoteTableName(string) string
 	// indexExists returns true if an index with the given name exists in the given table

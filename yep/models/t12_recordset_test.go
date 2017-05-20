@@ -120,7 +120,8 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
-				userModel.AllowModelAccess(group1, security.Create)
+				userModel.methods.MustGet("Create").AllowGroup(group1)
+				postModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Write"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
@@ -128,7 +129,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for posts and it works", func() {
-				postModel.AllowModelAccess(group1, security.Create)
+				postModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
@@ -137,7 +138,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { userTom.Get("Name") }, ShouldPanic)
 			})
 			Convey("Checking creation again with read rights too", func() {
-				userModel.AllowModelAccess(group1, security.Create|security.Read)
+				userModel.methods.MustGet("Load").AllowGroup(group1)
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
@@ -147,8 +148,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userTom.Get("Email"), ShouldEqual, "tsmith@example.com")
 			})
 			Convey("Removing Create right on Email field", func() {
-				userModel.AllowModelAccess(group1, security.Create|security.Read)
-				userModel.DenyFieldAccess(FieldName("Email"), group1, security.Create)
+				userModel.fields.MustGet("Email").RevokeAccess(security.GroupEveryone, security.Write)
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
@@ -156,7 +156,8 @@ func TestCreateRecordSet(t *testing.T) {
 				userTom := env.Pool("User").Call("Create", userTomData).(RecordCollection)
 				So(userTom.Get("Name"), ShouldEqual, "Tom Smith")
 				So(userTom.Get("Email").(string), ShouldBeBlank)
-				userModel.DenyModelAccess(group1, security.Create|security.Read)
+
+				userModel.fields.MustGet("Email").GrantAccess(security.GroupEveryone, security.Write)
 			})
 		})
 	})
@@ -245,7 +246,7 @@ func TestSearchRecordSet(t *testing.T) {
 				So(func() { userJane.Load() }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 and checking access", func() {
-				userModel.AllowModelAccess(group1, security.Read)
+				userModel.methods.MustGet("Load").AllowGroup(group1)
 
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldNotPanic)
@@ -255,18 +256,19 @@ func TestSearchRecordSet(t *testing.T) {
 				So(func() { userJane.Get("Profile").(RecordCollection).Get("Age") }, ShouldPanic)
 			})
 			Convey("Adding field access rights to user 2 and checking access", func() {
-				userModel.AllowModelAccess(group1, security.Read)
-				userModel.DenyFieldAccess(FieldName("Email"), group1, security.Read)
-				userModel.DenyFieldAccess(FieldName("Age"), group1, security.Read)
+				userModel.fields.MustGet("Email").RevokeAccess(security.GroupEveryone, security.Read)
+				userModel.fields.MustGet("Age").RevokeAccess(security.GroupEveryone, security.Read)
 
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldNotPanic)
 				So(userJane.Get("Name").(string), ShouldEqual, "Jane Smith")
 				So(userJane.Get("Email").(string), ShouldBeBlank)
 				So(userJane.Get("Age"), ShouldEqual, 0)
+
+				userModel.fields.MustGet("Email").GrantAccess(security.GroupEveryone, security.Read)
+				userModel.fields.MustGet("Age").GrantAccess(security.GroupEveryone, security.Read)
 			})
 			Convey("Checking record rules", func() {
-				userModel.AllowModelAccess(group1, security.Read)
 				users := env.Pool("User").FetchAll()
 				So(users.Len(), ShouldEqual, 3)
 
@@ -289,7 +291,6 @@ func TestSearchRecordSet(t *testing.T) {
 				users = env.Pool("User").FetchAll()
 				So(users.Len(), ShouldEqual, 2)
 				So(users.Records()[0].Get("Name"), ShouldBeIn, []string{"Jane Smith", "John Smith"})
-				userModel.DenyModelAccess(group1, security.Read)
 				userModel.RemoveRecordRule("jOnly")
 				userModel.RemoveRecordRule("writeRule")
 			})
@@ -462,9 +463,10 @@ func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing access control list on update (write only)", t, func() {
 		SimulateInNewEnvironment(2, func(env Environment) {
 			userModel := Registry.MustGet("User")
+			profileModel := Registry.MustGet("Profile")
 
 			Convey("Checking that user 2 cannot update records", func() {
-				userModel.AllowModelAccess(group1, security.Read)
+				userModel.methods.MustGet("Load").AllowGroup(group1)
 				john := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
 				johnValues := FieldMap{
@@ -474,7 +476,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(func() { john.Call("Write", johnValues) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 and check update", func() {
-				userModel.AllowModelAccess(group1, security.Read|security.Write)
+				userModel.methods.MustGet("Write").AllowGroup(group1)
 				john := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
 				johnValues := FieldMap{
@@ -487,9 +489,23 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(john.Get("Email"), ShouldEqual, "jsmith3@example.com")
 				So(john.Get("Nums"), ShouldEqual, 13)
 			})
+			Convey("Checking that user 2 cannot update profile through UpdateCity method", func() {
+				userModel.methods.MustGet("Load").AllowGroup(group1)
+				userModel.methods.MustGet("UpdateCity").AllowGroup(group1)
+				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane A. Smith"))
+				So(jane.Len(), ShouldEqual, 1)
+				So(func() { jane.Call("UpdateCity", "London") }, ShouldPanic)
+			})
+			Convey("Checking that user 2 can run UpdateCity after giving permission for caller", func() {
+				userModel.methods.MustGet("Load").AllowGroup(group1)
+				profileModel.methods.MustGet("Load").AllowGroup(group1, userModel.methods.MustGet("UpdateCity"))
+				profileModel.methods.MustGet("Write").AllowGroup(group1, userModel.methods.MustGet("UpdateCity"))
+				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane A. Smith"))
+				So(jane.Len(), ShouldEqual, 1)
+				So(func() { jane.Call("UpdateCity", "London") }, ShouldNotPanic)
+			})
 			Convey("Removing Update right on Email field", func() {
-				userModel.AllowModelAccess(group1, security.Write|security.Read)
-				userModel.DenyFieldAccess(FieldName("Email"), group1, security.Write)
+				userModel.fields.MustGet("Email").RevokeAccess(security.GroupEveryone, security.Write)
 				john := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
 				johnValues := FieldMap{
@@ -501,9 +517,9 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(john.Get("Name"), ShouldEqual, "John Smith")
 				So(john.Get("Email"), ShouldEqual, "jsmith2@example.com")
 				So(john.Get("Nums"), ShouldEqual, 13)
+				userModel.fields.MustGet("Email").GrantAccess(security.GroupEveryone, security.Write)
 			})
 			Convey("Checking record rules", func() {
-				userModel.AllowModelAccess(group1, security.Read|security.Write)
 				userJane := env.Pool("User").FetchAll()
 				So(userJane.Len(), ShouldEqual, 3)
 
@@ -532,7 +548,6 @@ func TestUpdateRecordSet(t *testing.T) {
 				userWill := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Will Smith"))
 				So(func() { userWill.Set("Name", "Will Jr. Smith") }, ShouldPanic)
 
-				userModel.DenyModelAccess(group1, security.Read|security.Write)
 				userModel.RemoveRecordRule("jOnly")
 				userModel.RemoveRecordRule("unlinkRule")
 			})
@@ -557,19 +572,18 @@ func TestDeleteRecordSet(t *testing.T) {
 		SimulateInNewEnvironment(2, func(env Environment) {
 			userModel := Registry.MustGet("User")
 
-			Convey("Checking that user 2 cannot delete records", func() {
-				userModel.AllowModelAccess(group1, security.Read)
+			Convey("Checking that user 2 cannot unlink records", func() {
+				userModel.methods.MustGet("Load").AllowGroup(group1)
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				So(func() { users.Call("Unlink") }, ShouldPanic)
 			})
 			Convey("Adding unlink permission to user2", func() {
-				userModel.AllowModelAccess(group1, security.Read|security.Unlink)
+				userModel.methods.MustGet("Unlink").AllowGroup(group1)
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				num := users.Call("Unlink")
 				So(num, ShouldEqual, 1)
 			})
 			Convey("Checking record rules", func() {
-				userModel.AllowModelAccess(group1, security.Read|security.Unlink)
 
 				rule := RecordRule{
 					Name:      "jOnly",
@@ -594,7 +608,6 @@ func TestDeleteRecordSet(t *testing.T) {
 				userWill := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Will Smith"))
 				So(userWill.Call("Unlink"), ShouldEqual, 0)
 
-				userModel.DenyModelAccess(group1, security.Read|security.Unlink)
 				userModel.RemoveRecordRule("jOnly")
 				userModel.RemoveRecordRule("writeRule")
 			})

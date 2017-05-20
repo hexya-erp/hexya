@@ -80,14 +80,14 @@ func (d *postgresAdapter) operatorSQL(do operator.Operator, arg interface{}) (st
 	return op, arg
 }
 
-// typeSQL returns the sql type string for the given fieldInfo
-func (d *postgresAdapter) typeSQL(fi *fieldInfo) string {
+// typeSQL returns the sql type string for the given Field
+func (d *postgresAdapter) typeSQL(fi *Field) string {
 	typ, _ := pgTypes[fi.fieldType]
 	return typ
 }
 
 // columnSQLDefinition returns the SQL type string, including columns constraints if any
-func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
+func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 	var res string
 	typ, ok := pgTypes[fi.fieldType]
 	res = typ
@@ -120,9 +120,9 @@ func (d *postgresAdapter) columnSQLDefinition(fi *fieldInfo) string {
 	return res
 }
 
-// fieldIsNull returns true if the given fieldInfo results in a
+// fieldIsNull returns true if the given Field results in a
 // NOT NULL column in database.
-func (d *postgresAdapter) fieldIsNotNull(fi *fieldInfo) bool {
+func (d *postgresAdapter) fieldIsNotNull(fi *Field) bool {
 	if fi.fieldType.IsFKRelationType() {
 		if fi.required {
 			return true
@@ -132,8 +132,8 @@ func (d *postgresAdapter) fieldIsNotNull(fi *fieldInfo) bool {
 	return true
 }
 
-// fieldSQLDefault returns the SQL default value of the fieldInfo
-func (d *postgresAdapter) fieldSQLDefault(fi *fieldInfo) string {
+// fieldSQLDefault returns the SQL default value of the Field
+func (d *postgresAdapter) fieldSQLDefault(fi *Field) string {
 	return pgDefaultValues[fi.fieldType]
 }
 

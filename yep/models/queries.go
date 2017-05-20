@@ -189,7 +189,7 @@ func (q *Query) sqlGroupByClause() string {
 	return fmt.Sprintf("GROUP BY %s", strings.Join(resSlice, ", "))
 }
 
-// deleteQuery returns the SQL query string and parameters to delete
+// deleteQuery returns the SQL query string and parameters to unlink
 // the rows pointed at by this Query object.
 func (q *Query) deleteQuery() (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
@@ -212,7 +212,7 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 		sql  string
 	)
 	for k, v := range data {
-		fi := q.recordSet.model.fields.mustGet(k)
+		fi := q.recordSet.model.fields.MustGet(k)
 		if fi.fieldType.IsFKRelationType() && !fi.required && v.(int64) == 0 {
 			continue
 		}
@@ -333,7 +333,7 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 		sql string
 	)
 	for k, v := range data {
-		fi := q.recordSet.model.fields.mustGet(k)
+		fi := q.recordSet.model.fields.MustGet(k)
 		cols[i] = fmt.Sprintf("%s = ?", fi.json)
 		vals[i] = v
 		i++
