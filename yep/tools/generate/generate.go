@@ -98,81 +98,12 @@ func CreatePool(program *loader.Program, dir string) {
 			Name:           modelName,
 			ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
 		}
-		for fieldName, fieldASTData := range modelASTData.Fields {
-			typStr := fieldASTData.Type.Type
-			if fieldASTData.RelModel != "" {
-				typStr = fmt.Sprintf("%sSet", fieldASTData.RelModel)
-			}
-
-			modelData.Fields = append(modelData.Fields, fieldData{
-				Name:     fieldName,
-				Type:     typStr,
-				IsRS:     fieldASTData.IsRS,
-				RelModel: fieldASTData.RelModel,
-				SanType:  createTypeIdent(typStr),
-			})
-			depsMap[fieldASTData.Type.ImportPath] = true
-		}
+		// Add fields
+		addFieldsToModelData(modelASTData, &modelData, &depsMap)
+		// Add field types
 		addFieldTypesToModelData(&modelData)
-		for methodName, methodASTData := range modelASTData.Methods {
-			modelData.AllMethods = append(modelData.AllMethods, methodName)
-			if specificMethods[methodName] {
-				continue
-			}
-			var params, paramsWithType, call, returns, returnAsserts, returnString string
-			for _, astParam := range methodASTData.Params {
-				paramType := astParam.Type.Type
-				if astParam.Variadic {
-					paramType = fmt.Sprintf("...%s", paramType)
-				}
-				p := fmt.Sprintf("%s,", astParam.Name)
-				if isRecordSetType(astParam.Type.Type, modelsASTData) {
-					p = fmt.Sprintf("%s.RecordCollection,", astParam.Name)
-					paramType = fmt.Sprintf("%sSet", modelName)
-				}
-				params += p
-				paramsWithType += fmt.Sprintf("%s %s,", astParam.Name, paramType)
-				depsMap[astParam.Type.ImportPath] = true
-			}
-			if len(methodASTData.Returns) == 1 {
-				call = "Call"
-				depsMap[methodASTData.Returns[0].ImportPath] = true
-				typ := methodASTData.Returns[0].Type
-				returnAsserts = fmt.Sprintf("resTyped, _ := res.(%s)", typ)
-				returns = "resTyped"
-				if isRecordSetType(typ, modelsASTData) {
-					typ = fmt.Sprintf("%sSet", modelName)
-					returnAsserts = "resTyped, _ := res.(models.RecordCollection)"
-					returns = fmt.Sprintf("%s{RecordCollection: resTyped}", typ)
-				}
-				returnString = typ
-			} else if len(methodASTData.Returns) > 1 {
-				for i, ret := range methodASTData.Returns {
-					call = "CallMulti"
-					depsMap[ret.ImportPath] = true
-					if isRecordSetType(ret.Type, modelsASTData) {
-						retType := fmt.Sprintf("%sSet", modelName)
-						returnAsserts += fmt.Sprintf("resTyped%d, _ := res[%d].(models.RecordCollection)\n", i, i)
-						returns += fmt.Sprintf("%s{RecordCollection: resTyped%d},", retType, i)
-						returnString += fmt.Sprintf("%s,", retType)
-					} else {
-						returnAsserts += fmt.Sprintf("resTyped%d, _ := res[%d].(%s)\n", i, i, ret.Type)
-						returns += fmt.Sprintf("resTyped%d,", i)
-						returnString += fmt.Sprintf("%s,", ret.Type)
-					}
-				}
-			}
-			modelData.Methods = append(modelData.Methods, methodData{
-				Name:           methodName,
-				Doc:            methodASTData.Doc,
-				Params:         strings.TrimRight(params, ","),
-				ParamsWithType: strings.TrimRight(paramsWithType, ","),
-				ReturnAsserts:  strings.TrimSuffix(returnAsserts, "\n"),
-				Returns:        strings.TrimSuffix(returns, ","),
-				ReturnString:   strings.TrimSuffix(returnString, ","),
-				Call:           call,
-			})
-		}
+		// Add methods
+		addMethodsToModelData(modelsASTData, &modelData, &depsMap)
 		// Setting imports
 		var deps []string
 		for dep := range depsMap {
@@ -185,6 +116,89 @@ func CreatePool(program *loader.Program, dir string) {
 		// Writing to file
 		fileName := fmt.Sprintf("%s.go", strings.ToLower(modelName))
 		CreateFileFromTemplate(path.Join(dir, fileName), poolModelTemplate, modelData)
+	}
+}
+
+// addMethodsToModelData extracts data from modelsASTData to populate methods in modelData
+func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *modelData, depsMap *map[string]bool) {
+	modelASTData := modelsASTData[modelData.Name]
+	for methodName, methodASTData := range modelASTData.Methods {
+		modelData.AllMethods = append(modelData.AllMethods, methodName)
+		if specificMethods[methodName] {
+			continue
+		}
+		var params, paramsWithType, call, returns, returnAsserts, returnString string
+		for _, astParam := range methodASTData.Params {
+			paramType := astParam.Type.Type
+			if astParam.Variadic {
+				paramType = fmt.Sprintf("...%s", paramType)
+			}
+			p := fmt.Sprintf("%s,", astParam.Name)
+			if isRecordSetType(astParam.Type.Type, modelsASTData) {
+				p = fmt.Sprintf("%s.RecordCollection,", astParam.Name)
+				paramType = fmt.Sprintf("%sSet", modelData.Name)
+			}
+			params += p
+			paramsWithType += fmt.Sprintf("%s %s,", astParam.Name, paramType)
+			(*depsMap)[astParam.Type.ImportPath] = true
+		}
+		if len(methodASTData.Returns) == 1 {
+			call = "Call"
+			(*depsMap)[methodASTData.Returns[0].ImportPath] = true
+			typ := methodASTData.Returns[0].Type
+			returnAsserts = fmt.Sprintf("resTyped, _ := res.(%s)", typ)
+			returns = "resTyped"
+			if isRecordSetType(typ, modelsASTData) {
+				typ = fmt.Sprintf("%sSet", modelData.Name)
+				returnAsserts = "resTyped, _ := res.(models.RecordCollection)"
+				returns = fmt.Sprintf("%s{RecordCollection: resTyped}", typ)
+			}
+			returnString = typ
+		} else if len(methodASTData.Returns) > 1 {
+			for i, ret := range methodASTData.Returns {
+				call = "CallMulti"
+				(*depsMap)[ret.ImportPath] = true
+				if isRecordSetType(ret.Type, modelsASTData) {
+					retType := fmt.Sprintf("%sSet", modelData.Name)
+					returnAsserts += fmt.Sprintf("resTyped%d, _ := res[%d].(models.RecordCollection)\n", i, i)
+					returns += fmt.Sprintf("%s{RecordCollection: resTyped%d},", retType, i)
+					returnString += fmt.Sprintf("%s,", retType)
+				} else {
+					returnAsserts += fmt.Sprintf("resTyped%d, _ := res[%d].(%s)\n", i, i, ret.Type)
+					returns += fmt.Sprintf("resTyped%d,", i)
+					returnString += fmt.Sprintf("%s,", ret.Type)
+				}
+			}
+		}
+		modelData.Methods = append(modelData.Methods, methodData{
+			Name:           methodName,
+			Doc:            methodASTData.Doc,
+			Params:         strings.TrimRight(params, ","),
+			ParamsWithType: strings.TrimRight(paramsWithType, ","),
+			ReturnAsserts:  strings.TrimSuffix(returnAsserts, "\n"),
+			Returns:        strings.TrimSuffix(returns, ","),
+			ReturnString:   strings.TrimSuffix(returnString, ","),
+			Call:           call,
+		})
+	}
+}
+
+// addFieldsToModelData extracts data from modelASTData to populate fields in modelData
+func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsMap *map[string]bool) {
+	for fieldName, fieldASTData := range modelASTData.Fields {
+		typStr := fieldASTData.Type.Type
+		if fieldASTData.RelModel != "" {
+			typStr = fmt.Sprintf("%sSet", fieldASTData.RelModel)
+		}
+
+		modelData.Fields = append(modelData.Fields, fieldData{
+			Name:     fieldName,
+			Type:     typStr,
+			IsRS:     fieldASTData.IsRS,
+			RelModel: fieldASTData.RelModel,
+			SanType:  createTypeIdent(typStr),
+		})
+		(*depsMap)[fieldASTData.Type.ImportPath] = true
 	}
 }
 

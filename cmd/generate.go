@@ -116,6 +116,15 @@ Warnings may appear here, just ignore them if yep-generate doesn't crash.`)
 	generate.CreatePool(program, poolDir)
 	fmt.Println("Ok")
 
+	fmt.Print("Checking the generated code...")
+	conf.AllowErrors = false
+	_, err = conf.Load()
+	if err != nil {
+		fmt.Println("FAIL", err)
+		os.Exit(1)
+	}
+	fmt.Println("Ok")
+
 	fmt.Println("Pool generated successfully")
 }
 
