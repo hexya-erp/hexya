@@ -113,6 +113,37 @@ Global Flags:
   -o, --log-stdout         Enable stdout logging. Use for development or debugging.
 ----
 
+== Synchronise database
+
+This step will synchronise the database with the models defined.
+
+[source,shell]
+----
+cd <projectDir>
+yep updatedb -o --db-password=MY_DB_PASSWORD
+----
+
+Type `yep help updatedb` for the list of available options:
+----
+Synchronize the database schema with the models definitions.
+
+Usage:
+  yep updatedb [flags]
+
+Global Flags:
+  -c, --config string        Alternate configuration file to read. Defaults to $HOME/.yep/
+      --db-driver string     Database driver to use (default "postgres")
+      --db-host string       Database hostname or IP. Leave empty to connect through socket.
+      --db-name string       Database name. Defaults to 'yep' (default "yep")
+      --db-password string   Database password. Leave empty when connecting through socket.
+      --db-port string       Database port. Value is ignored if db-host is not set. (default "5432")
+      --db-user string       Database user. Defaults to current user
+      --debug                Enable server debug mode for development
+  -l, --log-file string      File to which the log will be written
+  -L, --log-level string     Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
+  -o, --log-stdout           Enable stdout logging. Use for development or debugging.
+----
+
 == Running YEP
 
 YEP is launched by the `yep server` command from inside the project directory.

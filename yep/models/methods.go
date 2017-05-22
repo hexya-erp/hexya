@@ -238,15 +238,7 @@ func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
 	methInfo, exists := m.methods.get(methodName)
 	if !exists {
 		// We didn't find the method, but maybe it exists in mixins
-		var found bool
-		allMixIns := append(Registry.commonMixins, m.mixins...)
-		for _, mixin := range allMixIns {
-			_, ok := mixin.methods.get(methodName)
-			if ok {
-				found = true
-				break
-			}
-		}
+		found := m.findMethodInMixin(methodName)
 		if !found {
 			log.Panic("Call to ExtendMethod on non existent method", "model", m.name, "method", methodName)
 		}
@@ -274,6 +266,22 @@ func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
 		return
 	}
 	methInfo.addMethodLayer(val, doc)
+}
+
+// findMethodInMixin recursively goes through all mixins
+// to find the method with the given name. Returns true if
+// it found one, false otherwise.
+func (m *Model) findMethodInMixin(methodName string) bool {
+	for _, mixin := range m.mixins {
+		_, ok := mixin.methods.get(methodName)
+		if ok {
+			return true
+		}
+		if mixin.findMethodInMixin(methodName) {
+			return true
+		}
+	}
+	return false
 }
 
 // checkMethodAndFnctType checks whether the given arguments are valid for

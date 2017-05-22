@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 )
@@ -56,6 +57,7 @@ func declareBaseMixin() {
 	baseMixin.AddDateTimeField("WriteDate", SimpleFieldParams{NoCopy: true})
 	baseMixin.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
 	baseMixin.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
+	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
 	declareBaseComputeMethods()
 }
 
@@ -70,6 +72,7 @@ func declareModelMixin() {
 	})
 	modelMixin.AddIntegerField("YEPVersion", SimpleFieldParams{GoType: new(int)})
 	modelMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
+	modelMixin.InheritModel(Registry.MustGet("BaseMixin"))
 	declareModelComputeMethods()
 }
 
@@ -80,18 +83,18 @@ func declareBaseComputeMethods() {
 	model.AddMethod("ComputeWriteDate",
 		`ComputeWriteDate updates the WriteDate field with the current datetime.`,
 		func(rc RecordCollection) FieldMap {
-			return FieldMap{"WriteDate": DateTime(time.Now())}
+			return FieldMap{"WriteDate": types.DateTime(time.Now())}
 		}).AllowGroup(security.GroupEveryone)
 
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
 		func(rc RecordCollection) FieldMap {
-			lastUpdate := DateTime(time.Now())
-			if !rc.Get("WriteDate").(DateTime).IsNull() {
-				lastUpdate = rc.Get("WriteDate").(DateTime)
+			lastUpdate := types.DateTime(time.Now())
+			if !rc.Get("WriteDate").(types.DateTime).IsNull() {
+				lastUpdate = rc.Get("WriteDate").(types.DateTime)
 			}
-			if !rc.Get("CreateDate").(DateTime).IsNull() {
-				lastUpdate = rc.Get("CreateDate").(DateTime)
+			if !rc.Get("CreateDate").(types.DateTime).IsNull() {
+				lastUpdate = rc.Get("CreateDate").(types.DateTime)
 			}
 			return FieldMap{"LastUpdate": lastUpdate}
 		}).AllowGroup(security.GroupEveryone)
@@ -377,7 +380,7 @@ type FieldInfo struct {
 	CompanyDependent bool                   `json:"company_dependent"`
 	Sortable         bool                   `json:"sortable"`
 	Translate        bool                   `json:"translate"`
-	Type             types.FieldType        `json:"type"`
+	Type             fieldtype.Type         `json:"type"`
 	Store            bool                   `json:"store"`
 	String           string                 `json:"string"`
 	Domain           *Condition             `json:"domain"`

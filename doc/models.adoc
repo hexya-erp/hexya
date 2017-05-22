@@ -509,7 +509,7 @@ accessible like a regular model but are meant to be mixed in other models.
 +
 See <<Model Mix In>>
 
-`*models.NewMixInModel(modelName string) *Model*`::
+`*models.NewTransientModel(modelName string) *Model*`::
 
 Creates a new transient model with the given name. Transient model instances
 have a limited life time and are automatically removed from database. They
@@ -812,21 +812,14 @@ See also <<Defining methods>> to see how to add or override methods in a model.
 
 ==== Model Mix In
 
-`*(*Model) MixInModel(mixInModel *Model)*`::
+`*(*Model) InheritModel(mixInModel *Model)*`::
 Extend this model by importing all fields and methods of `mixInModel`.
-`MixInModel` must have been created by `models.NewMixInModel()` and this model
-must not be a mixin model itself.
-
-`*models.MixInAllModels(mixInModel *Model)*`::
-Extends all models by importing all fields and methods of `mixInModel`.
-`MixInModel` must have been created by `models.NewMixInModel()`
+`mixInModel` must have been created by `models.NewMixInModel()`.
 
 If a field name conflicts with an existing field name in the model, then:
 
 .Field overriding rules
 - Fields defined in the target model override fields defined in any mixin model
-- Fields defined in a specific mixin added with `MixInModel` override fields
-defined in a generic mixin added with `MixInAllModels`.
 - Fields defined in a mixin override fields defined in another mixin of same
 priority (i.e. general or specific) imported before.
 
@@ -834,8 +827,6 @@ If a method name conflicts with an existing method name in the model, then:
 
 .Method overriding rules
 - Methods defined in the target model extend methods of the mixin model.
-- Methods defined in a specific mixin added with `MixInModel` extend methods
-defined in a generic mixin added with `MixInAllModels`.
 - Methods defined in a mixin extend methods defined of another mixin of same
 priority (i.e. general or specific) imported before.
 

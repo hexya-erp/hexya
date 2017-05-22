@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/operator"
-	"github.com/npiganeau/yep/yep/models/types"
 )
 
 // An SQLParams is a list of parameters that are passed to the
@@ -421,9 +421,9 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 
 		var field, otherField string
 		switch fi.fieldType {
-		case types.Many2One, types.One2One:
+		case fieldtype.Many2One, fieldtype.One2One:
 			field, otherField = "id", expr
-		case types.One2Many, types.Rev2One:
+		case fieldtype.One2Many, fieldtype.Rev2One:
 			field, otherField = jsonizePath(fi.relatedModel, fi.reverseFK), "id"
 		}
 

@@ -16,10 +16,17 @@ package models
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/npiganeau/yep/yep/models/security"
 )
+
+// A modelCouple holds a model and one of its mixin
+type modelCouple struct {
+	model *Model
+	mixIn *Model
+}
+
+var mixed = map[modelCouple]bool{}
 
 // BootStrap freezes model, fields and method caches and syncs the database structure
 // with the declared data.
@@ -37,7 +44,6 @@ func BootStrap() {
 	inflateMixIns()
 	inflateEmbeddings()
 	syncRelatedFieldInfo()
-	generateMethodsDoc()
 	bootStrapMethods()
 	processDepends()
 	checkComputeMethodsSignature()
@@ -68,82 +74,88 @@ func createModelLinks() {
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
 	for _, mi := range Registry.registryByName {
-		if mi.isM2MLink() || mi.isMixin() {
-			// We don"t mix in M2M link or mixin models
+		if mi.isM2MLink() {
+			// We don"t mix in M2M link
 			continue
 		}
-		var allMixIns []*Model
-		if mi.isManual() {
-			allMixIns = mi.mixins
-		} else {
-			allMixIns = append(Registry.commonMixins, mi.mixins...)
-		}
-		for _, mixInMI := range allMixIns {
-			// Add mixIn fields
-			for fName, fi := range mixInMI.fields.registryByName {
-				if _, exists := mi.fields.registryByName[fName]; exists {
-					// We do not add fields that already exist in the targetModel
-					// since the target model should always override mixins.
-					continue
-				}
-				newFI := *fi
-				newFI.model = mi
-				newFI.acl = security.NewAccessControlList()
-				// TODO handle M2M fields
-				mi.fields.add(&newFI)
-				// We add the permissions of the mixin to the target model
-				for group, perm := range fi.acl.Permissions() {
-					newFI.acl.AddPermission(group, perm)
-				}
-			}
-			// Add mixIn methods
-			for methName, methInfo := range mixInMI.methods.registry {
-				// Extract all method layers functions by inverse order
-				layersInv := methInfo.invertedLayers()
-				if emi, exists := mi.methods.registry[methName]; exists {
-					// The method already exists in our target model.
-					// We insert our new method layers above previous mixins layers
-					// but below the target model implementations.
-					lastImplLayer := emi.topLayer
-					firstMixedLayer := emi.getNextLayer(lastImplLayer)
-					for firstMixedLayer != nil {
-						if firstMixedLayer.mixedIn {
-							break
-						}
-						lastImplLayer = firstMixedLayer
-						firstMixedLayer = emi.getNextLayer(lastImplLayer)
-					}
-					for _, lf := range layersInv {
-						ml := methodLayer{
-							funcValue: wrapFunctionForMethodLayer(lf.funcValue),
-							mixedIn:   true,
-							method:    emi,
-						}
-						emi.nextLayer[&ml] = firstMixedLayer
-						firstMixedLayer = &ml
-					}
-					emi.nextLayer[lastImplLayer] = firstMixedLayer
-				} else {
-					newMethInfo := &Method{
-						model:         mi,
-						name:          methName,
-						methodType:    methInfo.methodType,
-						nextLayer:     make(map[*methodLayer]*methodLayer),
-						groups:        make(map[*security.Group]bool),
-						groupsCallers: make(map[callerGroup]bool),
-					}
-					for i := 0; i < len(layersInv); i++ {
-						newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
-					}
-					mi.methods.set(methName, newMethInfo)
-				}
-				// Copy groups to our methods in the target model
-				for group := range methInfo.groups {
-					mi.methods.MustGet(methName).groups[group] = true
-				}
-			}
+		for _, mixInMI := range mi.mixins {
+			injectMixInModel(mixInMI, mi)
 		}
 	}
+}
+
+// injectMixInModel injects fields and methods of mixInMI in model
+func injectMixInModel(mixInMI, mi *Model) {
+	for _, mmm := range mixInMI.mixins {
+		injectMixInModel(mmm, mixInMI)
+	}
+	if mixed[modelCouple{model: mi, mixIn: mixInMI}] {
+		return
+	}
+	// Add mixIn fields
+	for fName, fi := range mixInMI.fields.registryByName {
+		if _, exists := mi.fields.registryByName[fName]; exists {
+			// We do not add fields that already exist in the targetModel
+			// since the target model should always override mixins.
+			continue
+		}
+		newFI := *fi
+		newFI.model = mi
+		newFI.acl = security.NewAccessControlList()
+		// TODO handle M2M fields
+		mi.fields.add(&newFI)
+		// We add the permissions of the mixin to the target model
+		for group, perm := range fi.acl.Permissions() {
+			newFI.acl.AddPermission(group, perm)
+		}
+	}
+	// Add mixIn methods
+	for methName, methInfo := range mixInMI.methods.registry {
+		// Extract all method layers functions by inverse order
+		layersInv := methInfo.invertedLayers()
+		if emi, exists := mi.methods.registry[methName]; exists {
+			// The method already exists in our target model.
+			// We insert our new method layers above previous mixins layers
+			// but below the target model implementations.
+			lastImplLayer := emi.topLayer
+			firstMixedLayer := emi.getNextLayer(lastImplLayer)
+			for firstMixedLayer != nil {
+				if firstMixedLayer.mixedIn {
+					break
+				}
+				lastImplLayer = firstMixedLayer
+				firstMixedLayer = emi.getNextLayer(lastImplLayer)
+			}
+			for _, lf := range layersInv {
+				ml := methodLayer{
+					funcValue: wrapFunctionForMethodLayer(lf.funcValue),
+					mixedIn:   true,
+					method:    emi,
+				}
+				emi.nextLayer[&ml] = firstMixedLayer
+				firstMixedLayer = &ml
+			}
+			emi.nextLayer[lastImplLayer] = firstMixedLayer
+		} else {
+			newMethInfo := &Method{
+				model:         mi,
+				name:          methName,
+				methodType:    methInfo.methodType,
+				nextLayer:     make(map[*methodLayer]*methodLayer),
+				groups:        make(map[*security.Group]bool),
+				groupsCallers: make(map[callerGroup]bool),
+			}
+			for i := 0; i < len(layersInv); i++ {
+				newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
+			}
+			mi.methods.set(methName, newMethInfo)
+		}
+		// Copy groups to our methods in the target model
+		for group := range methInfo.groups {
+			mi.methods.MustGet(methName).groups[group] = true
+		}
+	}
+	mixed[modelCouple{model: mi, mixIn: mixInMI}] = true
 }
 
 // inflateEmbeddings creates related fields for all fields of embedded models.
@@ -452,40 +464,6 @@ func dropColumnIndex(tableName, colName string) {
 		DROP INDEX IF EXISTS %s
 	`, fmt.Sprintf("%s_%s_index", tableName, colName))
 	dbExecuteNoTx(query)
-}
-
-// generateMethodsDoc concatenates the doc of each method layer into
-// the methods doc string.
-func generateMethodsDoc() {
-	for _, mi := range Registry.registryByName {
-		for _, methInfo := range mi.methods.registry {
-			for _, ml := range methInfo.invertedLayers() {
-				if ml.doc != "" {
-					if methInfo.doc != "" {
-						methInfo.doc += "\n"
-					}
-					methInfo.doc += formatDocString(ml.doc)
-				}
-			}
-		}
-	}
-}
-
-// formatDocString formats the given string by stripping whitespaces at the
-// beginning of each line and prepend "// ". It also strips empty lines at
-// the beginning.
-func formatDocString(doc string) string {
-	var res string
-	var dataStarted bool
-	for _, line := range strings.Split(doc, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" && !dataStarted {
-			continue
-		}
-		dataStarted = true
-		res += fmt.Sprintf("// %s\n", line)
-	}
-	return strings.TrimRight(res, "\n")
 }
 
 // bootStrapMethods freezes the methods of the models.

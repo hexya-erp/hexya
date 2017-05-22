@@ -65,11 +65,11 @@ func TestCreateDB(t *testing.T) {
 		addressMI.AddCharField("Street", StringFieldParams{})
 		addressMI.AddCharField("Zip", StringFieldParams{})
 		addressMI.AddCharField("City", StringFieldParams{})
-		profile.MixInModel(addressMI)
+		profile.InheritModel(addressMI)
 
 		activeMI := NewMixinModel("ActiveMixIn")
 		activeMI.AddBooleanField("Active", SimpleFieldParams{})
-		MixInAllModels(activeMI)
+		Registry.MustGet("ModelMixin").InheritModel(activeMI)
 
 		viewModel := NewManualModel("UserView")
 		viewModel.AddCharField("Name", StringFieldParams{})

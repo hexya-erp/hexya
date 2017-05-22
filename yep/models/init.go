@@ -31,7 +31,7 @@ func init() {
 	// model registry
 	Registry = newModelCollection()
 	// declare base and common mixins
-	declareBaseMixin()
 	declareCommonMixin()
+	declareBaseMixin()
 	declareModelMixin()
 }

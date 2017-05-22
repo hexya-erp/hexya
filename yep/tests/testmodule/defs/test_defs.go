@@ -14,7 +14,10 @@
 
 package defs
 
-import "github.com/npiganeau/yep/yep/models"
+import (
+	"github.com/npiganeau/yep/pool"
+	"github.com/npiganeau/yep/yep/models"
+)
 
 func init() {
 	user := models.NewModel("User")
@@ -58,11 +61,11 @@ func init() {
 	addressMI.AddCharField("Street", models.StringFieldParams{})
 	addressMI.AddCharField("Zip", models.StringFieldParams{})
 	addressMI.AddCharField("City", models.StringFieldParams{})
-	profile.MixInModel(addressMI)
+	profile.InheritModel(addressMI)
 
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
-	models.MixInAllModels(activeMI)
+	pool.ModelMixin().InheritModel(activeMI)
 
 	viewModel := models.NewManualModel("UserView")
 	viewModel.AddCharField("Name", models.StringFieldParams{})

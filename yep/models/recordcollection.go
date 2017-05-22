@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 )
@@ -156,7 +157,7 @@ func (rc RecordCollection) applyDefaults(fMap *FieldMap) {
 // the given FieldMap.
 func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
-		(*fMap)["CreateDate"] = Now()
+		(*fMap)["CreateDate"] = types.Now()
 		(*fMap)["CreateUID"] = rc.env.uid
 	}
 }
@@ -196,7 +197,7 @@ func (rc RecordCollection) update(data interface{}, fieldsToUnset ...FieldNamer)
 // the given FieldMap.
 func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
-		(*fMap)["WriteDate"] = Now()
+		(*fMap)["WriteDate"] = types.Now()
 		(*fMap)["WriteUID"] = rc.env.uid
 	}
 }
@@ -232,9 +233,9 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 			continue
 		}
 		switch fi.fieldType {
-		case types.One2Many:
-		case types.Rev2One:
-		case types.Many2Many:
+		case fieldtype.One2Many:
+		case fieldtype.Rev2One:
+		case fieldtype.Many2Many:
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
 			rc.env.cr.Execute(delQuery, rSet.ids)
 			for _, id := range rSet.ids {
@@ -424,16 +425,16 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 		for _, fieldName := range fields {
 			fi := rc.model.getRelatedFieldInfo(fieldName)
 			switch fi.fieldType {
-			case types.One2Many:
+			case fieldtype.One2Many:
 				relRC := rc.env.Pool(fi.relatedModelName).Search(rc.Model().Field(fi.reverseFK).Equals(id)).Fetch()
 				rc.env.cache.addEntry(rc.model, id, fieldName, relRC.ids)
-			case types.Many2Many:
+			case fieldtype.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
 				var ids []int64
 				rc.env.cr.Select(&ids, query, id)
 				rc.env.cache.addEntry(rc.model, id, fieldName, ids)
-			case types.Rev2One:
+			case fieldtype.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName).Search(rc.Model().Field(fi.reverseFK).Equals(id)).Fetch()
 				var relID int64
 				if len(relRC.ids) > 0 {
@@ -607,7 +608,7 @@ func (rc RecordCollection) fieldsGroupOperators(fields []string) map[string]stri
 			continue
 		}
 		fi := rc.model.getRelatedFieldInfo(dbf)
-		if fi.fieldType != types.Float && fi.fieldType != types.Integer {
+		if fi.fieldType != fieldtype.Float && fi.fieldType != fieldtype.Integer {
 			continue
 		}
 		res[dbf] = fi.groupOperator

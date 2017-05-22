@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/operator"
 	"github.com/npiganeau/yep/yep/models/types"
 )
@@ -41,32 +42,32 @@ var pgOperators = map[operator.Operator]string{
 	//OPERATOR_CHILD_OF: "",
 }
 
-var pgTypes = map[types.FieldType]string{
-	types.Boolean:   "bool",
-	types.Char:      "varchar",
-	types.Text:      "text",
-	types.Date:      "date",
-	types.DateTime:  "timestamp without time zone",
-	types.Integer:   "integer",
-	types.Float:     "double precision",
-	types.HTML:      "text",
-	types.Binary:    "bytea",
-	types.Selection: "varchar",
-	types.Many2One:  "integer",
-	types.One2One:   "integer",
+var pgTypes = map[fieldtype.Type]string{
+	fieldtype.Boolean:   "bool",
+	fieldtype.Char:      "varchar",
+	fieldtype.Text:      "text",
+	fieldtype.Date:      "date",
+	fieldtype.DateTime:  "timestamp without time zone",
+	fieldtype.Integer:   "integer",
+	fieldtype.Float:     "double precision",
+	fieldtype.HTML:      "text",
+	fieldtype.Binary:    "bytea",
+	fieldtype.Selection: "varchar",
+	fieldtype.Many2One:  "integer",
+	fieldtype.One2One:   "integer",
 }
 
-var pgDefaultValues = map[types.FieldType]string{
-	types.Boolean:   "FALSE",
-	types.Char:      "''",
-	types.Text:      "''",
-	types.Date:      "'0001-01-01'",
-	types.DateTime:  "'0001-01-01 00:00:00'",
-	types.Integer:   "0",
-	types.Float:     "0.0",
-	types.HTML:      "''",
-	types.Binary:    "''",
-	types.Selection: "''",
+var pgDefaultValues = map[fieldtype.Type]string{
+	fieldtype.Boolean:   "FALSE",
+	fieldtype.Char:      "''",
+	fieldtype.Text:      "''",
+	fieldtype.Date:      "'0001-01-01'",
+	fieldtype.DateTime:  "'0001-01-01 00:00:00'",
+	fieldtype.Integer:   "0",
+	fieldtype.Float:     "0.0",
+	fieldtype.HTML:      "''",
+	fieldtype.Binary:    "''",
+	fieldtype.Selection: "''",
 }
 
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
@@ -95,11 +96,11 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 		log.Panic("Unknown column type", "type", fi.fieldType, "model", fi.model.name, "field", fi.name)
 	}
 	switch fi.fieldType {
-	case types.Char:
+	case fieldtype.Char:
 		if fi.size > 0 {
 			res = fmt.Sprintf("%s(%d)", res, fi.size)
 		}
-	case types.Float:
+	case fieldtype.Float:
 		emptyD := types.Digits{}
 		if fi.digits != emptyD {
 			res = fmt.Sprintf("numeric(%d, %d)", fi.digits.Precision, fi.digits.Scale)
@@ -114,7 +115,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 		res += fmt.Sprintf(" DEFAULT %v", defValue)
 	}
 
-	if fi.unique || fi.fieldType == types.One2One {
+	if fi.unique || fi.fieldType == fieldtype.One2One {
 		res += " UNIQUE"
 	}
 	return res

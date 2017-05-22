@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
-	"github.com/npiganeau/yep/yep/models/types"
 )
 
 // LoadCSVDataFile loads the data of the given file into the database.
@@ -94,12 +94,12 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 		switch {
 		case headers[i] == "id":
 			val = record[i]
-		case fi.fieldType == types.Integer:
+		case fi.fieldType == fieldtype.Integer:
 			val, err = strconv.ParseInt(record[i], 0, 64)
 			if err != nil {
 				log.Panic("Error while converting integer", "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
-		case fi.fieldType == types.Float:
+		case fi.fieldType == fieldtype.Float:
 			val, err = strconv.ParseFloat(record[i], 64)
 			if err != nil {
 				log.Panic("Error while converting float", "line", line, "field", headers[i], "value", record[i], "error", err)
@@ -110,7 +110,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				log.Panic("Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
 			}
 			val = relRC.Ids()[0]
-		case fi.fieldType == types.Many2Many:
+		case fi.fieldType == fieldtype.Many2Many:
 			ids := strings.Split(record[i], "|")
 			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("YEPExternalID").In(ids))
 			val = relRC.Ids()

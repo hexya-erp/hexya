@@ -57,11 +57,11 @@ func init() {
 	addressMI.AddCharField("Street", models.StringFieldParams{})
 	addressMI.AddCharField("Zip", models.StringFieldParams{})
 	addressMI.AddCharField("City", models.StringFieldParams{})
-	profile.MixInModel(addressMI)
+	profile.InheritModel(addressMI)
 
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
-	models.MixInAllModels(activeMI)
+	models.Registry.MustGet("CommonMixin").InheritModel(activeMI)
 
 	viewModel := models.NewManualModel("UserView")
 	viewModel.AddCharField("Name", models.StringFieldParams{})

@@ -14,6 +14,12 @@
 
 package types
 
+import (
+	"database/sql/driver"
+	"fmt"
+	"time"
+)
+
 // A Context is a map of objects that is passed along from function to function
 // during a transaction. A Context is read only.
 type Context struct {
@@ -87,61 +93,76 @@ type Digits struct {
 	Scale     int8
 }
 
-// A FieldType defines a type of a model's field
-type FieldType string
+// Date type that JSON marshal and unmarshals as "YYYY-MM-DD"
+type Date time.Time
 
-// Types for model fields
-const (
-	NoType    FieldType = ""
-	Binary    FieldType = "binary"
-	Boolean   FieldType = "boolean"
-	Char      FieldType = "char"
-	Date      FieldType = "date"
-	DateTime  FieldType = "datetime"
-	Float     FieldType = "float"
-	HTML      FieldType = "html"
-	Integer   FieldType = "integer"
-	Many2Many FieldType = "many2many"
-	Many2One  FieldType = "many2one"
-	One2Many  FieldType = "one2many"
-	One2One   FieldType = "one2one"
-	Rev2One   FieldType = "rev2one"
-	Reference FieldType = "reference"
-	Selection FieldType = "selection"
-	Text      FieldType = "text"
-)
-
-// IsRelationType returns true if this type is a relation.
-func (t FieldType) IsRelationType() bool {
-	return t == Many2Many || t == Many2One || t == One2Many || t == One2One || t == Rev2One
+// IsNull returns true if the Date is the zero value
+func (d Date) IsNull() bool {
+	if time.Time(d).Format("2006-01-02") == "0001-01-01" {
+		return true
+	}
+	return false
 }
 
-// IsFKRelationType returns true for relation types
-// that are stored in the model's table (i.e. M2O and O2O)
-func (t FieldType) IsFKRelationType() bool {
-	return t == Many2One || t == One2One
+// MarshalJSON for Date type
+func (d Date) MarshalJSON() ([]byte, error) {
+	if d.IsNull() {
+		return []byte("false"), nil
+	}
+	dateStr := time.Time(d).Format("2006-01-02")
+	dateStr = fmt.Sprintf(`"%s"`, dateStr)
+	return []byte(dateStr), nil
 }
 
-// IsNonStoredRelationType returns true for relation types
-// that are not stored in the model's table (i.e. M2M, O2M and R2O)
-func (t FieldType) IsNonStoredRelationType() bool {
-	return t == Many2Many || t == One2Many || t == Rev2One
+// Value formats our Date for storing in database
+// Especially handles empty Date.
+func (d Date) Value() (driver.Value, error) {
+	if d.IsNull() {
+		return driver.Value("0001-01-01"), nil
+	}
+	return driver.Value(d), nil
 }
 
-// IsReverseRelationType returns true for relation types
-// that are stored in the comodel's table (i.e. O2M and R2O)
-func (t FieldType) IsReverseRelationType() bool {
-	return t == One2Many || t == Rev2One
+// Today returns the current date
+func Today() Date {
+	return Date(time.Now())
 }
 
-// Is2OneRelationType returns true for relation types
-// that point to a single comodel record (i.e. M2O, O2O and R2O)
-func (t FieldType) Is2OneRelationType() bool {
-	return t == Many2One || t == One2One || t == Rev2One
+// DateTime type that JSON marshals and unmarshals as "YYYY-MM-DD HH:MM:SS"
+type DateTime time.Time
+
+// IsNull returns true if the DateTime is the zero value
+func (d DateTime) IsNull() bool {
+	if time.Time(d).Format("2006-01-02 15:04:05") == "0001-01-01 00:00:00" {
+		return true
+	}
+	return false
 }
 
-// Is2ManyRelationType returns true for relation types
-// that point to multiple comodel records (i.e. M2M and O2M)
-func (t FieldType) Is2ManyRelationType() bool {
-	return t == Many2Many || t == One2Many
+// Now returns the current date/time
+func Now() DateTime {
+	return DateTime(time.Now())
 }
+
+// MarshalJSON for DateTime type
+func (d DateTime) MarshalJSON() ([]byte, error) {
+	if d.IsNull() {
+		return []byte("false"), nil
+	}
+	dateStr := time.Time(d).Format("2006-01-02 15:04:05")
+	dateStr = fmt.Sprintf(`"%s"`, dateStr)
+	return []byte(dateStr), nil
+}
+
+// Value formats our DateTime for storing in database
+// Especially handles empty DateTime.
+func (d DateTime) Value() (driver.Value, error) {
+	if d.IsNull() {
+		return driver.Value("0001-01-01 00:00:00"), nil
+	}
+	return driver.Value(time.Time(d).Format("2006-01-02 15:04:05")), nil
+}
+
+// A Selection is a set of possible (key, label) values for a model
+// "selection" field.
+type Selection map[string]string

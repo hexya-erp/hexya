@@ -19,7 +19,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/npiganeau/yep/yep/models/types"
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 )
 
 var (
@@ -110,10 +110,10 @@ func inflate2ManyConditions(mi *Model, cond *Condition) {
 		path := strings.Join(cv.exprs, ExprSep)
 		fi := mi.getRelatedFieldInfo(path)
 		switch fi.fieldType {
-		case types.One2Many:
+		case fieldtype.One2Many:
 			cond.predicates[i].exprs = append(cv.exprs, "id")
-		case types.Many2Many:
-		case types.Rev2One:
+		case fieldtype.Many2Many:
+		case fieldtype.Rev2One:
 		}
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
@@ -232,8 +233,8 @@ type Field struct {
 	m2mRelModel      *Model
 	m2mOurField      *Field
 	m2mTheirField    *Field
-	selection        Selection
-	fieldType        types.FieldType
+	selection        types.Selection
+	fieldType        fieldtype.Type
 	groupOperator    string
 	size             int
 	digits           types.Digits
@@ -304,7 +305,7 @@ func checkFieldInfo(fi *Field) {
 
 // jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
-func snakeCaseFieldName(fName string, typ types.FieldType) string {
+func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
 	res := tools.SnakeCaseString(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"
@@ -346,7 +347,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        types.Many2One,
+		fieldType:        fieldtype.Many2One,
 		relatedModelName: model1,
 		index:            true,
 		onDelete:         Cascade,
@@ -364,7 +365,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        types.Many2One,
+		fieldType:        fieldtype.Many2One,
 		relatedModelName: model2,
 		index:            true,
 		onDelete:         Cascade,

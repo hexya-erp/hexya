@@ -22,8 +22,8 @@ import (
 	"sync"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
-	"github.com/npiganeau/yep/yep/models/types"
 	"github.com/npiganeau/yep/yep/tools"
 )
 
@@ -36,7 +36,6 @@ type Option int
 type modelCollection struct {
 	sync.RWMutex
 	bootstrapped        bool
-	commonMixins        []*Model
 	registryByName      map[string]*Model
 	registryByTableName map[string]*Model
 	sequences           map[string]*Sequence
@@ -302,9 +301,7 @@ func (m *Model) Methods() *MethodsCollection {
 // extends it with the given struct pointer.
 func NewModel(name string) *Model {
 	model := createModel(name, Option(0))
-	model.MixInModel(Registry.MustGet("CommonMixin"))
-	model.MixInModel(Registry.MustGet("BaseMixin"))
-	model.MixInModel(Registry.MustGet("ModelMixin"))
+	model.InheritModel(Registry.MustGet("ModelMixin"))
 	return model
 }
 
@@ -319,8 +316,7 @@ func NewMixinModel(name string) *Model {
 // extends it with the given struct pointers.
 func NewTransientModel(name string) *Model {
 	model := createModel(name, TransientModel)
-	model.MixInModel(Registry.MustGet("CommonMixin"))
-	model.MixInModel(Registry.MustGet("BaseMixin"))
+	model.InheritModel(Registry.MustGet("BaseMixin"))
 	return model
 }
 
@@ -328,33 +324,15 @@ func NewTransientModel(name string) *Model {
 // in the database. This is particularly useful for SQL view models.
 func NewManualModel(name string) *Model {
 	model := createModel(name, ManualModel)
-	model.MixInModel(Registry.MustGet("CommonMixin"))
+	model.InheritModel(Registry.MustGet("CommonMixin"))
 	return model
 }
 
-// MixInModel extends this Model by importing all fields and methods of mixInModel.
+// InheritModel extends this Model by importing all fields and methods of mixInModel.
 // MixIn methods and fields have a lower priority than those of the model and are
 // overridden by the them when applicable.
-func (m *Model) MixInModel(mixInModel *Model) {
-	if m.isMixin() {
-		log.Panic("Trying to mixin a mixin model", "model", m.name, "mixin", mixInModel)
-	}
+func (m *Model) InheritModel(mixInModel *Model) {
 	m.mixins = append(m.mixins, mixInModel)
-}
-
-// MixInAllModels extends all models with the given mixInModel.
-// Mixins added with this method have lower priority than MixIns
-// that are directly applied to a model, which have themselves a
-// lower priority than the fields and methods of the model.
-//
-// Only standard models will be mixed in. Manual or transient models
-// should be explicitly mixed in if wanted.
-//
-// Note that models extension will be deferred at bootstrap time,
-// which means that all models, including those that are not yet
-// defined at the time this function is called, will be extended.
-func MixInAllModels(mixInModel *Model) {
-	Registry.commonMixins = append(Registry.commonMixins, mixInModel)
 }
 
 // createModel creates and populates a new Model with the given name
@@ -376,7 +354,7 @@ func createModel(name string, options Option) *Model {
 		model:     mi,
 		required:  true,
 		noCopy:    true,
-		fieldType: types.Integer,
+		fieldType: fieldtype.Integer,
 		structField: reflect.TypeOf(
 			struct {
 				ID int64
