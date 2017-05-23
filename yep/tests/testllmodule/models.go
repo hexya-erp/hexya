@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package defs
+package testllmodule
 
-import (
-	"github.com/npiganeau/yep/pool"
-	"github.com/npiganeau/yep/yep/models"
-)
+import "github.com/npiganeau/yep/yep/models"
 
-func init() {
+func declareModels() {
 	user := models.NewModel("User")
 	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
-	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: "computeDecoratedName"})
 	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
 	user.AddCharField("Password", models.StringFieldParams{})
 	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
@@ -36,6 +32,15 @@ func init() {
 	user.AddCharField("Email2", models.StringFieldParams{})
 	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
 	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})
+
+	user.AddMethod("computeAge",
+		`ComputeAge is a sample method layer for testing`,
+		func(rc models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+			res := models.FieldMap{
+				"Age": rc.Get("Profile").(models.RecordCollection).Get("Age"),
+			}
+			return res, []models.FieldNamer{models.FieldName("Age")}
+		})
 
 	profile := models.NewModel("Profile")
 	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
@@ -65,7 +70,7 @@ func init() {
 
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
-	pool.ModelMixin().InheritModel(activeMI)
+	models.Registry.MustGet("CommonMixin").InheritModel(activeMI)
 
 	viewModel := models.NewManualModel("UserView")
 	viewModel.AddCharField("Name", models.StringFieldParams{})

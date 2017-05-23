@@ -34,9 +34,7 @@ type PackageType int8
 const (
 	// Base is the PackageType for the base package of a module
 	Base PackageType = iota
-	// Defs is the PackageType for the defs package of a module
-	Defs
-	// Subs is the PackageType for a sub package of a module (that is not defs)
+	// Subs is the PackageType for a sub package of a module
 	Subs
 	// Models is the PackageType for the yep/models package
 	Models
@@ -86,9 +84,6 @@ func GetModulePackages(program *loader.Program) []*ModuleInfo {
 		for _, module := range modules {
 			if strings.HasPrefix(pack.Pkg.Path(), module.Pkg.Path()) {
 				typ := Subs
-				if strings.HasSuffix(pack.String(), "defs") {
-					typ = Defs
-				}
 				modules[pack.Pkg.Path()] = NewModuleInfo(pack, typ)
 			}
 		}

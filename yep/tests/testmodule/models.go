@@ -12,13 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package defs
+package testmodule
 
-import "github.com/npiganeau/yep/yep/models"
+import (
+	"fmt"
 
-func init() {
+	"github.com/npiganeau/yep/pool"
+	"github.com/npiganeau/yep/yep/models"
+)
+
+func declareModels() {
 	user := models.NewModel("User")
 	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
+	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: "computeDecoratedName"})
 	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
 	user.AddCharField("Password", models.StringFieldParams{})
 	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
@@ -33,6 +39,60 @@ func init() {
 	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
 	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})
 
+	user.AddMethod("PrefixedUser",
+		`PrefixedUser is a sample method layer for testing`,
+		func(rs pool.UserSet, prefix string) []string {
+			var res []string
+			for _, u := range rs.Records() {
+				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Name()))
+			}
+			return res
+		})
+
+	user.AddMethod("DecorateEmail",
+		`DecorateEmail is a sample method layer for testing`,
+		func(rs pool.UserSet, email string) string {
+			return fmt.Sprintf("<%s>", email)
+		})
+
+	user.ExtendMethod("DecorateEmail",
+		`DecorateEmailExtension is a sample method layer for testing`,
+		func(rs pool.UserSet, email string) string {
+			res := rs.Super().DecorateEmail(email)
+			return fmt.Sprintf("[%s]", res)
+		})
+
+	user.AddMethod("computeAge",
+		`ComputeAge is a sample method layer for testing`,
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
+			res := pool.UserData{
+				Age: rs.Profile().Age(),
+			}
+			return &res, []models.FieldNamer{pool.User().Age()}
+		})
+
+	user.ExtendMethod("PrefixedUser", "",
+		func(rs pool.UserSet, prefix string) []string {
+			res := rs.Super().PrefixedUser(prefix)
+			for i, u := range rs.Records() {
+				res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
+			}
+			return res
+		})
+
+	user.AddMethod("computeDecoratedName", "",
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
+			res := pool.UserData{
+				DecoratedName: rs.PrefixedUser("User")[0],
+			}
+			return &res, []models.FieldNamer{pool.User().DecoratedName()}
+		})
+
+	user.AddMethod("UpdateCity", "",
+		func(rs pool.UserSet, value string) {
+			rs.Profile().SetCity(value)
+		})
+
 	profile := models.NewModel("Profile")
 	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
 	profile.AddFloatField("Money", models.FloatFieldParams{})
@@ -40,6 +100,19 @@ func init() {
 	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
 	profile.AddCharField("City", models.StringFieldParams{})
 	profile.AddCharField("Country", models.StringFieldParams{})
+
+	pool.Profile().AddMethod("PrintAddress",
+		`PrintAddress is a sample method layer for testing`,
+		func(rs pool.ProfileSet) string {
+			res := rs.Super().PrintAddress()
+			return fmt.Sprintf("%s, %s", res, rs.Country())
+		})
+
+	pool.Profile().ExtendMethod("PrintAddress", "",
+		func(rs pool.ProfileSet) string {
+			res := rs.Super().PrintAddress()
+			return fmt.Sprintf("[%s]", res)
+		})
 
 	post := models.NewModel("Post")
 	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
@@ -59,9 +132,37 @@ func init() {
 	addressMI.AddCharField("City", models.StringFieldParams{})
 	profile.InheritModel(addressMI)
 
+	addressMI2 := pool.AddressMixIn()
+	addressMI2.AddMethod("SayHello",
+		`SayHello is a sample method layer for testing`,
+		func(rs pool.AddressMixInSet) string {
+			return "Hello !"
+		})
+
+	addressMI2.AddMethod("PrintAddress",
+		`PrintAddressMixIn is a sample method layer for testing`,
+		func(rs pool.AddressMixInSet) string {
+			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
+		})
+
+	addressMI2.ExtendMethod("PrintAddress", "",
+		func(rs pool.AddressMixInSet) string {
+			res := rs.Super().PrintAddress()
+			return fmt.Sprintf("<%s>", res)
+		})
+
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
-	models.Registry.MustGet("CommonMixin").InheritModel(activeMI)
+	pool.ModelMixin().InheritModel(activeMI)
+
+	// Chained declaration
+	activeMI1 := pool.ActiveMixIn()
+	activeMI2 := activeMI1
+	activeMI2.AddMethod("IsActivated",
+		`IsACtivated is a sample method of ActiveMixIn"`,
+		func(rs pool.ActiveMixInSet) bool {
+			return rs.Active()
+		})
 
 	viewModel := models.NewManualModel("UserView")
 	viewModel.AddCharField("Name", models.StringFieldParams{})

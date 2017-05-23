@@ -134,9 +134,11 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 				paramType = fmt.Sprintf("...%s", paramType)
 			}
 			p := fmt.Sprintf("%s,", astParam.Name)
-			if isRecordSetType(astParam.Type.Type, modelsASTData) {
+			if isRS, isRC := isRecordSetType(astParam.Type.Type, modelsASTData); isRS {
 				p = fmt.Sprintf("%s.RecordCollection,", astParam.Name)
-				paramType = fmt.Sprintf("%sSet", modelData.Name)
+				if isRC {
+					paramType = fmt.Sprintf("%sSet", modelData.Name)
+				}
 			}
 			params += p
 			paramsWithType += fmt.Sprintf("%s %s,", astParam.Name, paramType)
@@ -148,8 +150,10 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			typ := methodASTData.Returns[0].Type
 			returnAsserts = fmt.Sprintf("resTyped, _ := res.(%s)", typ)
 			returns = "resTyped"
-			if isRecordSetType(typ, modelsASTData) {
-				typ = fmt.Sprintf("%sSet", modelData.Name)
+			if isRS, isRC := isRecordSetType(typ, modelsASTData); isRS {
+				if isRC {
+					typ = fmt.Sprintf("%sSet", modelData.Name)
+				}
 				returnAsserts = "resTyped, _ := res.(models.RecordCollection)"
 				returns = fmt.Sprintf("%s{RecordCollection: resTyped}", typ)
 			}
@@ -158,8 +162,11 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			for i, ret := range methodASTData.Returns {
 				call = "CallMulti"
 				(*depsMap)[ret.ImportPath] = true
-				if isRecordSetType(ret.Type, modelsASTData) {
-					retType := fmt.Sprintf("%sSet", modelData.Name)
+				if isRS, isRC := isRecordSetType(ret.Type, modelsASTData); isRS {
+					retType := ret.Type
+					if isRC {
+						retType = fmt.Sprintf("%sSet", modelData.Name)
+					}
 					returnAsserts += fmt.Sprintf("resTyped%d, _ := res[%d].(models.RecordCollection)\n", i, i)
 					returns += fmt.Sprintf("%s{RecordCollection: resTyped%d},", retType, i)
 					returnString += fmt.Sprintf("%s,", retType)
@@ -227,14 +234,16 @@ func addFieldTypesToModelData(mData *modelData) {
 
 // isRecordSetType returns true if the given typ is a RecordSet according
 // to the AST data stored in models.
-func isRecordSetType(typ string, models map[string]ModelASTData) bool {
+// The second returned value is true if typ is models.RecordCollection and
+// false if it is another RecordSet type
+func isRecordSetType(typ string, models map[string]ModelASTData) (bool, bool) {
 	if typ == "RecordCollection" || typ == "models.RecordCollection" {
-		return true
+		return true, true
 	}
 	if _, exists := models[strings.TrimSuffix(typ, "Set")]; exists {
-		return true
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // CreateFileFromTemplate generates a new file from the given template and data

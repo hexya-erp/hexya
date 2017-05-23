@@ -480,11 +480,8 @@ resPartnerModel := pool.ResPartner()
 resUsersModel := pool.ResUsers()
 ----
 
-All models and fields definitions MUST be made in the `init()` of a package
-called `defs` inside the module's main package.
-
-All methods definitions MUST be made in the `init()` of the main package or of
-a package called by the module's main package.
+All models, fields and methods definitions MUST be made in the `init()` of
+the main package or of a package called by the module's main package.
 
 [IMPORTANT]
 ====

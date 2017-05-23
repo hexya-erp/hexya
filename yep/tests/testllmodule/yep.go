@@ -16,8 +16,6 @@ package testllmodule
 
 import (
 	"github.com/npiganeau/yep/yep/server"
-	// Import models definition of this module
-	_ "github.com/npiganeau/yep/yep/tests/testllmodule/defs"
 )
 
 // Module data declaration
@@ -26,7 +24,7 @@ const (
 )
 
 func init() {
-	declareMethods()
+	declareModels()
 	server.RegisterModule(&server.Module{
 		Name:     MODULE_NAME,
 		PostInit: func() {},
