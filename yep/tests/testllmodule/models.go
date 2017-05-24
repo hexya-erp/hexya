@@ -56,6 +56,12 @@ func declareModels() {
 	post.AddTextField("Content", models.StringFieldParams{})
 	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: "Tag"})
 
+	post.Methods().MustGet("Create").Extend("",
+		func(rc models.RecordCollection, data models.FieldMapper) models.RecordCollection {
+			res := rc.Super().Call("Create", data).(models.RecordCollection)
+			return res
+		})
+
 	tag := models.NewModel("Tag")
 	tag.AddCharField("Name", models.StringFieldParams{})
 	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})

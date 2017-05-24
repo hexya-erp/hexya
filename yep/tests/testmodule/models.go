@@ -55,7 +55,7 @@ func declareModels() {
 			return fmt.Sprintf("<%s>", email)
 		})
 
-	user.ExtendMethod("DecorateEmail",
+	pool.User().Methods().DecorateEmail().Extend(
 		`DecorateEmailExtension is a sample method layer for testing`,
 		func(rs pool.UserSet, email string) string {
 			res := rs.Super().DecorateEmail(email)
@@ -71,7 +71,7 @@ func declareModels() {
 			return &res, []models.FieldNamer{pool.User().Age()}
 		})
 
-	user.ExtendMethod("PrefixedUser", "",
+	pool.User().Methods().PrefixedUser().Extend("",
 		func(rs pool.UserSet, prefix string) []string {
 			res := rs.Super().PrefixedUser(prefix)
 			for i, u := range rs.Records() {
@@ -108,7 +108,7 @@ func declareModels() {
 			return fmt.Sprintf("%s, %s", res, rs.Country())
 		})
 
-	pool.Profile().ExtendMethod("PrintAddress", "",
+	pool.Profile().Methods().PrintAddress().Extend("",
 		func(rs pool.ProfileSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("[%s]", res)
@@ -119,6 +119,12 @@ func declareModels() {
 	post.AddCharField("Title", models.StringFieldParams{})
 	post.AddTextField("Content", models.StringFieldParams{})
 	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: "Tag"})
+
+	pool.Post().Methods().Create().Extend("",
+		func(rs pool.PostSet, data models.FieldMapper) pool.PostSet {
+			res := rs.Super().Create(data)
+			return res
+		})
 
 	tag := models.NewModel("Tag")
 	tag.AddCharField("Name", models.StringFieldParams{})
@@ -145,7 +151,7 @@ func declareModels() {
 			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
 		})
 
-	addressMI2.ExtendMethod("PrintAddress", "",
+	addressMI2.Methods().PrintAddress().Extend("",
 		func(rs pool.AddressMixInSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("<%s>", res)

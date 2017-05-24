@@ -23,6 +23,7 @@ import (
 
 // MethodsCollection is the Method collection
 type MethodsCollection struct {
+	model        *Model
 	registry     map[string]*Method
 	bootstrapped bool
 }
@@ -36,14 +37,17 @@ func (mc *MethodsCollection) get(methodName string) (mi *Method, ok bool) {
 // MustGet returns the Method of the given method. It panics if the
 // method is not found.
 func (mc *MethodsCollection) MustGet(methodName string) *Method {
-	methInfo, ok := mc.get(methodName)
-	if !ok {
-		var model string
-		for _, f := range mc.registry {
-			model = f.model.name
-			break
+	methInfo, exists := mc.get(methodName)
+	if !exists {
+		// We didn't find the method, but maybe it exists in mixins
+		miMethod, found := mc.model.findMethodInMixin(methodName)
+		if !found || mc.bootstrapped {
+			log.Panic("Unknown method in model", "model", mc.model, "method", methodName)
 		}
-		log.Panic("Unknown method in model", "model", model, "method", methodName)
+		// The method exists in a mixin so we create it here with our layer.
+		// Bootstrap will take care of putting them the right way round afterwards.
+		methInfo = copyMethod(mc.model, miMethod)
+		mc.set(methodName, methInfo)
 	}
 	return methInfo
 }
@@ -171,6 +175,19 @@ func newMethod(m *Model, methodName, doc string, val reflect.Value) *Method {
 	return &method
 }
 
+// copyMethod creates a new method without any method layer for
+// the given model by taking data from the given method.
+func copyMethod(m *Model, method *Method) *Method {
+	return &Method{
+		model:         m,
+		name:          method.name,
+		methodType:    method.methodType,
+		nextLayer:     make(map[*methodLayer]*methodLayer),
+		groups:        make(map[*security.Group]bool),
+		groupsCallers: make(map[callerGroup]bool),
+	}
+}
+
 // wrapFunctionForMethodLayer take the given fnct Value and wrap it in a
 // func(RecordCollection, args...) function Value suitable for use in a
 // methodLayer.
@@ -230,69 +247,86 @@ func (m *Model) AddMethod(methodName, doc string, fnct interface{}) *Method {
 	return newMethod
 }
 
-// ExtendMethod adds the given fnct function as a new layer on the given
-// method of the given model.
+// Extend adds the given fnct function as a new layer on this method.
 // fnct must be of the same signature as the first layer of this method.
-func (m *Model) ExtendMethod(methodName, doc string, fnct interface{}) {
-	m.checkMethodAndFnctType(methodName, fnct)
-	methInfo, exists := m.methods.get(methodName)
-	if !exists {
-		// We didn't find the method, but maybe it exists in mixins
-		found := m.findMethodInMixin(methodName)
-		if !found {
-			log.Panic("Call to ExtendMethod on non existent method", "model", m.name, "method", methodName)
-		}
-		// The method exists in a mixin so we create it here with our layer.
-		// Bootstrap will take care of putting them the right way round afterwards.
-		methInfo = newMethod(m, methodName, doc, reflect.ValueOf(fnct))
-	}
+func (m *Method) Extend(doc string, fnct interface{}) *Method {
+	m.checkMethodAndFnctType(fnct)
+	methInfo := m
 	val := reflect.ValueOf(fnct)
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {
-		if methInfo.methodType.In(i) != val.Type().In(i) {
-			log.Panic("Function signature does not match", "model", m.name, "method", methodName,
+		if !checkTypesMatch(methInfo.methodType.In(i), val.Type().In(i)) {
+			log.Panic("Function signature does not match", "model", m.model.name, "method", m.name,
 				"argument", i, "expected", methInfo.methodType.In(i), "received", val.Type().In(i))
 		}
 	}
-	if methInfo.methodType.NumOut() > 0 && methInfo.methodType.Out(0) != val.Type().Out(0) {
-		log.Panic("Function return type does not match", "model", m.name, "method", methodName,
-			"expected", methInfo.methodType.Out(0), "received", val.Type().Out(0))
+	for i := 1; i < methInfo.methodType.NumOut(); i++ {
+		if !checkTypesMatch(methInfo.methodType.Out(i), val.Type().Out(i)) {
+			log.Panic("Function return type does not match", "model", m.model.name, "method", m.name,
+				"expected", methInfo.methodType.Out(i), "received", val.Type().Out(i))
+		}
 	}
 	if methInfo.methodType.IsVariadic() != val.Type().IsVariadic() {
-		log.Panic("Variadic mismatch", "model", m.name, "method", methodName,
+		log.Panic("Variadic mismatch", "model", m.name, "method", m.name,
 			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
 	}
-	if !exists {
-		m.methods.set(methodName, methInfo)
-		return
-	}
 	methInfo.addMethodLayer(val, doc)
+	return methInfo
+}
+
+// checkTypesMatch returns true if both given types match
+// Two types match if :
+// - both types are the same
+// - type2 implements type1
+// - if one type is RecordCollection and the second one implements the
+// RecordSet interface.
+// - if one type is a FieldMap and the other implements FieldMapper
+func checkTypesMatch(type1, type2 reflect.Type) bool {
+	if type1 == type2 {
+		return true
+	}
+	if type2.Implements(type1) {
+		return true
+	}
+	if type1 == reflect.TypeOf(RecordCollection{}) && type2.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+		return true
+	}
+	if type2 == reflect.TypeOf(RecordCollection{}) && type1.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+		return true
+	}
+	if type1 == reflect.TypeOf(FieldMap{}) && type2.Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()) {
+		return true
+	}
+	if type2 == reflect.TypeOf(FieldMap{}) && type1.Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()) {
+		return true
+	}
+	return false
 }
 
 // findMethodInMixin recursively goes through all mixins
 // to find the method with the given name. Returns true if
 // it found one, false otherwise.
-func (m *Model) findMethodInMixin(methodName string) bool {
+func (m *Model) findMethodInMixin(methodName string) (*Method, bool) {
 	for _, mixin := range m.mixins {
-		_, ok := mixin.methods.get(methodName)
+		method, ok := mixin.methods.get(methodName)
 		if ok {
-			return true
+			return method, true
 		}
-		if mixin.findMethodInMixin(methodName) {
-			return true
+		if method, ok := mixin.findMethodInMixin(methodName); ok {
+			return method, true
 		}
 	}
-	return false
+	return nil, false
 }
 
 // checkMethodAndFnctType checks whether the given arguments are valid for
 // AddMethod or ExtendMethod
-func (m *Model) checkMethodAndFnctType(methodName string, fnct interface{}) {
-	if m.methods.bootstrapped {
-		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
+func (m *Method) checkMethodAndFnctType(fnct interface{}) {
+	if m.model.methods.bootstrapped {
+		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", m.name)
 	}
 
 	val := reflect.ValueOf(fnct)
 	if val.Kind() != reflect.Func {
-		log.Panic("fnct parameter must be a function", "model", m.name, "method", methodName, "fnct", fnct)
+		log.Panic("fnct parameter must be a function", "model", m.name, "method", m.name, "fnct", fnct)
 	}
 }

@@ -54,6 +54,7 @@ type computeData struct {
 // FieldsCollection is a collection of Field instances in a model.
 type FieldsCollection struct {
 	sync.RWMutex
+	model                *Model
 	registryByName       map[string]*Field
 	registryByJSON       map[string]*Field
 	computedFields       []*Field
@@ -77,12 +78,7 @@ func (fc *FieldsCollection) get(name string) (fi *Field, ok bool) {
 func (fc *FieldsCollection) MustGet(name string) *Field {
 	fi, ok := fc.get(name)
 	if !ok {
-		var model string
-		for _, f := range fc.registryByName {
-			model = f.model.name
-			break
-		}
-		log.Panic("Unknown field in model", "model", model, "field", name)
+		log.Panic("Unknown field in model", "model", fc.model, "field", name)
 	}
 	return fi
 }
@@ -182,16 +178,7 @@ func (fc *FieldsCollection) add(fInfo *Field) {
 	fc.register(fInfo)
 }
 
-// override a Field in the collection.
-// Mapping is done on the fInfo name.
-func (fc *FieldsCollection) override(fInfo *Field) {
-	if _, exists := fc.registryByName[fInfo.name]; !exists {
-		log.Panic("Trying to override a non-existent field", "model", fInfo.model.name, "field", fInfo.name)
-	}
-	fc.register(fInfo)
-}
-
-// register adds or override the given fInfo in the collection.
+// register adds the given fInfo in the collection.
 func (fc *FieldsCollection) register(fInfo *Field) {
 	fc.Lock()
 	defer fc.Unlock()
@@ -245,6 +232,7 @@ type Field struct {
 	noCopy           bool
 	defaultFunc      func(Environment, FieldMap) interface{}
 	onDelete         OnDeleteAction
+	translate        bool
 }
 
 // isComputedField returns true if this field is computed
@@ -415,6 +403,8 @@ func checkComputeMethodsSignature() {
 			msg = "Compute methods should have no arguments"
 		case methType.NumOut() == 0:
 			msg = "Compute methods should return a value"
+		case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
+			msg = "First return argument must implement models.FieldMapper"
 		case methType.NumOut() == 1 && stored:
 			msg = "Compute methods for stored field must return fields to unset as second value"
 		case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldNamer{}):

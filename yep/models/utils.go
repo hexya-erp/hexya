@@ -160,29 +160,6 @@ func jsonizePath(mi *Model, path string) string {
 	return strings.Join(exprs, ExprSep)
 }
 
-// structToMap returns the fields and values of the given struct pointer in a map.
-// struct fields that equals their type's Go zero value will not be set in the map.
-func structToMap(structPtr interface{}) FieldMap {
-	val := reflect.ValueOf(structPtr)
-	ind := reflect.Indirect(val)
-	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		log.Panic("structPtr must be a pointer to a struct", "structPtr", structPtr)
-	}
-	res := make(FieldMap)
-	for i := 0; i < ind.NumField(); i++ {
-		fieldName := ind.Type().Field(i).Name
-		fieldValue := ind.Field(i)
-
-		if reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface()) {
-			// Omit field if its value equals its type's zero value
-			continue
-		}
-
-		res[fieldName] = ind.Field(i).Interface()
-	}
-	return res
-}
-
 // mapToStruct populates the given structPtr with the values in fMap.
 func mapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 	fMap = nestMap(fMap)
@@ -293,27 +270,6 @@ func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
 		}
 	}
 	return newFMap
-}
-
-// ConvertInterfaceToFieldMap converts the given data which can be of type:
-// - FieldMap
-// - map[string]interface{}
-// - struct pointer
-// to a FieldMap
-func ConvertInterfaceToFieldMap(data interface{}) FieldMap {
-	var fMap FieldMap
-	switch d := data.(type) {
-	case FieldMap:
-		fMap = d
-	case map[string]interface{}:
-		fMap = FieldMap(d)
-	default:
-		if err := checkStructPtr(data); err != nil {
-			log.Panic(err.Error(), "data", data)
-		}
-		fMap = structToMap(data)
-	}
-	return fMap
 }
 
 // addIDIfNotPresent returns a new fields slice including ID if it

@@ -562,16 +562,27 @@ As in the example below:
 
 ==== Overriding fields
 
-Fields can be overridden by using the `OverrideXXXXXXField` methods:
+Fields attributes can be overridden by using one of the following methods that
+apply on a Field instance.
+
+`*(f *Field) SetString(value string) *Field*`::
+`*(f *Field) SetHelp(value string) *Field*`::
+`*(f *Field) SetGroupOperator(value string) *Field*`::
+`*(f *Field) SetRelated(value string) *Field*`::
+`*(f *Field) SetCompute(value string) *Field*`::
+`*(f *Field) SetDepends(value []string) *Field*`::
+`*(f *Field) SetStored(value bool) *Field*`::
+`*(f *Field) SetRequired(value bool) *Field*`::
+`*(f *Field) SetUnique(value bool) *Field*`::
+`*(f *Field) SetIndex(value bool) *Field*`::
+`*(f *Field) SetNoCopy(value bool) *Field*`::
+`*(f *Field) SetTranslate(value bool) *Field*`::
+`*(f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field*`::
+
 [source,go]
 ----
-course := pool.Course()
-course.OverrideCharField("Name", models.StringFieldParams{String: "MyName", Help: "This is the new name of the course"})
+course := pool.Course().Fields().Name().SetString("MyNewName").SetHelp("This is the new name of the course")
 ----
-
-When a field is overridden, all its options are overridden by the given params,
-so unspecified options are reset to their go default values and not to the
-value in the original field.
 
 ==== Field parameters
 
@@ -732,7 +743,7 @@ actual implementation. Layer functions must meet the following constraints:
 
 --
 
-`*(*Model) CreateMethod(methodName, doc string, layerFunction interface{})*`::
+`*(*Model) AddMethod(methodName, doc string, layerFunction interface{}) *Method*`::
 Creates a new method on this model with the given `methodName` and
 apply the given `layerFunction` as first "layer function". `doc` is the
 documentation of the method.
@@ -742,7 +753,7 @@ documentation of the method.
 [source,go]
 ----
 // PartnerUpdateBirthday updates this partner birthday.
-pool.ResPartner.CreateMethod("UpdateBirthday",
+pool.ResPartner().AddMethod("UpdateBirthday",
     `PartnerUpdateBirthday updates this partner birthday.`,
     func (rs ResPartnerSet, birthday time.Time) {
         rs.SetBirthday(Date(birthDay))
@@ -756,8 +767,8 @@ literal for `yep-generate` to work correctly. Do *NOT* use variable or
 constant here.
 ====
 
-`*(*Model) ExtendMethod(methodName, doc string, layerFunction interface{})*`::
-Extends the method `methodName` in this model with the given `layerFunction`.
+`*(*Method) Extend(doc string, layerFunction interface{}) *Method*`::
+Extends the method with the given `layerFunction`.
 If `doc` is not the empty string, it is appended to the documentation of the
 method.
 +
@@ -766,7 +777,7 @@ call the previous layer.
 
 [source,go]
 ----
-pool.ResPartner.ExtendMethod("UpdateBirthday",
+pool.ResPartner().Methods().UpdateBirthday().Extend(
     `Extended in myModule to compute age at the same time.`,
     func(rs ResPartnerSet, birthday time.Time) {
         rs.Super().UpdateBirthday(birthday)
@@ -774,16 +785,16 @@ pool.ResPartner.ExtendMethod("UpdateBirthday",
     })
 ----
 
-NOTE: The `functionLayer` passed to `ExtendMethod` must have the same signature
-as that of the first layer passed to `CreateMethod`.
+NOTE: The `functionLayer` passed to `Extend` must have the same signature
+as that of the first layer passed to `AddMethod`.
 
-`*Super() RecordSetType*`::
+`*(RecordSetType) Super() RecordSetType*`::
 Returns a RecordSet with a modified callstack so that call to the current
 method will execute the next method layer.
 +
-Calls to a different method than the current method will call its next layer only
-if the current method has been called from a layer of the other method. Otherwise,
-it will be the same as calling the other method directly.
+Calls to a different method than the current method will call its next layer
+only if the current method has been called from a layer of the other method.
+Otherwise, it will be the same as calling the other method directly.
 
 === Extending a model
 

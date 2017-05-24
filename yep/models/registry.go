@@ -96,6 +96,8 @@ func (mc *modelCollection) add(mi *Model) {
 	}
 	mc.registryByName[mi.name] = mi
 	mc.registryByTableName[mi.tableName] = mi
+	mi.methods.model = mi
+	mi.fields.model = mi
 }
 
 // newModelCollection returns a pointer to a new modelCollection
@@ -397,12 +399,12 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 
 // Create creates a new record in this model with the given data.
 func (m *Model) Create(env Environment, data interface{}) RecordCollection {
-	return env.Pool(m.name).Call("Create", data).(RecordCollection)
+	return env.Pool(m.name).Call("Create", data).(RecordSet).Collection()
 }
 
 // Search searches the database and returns records matching the given condition.
 func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
-	return env.Pool(m.name).Call("Search", cond).(RecordCollection)
+	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
 // A Sequence holds the metadata of a DB sequence

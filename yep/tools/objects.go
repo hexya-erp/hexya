@@ -98,10 +98,8 @@ func GetStructFieldByJSONTag(structValue reflect.Value, tag string) (sf reflect.
 	return
 }
 
-/*
-UnmarshalJSONValue unmarshals the given data as a Value of type []byte into
-the dst Value. dst must be a pointer Value
-*/
+// UnmarshalJSONValue unmarshals the given data as a Value of type []byte into
+// the dst Value. dst must be a pointer Value.
 func UnmarshalJSONValue(data, dst reflect.Value) error {
 	if dst.Type().Kind() != reflect.Ptr {
 		log.Panic("dst must be a pointer value", "data", data, "dst", dst)

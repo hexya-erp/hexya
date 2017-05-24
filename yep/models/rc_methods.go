@@ -124,8 +124,11 @@ func (rc RecordCollection) checkExecutionPermission(method *Method) {
 	if len(rc.env.callStack) > 1 {
 		caller = rc.env.callStack[1].method
 	}
+	if caller == method {
+		// We are calling Super on the same method, so it's ok
+		return
+	}
 	userGroups := security.Registry.UserGroups(rc.env.uid)
-	// Check if we have global permission
 	for group := range userGroups {
 		if method.groups[group] {
 			return

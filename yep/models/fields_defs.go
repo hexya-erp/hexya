@@ -31,7 +31,6 @@ type SimpleFieldParams struct {
 	GoType        interface{}
 	Translate     bool
 	Default       func(Environment, FieldMap) interface{}
-	override      bool
 }
 
 // A FloatFieldParams holds all the possible options for a float field
@@ -52,7 +51,6 @@ type FloatFieldParams struct {
 	GoType        interface{}
 	Translate     bool
 	Default       func(Environment, FieldMap) interface{}
-	override      bool
 }
 
 // A StringFieldParams holds all the possible options for a string field
@@ -73,7 +71,6 @@ type StringFieldParams struct {
 	GoType        interface{}
 	Translate     bool
 	Default       func(Environment, FieldMap) interface{}
-	override      bool
 }
 
 // A SelectionFieldParams holds all the possible options for a selection field
@@ -92,7 +89,6 @@ type SelectionFieldParams struct {
 	Selection types.Selection
 	Translate bool
 	Default   func(Environment, FieldMap) interface{}
-	override  bool
 }
 
 // A ForeignKeyFieldParams holds all the possible options for a many2one or one2one field
@@ -112,7 +108,6 @@ type ForeignKeyFieldParams struct {
 	Translate     bool
 	OnDelete      OnDeleteAction
 	Default       func(Environment, FieldMap) interface{}
-	override      bool
 }
 
 // A ReverseFieldParams holds all the possible options for a one2many or rev2one field
@@ -131,7 +126,6 @@ type ReverseFieldParams struct {
 	ReverseFK     string
 	Translate     bool
 	Default       func(Environment, FieldMap) interface{}
-	override      bool
 }
 
 // A Many2ManyFieldParams holds all the possible options for a many2many field
@@ -152,7 +146,6 @@ type Many2ManyFieldParams struct {
 	M2MTheirField    string
 	Translate        bool
 	Default          func(Environment, FieldMap) interface{}
-	override         bool
 }
 
 // getJSONAndString computes the default json and description fields for the
@@ -197,12 +190,9 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		structField:   structField,
 		fieldType:     fieldType,
 		defaultFunc:   params.Default,
+		translate:     params.Translate,
 	}
-	if params.override {
-		m.fields.override(fInfo)
-	} else {
-		m.fields.add(fInfo)
-	}
+	m.fields.add(fInfo)
 	return fInfo
 }
 
@@ -236,12 +226,9 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		size:          params.Size,
 		fieldType:     fieldType,
 		defaultFunc:   params.Default,
+		translate:     params.Translate,
 	}
-	if params.override {
-		m.fields.override(fInfo)
-	} else {
-		m.fields.add(fInfo)
-	}
+	m.fields.add(fInfo)
 	return fInfo
 }
 
@@ -281,12 +268,9 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		fieldType:        fieldType,
 		onDelete:         onDelete,
 		defaultFunc:      params.Default,
+		translate:        params.Translate,
 	}
-	if params.override {
-		m.fields.override(fInfo)
-	} else {
-		m.fields.add(fInfo)
-	}
+	m.fields.add(fInfo)
 	return fInfo
 }
 
@@ -316,12 +300,9 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		reverseFK:        params.ReverseFK,
 		fieldType:        fieldType,
 		defaultFunc:      params.Default,
+		translate:        params.Translate,
 	}
-	if params.override {
-		m.fields.override(fInfo)
-	} else {
-		m.fields.add(fInfo)
-	}
+	m.fields.add(fInfo)
 	return fInfo
 }
 
@@ -387,12 +368,9 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		digits:        params.Digits,
 		fieldType:     fieldtype.Float,
 		defaultFunc:   params.Default,
+		translate:     params.Translate,
 	}
-	if params.override {
-		m.fields.override(fInfo)
-	} else {
-		m.fields.add(fInfo)
-	}
+	m.fields.add(fInfo)
 	return fInfo
 }
 
@@ -457,12 +435,9 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		m2mTheirField:    m2mTheirField,
 		fieldType:        fieldtype.Many2Many,
 		defaultFunc:      params.Default,
+		translate:        params.Translate,
 	}
-	if params.override {
-		m.fields.override(fInfo)
-	} else {
-		m.fields.add(fInfo)
-	}
+	m.fields.add(fInfo)
 	return fInfo
 }
 
@@ -514,12 +489,9 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		selection:   params.Selection,
 		fieldType:   fieldtype.Selection,
 		defaultFunc: params.Default,
+		translate:   params.Translate,
 	}
-	if params.override {
-		m.fields.override(fInfo)
-	} else {
-		m.fields.add(fInfo)
-	}
+	m.fields.add(fInfo)
 	return fInfo
 }
 
@@ -530,105 +502,80 @@ func (m *Model) AddTextField(name string, params StringFieldParams) *Field {
 	return m.addStringField(name, params, fieldtype.Text, reflect.TypeOf(*new(string)))
 }
 
-/*
-
-// OverrideBinaryField overrides the database stored binary field with the given name of this Model.
-// Binary fields are mapped to '[]byte' type in go.
-func (m *Model) OverrideBinaryField(name string, params SimpleFieldParams) {
-	params.override = true
-	m.AddBinaryField(name, params)
+// SetString overrides the value of the String parameter of this Field
+func (f *Field) SetString(value string) *Field {
+	f.description = value
+	return f
 }
 
-// OverrideBooleanField overrides the boolean field with the given name of this Model.
-func (m *Model) OverrideBooleanField(name string, params SimpleFieldParams) {
-	params.override = true
-	m.AddBooleanField(name, params)
+// SetHelp overrides the value of the Help parameter of this Field
+func (f *Field) SetHelp(value string) *Field {
+	f.help = value
+	return f
 }
 
-// OverrideCharField overrides the single line text field with the given name of this Model.
-// Char fields are mapped to strings in go. There is no limitation in the size
-// of the string, unless specified in the parameters.
-func (m *Model) OverrideCharField(name string, params StringFieldParams) {
-	params.override = true
-	m.AddCharField(name, params)
+// SetGroupOperator overrides the value of the GroupOperator parameter of this Field
+func (f *Field) SetGroupOperator(value string) *Field {
+	f.groupOperator = value
+	return f
 }
 
-// OverrideDateField overrides the date field with the given name of this Model.
-// Date fields are mapped to Date type.
-func (m *Model) OverrideDateField(name string, params SimpleFieldParams) {
-	params.override = true
-	m.AddDateField(name, params)
+// SetRelated overrides the value of the Related parameter of this Field
+func (f *Field) SetRelated(value string) *Field {
+	f.relatedPath = value
+	return f
 }
 
-// OverrideDateTimeField overrides the datetime field with the given name of this Model.
-// DateTime fields are mapped to DateTime type.
-func (m *Model) OverrideDateTimeField(name string, params SimpleFieldParams) {
-	params.override = true
-	m.AddDateTimeField(name, params)
+// SetCompute overrides the value of the Compute parameter of this Field
+func (f *Field) SetCompute(value string) *Field {
+	f.compute = value
+	return f
 }
 
-// OverrideFloatField overrides the float field with the given name of this Model.
-// Float fields are mapped to go float64 type and stored as numeric in database.
-func (m *Model) OverrideFloatField(name string, params FloatFieldParams) {
-	params.override = true
-	m.AddFloatField(name, params)
+// SetDepends overrides the value of the Depends parameter of this Field
+func (f *Field) SetDepends(value []string) *Field {
+	f.depends = value
+	return f
 }
 
-// OverrideHTMLField overrides then html field with the given name of this Model.
-// HTML fields are mapped to string type in go.
-func (m *Model) OverrideHTMLField(name string, params StringFieldParams) {
-	params.override = true
-	m.AddHTMLField(name, params)
+// SetStored overrides the value of the Stored parameter of this Field
+func (f *Field) SetStored(value bool) *Field {
+	f.stored = value
+	return f
 }
 
-// OverrideIntegerField overrides then integer field with the given name of this Model.
-// Integer fields are mapped to int64 type in go.
-func (m *Model) OverrideIntegerField(name string, params SimpleFieldParams) {
-	params.override = true
-	m.AddIntegerField(name, params)
+// SetRequired overrides the value of the Required parameter of this Field
+func (f *Field) SetRequired(value bool) *Field {
+	f.required = value
+	return f
 }
 
-// OverrideMany2ManyField overrides the many2many field with the given name of this Model.
-func (m *Model) OverrideMany2ManyField(name string, params Many2ManyFieldParams) {
-	params.override = true
-	m.AddMany2ManyField(name, params)
+// SetUnique overrides the value of the Unique parameter of this Field
+func (f *Field) SetUnique(value bool) *Field {
+	f.unique = value
+	return f
 }
 
-// OverrideMany2OneField overrides the many2one field with the given name of this Model.
-func (m *Model) OverrideMany2OneField(name string, params ForeignKeyFieldParams) {
-	params.override = true
-	m.AddMany2OneField(name, params)
+// SetIndex overrides the value of the Index parameter of this Field
+func (f *Field) SetIndex(value bool) *Field {
+	f.index = value
+	return f
 }
 
-// OverrideOne2ManyField overrides the one2many field with the given name of this Model.
-func (m *Model) OverrideOne2ManyField(name string, params ReverseFieldParams) {
-	params.override = true
-	m.AddOne2ManyField(name, params)
+// SetNoCopy overrides the value of the NoCopy parameter of this Field
+func (f *Field) SetNoCopy(value bool) *Field {
+	f.noCopy = value
+	return f
 }
 
-// OverrideOne2OneField overrides the one2one field with the given name of this Model.
-func (m *Model) OverrideOne2OneField(name string, params ForeignKeyFieldParams) {
-	params.override = true
-	m.AddOne2OneField(name, params)
+// SetTranslate overrides the value of the Translate parameter of this Field
+func (f *Field) SetTranslate(value bool) *Field {
+	f.translate = value
+	return f
 }
 
-// OverrideRev2OneField overrides the rev2one field with the given name of this Model.
-func (m *Model) OverrideRev2OneField(name string, params ReverseFieldParams) {
-	params.override = true
-	m.AddRev2OneField(name, params)
+// SetDefault overrides the value of the Default parameter of this Field
+func (f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field {
+	f.defaultFunc = value
+	return f
 }
-
-// OverrideSelectionField overrides the selection field with the given name of this Model.
-func (m *Model) OverrideSelectionField(name string, params SelectionFieldParams) {
-	params.override = true
-	m.AddSelectionField(name, params)
-}
-
-// OverrideTextField overrides the multi line text field with the given name of this Model.
-// Text fields are mapped to strings in go. There is no limitation in the size
-// of the string, unless specified in the parameters.
-func (m *Model) OverrideTextField(name string, params StringFieldParams) {
-	params.override = true
-	m.AddTextField(name, params)
-}
-*/

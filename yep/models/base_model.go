@@ -118,7 +118,7 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
-		func(rc RecordCollection, data interface{}) RecordCollection {
+		func(rc RecordCollection, data FieldMapper) RecordCollection {
 			return rc.create(data)
 		})
 
@@ -152,7 +152,7 @@ func declareCRUDMethods() {
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
-		func(rc RecordCollection, data interface{}, fieldsToUnset ...FieldNamer) bool {
+		func(rc RecordCollection, data FieldMapper, fieldsToUnset ...FieldNamer) bool {
 			return rc.update(data, fieldsToUnset...)
 		})
 

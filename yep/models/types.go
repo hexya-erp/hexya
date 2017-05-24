@@ -52,6 +52,14 @@ func (fm *FieldMap) RemovePKIfZero() {
 	}
 }
 
+// FieldMap returns the object converted to a FieldMap
+// i.e. itself
+func (fm FieldMap) FieldMap() FieldMap {
+	return fm
+}
+
+var _ FieldMapper = FieldMap{}
+
 // KeySubstitution defines a key substitution in a FieldMap
 type KeySubstitution struct {
 	Orig string
@@ -97,6 +105,8 @@ type RecordSet interface {
 	Ids() []int64
 	// Env returns the current Environment of this RecordSet
 	Env() Environment
+	// Collection returns the underlying RecordCollection instance
+	Collection() RecordCollection
 }
 
 // A FieldName is a type representing field names in models.
@@ -123,4 +133,10 @@ type GroupAggregateRow struct {
 	Values    FieldMap
 	Count     int
 	Condition *Condition
+}
+
+// A FieldMapper is an object that can convert itself into a FieldMap
+type FieldMapper interface {
+	// FieldMap returns the object converted to a FieldMap
+	FieldMap() FieldMap
 }

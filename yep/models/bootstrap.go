@@ -137,14 +137,7 @@ func injectMixInModel(mixInMI, mi *Model) {
 			}
 			emi.nextLayer[lastImplLayer] = firstMixedLayer
 		} else {
-			newMethInfo := &Method{
-				model:         mi,
-				name:          methName,
-				methodType:    methInfo.methodType,
-				nextLayer:     make(map[*methodLayer]*methodLayer),
-				groups:        make(map[*security.Group]bool),
-				groupsCallers: make(map[callerGroup]bool),
-			}
+			newMethInfo := copyMethod(mi, methInfo)
 			for i := 0; i < len(layersInv); i++ {
 				newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
 			}
@@ -468,8 +461,8 @@ func dropColumnIndex(tableName, colName string) {
 
 // bootStrapMethods freezes the methods of the models.
 func bootStrapMethods() {
-	for _, mi := range Registry.registryByName {
-		mi.methods.bootstrapped = true
+	for _, model := range Registry.registryByName {
+		model.methods.bootstrapped = true
 	}
 }
 

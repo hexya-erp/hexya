@@ -69,9 +69,9 @@ func (rc RecordCollection) Ids() []int64 {
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Create")
-func (rc RecordCollection) create(data interface{}) RecordCollection {
+func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 	rc.checkExecutionPermission(rc.model.methods.MustGet("Create"))
-	fMap := ConvertInterfaceToFieldMap(data)
+	fMap := data.FieldMap()
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	rc.applyDefaults(&fMap)
 	rc.addAccessFieldsCreateData(&fMap)
@@ -134,7 +134,10 @@ func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 	// 3. We create the embedded records
 	for fieldName, vals := range embeddedData {
 		// We do not call "create" directly to have the caller set in the callstack for permissions
-		fMap[fieldName] = rc.env.Pool(vals.model).Call("Create", vals.values).(RecordCollection).ids[0]
+		res := rc.env.Pool(vals.model).Call("Create", vals.values)
+		if resRS, ok := res.(RecordSet); ok {
+			fMap[fieldName] = resRS.Ids()[0]
+		}
 	}
 	return fMap
 }
@@ -166,9 +169,9 @@ func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
-func (rc RecordCollection) update(data interface{}, fieldsToUnset ...FieldNamer) bool {
+func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer) bool {
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
-	fMap := ConvertInterfaceToFieldMap(data)
+	fMap := data.FieldMap()
 	if _, ok := data.(FieldMap); !ok {
 		for _, f := range fieldsToUnset {
 			if _, exists := fMap[string(f.FieldName())]; !exists {
@@ -691,6 +694,12 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 		rSet.query.cond = rc.Model().Field("ID").In(ids)
 	}
 	return rSet
+}
+
+// Collection returns the underlying RecordCollection instance
+// i.e. itself
+func (rc RecordCollection) Collection() RecordCollection {
+	return rc
 }
 
 var _ RecordSet = RecordCollection{}

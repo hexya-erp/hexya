@@ -84,7 +84,7 @@ func TestCreateDB(t *testing.T) {
 				return res
 			})
 
-		user.ExtendMethod("PrefixedUser", "",
+		user.Methods().MustGet("PrefixedUser").Extend("",
 			func(rc RecordCollection, prefix string) []string {
 				res := rc.Super().Call("PrefixedUser", prefix).([]string)
 				for i, u := range rc.Records() {
@@ -99,7 +99,7 @@ func TestCreateDB(t *testing.T) {
 				return fmt.Sprintf("<%s>", email)
 			})
 
-		user.ExtendMethod("DecorateEmail", "",
+		user.Methods().MustGet("DecorateEmail").Extend("",
 			func(rc RecordCollection, email string) string {
 				res := rc.Super().Call("DecorateEmail", email).(string)
 				return fmt.Sprintf("[%s]", res)
@@ -145,16 +145,22 @@ func TestCreateDB(t *testing.T) {
 				return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
 			})
 
-		addressMI.ExtendMethod("PrintAddress", "",
+		addressMI.Methods().MustGet("PrintAddress").Extend("",
 			func(rc RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("<%s>", res)
 			})
 
-		profile.ExtendMethod("PrintAddress", "",
+		profile.Methods().MustGet("PrintAddress").Extend("",
 			func(rc RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("[%s]", res)
+			})
+
+		post.Methods().MustGet("Create").Extend("",
+			func(rc RecordCollection, data FieldMapper) RecordCollection {
+				res := rc.Super().Call("Create", data).(RecordSet).Collection()
+				return res
 			})
 
 		// Creating a dummy table to check that it is correctly removed by Bootstrap
