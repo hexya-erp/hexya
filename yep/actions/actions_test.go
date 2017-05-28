@@ -22,7 +22,7 @@ import (
 )
 
 var actionDef1 string = `
-<action id="my_action" name="My Action" type="form" model="ResPartner" view_mode="tree,form"/>
+<action id="my_action" name="My Action" type="form" model="Partner" view_mode="tree,form"/>
 `
 
 func TestActions(t *testing.T) {
@@ -33,7 +33,7 @@ func TestActions(t *testing.T) {
 		action := Registry.GetById("my_action")
 		So(action.ID, ShouldEqual, "my_action")
 		So(action.Name, ShouldEqual, "My Action")
-		So(action.Model, ShouldEqual, "ResPartner")
+		So(action.Model, ShouldEqual, "Partner")
 		So(action.ViewMode, ShouldEqual, "tree,form")
 	})
 }

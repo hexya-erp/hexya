@@ -11,7 +11,7 @@ import (
 	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/strutils"
 )
 
 // A SimpleFieldParams holds all the possible options for a simple (not relational) field
@@ -156,7 +156,7 @@ func getJSONAndString(name string, typ fieldtype.Type, json, str string) (string
 		json = snakeCaseFieldName(name, typ)
 	}
 	if str == "" {
-		str = tools.TitleString(name)
+		str = strutils.TitleString(name)
 	}
 	return json, str
 }
@@ -185,7 +185,7 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		compute:       params.Compute,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
-		groupOperator: tools.GetDefaultString(params.GroupOperator, "sum"),
+		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
 		noCopy:        params.NoCopy,
 		structField:   structField,
 		fieldType:     fieldType,
@@ -220,7 +220,7 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		compute:       params.Compute,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
-		groupOperator: tools.GetDefaultString(params.GroupOperator, "sum"),
+		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
 		noCopy:        params.NoCopy,
 		structField:   structField,
 		size:          params.Size,
@@ -243,10 +243,12 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 	if params.OnDelete != "" {
 		onDelete = params.OnDelete
 	}
+	noCopy := params.NoCopy
 	required := params.Required
 	if params.Embed {
 		onDelete = Cascade
 		required = true
+		noCopy = true
 	}
 	fInfo := &Field{
 		model:            m,
@@ -261,7 +263,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		compute:          params.Compute,
 		depends:          params.Depends,
 		relatedPath:      params.Related,
-		noCopy:           params.NoCopy,
+		noCopy:           noCopy,
 		structField:      structField,
 		embed:            params.Embed,
 		relatedModelName: params.RelationModel,
@@ -362,7 +364,7 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		compute:       params.Compute,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
-		groupOperator: tools.GetDefaultString(params.GroupOperator, "sum"),
+		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
 		noCopy:        params.NoCopy,
 		structField:   structField,
 		digits:        params.Digits,

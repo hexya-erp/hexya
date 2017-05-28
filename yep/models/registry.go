@@ -24,7 +24,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/strutils"
 )
 
 // Registry is the registry of all Model instances.
@@ -345,7 +345,7 @@ func createModel(name string, options Option) *Model {
 		options:       options,
 		acl:           security.NewAccessControlList(),
 		rulesRegistry: newRecordRuleRegistry(),
-		tableName:     tools.SnakeCaseString(name),
+		tableName:     strutils.SnakeCaseString(name),
 		fields:        newFieldsCollection(),
 		methods:       newMethodsCollection(),
 	}
@@ -415,7 +415,7 @@ type Sequence struct {
 
 // NewSequence creates a new Sequence and returns a pointer to it
 func NewSequence(name string) *Sequence {
-	json := fmt.Sprintf("%s_manseq", tools.SnakeCaseString(name))
+	json := fmt.Sprintf("%s_manseq", strutils.SnakeCaseString(name))
 	seq := &Sequence{
 		Name: name,
 		JSON: json,

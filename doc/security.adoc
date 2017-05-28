@@ -97,14 +97,14 @@ chained
 
 [source,go]
 ----
-users := pool.ResUsers()
+users := pool.Users()
 users.AddMethod("SayHello",
     "SayHello returns Hello",
-    func(rs pool.ResUsersSet) {
+    func(rs pool.UsersSet) {
         return "Hello"
     }).
     AllowGroup(sale.GroupSalesman).
-    AllowGroup(stock.GroupPicker, pool.ResUsers().Methods().Create())
+    AllowGroup(stock.GroupPicker, pool.Users().Methods().Create())
     // Pickers can say hello only from the 'Create' method
 ----
 
@@ -147,7 +147,7 @@ chained.
 
 [source,go]
 salesManager := models.GroupsRegistry.Get("sale_manager")
-pool.ResPartner().Fields().Phone().
+pool.Partner().Fields().Phone().
     RevokeAccess(security.GroupEveryOne, security.Read).
     AllowAccess(salesManager, security.Read)
 
@@ -192,7 +192,7 @@ rule's `Name` already exists, then the rule is overwritten.
 ----
 salesman := models.GroupsRegistry.Get("sale_user")
 
-func getUserID(rs pool.ResPartnerSet) interface{} {
+func getUserID(rs pool.PartnerSet) interface{} {
     return rs.Env().Uid()
 }
 
@@ -204,7 +204,7 @@ rule := models.RecordRule {
     Condition: cond,
     Perms:     security.All,
 }
-pool.ResPartner().AddRecordRule(&rule)
+pool.Partner().AddRecordRule(&rule)
 ----
 
 `*(*Model) RemoveRecordRule(name string)*`::
@@ -212,7 +212,7 @@ Removes the Record Rule with the given `name` from the rule registry of the
 given `model`.
 
 [source,go]
-pool.ResPartner().RemoveRecordRule("salesman_own_partner")
+pool.Partner().RemoveRecordRule("salesman_own_partner")
 
 === Record Rules combination
 

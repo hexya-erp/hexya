@@ -65,7 +65,7 @@ func declareModelMixin() {
 	idSeq := NewSequence("YEPExternalID")
 
 	modelMixin := NewMixinModel("ModelMixin")
-	modelMixin.AddCharField("YEPExternalID", StringFieldParams{Unique: true, Index: true,
+	modelMixin.AddCharField("YEPExternalID", StringFieldParams{Unique: true, Index: true, NoCopy: true,
 		Default: func(env Environment, values FieldMap) interface{} {
 			return fmt.Sprintf("__yep_external_id__%d", idSeq.NextValue())
 		},
@@ -180,7 +180,7 @@ func declareCRUDMethods() {
 			fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
 			delete(fMap, "ID")
 			delete(fMap, "id")
-			newRs := rc.Call("Create", fMap).(RecordCollection)
+			newRs := rc.Call("Create", fMap).(RecordSet).Collection()
 			return newRs
 		})
 

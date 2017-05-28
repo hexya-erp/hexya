@@ -31,15 +31,15 @@ set of Records of the same model. Methods defined on a model are executed on a
 RecordSet.
 
 Each model has its own RecordSet Go type named by appending "Set" to the
-model's name (e.g. the RecordSet type for the `ResPartner` model is called
-`ResPartnerSet`). All RecordSet types implement the `RecordSet` interface, but
+model's name (e.g. the RecordSet type for the `Partner` model is called
+`PartnerSet`). All RecordSet types implement the `RecordSet` interface, but
 also a whole set of methods with defined names but which differ by the
 parameters or return values types. For example, all RecordSets implement a
 `Create` method but each take a Record struct of its model type and return its
 own type.
 
 Each model has also its own Record Go type which is named by appending "Data"
-to its model's name (e.g. `ResPartnerData`). A Record type is simply a struct
+to its model's name (e.g. `PartnerData`). A Record type is simply a struct
 with all the fields of the model whether they are stored into the database or
 computed on the fly. Record types are used to read and write values to
 RecordSets.
@@ -68,7 +68,7 @@ A parameter or return value of type `RecordSetType` means the actual type of
 the RecordSet for this model (not an interface).
 
 A parameter or return value of type `RecordType` means the actual type of the
-Record struct for this model (e.g. `ResPartnerData`).
+Record struct for this model (e.g. `PartnerData`).
 ====
 
 ==== Data Access Methods
@@ -114,7 +114,7 @@ value.
 
 [source,go]
 ----
-customer := pool.ResPartner().Create(env, pool.ResPartnerData{
+customer := pool.Partner().Create(env, pool.PartnerData{
     Name: "Jane Smith",
     Email: "jsmith@example.com",
     Position: "Sale's Manager",
@@ -129,7 +129,7 @@ the actual values of the RecordSet are silently ignored.
 
 [source,go]
 ----
-customer := pool.ResPartner().NewSet(env).Create(pool.ResPartnerData{
+customer := pool.Partner().NewSet(env).Create(pool.PartnerData{
     Name: "Jane Smith",
     Email: "jsmith@example.com",
     Position: "Sale's Manager",
@@ -147,8 +147,8 @@ value, then all non-zero values of data are updated.
 
 [source,go]
 ----
-partner := pool.ResPartner().Search(env, pool.ResPartner().Where().Company().Name().Equals("NDP Systèmes"))
-partner.Write(pool.ResPartner{
+partner := pool.Partner().Search(env, pool.Partner().Where().Company().Name().Equals("NDP Systèmes"))
+partner.Write(pool.Partner{
     Lang: "fr_FR",
 })
 ----
@@ -179,8 +179,8 @@ calls to a getter will not call `Read()` again if the value is already loaded.
 
 [source,go]
 ----
-partners := pool.ResPartner().NewSet(env)
-partners.Search(pool.ResPartner().Where().Name().ILike("John")).Read(pool.ResPartner().Name, pool.ResPartner().Birthday)
+partners := pool.Partner().NewSet(env)
+partners.Search(pool.Partner().Where().Name().ILike("John")).Read(pool.Partner().Name, pool.Partner().Birthday)
 
 // The following lines will not load from the database, but use
 // the values cached in the RecordSet.
@@ -204,8 +204,8 @@ A new Condition instance can be created from a model instance.
 
 [source,go]
 ----
-cond := pool.ResUsers().Email().ILike("example.com").Or().Email().ILike("example.net")
-users := pool.ResUsers().Search(env, cond)
+cond := pool.Users().Email().ILike("example.com").Or().Email().ILike("example.net")
+users := pool.Users().Search(env, cond)
 ----
 
 `*(RecordSet) Search(condition ConditionType) RecordSetType*`::
@@ -237,7 +237,7 @@ Each of these methods take a `value` parameter which can be any of the following
 RecordSet we are querying and that returns a value that matches one of the two
 above conditions.
 +
-eg. `func(rs pool.ResPartnerSet) int64`
+eg. `func(rs pool.PartnerSet) int64`
 +
 The function will be evaluated at the time of the query by passing it the
 RecordSet we are querying and the result will be substituted in the query.
@@ -249,22 +249,22 @@ Searches can also be performed on joined model fields with the
 
 [source,go]
 ----
-cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().Function().ILike("manager"))
-users := pool.ResUsers().Search(env, cond)
+cond := pool.Users().PartnerFilteredOn(pool.Partner().Function().ILike("manager"))
+users := pool.Users().Search(env, cond)
 ----
 
 Conditions with `__FK__FilteredOn()` can be nested:
 
 [source,go]
 ----
-cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().CountryFilteredOn(pool.ResCountry().Code.Equals("F")))
+cond := pool.Users().PartnerFilteredOn(pool.Partner().CountryFilteredOn(pool.ResCountry().Code.Equals("F")))
 ----
 
 They can also be mixed with simple conditions:
 
 [source,go]
 ----
-cond := pool.ResUsers().PartnerFilteredOn(pool.ResPartner().Function().ILike("manager")).And().Login().ILike("John")
+cond := pool.Users().PartnerFilteredOn(pool.Partner().Function().ILike("manager")).And().Login().ILike("John")
 ----
 ====
 
@@ -306,7 +306,7 @@ valid field name and optionally a direction.
 
 [source,go]
 ----
-users := pool.ResUsers().NewSet(env).OrderBy("Name ASC", "Email DESC", "ID")
+users := pool.Users().NewSet(env).OrderBy("Name ASC", "Email DESC", "ID")
 ----
 
 ==== RecordSet Operations
@@ -417,8 +417,8 @@ instead.
 
 [source,go]
 ----
-noReplyUser := pool.ResUsers().Search(env, pool.ResUsers().Email().Equals("no-reply@ndp-systemes.fr")).Limit(1)
-partners := pool.ResPartner().Search(env, pool.ResPartner().Name().ILike("John"))
+noReplyUser := pool.Users().Search(env, pool.Users().Email().Equals("no-reply@ndp-systemes.fr")).Limit(1)
+partners := pool.Partner().Search(env, pool.Partner().Name().ILike("John"))
 
 partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
 ----
@@ -476,8 +476,8 @@ extend in place existing models created by other modules.
 
 [source,go]
 ----
-resPartnerModel := pool.ResPartner()
-resUsersModel := pool.ResUsers()
+resPartnerModel := pool.Partner()
+resUsersModel := pool.Users()
 ----
 
 All models, fields and methods definitions MUST be made in the `init()` of
@@ -522,9 +522,9 @@ in the example below:
 course := models.NewModel("Course")
 course.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "This is the name of the course", Required: true})
 course.AddDateField("Date", models.SimpleFieldParams{String: "Date of the Course"}
-course.AddMany2OneField("Teacher", models.ForeignKeyParams{RelationModel: "ResPartner", String: "Teacher"}
+course.AddMany2OneField("Teacher", models.ForeignKeyParams{RelationModel: "Partner", String: "Teacher"}
 course.AddDateTimeField("LimitDate", models.SimpleFieldParams{Required: true}
-course.AddMany2ManyField("Attendees", models.Many2manyFieldParams{RelationModel: "ResPartner", String: "Attendees"}
+course.AddMany2ManyField("Attendees", models.Many2manyFieldParams{RelationModel: "Partner", String: "Attendees"}
 ----
 
 Available model methods for creating fields are:
@@ -753,9 +753,9 @@ documentation of the method.
 [source,go]
 ----
 // PartnerUpdateBirthday updates this partner birthday.
-pool.ResPartner().AddMethod("UpdateBirthday",
+pool.Partner().AddMethod("UpdateBirthday",
     `PartnerUpdateBirthday updates this partner birthday.`,
-    func (rs ResPartnerSet, birthday time.Time) {
+    func (rs PartnerSet, birthday time.Time) {
         rs.SetBirthday(Date(birthDay))
     })
 ----
@@ -777,9 +777,9 @@ call the previous layer.
 
 [source,go]
 ----
-pool.ResPartner().Methods().UpdateBirthday().Extend(
+pool.Partner().Methods().UpdateBirthday().Extend(
     `Extended in myModule to compute age at the same time.`,
-    func(rs ResPartnerSet, birthday time.Time) {
+    func(rs PartnerSet, birthday time.Time) {
         rs.Super().UpdateBirthday(birthday)
         rs.SetAge(Time.Now().Year() - birthday.Year())
     })

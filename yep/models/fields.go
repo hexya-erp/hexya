@@ -19,10 +19,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/npiganeau/yep-base/web/odooproxy"
 	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
-	"github.com/npiganeau/yep/yep/tools"
+	"github.com/npiganeau/yep/yep/tools/strutils"
 )
 
 // An OnDeleteAction defines what to be done with this record when
@@ -130,17 +131,16 @@ func (fc *FieldsCollection) nonRelationFieldJSONNames() []string {
 	return res
 }
 
-/*
-getComputedFields returns the slice of Field of the computed, but not
-stored fields of the given modelName.
-If fields are given, return only Field instances in the list
-*/
+// getComputedFields returns the slice of Field of the computed, but not
+// stored fields of the given modelName.
+// If fields are given, return only Field instances in the list
 func (fc *FieldsCollection) getComputedFields(fields ...string) (fil []*Field) {
 	fInfos := fc.computedFields
 	if len(fields) > 0 {
 		for _, f := range fields {
 			for _, fInfo := range fInfos {
-				if fInfo.name == tools.ConvertMethodName(f) {
+				// TODO remove dependency on odooproxy
+				if fInfo.name == odooproxy.ConvertMethodName(f) {
 					fil = append(fil, fInfo)
 					continue
 				}
@@ -294,7 +294,7 @@ func checkFieldInfo(fi *Field) {
 // jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
 func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
-	res := tools.SnakeCaseString(fName)
+	res := strutils.SnakeCaseString(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"
 	} else if typ.Is2ManyRelationType() {
@@ -323,14 +323,14 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 	newMI := &Model{
 		name:      relModelName,
 		acl:       security.NewAccessControlList(),
-		tableName: tools.SnakeCaseString(relModelName),
+		tableName: strutils.SnakeCaseString(relModelName),
 		fields:    newFieldsCollection(),
 		methods:   newMethodsCollection(),
 		options:   Many2ManyLinkModel,
 	}
 	ourField := &Field{
 		name:             model1,
-		json:             tools.SnakeCaseString(model1) + "_id",
+		json:             strutils.SnakeCaseString(model1) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
@@ -348,7 +348,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 
 	theirField := &Field{
 		name:             model2,
-		json:             tools.SnakeCaseString(model2) + "_id",
+		json:             strutils.SnakeCaseString(model2) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,

@@ -16,15 +16,15 @@ package models
 
 import (
 	"github.com/jmoiron/sqlx"
-	"github.com/npiganeau/yep/yep/tools"
 	"github.com/npiganeau/yep/yep/tools/logging"
+	"github.com/npiganeau/yep/yep/tools/strutils"
 )
 
 var log *logging.Logger
 
 func init() {
 	log = logging.GetLogger("models")
-	sqlx.NameMapper = tools.SnakeCaseString
+	sqlx.NameMapper = strutils.SnakeCaseString
 	// DB drivers
 	adapters = make(map[string]dbAdapter)
 	registerDBAdapter("postgres", new(postgresAdapter))
