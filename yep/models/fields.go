@@ -19,7 +19,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/npiganeau/yep-base/web/odooproxy"
 	"github.com/npiganeau/yep/yep/models/fieldtype"
 	"github.com/npiganeau/yep/yep/models/security"
 	"github.com/npiganeau/yep/yep/models/types"
@@ -139,8 +138,7 @@ func (fc *FieldsCollection) getComputedFields(fields ...string) (fil []*Field) {
 	if len(fields) > 0 {
 		for _, f := range fields {
 			for _, fInfo := range fInfos {
-				// TODO remove dependency on odooproxy
-				if fInfo.name == odooproxy.ConvertMethodName(f) {
+				if f == fInfo.name || f == fInfo.json {
 					fil = append(fil, fInfo)
 					continue
 				}
