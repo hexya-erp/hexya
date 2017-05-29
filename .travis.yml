@@ -12,12 +12,12 @@ services:
   - postgresql
 
 before_install:
-  - go get -t github.com/npiganeau/yep
-  - yep generate -t ./yep/tests/testmodule
+  - go get -t github.com/hexya-erp/hexya
+  - hexya generate -t ./hexya/tests/testmodule
 
 before_script:
-  - psql -c 'create database yep_test_models;' -U postgres
-  - psql -c 'create database yep_test_tests;' -U postgres
+  - psql -c 'create database hexya_test_models;' -U postgres
+  - psql -c 'create database hexya_test_tests;' -U postgres
 
 env:
-  - YEP_DB_DRIVER=postgres YEP_DB_USER=postgres YEP_DB_PASSWORD= YEP_DB_PREFIX=yep_test
+  - Hexya_DB_DRIVER=postgres Hexya_DB_USER=postgres Hexya_DB_PASSWORD= Hexya_DB_PREFIX=hexya_test

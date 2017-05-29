@@ -1,4 +1,4 @@
-YEP Roadmap
+Hexya Roadmap
 ===========
 
 ORM
@@ -50,17 +50,17 @@ Controllers
 
 Server
 ------
-- [X] Create controllers for using Odoo web client with YEP Server
+- [X] Create controllers for using Odoo web client with Hexya Server
 - [X] Recover from orm methods' panics
 - [X] Unified logging system
 - [X] Automate routing and include for `static` dir in modules
-- [X] Improve yep CLI with a cobra commander
-- [ ] Implement yep REPL console
+- [X] Improve hexya CLI with a cobra commander
+- [ ] Implement hexya REPL console
 
 Client
 ------
-- [X] Adapt Odoo web client to be used in YEP (V8)
-- [X] Adapt Odoo web client to be used in YEP (V9)
+- [X] Adapt Odoo web client to be used in Hexya (V8)
+- [X] Adapt Odoo web client to be used in Hexya (V9)
 - [ ] Rebrand web client
 
 Modules
@@ -69,7 +69,7 @@ Modules
 - [X] Business logic testing framework
 - [ ] Internal resource XML data files
     - [X] New schema for internal resources XML
-    - [ ] Make yep-generate create XSD for XML autocompletion
+    - [ ] Make hexya-generate create XSD for XML autocompletion
 - [X] Add support for CSV data files
 
 Documentation
@@ -81,4 +81,4 @@ Documentation
 - [ ] Actions and menus reference
 - [ ] Low level models API reference
 - [ ] Module development tutorial
-- [ ] Testing YEP
+- [ ] Testing Hexya

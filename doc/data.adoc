@@ -6,7 +6,7 @@ Author Nicolas Piganeau
 == Introduction
 In many cases, it is necessary to include configuration data into the database
 just for the logic to work. In order to manage the configuration of this data,
-the YEP framework provides a way to load data through the use of CSV files.
+the Hexya framework provides a way to load data through the use of CSV files.
 
 == CSV Files
 All files that will be put in the `data` subdirectory of a module will be

@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/npiganeau/yep/cmd"
+	"github.com/hexya-erp/hexya/cmd"
 )
 
 func main() {
-	if err := cmd.YEPCmd.Execute(); err != nil {
+	if err := cmd.HexyaCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}

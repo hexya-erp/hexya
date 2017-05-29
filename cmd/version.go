@@ -22,13 +22,13 @@ import (
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version YEP",
-	Long:  `Print the version of the YEP framework`,
+	Short: "Print the version Hexya",
+	Long:  `Print the version of the Hexya framework`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("YEP version 0.1")
+		fmt.Println("Hexya version 0.1")
 	},
 }
 
 func initVersion() {
-	YEPCmd.AddCommand(versionCmd)
+	HexyaCmd.AddCommand(versionCmd)
 }

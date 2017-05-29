@@ -1,7 +1,7 @@
-= YEP's design choice
+= Hexya's design choice
 
-This document explains the design choices of YEP, including the reason why we decided to write
-YEP in the first place.
+This document explains the design choices of Hexya, including the reason why we decided to write
+Hexya in the first place.
 
 :numbered:
 
@@ -18,7 +18,7 @@ bigger companies because these companies need more business logic and calculatio
 schedulers, reporting, etc.) and on much larger sets of data. With a 500 people company, we
 feel we have reached the maximum of calculation power that Odoo could deliver.
 
-So we decided to write YEP to address this issue, with the following in mind:
+So we decided to write Hexya to address this issue, with the following in mind:
 
 - We want to keep the best from Odoo
 - We want speed for the complex business logic calculation of medium and intermediate
@@ -44,8 +44,8 @@ application: you just have to create a module, and this module can modify any el
 main application (models, views, controllers, client, …) without touching a single line of
 the original code.
 
-This is definitely something we want to have in YEP: *one should be able to customize YEP by
-creating a module without changing YEP code.*
+This is definitely something we want to have in Hexya: *one should be able to customize Hexya by
+creating a module without changing Hexya code.*
 
 === Large business code base
 
@@ -55,13 +55,13 @@ management. This large number of business applications and associated code is al
 the success of Odoo.
 
 This code base is so developed that it would take years rewriting it from scratch. Although
-YEP will not be written in python and its internals will be completely different from that
-of Odoo, *YEP will keep Odoo's business data model* so that modules can be easily ported
-from Odoo to YEP.
+Hexya will not be written in python and its internals will be completely different from that
+of Odoo, *Hexya will keep Odoo's business data model* so that modules can be easily ported
+from Odoo to Hexya.
 
 == Design choices
 
-This section highlights design choices for YEP that are different from that of Odoo. They
+This section highlights design choices for Hexya that are different from that of Odoo. They
 are all made in order to achieve a good speed in business logic calculation.
 
 === Go instead of Python
@@ -70,7 +70,7 @@ High calculation speed means a compiled language. Of course there are several wo
 to speed up interpreted languages, but we're better of with the right tool at the
 beginning rather than trying to make fixes all the time.
 
-*YEP will be written in GO* which is a compiled language known for its fast compilation
+*Hexya will be written in GO* which is a compiled language known for its fast compilation
 and execution, that is easy to learn and has some reflection capacities.
 
 === Static configuration
@@ -86,7 +86,7 @@ elements (such as views) at each request by adding data from all the modules tha
 element before sending it to the client. Here again, the data is the same at each request and
 the calculation gives the same result each time.
 
-*YEP configuration data will be computed at compile time*. Only business configuration will
+*Hexya configuration data will be computed at compile time*. Only business configuration will
 be dynamic and stored into the database. This means that a recompilation will be necessary
 each time an element (view, model, controller) will be modified, but with go's quick
 compilation this will not be a big issue.
@@ -94,7 +94,7 @@ compilation this will not be a big issue.
 This choice has several implications that should not be an issue for the target businesses:
 
 - Installed modules will be determined at compile time, there is no one click install.
-- A running YEP instance will have all its database with the same configuration, so SaaS YEP
+- A running Hexya instance will have all its database with the same configuration, so SaaS Hexya
 will not be possible as it is in Odoo. Different configurations will mean different instances.
 
 === Developer friendly for high code quality
@@ -103,6 +103,6 @@ We believe that ERP systems are serious and need high code quality. We also beli
 code quality is achieved, among others, by static types, attributes and methods that allow
 many errors to be lifted at compile time.
 
-*YEP's business development API will be fully static*. This also allows common IDEs to make
+*Hexya's business development API will be fully static*. This also allows common IDEs to make
 reliable inspections and auto-completion. Developers won't have to lookup manually existing
 fields or methods in a model, they will autocomplete nicely.
