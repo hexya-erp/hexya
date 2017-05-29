@@ -72,9 +72,9 @@ _testmain.go
 *.test
 *.prof
 
-# YEP Specifics
+# Hexya Specifics
 pool/
-/yep/server/static/
-/yep/server/templates/
-/yep/server/views/
-/yep/server/data/
+/hexya/server/static/
+/hexya/server/templates/
+/hexya/server/views/
+/hexya/server/data/

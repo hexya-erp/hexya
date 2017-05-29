@@ -1,11 +1,11 @@
-= Security in YEP
+= Security in Hexya
 Author Nicolas Piganeau
 :prewrap!:
 :toc:
 
 == Introduction
 
-Security is implemented in YEP at the ORM level to limit the risks of
+Security is implemented in Hexya at the ORM level to limit the risks of
 inappropriate privilege elevation.
 
 === Groups
@@ -54,7 +54,7 @@ They are used when defining Record Rules of Field Access Controls.
 
 === Rationale
 
-Unlike other frameworks, YEP does not enforce access control lists to its
+Unlike other frameworks, Hexya does not enforce access control lists to its
 objects, but instead control execution of model methods. While this system
 still enables mocking ACLs by controlling the execution of CRUD methods, it is
 much more powerful as it allows to give access to a model depending on the
@@ -112,7 +112,7 @@ users.AddMethod("SayHello",
 
 === Rationale
 
-While MEC is the main security mechanism used in YEP, it is sometimes necessary
+While MEC is the main security mechanism used in Hexya, it is sometimes necessary
 to limit read or write access for some users to some fields. This is
 particularly true in the user interface.
 

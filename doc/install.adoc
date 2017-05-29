@@ -1,12 +1,12 @@
-= Installing YEP
+= Installing Hexya
 Author Nicolas Piganeau
 :prewrap!:
 :toc:
 
 == Introduction
-Since YEP is a modular ERP at compile time, it is only distributed as source
+Since Hexya is a modular ERP at compile time, it is only distributed as source
 code. The following instructions will guide you through the process of
-downloading the source code, setting up your configuration and compile YEP.
+downloading the source code, setting up your configuration and compile Hexya.
 
 == Prerequisites
 
@@ -19,37 +19,37 @@ described here: https://golang.org/doc/code.html#Workspaces
 
 == Download
 
-=== Download YEP
-YEP uses the standard go toolchain. Download YEP with the following command:
+=== Download Hexya
+Hexya uses the standard go toolchain. Download Hexya with the following command:
 
 [source,shell]
 ----
-go get github.com/npiganeau/yep
+go get github.com/hexya-erp/hexya
 ----
 
-This will download yep and its dependencies in your workspace and compile the
-`yep` command.
+This will download hexya and its dependencies in your workspace and compile the
+`hexya` command.
 
-=== Download YEP modules
-YEP modules are distributed as Go packages. They can be downloaded with
+=== Download Hexya modules
+Hexya modules are distributed as Go packages. They can be downloaded with
 `go get` too. For instance, to get the official addons:
 
 [source,shell]
 ----
-go get -d github.com/npiganeau/yep-base
-go get -d github.com/npiganeau/yep-addons
+go get -d github.com/hexya-erp/hexya-base
+go get -d github.com/hexya-erp/hexya-addons
 ----
 
 == Create a project
-You need to create a project to run a YEP server. Your project will hold your
+You need to create a project to run a Hexya server. Your project will hold your
 specific configuration, in particular the modules to install.
 
 === Download Demo Project
-If you want to evaluate YEP, you can download the `yep-demo` project.
+If you want to evaluate Hexya, you can download the `hexya-demo` project.
 
 [source,shell]
 ----
-go get github.com/npiganeau/yep-demo
+go get github.com/hexya-erp/hexya-demo
 ----
 
 === Creating a custom project
@@ -61,16 +61,16 @@ To create a custom project, create a directory with the following structure:
 ----
 
 Edit the `config.go` file and make it look like the following, adding one line
-per module to install in your YEP instance in the `import` stanza:
+per module to install in your Hexya instance in the `import` stanza:
 
 [source,go]
 ----
 package config
 
 import (
-    _ "github.com/npiganeau/yep-addons/sale"
-    _ "github.com/npiganeau/yep-addons/stock"
-    _ "github.com/npiganeau/yep-addons/purchase"
+    _ "github.com/hexya-erp/hexya-addons/sale"
+    _ "github.com/hexya-erp/hexya-addons/stock"
+    _ "github.com/hexya-erp/hexya-addons/purchase"
     _ "github.com/my-partner/my-super-module"
 )
 ----
@@ -78,7 +78,7 @@ import (
 NOTE: The leading underscore before each module import path makes the file
 valid Go.
 
-=== Generate YEP
+=== Generate Hexya
 
 This step will generate some source code that depends on the modules you
 selected in the previous step. It must be performed after each modification
@@ -87,12 +87,12 @@ of the configuration from inside the project directory.
 [source,shell]
 ----
 cd <projectDir>
-yep generate
+hexya generate
 ----
 
-Type `yep help generate` for the list of available options:
+Type `hexya help generate` for the list of available options:
 ----
-$ yep help generate
+$ hexya help generate
 Generate the source code of the pool package which includes the definition of all the models.
 Additionally, this command creates the startup file of the project.
 This command must be rerun after each source code modification, including module import.
@@ -101,13 +101,13 @@ This command must be rerun after each source code modification, including module
               If not set, projectDir defaults to the current directory
 
 Usage:
-  yep generate [projectDir] [flags]
+  hexya generate [projectDir] [flags]
 
 Flags:
   -t, --test   Generate pool for test module. When set projectDir is ignored.
 
 Global Flags:
-  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.yep/
+  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.hexya/
   -l, --log-file string    File to which the log will be written
   -L, --log-level string   Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
   -o, --log-stdout         Enable stdout logging. Use for development or debugging.
@@ -120,21 +120,21 @@ This step will synchronise the database with the models defined.
 [source,shell]
 ----
 cd <projectDir>
-yep updatedb -o --db-password=MY_DB_PASSWORD
+hexya updatedb -o --db-password=MY_DB_PASSWORD
 ----
 
-Type `yep help updatedb` for the list of available options:
+Type `hexya help updatedb` for the list of available options:
 ----
 Synchronize the database schema with the models definitions.
 
 Usage:
-  yep updatedb [flags]
+  hexya updatedb [flags]
 
 Global Flags:
-  -c, --config string        Alternate configuration file to read. Defaults to $HOME/.yep/
+  -c, --config string        Alternate configuration file to read. Defaults to $HOME/.hexya/
       --db-driver string     Database driver to use (default "postgres")
       --db-host string       Database hostname or IP. Leave empty to connect through socket.
-      --db-name string       Database name. Defaults to 'yep' (default "yep")
+      --db-name string       Database name. Defaults to 'hexya' (default "hexya")
       --db-password string   Database password. Leave empty when connecting through socket.
       --db-port string       Database port. Value is ignored if db-host is not set. (default "5432")
       --db-user string       Database user. Defaults to current user
@@ -144,36 +144,36 @@ Global Flags:
   -o, --log-stdout           Enable stdout logging. Use for development or debugging.
 ----
 
-== Running YEP
+== Running Hexya
 
-YEP is launched by the `yep server` command from inside the project directory.
+Hexya is launched by the `hexya server` command from inside the project directory.
 
 [source,shell]
 ----
 cd <projectDir>
-yep server -o --db-password=MY_DB_PASSWORD
+hexya server -o --db-password=MY_DB_PASSWORD
 ----
 
-Type `yep help server` to get the list of available options:
+Type `hexya help server` to get the list of available options:
 
 ----
-$ yep help server
-Start the YEP server of the project in 'projectDir'.
+$ hexya help server
+Start the Hexya server of the project in 'projectDir'.
 If projectDir is omitted, defaults to the current directory.
 
 Usage:
-  yep server [projectDir] [flags]
+  hexya server [projectDir] [flags]
 
 Flags:
       --db-driver string     Database driver to use (default "postgres")
       --db-host string       Database hostname or IP. Leave empty to connect through socket.
-      --db-name string       Database name. Defaults to 'yep' (default "yep")
+      --db-name string       Database name. Defaults to 'hexya' (default "hexya")
       --db-password string   Database password. Leave empty when connecting through socket.
       --db-port string       Database port. Value is ignored if db-host is not set. (default "5432")
       --db-user string       Database user. Defaults to current user
 
 Global Flags:
-  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.yep/
+  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.hexya/
   -l, --log-file string    File to which the log will be written
   -L, --log-level string   Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
   -o, --log-stdout         Enable stdout logging. Use for development or debugging.

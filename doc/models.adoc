@@ -5,12 +5,12 @@ Author Nicolas Piganeau
 
 == Introduction
 
-The models API allows modules to interact with YEP's models and records. This
+The models API allows modules to interact with Hexya's models and records. This
 API is mainly an ORM but with additional features needed for business logic.
 Developers familiar with Odoo's ORM should find many similarities with the
 latter.
 
-Special care has been put in YEP's model API to ease development. In
+Special care has been put in Hexya's model API to ease development. In
 particular:
 
 * Almost no reflection so that a standard Go IDE can propose relevant
@@ -471,7 +471,7 @@ by-passes all security restrictions. Use the RecordSet API instead.
 
 == Creating / extending models
 
-When developing a YEP module, you can create your own models and/or
+When developing a Hexya module, you can create your own models and/or
 extend in place existing models created by other modules.
 
 [source,go]
@@ -485,10 +485,10 @@ the main package or of a package called by the module's main package.
 
 [IMPORTANT]
 ====
-After creating or modifying a model, you must run `yep generate` to
-generate the types in the `pool` package before starting the YEP server.
+After creating or modifying a model, you must run `hexya generate` to
+generate the types in the `pool` package before starting the Hexya server.
 
-Running `yep generate` will also allow you to obtain code completion and
+Running `hexya generate` will also allow you to obtain code completion and
 inspections on the newly created types.
 ====
 
@@ -763,7 +763,7 @@ pool.Partner().AddMethod("UpdateBirthday",
 [IMPORTANT]
 ====
 The `methodName` attribute of `CreateMethod` *MUST* be a string
-literal for `yep-generate` to work correctly. Do *NOT* use variable or
+literal for `hexya-generate` to work correctly. Do *NOT* use variable or
 constant here.
 ====
 

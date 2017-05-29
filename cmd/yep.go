@@ -19,39 +19,39 @@ import (
 	"github.com/spf13/viper"
 )
 
-// YEPCmd is the base 'yep' command of the commander
-var YEPCmd = &cobra.Command{
-	Use:   "yep",
-	Short: "YEP is an open source modular ERP",
-	Long: `YEP is an open source modular ERP written in Go.
+// HexyaCmd is the base 'hexya' command of the commander
+var HexyaCmd = &cobra.Command{
+	Use:   "hexya",
+	Short: "Hexya is an open source modular ERP",
+	Long: `Hexya is an open source modular ERP written in Go.
 It is designed for high demand business data processing while being easily customizable`,
 }
 
 func init() {
-	YEPCmd.PersistentFlags().StringP("config", "c", "", "Alternate configuration file to read. Defaults to $HOME/.yep/")
-	viper.BindPFlag("ConfigFileName", YEPCmd.PersistentFlags().Lookup("config"))
+	HexyaCmd.PersistentFlags().StringP("config", "c", "", "Alternate configuration file to read. Defaults to $HOME/.hexya/")
+	viper.BindPFlag("ConfigFileName", HexyaCmd.PersistentFlags().Lookup("config"))
 
-	YEPCmd.PersistentFlags().StringP("log-level", "L", "info", "Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit'")
-	viper.BindPFlag("LogLevel", YEPCmd.PersistentFlags().Lookup("log-level"))
-	YEPCmd.PersistentFlags().StringP("log-file", "l", "", "File to which the log will be written")
-	viper.BindPFlag("LogFile", YEPCmd.PersistentFlags().Lookup("log-file"))
-	YEPCmd.PersistentFlags().BoolP("log-stdout", "o", false, "Enable stdout logging. Use for development or debugging.")
-	viper.BindPFlag("LogStdout", YEPCmd.PersistentFlags().Lookup("log-stdout"))
-	YEPCmd.PersistentFlags().Bool("debug", false, "Enable server debug mode for development")
-	viper.BindPFlag("Debug", YEPCmd.PersistentFlags().Lookup("debug"))
+	HexyaCmd.PersistentFlags().StringP("log-level", "L", "info", "Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit'")
+	viper.BindPFlag("LogLevel", HexyaCmd.PersistentFlags().Lookup("log-level"))
+	HexyaCmd.PersistentFlags().StringP("log-file", "l", "", "File to which the log will be written")
+	viper.BindPFlag("LogFile", HexyaCmd.PersistentFlags().Lookup("log-file"))
+	HexyaCmd.PersistentFlags().BoolP("log-stdout", "o", false, "Enable stdout logging. Use for development or debugging.")
+	viper.BindPFlag("LogStdout", HexyaCmd.PersistentFlags().Lookup("log-stdout"))
+	HexyaCmd.PersistentFlags().Bool("debug", false, "Enable server debug mode for development")
+	viper.BindPFlag("Debug", HexyaCmd.PersistentFlags().Lookup("debug"))
 
-	YEPCmd.PersistentFlags().String("db-driver", "postgres", "Database driver to use")
-	viper.BindPFlag("DB.Driver", YEPCmd.PersistentFlags().Lookup("db-driver"))
-	YEPCmd.PersistentFlags().String("db-host", "", "Database hostname or IP. Leave empty to connect through socket.")
-	viper.BindPFlag("DB.Host", YEPCmd.PersistentFlags().Lookup("db-host"))
-	YEPCmd.PersistentFlags().String("db-port", "5432", "Database port. Value is ignored if db-host is not set.")
-	viper.BindPFlag("DB.Port", YEPCmd.PersistentFlags().Lookup("db-port"))
-	YEPCmd.PersistentFlags().String("db-user", "", "Database user. Defaults to current user")
-	viper.BindPFlag("DB.User", YEPCmd.PersistentFlags().Lookup("db-user"))
-	YEPCmd.PersistentFlags().String("db-password", "", "Database password. Leave empty when connecting through socket.")
-	viper.BindPFlag("DB.Password", YEPCmd.PersistentFlags().Lookup("db-password"))
-	YEPCmd.PersistentFlags().String("db-name", "yep", "Database name. Defaults to 'yep'")
-	viper.BindPFlag("DB.Name", YEPCmd.PersistentFlags().Lookup("db-name"))
+	HexyaCmd.PersistentFlags().String("db-driver", "postgres", "Database driver to use")
+	viper.BindPFlag("DB.Driver", HexyaCmd.PersistentFlags().Lookup("db-driver"))
+	HexyaCmd.PersistentFlags().String("db-host", "", "Database hostname or IP. Leave empty to connect through socket.")
+	viper.BindPFlag("DB.Host", HexyaCmd.PersistentFlags().Lookup("db-host"))
+	HexyaCmd.PersistentFlags().String("db-port", "5432", "Database port. Value is ignored if db-host is not set.")
+	viper.BindPFlag("DB.Port", HexyaCmd.PersistentFlags().Lookup("db-port"))
+	HexyaCmd.PersistentFlags().String("db-user", "", "Database user. Defaults to current user")
+	viper.BindPFlag("DB.User", HexyaCmd.PersistentFlags().Lookup("db-user"))
+	HexyaCmd.PersistentFlags().String("db-password", "", "Database password. Leave empty when connecting through socket.")
+	viper.BindPFlag("DB.Password", HexyaCmd.PersistentFlags().Lookup("db-password"))
+	HexyaCmd.PersistentFlags().String("db-name", "hexya", "Database name. Defaults to 'hexya'")
+	viper.BindPFlag("DB.Name", HexyaCmd.PersistentFlags().Lookup("db-name"))
 
 	initVersion()
 	initGenerate()
