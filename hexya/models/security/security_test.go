@@ -16,8 +16,6 @@ package security
 
 import (
 	"testing"
-
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestAccessControlList(t *testing.T) {
