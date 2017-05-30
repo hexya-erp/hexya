@@ -20,4 +20,4 @@ before_script:
   - psql -c 'create database hexya_test_tests;' -U postgres
 
 env:
-  - Hexya_DB_DRIVER=postgres Hexya_DB_USER=postgres Hexya_DB_PASSWORD= Hexya_DB_PREFIX=hexya_test
+  - HEXYA_DB_DRIVER=postgres HEXYA_DB_USER=postgres HEXYA_DB_PASSWORD= HEXYA_DB_PREFIX=hexya_test

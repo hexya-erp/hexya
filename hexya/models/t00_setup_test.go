@@ -44,25 +44,25 @@ func TestMain(m *testing.M) {
 
 func initializeTests() {
 	fmt.Printf("Initializing database for models\n")
-	dbArgs.Driver = os.Getenv("Hexya_DB_DRIVER")
+	dbArgs.Driver = os.Getenv("HEXYA_DB_DRIVER")
 	if dbArgs.Driver == "" {
 		dbArgs.Driver = "postgres"
 	}
-	dbArgs.User = os.Getenv("Hexya_DB_USER")
+	dbArgs.User = os.Getenv("HEXYA_DB_USER")
 	if dbArgs.User == "" {
 		dbArgs.User = "hexya"
 	}
-	dbArgs.Password = os.Getenv("Hexya_DB_PASSWORD")
+	dbArgs.Password = os.Getenv("HEXYA_DB_PASSWORD")
 	if dbArgs.Password == "" {
 		dbArgs.Password = "hexya"
 	}
-	prefix := os.Getenv("Hexya_DB_PREFIX")
+	prefix := os.Getenv("HEXYA_DB_PREFIX")
 	if prefix == "" {
 		prefix = "hexya"
 	}
 
 	dbArgs.DB = fmt.Sprintf("%s_models_tests", prefix)
-	dbArgs.Debug = os.Getenv("Hexya_DEBUG")
+	dbArgs.Debug = os.Getenv("HEXYA_DEBUG")
 
 	viper.Set("LogLevel", "crit")
 	if dbArgs.Debug != "" {

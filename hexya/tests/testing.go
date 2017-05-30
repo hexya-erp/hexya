@@ -42,24 +42,24 @@ func RunTests(m *testing.M, moduleName string) {
 // You probably want to use RunTests instead.
 func InitializeTests(moduleName string) {
 	fmt.Printf("Initializing database for module %s\n", moduleName)
-	driver = os.Getenv("Hexya_DB_DRIVER")
+	driver = os.Getenv("HEXYA_DB_DRIVER")
 	if driver == "" {
 		driver = "postgres"
 	}
-	user = os.Getenv("Hexya_DB_USER")
+	user = os.Getenv("HEXYA_DB_USER")
 	if user == "" {
 		user = "hexya"
 	}
-	password = os.Getenv("Hexya_DB_PASSWORD")
+	password = os.Getenv("HEXYA_DB_PASSWORD")
 	if password == "" {
 		password = "hexya"
 	}
-	prefix = os.Getenv("Hexya_DB_PREFIX")
+	prefix = os.Getenv("HEXYA_DB_PREFIX")
 	if prefix == "" {
 		prefix = "hexya"
 	}
 	dbName := fmt.Sprintf("%s_%s_tests", prefix, moduleName)
-	debug = os.Getenv("Hexya_DEBUG")
+	debug = os.Getenv("HEXYA_DEBUG")
 
 	viper.Set("LogLevel", "crit")
 	if debug != "" {
