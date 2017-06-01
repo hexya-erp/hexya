@@ -178,8 +178,7 @@ func declareCRUDMethods() {
 			rc.Load(fields...)
 
 			fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
-			delete(fMap, "ID")
-			delete(fMap, "id")
+			fMap.RemovePK()
 			newRs := rc.Call("Create", fMap).(RecordSet).Collection()
 			return newRs
 		})
@@ -270,12 +269,15 @@ func declareRecordSetMethods() {
 				rs := rc.WithEnv(env)
 				env.cache.addRecord(rs.model, rs.Ids()[0], params.Values)
 				fi := rs.Model().Fields().MustGet(params.Field)
+				if fi.onChange == "" {
+					return
+				}
 				res := rs.CallMulti(fi.onChange)
-				values = res[0].(FieldMapper)
+				values = rs.model.JSONizeFieldMap(res[0].(FieldMapper).FieldMap(fields...))
 				fields = res[1].([]FieldNamer)
 			})
 			return OnchangeResult{
-				Value: rc.model.JSONizeFieldMap(values.FieldMap(fields...)),
+				Value: values,
 			}
 		}).AllowGroup(security.GroupEveryone)
 }
