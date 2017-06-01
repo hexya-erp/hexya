@@ -30,6 +30,7 @@ type SimpleFieldParams struct {
 	NoCopy        bool
 	GoType        interface{}
 	Translate     bool
+	OnChange      string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -50,6 +51,7 @@ type FloatFieldParams struct {
 	Digits        types.Digits
 	GoType        interface{}
 	Translate     bool
+	OnChange      string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -70,6 +72,7 @@ type StringFieldParams struct {
 	Size          int
 	GoType        interface{}
 	Translate     bool
+	OnChange      string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -88,6 +91,7 @@ type SelectionFieldParams struct {
 	NoCopy    bool
 	Selection types.Selection
 	Translate bool
+	OnChange  string
 	Default   func(Environment, FieldMap) interface{}
 }
 
@@ -107,6 +111,7 @@ type ForeignKeyFieldParams struct {
 	Embed         bool
 	Translate     bool
 	OnDelete      OnDeleteAction
+	OnChange      string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -125,6 +130,7 @@ type ReverseFieldParams struct {
 	RelationModel string
 	ReverseFK     string
 	Translate     bool
+	OnChange      string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -145,6 +151,7 @@ type Many2ManyFieldParams struct {
 	M2MOurField      string
 	M2MTheirField    string
 	Translate        bool
+	OnChange         string
 	Default          func(Environment, FieldMap) interface{}
 }
 
@@ -191,6 +198,7 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		fieldType:     fieldType,
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
+		onChange:      params.OnChange,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -227,6 +235,7 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		fieldType:     fieldType,
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
+		onChange:      params.OnChange,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -271,6 +280,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		onDelete:         onDelete,
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
+		onChange:         params.OnChange,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -303,6 +313,7 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		fieldType:        fieldType,
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
+		onChange:         params.OnChange,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -371,6 +382,7 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		fieldType:     fieldtype.Float,
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
+		onChange:      params.OnChange,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -438,6 +450,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		fieldType:        fieldtype.Many2Many,
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
+		onChange:         params.OnChange,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -492,6 +505,7 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		fieldType:   fieldtype.Selection,
 		defaultFunc: params.Default,
 		translate:   params.Translate,
+		onChange:    params.OnChange,
 	}
 	m.fields.add(fInfo)
 	return fInfo

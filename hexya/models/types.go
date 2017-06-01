@@ -54,7 +54,7 @@ func (fm *FieldMap) RemovePKIfZero() {
 
 // FieldMap returns the object converted to a FieldMap
 // i.e. itself
-func (fm FieldMap) FieldMap() FieldMap {
+func (fm FieldMap) FieldMap(fields ...FieldNamer) FieldMap {
 	return fm
 }
 
@@ -138,5 +138,5 @@ type GroupAggregateRow struct {
 // A FieldMapper is an object that can convert itself into a FieldMap
 type FieldMapper interface {
 	// FieldMap returns the object converted to a FieldMap
-	FieldMap() FieldMap
+	FieldMap(fields ...FieldNamer) FieldMap
 }

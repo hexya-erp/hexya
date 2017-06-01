@@ -15,6 +15,7 @@
 package models
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -78,7 +79,7 @@ func (fc *FieldsCollection) get(name string) (fi *Field, ok bool) {
 func (fc *FieldsCollection) MustGet(name string) *Field {
 	fi, ok := fc.get(name)
 	if !ok {
-		log.Panic("Unknown field in model", "model", fc.model, "field", name)
+		log.Panic("Unknown field in model", "model", fc.model.name, "field", name)
 	}
 	return fi
 }
@@ -230,6 +231,7 @@ type Field struct {
 	noCopy           bool
 	defaultFunc      func(Environment, FieldMap) interface{}
 	onDelete         OnDeleteAction
+	onChange         string
 	translate        bool
 }
 
@@ -390,25 +392,26 @@ func processDepends() {
 	}
 }
 
-// checkComputeMethodsSignature checks all methods used in computed
-// fields and check their signature. It panics if it is not the case.
+// checkComputeMethodsSignature check the signature of all methods used
+// in computed fields and for OnChange methods.
+// It panics if it is not the case.
 func checkComputeMethodsSignature() {
-	checkMethType := func(method *Method, stored bool) {
+	checkMethType := func(method *Method, stored bool, label string) {
 		methType := method.methodType
 		var msg string
 		switch {
 		case methType.NumIn() != 1:
-			msg = "Compute methods should have no arguments"
+			msg = fmt.Sprintf("%s should have no arguments", label)
 		case methType.NumOut() == 0:
-			msg = "Compute methods should return a value"
+			msg = fmt.Sprintf("%s should return a value", label)
 		case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
 			msg = "First return argument must implement models.FieldMapper"
 		case methType.NumOut() == 1 && stored:
-			msg = "Compute methods for stored field must return fields to unset as second value"
+			msg = fmt.Sprintf("%s must return fields to unset as second value", label)
 		case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldNamer{}):
-			msg = "Second return value of compute methods must be []models.FieldNamer"
+			msg = fmt.Sprintf("Second return value of %s must be []models.FieldNamer", label)
 		case methType.NumOut() > 2:
-			msg = "Too many return values for compute method"
+			msg = fmt.Sprintf("Too many return values for %s", label)
 		}
 		if msg != "" {
 			log.Panic(msg, "model", method.model.name, "method", method.name)
@@ -417,11 +420,18 @@ func checkComputeMethodsSignature() {
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.computedFields {
 			method := mi.methods.MustGet(fi.compute)
-			checkMethType(method, false)
+			checkMethType(method, false, "Compute methods")
 		}
 		for _, fi := range mi.fields.computedStoredFields {
 			method := mi.methods.MustGet(fi.compute)
-			checkMethType(method, true)
+			checkMethType(method, true, "Compute method for stored fields")
+		}
+		for _, fi := range mi.fields.registryByName {
+			if fi.onChange == "" {
+				continue
+			}
+			method := mi.methods.MustGet(fi.onChange)
+			checkMethType(method, true, "OnChange methods")
 		}
 	}
 }

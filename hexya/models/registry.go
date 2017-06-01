@@ -376,6 +376,18 @@ func (m *Model) JSONizeFieldName(fieldName string) string {
 	return jsonizePath(m, string(fieldName))
 }
 
+// JSONizeFieldMap returns the given FieldMap with all its keys (field names)
+// changed to their json names. Keys that are aleady json field names are
+// unchanged.
+func (m *Model) JSONizeFieldMap(fMap FieldMap) FieldMap {
+	res := make(FieldMap)
+	for f, v := range fMap {
+		jsonFieldName := m.JSONizeFieldName(f)
+		res[jsonFieldName] = v
+	}
+	return res
+}
+
 // Field starts a condition on this model
 func (m *Model) Field(name string) *ConditionField {
 	newExprs := strings.Split(name, ExprSep)

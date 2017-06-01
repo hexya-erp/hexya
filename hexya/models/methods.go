@@ -42,7 +42,7 @@ func (mc *MethodsCollection) MustGet(methodName string) *Method {
 		// We didn't find the method, but maybe it exists in mixins
 		miMethod, found := mc.model.findMethodInMixin(methodName)
 		if !found || mc.bootstrapped {
-			log.Panic("Unknown method in model", "model", mc.model, "method", methodName)
+			log.Panic("Unknown method in model", "model", mc.model.name, "method", methodName)
 		}
 		// The method exists in a mixin so we create it here with our layer.
 		// Bootstrap will take care of putting them the right way round afterwards.

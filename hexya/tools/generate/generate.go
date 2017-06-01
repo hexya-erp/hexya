@@ -470,11 +470,19 @@ type {{ .Name }}Data struct {
 }
 
 // FieldMap returns this {{ .Name }}Data as a FieldMap
-func (d {{ .Name }}Data) FieldMap() models.FieldMap {
+func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
 	res := make(models.FieldMap)
+	noFields := (len(fields) == 0)
+	fieldsMap := make(map[string]bool)
+	if !noFields {
+		for _, field := range fields {
+			fieldsMap[string(field.FieldName())] = true
+		}
+	}
 	var fieldValue reflect.Value
 {{ range .Fields }}	fieldValue = reflect.ValueOf(d.{{ .Name }})
-	if !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface()) {
+	if fieldsMap["{{ .Name }}"] ||
+		(noFields && !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface())) {
 		res["{{ .Name }}"] = d.{{ .Name }}
 	}
 {{ end }}

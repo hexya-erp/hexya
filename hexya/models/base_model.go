@@ -234,6 +234,7 @@ func declareRecordSetMethods() {
 					String:     fInfo.description,
 					Relation:   relation,
 					Required:   fInfo.required,
+					Selection:  fInfo.selection,
 				}
 			}
 			return res
@@ -259,9 +260,23 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified in the pseudo-record
 		given as params.Values`,
-		func(rc RecordCollection, params OnchangeParams) FieldMap {
-			// TODO Implement Onchange
-			return make(FieldMap)
+		func(rc RecordCollection, params OnchangeParams) OnchangeResult {
+			rc.EnsureOne()
+			var (
+				values FieldMapper
+				fields []FieldNamer
+			)
+			SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
+				rs := rc.WithEnv(env)
+				env.cache.addRecord(rs.model, rs.Ids()[0], params.Values)
+				fi := rs.Model().Fields().MustGet(params.Field)
+				res := rs.CallMulti(fi.onChange)
+				values = res[0].(FieldMapper)
+				fields = res[1].([]FieldNamer)
+			})
+			return OnchangeResult{
+				Value: rc.model.JSONizeFieldMap(values.FieldMap(fields...)),
+			}
 		}).AllowGroup(security.GroupEveryone)
 }
 
@@ -385,6 +400,7 @@ type FieldInfo struct {
 	String           string                 `json:"string"`
 	Domain           *Condition             `json:"domain"`
 	Relation         string                 `json:"relation"`
+	Selection        types.Selection        `json:"selection"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method
@@ -396,6 +412,11 @@ type FieldsGetArgs struct {
 // OnchangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
 	Values   FieldMap          `json:"values"`
-	Fields   []string          `json:"field_name"`
+	Field    string            `json:"field_name"`
 	Onchange map[string]string `json:"field_onchange"`
+}
+
+// OnchangeResult is the result struct type of the Onchange function
+type OnchangeResult struct {
+	Value FieldMapper `json:"value"`
 }

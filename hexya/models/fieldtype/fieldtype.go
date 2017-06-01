@@ -73,7 +73,7 @@ func (t Type) DefaultGoType() reflect.Type {
 	switch t {
 	case NoType:
 		return reflect.TypeOf(nil)
-	case Binary, Char, Text, HTML:
+	case Binary, Char, Text, HTML, Selection:
 		return reflect.TypeOf(*new(string))
 	case Boolean:
 		return reflect.TypeOf(true)
@@ -87,8 +87,6 @@ func (t Type) DefaultGoType() reflect.Type {
 		return reflect.TypeOf(*new(int64))
 	case One2Many, Many2Many:
 		return reflect.TypeOf(*new([]int64))
-	case Selection:
-		return reflect.TypeOf(*new(types.Selection))
 	}
 	return reflect.TypeOf(nil)
 }

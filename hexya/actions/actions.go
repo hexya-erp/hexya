@@ -125,6 +125,16 @@ func (ar *Collection) GetById(id string) *BaseAction {
 	return ar.actions[id]
 }
 
+// MustGetById returns the Action with the given id
+// It panics if the id is not found in the action registry
+func (ar *Collection) MustGetById(id string) *BaseAction {
+	action, ok := ar.actions[id]
+	if !ok {
+		log.Panic("Action does not exist", "action_id", id)
+	}
+	return action
+}
+
 // GetActionLinksForModel returns the list of linked actions
 // for the model with the given name
 func (ar *Collection) GetActionLinksForModel(modelName string) []*BaseAction {
@@ -142,7 +152,7 @@ type BaseAction struct {
 	Method       string            `json:"method" xml:"method,attr"`
 	Groups       []string          `json:"groups_id" xml:"groups,attr"`
 	Domain       string            `json:"domain" xml:"domain,attr"`
-	Help         string            `json:"help" xml:"help,attr"`
+	Help         string            `json:"help" xml:"help"`
 	SearchView   views.ViewRef     `json:"search_view_id" xml:"search_view_id,attr"`
 	SrcModel     string            `json:"src_model" xml:"src_model,attr"`
 	Usage        string            `json:"usage" xml:"usage,attr"`

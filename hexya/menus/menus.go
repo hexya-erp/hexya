@@ -109,7 +109,7 @@ func LoadFromEtree(element *etree.Element) {
 	actionID := element.SelectAttrValue("action", "")
 	defaultName := "No name"
 	if actionID != "" {
-		menu.Action = actions.Registry.GetById(actionID)
+		menu.Action = actions.Registry.MustGetById(actionID)
 		defaultName = menu.Action.Name
 	}
 	menu.Name = element.SelectAttrValue("name", defaultName)

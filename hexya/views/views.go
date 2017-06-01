@@ -125,8 +125,8 @@ var _ xml.UnmarshalerAttr = &ViewRef{}
 // - The first one is the ID of the view
 // - The second one is the view type corresponding to the view ID
 type ViewTuple struct {
-	ID   string
-	Type ViewType
+	ID   string   `xml:"id,attr"`
+	Type ViewType `xml:"type,attr"`
 }
 
 // MarshalJSON is the JSON marshalling method of ViewTuple.

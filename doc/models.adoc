@@ -636,6 +636,11 @@ decimal point.
 Field's JSON value that will be used for the column name in the database and
 for json serialization to the client.
 
+`Translate` bool::
+Set to true if the value of this field must be translated in the user
+interface. This can be the case for product names or descriptions for
+instance.
+
 `GoType` interface{}::
 Specifies the go type to which the field should be mapped. `GoType` should be
 set to a pointer to such a type's value.
@@ -676,6 +681,24 @@ values. The given FieldMap holds the values passed to the Create function.
 +
 This function is also called by clients to set a default value in the user
 interface before calling Create. In this case, the FieldMap will be empty.
+
+`OnChange` string::
+The name of a method to call when this field is changed in the interface.
+The value must be the name of a method on this RecordSet with the following
+signature, which returns a Record with the values to update and a slice of
+field names to unset.
+
+[source,go]
+----
+func (RecordSetType) (*RecordType, []models.FieldNamer)
+----
+
+NOTE: OnChange function is called only when the modification is done in the
+interface, not by code.
+
+IMPORTANT: OnChange methods are executed in an isolated environment that is
+rolled back after execution. You should therefore not try to create or
+write any RecordSet in these methods, or they will fail.
 
 `GroupOperator` string::
 A valid database function name that will be used on this field when aggregating

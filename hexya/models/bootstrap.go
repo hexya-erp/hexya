@@ -195,6 +195,7 @@ func syncRelatedFieldInfo() {
 			newFI.stored = fi.stored
 			newFI.model = mi
 			newFI.noCopy = true
+			newFI.onChange = ""
 			*fi = newFI
 		}
 	}
@@ -254,7 +255,15 @@ func updateDBSequences() {
 	adapter := adapters[db.DriverName()]
 	// Create sequences
 	for _, sequence := range Registry.sequences {
-		adapter.createSequence(sequence.JSON)
+		exists := false
+		for _, dbSeq := range adapter.sequences("%_manseq") {
+			if sequence.JSON == dbSeq {
+				exists = true
+			}
+		}
+		if !exists {
+			adapter.createSequence(sequence.JSON)
+		}
 	}
 	// Drop unused sequences
 	for _, dbSeq := range adapter.sequences("%_manseq") {

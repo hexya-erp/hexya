@@ -16,6 +16,8 @@ package types
 
 import (
 	"database/sql/driver"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"time"
 )
@@ -69,6 +71,14 @@ func (c Context) ToMap() map[string]interface{} {
 		res[k] = v
 	}
 	return res
+}
+
+// UnmarshalXMLAttr is the XML unmarshalling method of Context.
+func (c *Context) UnmarshalXMLAttr(attr xml.Attr) error {
+	var cm map[string]interface{}
+	err := json.Unmarshal([]byte(attr.Value), &cm)
+	(*c).values = cm
+	return err
 }
 
 // NewContext returns a new Context instance
@@ -166,3 +176,14 @@ func (d DateTime) Value() (driver.Value, error) {
 // A Selection is a set of possible (key, label) values for a model
 // "selection" field.
 type Selection map[string]string
+
+// MarshalJSON function for the Selection type
+func (s Selection) MarshalJSON() ([]byte, error) {
+	var selSlice [][2]string
+	for key, value := range s {
+		selSlice = append(selSlice, [2]string{0: key, 1: value})
+	}
+	return json.Marshal(selSlice)
+}
+
+var _ json.Marshaler = Selection{}
