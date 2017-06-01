@@ -364,3 +364,11 @@ func appendPredicateToSerial(res []interface{}, predicate predicate) []interface
 	}
 	return res
 }
+
+// DefaultValue returns a function that is suitable for the Default parameter of
+// model fields and that simply returns value.
+func DefaultValue(value interface{}) func(env Environment, fMap FieldMap) interface{} {
+	return func(env Environment, fMap FieldMap) interface{} {
+		return value
+	}
+}

@@ -482,7 +482,7 @@ func (m *Model) AddRev2OneField(name string, params ReverseFieldParams) *Field {
 func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Field {
 	structField := reflect.StructField{
 		Name: name,
-		Type: reflect.TypeOf(*new(types.Selection)),
+		Type: reflect.TypeOf(*new(string)),
 	}
 	json, str := getJSONAndString(name, fieldtype.Float, params.JSON, params.String)
 	fInfo := &Field{

@@ -252,29 +252,41 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
 		func(rc RecordCollection) FieldMap {
-			// TODO Implement DefaultGet
-			return make(FieldMap)
+			res := make(FieldMap)
+			rc.applyDefaults(&res)
+			return res
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified in the pseudo-record
 		given as params.Values`,
 		func(rc RecordCollection, params OnchangeParams) OnchangeResult {
-			rc.EnsureOne()
-			var (
-				values FieldMapper
-				fields []FieldNamer
-			)
+			var fields []FieldNamer
+			values := params.Values
+
 			SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
 				rs := rc.WithEnv(env)
-				env.cache.addRecord(rs.model, rs.Ids()[0], params.Values)
-				fi := rs.Model().Fields().MustGet(params.Field)
-				if fi.onChange == "" {
-					return
+				// Tweaks for Onchange to work on creation with empty
+				// RecordSet with ID = 0
+				var rsID int64
+				if !rs.IsEmpty() {
+					rsID = rs.Ids()[0]
 				}
-				res := rs.CallMulti(fi.onChange)
-				values = rs.model.JSONizeFieldMap(res[0].(FieldMapper).FieldMap(fields...))
-				fields = res[1].([]FieldNamer)
+				values = rc.model.MergeFieldMaps(values, FieldMap{"ID": rsID})
+				rs.ids = []int64{rsID}
+
+				for _, field := range params.Fields {
+					fi := rs.Model().Fields().MustGet(field)
+					if fi.onChange == "" {
+						continue
+					}
+					env.cache.invalidateRecord(rs.model, rsID)
+					env.cache.addRecord(rs.model, rsID, values)
+					res := rs.CallMulti(fi.onChange)
+					fields = res[1].([]FieldNamer)
+					val := rs.model.JSONizeFieldMap(res[0].(FieldMapper).FieldMap(fields...))
+					values = rs.model.MergeFieldMaps(values, val)
+				}
 			})
 			return OnchangeResult{
 				Value: values,
@@ -414,7 +426,7 @@ type FieldsGetArgs struct {
 // OnchangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
 	Values   FieldMap          `json:"values"`
-	Field    string            `json:"field_name"`
+	Fields   []string          `json:"field_name"`
 	Onchange map[string]string `json:"field_onchange"`
 }
 
