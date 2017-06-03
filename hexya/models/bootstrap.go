@@ -196,6 +196,9 @@ func syncRelatedFieldInfo() {
 			newFI.model = mi
 			newFI.noCopy = true
 			newFI.onChange = ""
+			newFI.index = false
+			newFI.compute = ""
+			newFI.depends = nil
 			*fi = newFI
 		}
 	}

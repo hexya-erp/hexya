@@ -301,8 +301,6 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 // - Expressions defined by the given fields and that must appear in the field list of the select clause.
 // - All expressions that also include expressions used in the where clause.
 func (q *Query) selectData(fields []string) ([][]string, [][]string) {
-	addNameSearchesToCondition(q.recordSet.model, q.cond)
-	inflate2ManyConditions(q.recordSet.model, q.cond)
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {

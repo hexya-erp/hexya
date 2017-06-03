@@ -122,6 +122,9 @@ func inflate2ManyConditions(mi *Model, cond *Condition) {
 // on the name of the related records if they point to a relation field.
 func addNameSearchesToCondition(mi *Model, cond *Condition) {
 	for i, p := range cond.predicates {
+		if p.cond != nil {
+			addNameSearchesToCondition(mi, p.cond)
+		}
 		if len(p.exprs) == 0 {
 			continue
 		}
@@ -134,9 +137,6 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 			cond.predicates[i].arg = int64(0)
 		case string:
 			cond.predicates[i].exprs = addNameSearchToExprs(mi, fi, p.exprs)
-		}
-		if p.cond != nil {
-			addNameSearchesToCondition(mi, p.cond)
 		}
 	}
 }

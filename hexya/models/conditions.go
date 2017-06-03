@@ -303,7 +303,7 @@ func (c Condition) getAllExpressions(mi *Model) [][]string {
 func (c *Condition) substituteExprs(mi *Model, substs map[string][]string) {
 	for i, p := range c.predicates {
 		for k, v := range substs {
-			if len(p.exprs) > 0 && jsonizeExpr(mi, p.exprs)[0] == k {
+			if len(p.exprs) > 0 && strings.Join(jsonizeExpr(mi, p.exprs), ExprSep) == k {
 				c.predicates[i].exprs = v
 			}
 		}

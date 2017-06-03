@@ -51,8 +51,27 @@ func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, R
 
 	// Substitute in RecordCollection query
 	substs := make(map[string][]string)
-	for _, fi := range rc.model.fields.relatedFields {
-		substs[fi.json] = strings.Split(fi.relatedPath, ExprSep)
+	queryExprs := rc.query.cond.getAllExpressions(rc.model)
+	for _, exprs := range queryExprs {
+		if len(exprs) == 0 {
+			continue
+		}
+		var curPath string
+		var resExprs []string
+		for _, expr := range exprs {
+			resExprs = append(resExprs, expr)
+			curPath = strings.Join(resExprs, ExprSep)
+			fi := rc.model.getRelatedFieldInfo(curPath)
+			curFI := fi
+			for curFI.isRelatedField() {
+				// We loop because target field may be related itself
+				reLen := len(resExprs)
+				jsonPath := jsonizePath(curFI.model, curFI.relatedPath)
+				resExprs = append(resExprs[:reLen-1], strings.Split(jsonPath, ExprSep)...)
+				curFI = rc.model.getRelatedFieldInfo(strings.Join(resExprs, ExprSep))
+			}
+		}
+		substs[strings.Join(exprs, ExprSep)] = resExprs
 	}
 	rc.query.substituteConditionExprs(substs)
 

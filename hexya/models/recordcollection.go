@@ -398,6 +398,8 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 		fields = rSet.model.fields.storedFieldNames()
 	}
 	fields = filterOnAuthorizedFields(rSet.model, rSet.env.uid, fields, security.Read)
+	addNameSearchesToCondition(rSet.model, rSet.query.cond)
+	inflate2ManyConditions(rSet.model, rSet.query.cond)
 	subFields, rSet := rSet.substituteRelatedFields(fields)
 	dbFields := filterOnDBFields(rSet.model, subFields)
 	sql, args := rSet.query.selectQuery(dbFields)

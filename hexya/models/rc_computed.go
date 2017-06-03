@@ -52,7 +52,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 	// Compute all that must be computed and store the values
 	rSet := rc.Fetch()
 	for _, cData := range toUpdate {
-		recs := rSet.env.Pool(cData.modelInfo.name)
+		recs := rSet.env.Pool(cData.model.name)
 		if cData.path != "" {
 			recs = recs.Search(rSet.Model().Field(cData.path).In(rSet.Ids()))
 		} else {

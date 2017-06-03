@@ -47,9 +47,9 @@ computeData holds data to recompute another field.
 (e.g. path = "Profile.BestPost").
 */
 type computeData struct {
-	modelInfo *Model
-	compute   string
-	path      string
+	model   *Model
+	compute string
+	path    string
 }
 
 // FieldsCollection is a collection of Field instances in a model.
@@ -379,9 +379,9 @@ func processDepends() {
 					refName = tokens[len(tokens)-1]
 					path := strings.Join(tokens[:len(tokens)-1], ExprSep)
 					targetComputeData := computeData{
-						modelInfo: mi,
-						compute:   fInfo.compute,
-						path:      path,
+						model:   mi,
+						compute: fInfo.compute,
+						path:    path,
 					}
 					refModelInfo := mi.getRelatedModelInfo(path)
 					refField := refModelInfo.fields.MustGet(refName)
