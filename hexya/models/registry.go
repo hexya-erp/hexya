@@ -411,7 +411,7 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 
 // MergeFieldMaps returns a new map which is a copy of dest
 // with key-value pairs from src copied into it.
-// If the key already exists, the value is overriden,
+// If the key already exists, the value is overridden,
 // otherwise, the key is inserted.
 // All keys are converted to json names.
 func (m *Model) MergeFieldMaps(dest, src FieldMap) FieldMap {
