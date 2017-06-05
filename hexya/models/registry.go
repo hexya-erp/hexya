@@ -289,6 +289,12 @@ func (m *Model) isM2MLink() bool {
 	return false
 }
 
+// hasParentField returns true if this model is recursive and has a Parent field.
+func (m *Model) hasParentField() bool {
+	_, parentExists := m.fields.get("Parent")
+	return parentExists
+}
+
 // Fields returns the fields collection of this model
 func (m *Model) Fields() *FieldsCollection {
 	return m.fields
@@ -297,6 +303,70 @@ func (m *Model) Fields() *FieldsCollection {
 // Methods returns the methods collection of this model
 func (m *Model) Methods() *MethodsCollection {
 	return m.methods
+}
+
+// JSONizeFieldName returns the json name of the given fieldName
+// If fieldName is already the json name, returns it without modifying it.
+// fieldName may be a dot separated path from this model.
+// It panics if the path is invalid.
+func (m *Model) JSONizeFieldName(fieldName string) string {
+	return jsonizePath(m, string(fieldName))
+}
+
+// JSONizeFieldMap returns the given FieldMap with all its keys (field names)
+// changed to their json names. Keys that are aleady json field names are
+// unchanged.
+func (m *Model) JSONizeFieldMap(fMap FieldMap) FieldMap {
+	res := make(FieldMap)
+	for f, v := range fMap {
+		jsonFieldName := m.JSONizeFieldName(f)
+		res[jsonFieldName] = v
+	}
+	return res
+}
+
+// Field starts a condition on this model
+func (m *Model) Field(name string) *ConditionField {
+	newExprs := strings.Split(name, ExprSep)
+	cp := ConditionField{}
+	cp.exprs = append(cp.exprs, newExprs...)
+	return &cp
+}
+
+// FilteredOn adds a condition with a table join on the given field and
+// filters the result with the given condition
+func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
+	res := Condition{predicates: make([]predicate, len(condition.predicates))}
+	i := 0
+	for _, p := range condition.predicates {
+		p.exprs = append([]string{field}, p.exprs...)
+		res.predicates[i] = p
+		i++
+	}
+	return &res
+}
+
+// MergeFieldMaps returns a new map which is a copy of dest
+// with key-value pairs from src copied into it.
+// If the key already exists, the value is overridden,
+// otherwise, the key is inserted.
+// All keys are converted to json names.
+func (m *Model) MergeFieldMaps(dest, src FieldMap) FieldMap {
+	for k, v := range src {
+		jsonName := m.fields.MustGet(k).json
+		dest[jsonName] = v
+	}
+	return dest
+}
+
+// Create creates a new record in this model with the given data.
+func (m *Model) Create(env Environment, data interface{}) RecordCollection {
+	return env.Pool(m.name).Call("Create", data).(RecordSet).Collection()
+}
+
+// Search searches the database and returns records matching the given condition.
+func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
+	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
 // NewModel creates a new model with the given name and
@@ -366,70 +436,6 @@ func createModel(name string, options Option) *Model {
 	mi.fields.add(pk)
 	Registry.add(mi)
 	return mi
-}
-
-// JSONizeFieldName returns the json name of the given fieldName
-// If fieldName is already the json name, returns it without modifying it.
-// fieldName may be a dot separated path from this model.
-// It panics if the path is invalid.
-func (m *Model) JSONizeFieldName(fieldName string) string {
-	return jsonizePath(m, string(fieldName))
-}
-
-// JSONizeFieldMap returns the given FieldMap with all its keys (field names)
-// changed to their json names. Keys that are aleady json field names are
-// unchanged.
-func (m *Model) JSONizeFieldMap(fMap FieldMap) FieldMap {
-	res := make(FieldMap)
-	for f, v := range fMap {
-		jsonFieldName := m.JSONizeFieldName(f)
-		res[jsonFieldName] = v
-	}
-	return res
-}
-
-// Field starts a condition on this model
-func (m *Model) Field(name string) *ConditionField {
-	newExprs := strings.Split(name, ExprSep)
-	cp := ConditionField{}
-	cp.exprs = append(cp.exprs, newExprs...)
-	return &cp
-}
-
-// FilteredOn adds a condition with a table join on the given field and
-// filters the result with the given condition
-func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
-	res := Condition{predicates: make([]predicate, len(condition.predicates))}
-	i := 0
-	for _, p := range condition.predicates {
-		p.exprs = append([]string{field}, p.exprs...)
-		res.predicates[i] = p
-		i++
-	}
-	return &res
-}
-
-// MergeFieldMaps returns a new map which is a copy of dest
-// with key-value pairs from src copied into it.
-// If the key already exists, the value is overridden,
-// otherwise, the key is inserted.
-// All keys are converted to json names.
-func (m *Model) MergeFieldMaps(dest, src FieldMap) FieldMap {
-	for k, v := range src {
-		jsonName := m.fields.MustGet(k).json
-		dest[jsonName] = v
-	}
-	return dest
-}
-
-// Create creates a new record in this model with the given data.
-func (m *Model) Create(env Environment, data interface{}) RecordCollection {
-	return env.Pool(m.name).Call("Create", data).(RecordSet).Collection()
-}
-
-// Search searches the database and returns records matching the given condition.
-func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
-	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
 // A Sequence holds the metadata of a DB sequence

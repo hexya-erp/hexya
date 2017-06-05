@@ -35,7 +35,7 @@ ORM
 - [X] Support for SQL views and materialized views
 - [X] Database foreign keys to related fields
 - [X] Implement "group by" queries
-- [ ] Implement efficient 'child_of' domain operator
+- [X] Implement 'child_of' domain operator
 - [ ] Pagination API for RecordSets
 - [ ] i18n and l10n support to ORM models
 

@@ -654,14 +654,14 @@ session := models.NewModel("Session")
 session.AddIntegerField("Room No", models.SimpleFieldParams{GoType: new(int16)})
 ----
 
-==== Field's metadata parameters
+===== Field's metadata parameters
 
 `String` string::
 Field's label inside the application.
 `Help` string::
 Field's help typically displayed as tooltip.
 
-==== Field's modifiers parameters
+===== Field's modifiers parameters
 
 `Required` bool::
 Defines the field as required (i.e. not null).
@@ -704,7 +704,7 @@ write any RecordSet in these methods, or they will fail.
 A valid database function name that will be used on this field when aggregating
 the model. It defaults to `sum`.
 
-==== Computed fields parameters
+===== Computed fields parameters
 
 `Compute` string::
 Declares this field as a computed field. The value must be the name of a
@@ -748,6 +748,21 @@ directly from this RecordSet.
 
 NOTE: Only the fields of the embedded model will be accessible from this
 model, not its methods.
+
+==== Reserved field names
+
+Fields that are given the following names will have special behaviours
+described below.
+
+`Name` CharField::
+The Record's name. It will be used by default in user interfaces for display
+when this Record is referred to (for instance as an FK of another model).
++
+This behaviour can be changed by overriding the `NameGet` method of the model.
+
+`Parent` Many2OneField::
+Used in recursive models for the foreign key to this Record's parent Record of
+the same model.
 
 === Defining methods
 

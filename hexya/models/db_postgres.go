@@ -39,7 +39,6 @@ var pgOperators = map[operator.Operator]string{
 	operator.LowerOrEqual:   "< ?",
 	operator.Greater:        "> ?",
 	operator.GreaterOrEqual: ">= ?",
-	//OPERATOR_CHILD_OF: "",
 }
 
 var pgTypes = map[fieldtype.Type]string{
@@ -223,6 +222,27 @@ func (d *postgresAdapter) sequences(pattern string) []string {
 // transaction isolation level to serializable
 func (d *postgresAdapter) setTransactionIsolation() string {
 	return "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE"
+}
+
+// childrenIdsQuery returns a query that finds all descendant of the given
+// a record from table including itself. The query has a placeholder for the
+// record's ID
+func (d *postgresAdapter) childrenIdsQuery(table string) string {
+	res := fmt.Sprintf(`
+WITH RECURSIVE "recursive_query_children_ids" AS
+(
+	SELECT  id
+	FROM    %s "m1"
+	WHERE   id = ?
+UNION ALL
+	SELECT  "m2".id
+	FROM    %s "m2"
+	JOIN    "recursive_query_children_ids"
+	ON      "m2".parent_id = "recursive_query_children_ids".id
+)
+SELECT  id
+FROM    recursive_query_children_ids`, d.quoteTableName(table), d.quoteTableName(table))
+	return res
 }
 
 var _ dbAdapter = new(postgresAdapter)

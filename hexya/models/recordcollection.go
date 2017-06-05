@@ -591,7 +591,7 @@ func (rc RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregate
 		line := GroupAggregateRow{
 			Values:    vals,
 			Count:     int(cnt),
-			Condition: getGroupCondition(rc.query.groups, vals),
+			Condition: getGroupCondition(rc.query.groups, vals, rc.query.cond),
 		}
 		res = append(res, line)
 	}

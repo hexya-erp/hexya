@@ -68,6 +68,10 @@ type dbAdapter interface {
 	nextSequenceValue(name string) int64
 	// sequences returns a list of all sequences matching the given SQL pattern
 	sequences(pattern string) []string
+	// childrenIdsQuery returns a query that finds all descendant of the given
+	// a record from table including itself. The query has a placeholder for the
+	// record's ID
+	childrenIdsQuery(table string) string
 }
 
 // registerDBAdapter adds a adapter to the adapters registry

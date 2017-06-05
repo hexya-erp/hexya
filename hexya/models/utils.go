@@ -306,9 +306,9 @@ func ConvertToFieldNameSlice(fields []string) []FieldNamer {
 }
 
 // getGroupCondition returns the condition to retrieve the individual aggregated rows in vals
-// knowing that they were grouped by groups
-func getGroupCondition(groups []string, vals map[string]interface{}) *Condition {
-	res := newCondition()
+// knowing that they were grouped by groups and that we had the given initial condition
+func getGroupCondition(groups []string, vals map[string]interface{}, initialCondition *Condition) *Condition {
+	res := initialCondition
 	for _, group := range groups {
 		res = res.And().Field(group).Equals(vals[group])
 	}

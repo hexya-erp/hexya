@@ -192,11 +192,11 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc RecordCollection) string {
-			if _, nameExists := rc.model.fields.get("name"); nameExists {
-				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"name"}) {
-					rc.Load("name")
+			if _, nameExists := rc.model.fields.get("Name"); nameExists {
+				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}) {
+					rc.Load("Name")
 				}
-				return rc.Get("name").(string)
+				return rc.Get("Name").(string)
 			}
 			return rc.String()
 		}).AllowGroup(security.GroupEveryone)

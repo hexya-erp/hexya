@@ -313,6 +313,29 @@ func (c *Condition) substituteExprs(mi *Model, substs map[string][]string) {
 	}
 }
 
+// substituteChildOfOperator recursively replaces in the condition the
+// predicates with ChildOf operator by the predicates to actually execute.
+func (c *Condition) substituteChildOfOperator(rc RecordCollection) {
+	for i, p := range c.predicates {
+		if p.cond != nil {
+			p.cond.substituteChildOfOperator(rc)
+		}
+		if p.operator != operator.ChildOf {
+			continue
+		}
+		recModel := rc.model.getRelatedModelInfo(strings.Join(p.exprs, ExprSep))
+		if !recModel.hasParentField() {
+			// If we have no parent field, then we fetch only the "parent" record
+			c.predicates[i].operator = operator.Equals
+			continue
+		}
+		var parentIds []int64
+		rc.Env().Cr().Select(&parentIds, adapters[db.DriverName()].childrenIdsQuery(recModel.tableName), p.arg)
+		c.predicates[i].operator = operator.In
+		c.predicates[i].arg = parentIds
+	}
+}
+
 // evaluateArgFunctions recursively evaluates all args in the queries that are
 // functions and substitute it with the result.
 func (c *Condition) evaluateArgFunctions(rc RecordCollection) {

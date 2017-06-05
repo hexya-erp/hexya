@@ -301,6 +301,7 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 // - Expressions defined by the given fields and that must appear in the field list of the select clause.
 // - All expressions that also include expressions used in the where clause.
 func (q *Query) selectData(fields []string) ([][]string, [][]string) {
+	q.substituteChildOfPredicates()
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {
@@ -315,6 +316,12 @@ func (q *Query) selectData(fields []string) ([][]string, [][]string) {
 	// Then given by condition
 	allExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
 	return fieldExprs, allExprs
+}
+
+// substituteChildOfPredicates replaces in the query the predicates with ChildOf
+// operator by the predicates to actually execute.
+func (q *Query) substituteChildOfPredicates() {
+	q.cond.substituteChildOfOperator(q.recordSet)
 }
 
 // updateQuery returns the SQL update string and parameters to update
