@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/pool"
 )
 
@@ -95,6 +96,7 @@ func declareModels() {
 
 	profile := models.NewModel("Profile")
 	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
+	profile.AddSelectionField("Gender", models.SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
 	profile.AddFloatField("Money", models.FloatFieldParams{})
 	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
 	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
@@ -128,6 +130,7 @@ func declareModels() {
 
 	tag := models.NewModel("Tag")
 	tag.AddCharField("Name", models.StringFieldParams{})
+	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: "Tag"})
 	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
 	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: "Post"})
 	tag.AddCharField("Description", models.StringFieldParams{})

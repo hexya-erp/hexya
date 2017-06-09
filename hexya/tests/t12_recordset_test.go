@@ -265,7 +265,7 @@ func TestSearchRecordSet(t *testing.T) {
 				rule := models.RecordRule{
 					Name:      "jOnly",
 					Group:     group1,
-					Condition: pool.User().Name().ILike("j").Condition,
+					Condition: pool.User().Name().IContains("j").Condition,
 					Perms:     security.Read,
 				}
 				pool.User().AddRecordRule(&rule)
@@ -483,7 +483,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				rule := models.RecordRule{
 					Name:      "jOnly",
 					Group:     group1,
-					Condition: pool.User().Name().ILike("j").Condition,
+					Condition: pool.User().Name().IContains("j").Condition,
 					Perms:     security.Write,
 				}
 				pool.User().AddRecordRule(&rule)
@@ -543,7 +543,7 @@ func TestDeleteRecordSet(t *testing.T) {
 				rule := models.RecordRule{
 					Name:      "jOnly",
 					Group:     group1,
-					Condition: pool.User().Name().ILike("j").Condition,
+					Condition: pool.User().Name().IContains("j").Condition,
 					Perms:     security.Unlink,
 				}
 				pool.User().AddRecordRule(&rule)

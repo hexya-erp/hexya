@@ -69,7 +69,7 @@ func TestConditions(t *testing.T) {
 				})
 				Convey("Check full query with all conditions", func() {
 					rs = rs.Search(rs.Model().Field("Profile.Age").GreaterOrEqual(12))
-					c2 := rs.Model().Field("name").Like("jane").Or().Field("Profile.Money").Lower(1234.56)
+					c2 := rs.Model().Field("name").Contains("jane").Or().Field("Profile.Money").Lower(1234.56)
 					rs = rs.Search(c2)
 					sql, args := rs.query.sqlWhereClause()
 					So(sql, ShouldEqual, `WHERE ("user__profile__post".title = ? ) AND ("user__profile".age >= ? ) AND ("user".name LIKE ? OR "user__profile".money < ? ) `)
@@ -85,16 +85,113 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"   ORDER BY id `)
 				})
 				Convey("Testing query with LIMIT clause", func() {
-					rs = env.Pool("User").Search(rs.Model().Field("email").ILike("jane.smith@example.com")).Limit(1).Load()
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Limit(1).Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 `)
 				})
 				Convey("Testing query with LIMIT and OFFSET clauses", func() {
-					rs = env.Pool("User").Search(rs.Model().Field("email").ILike("jane.smith@example.com")).Limit(1).Offset(2).Load()
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Limit(1).Offset(2).Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 OFFSET 2`)
+				})
+			})
+		}
+	})
+	Convey("Testing predicate operators", t, func() {
+		if dbArgs.Driver == "postgres" {
+			SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				rs := env.Pool("User")
+				Convey("Equals", func() {
+					rs = rs.Search(rs.Model().Field("Name").Equals("John"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name = ? ) `)
+					So(args, ShouldContain, "John")
+				})
+				Convey("NotEquals", func() {
+					rs = rs.Search(rs.Model().Field("Name").NotEquals("John"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name != ? ) `)
+					So(args, ShouldContain, "John")
+				})
+				Convey("Greater", func() {
+					rs = rs.Search(rs.Model().Field("Nums").Greater(12))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".nums > ? ) `)
+					So(args, ShouldContain, 12)
+				})
+				Convey("GreaterOrEqual", func() {
+					rs = rs.Search(rs.Model().Field("Nums").GreaterOrEqual(12))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".nums >= ? ) `)
+					So(args, ShouldContain, 12)
+				})
+				Convey("Lower", func() {
+					rs = rs.Search(rs.Model().Field("Nums").Lower(12))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".nums < ? ) `)
+					So(args, ShouldContain, 12)
+				})
+				Convey("LowerOrEqual", func() {
+					rs = rs.Search(rs.Model().Field("Nums").LowerOrEqual(12))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".nums <= ? ) `)
+					So(args, ShouldContain, 12)
+				})
+				Convey("Contains", func() {
+					rs = rs.Search(rs.Model().Field("Name").Contains("John"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name LIKE ? ) `)
+					So(args, ShouldContain, "%John%")
+				})
+				Convey("Not Contains", func() {
+					rs = rs.Search(rs.Model().Field("Name").NotContains("John"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name NOT LIKE ? ) `)
+					So(args, ShouldContain, "%John%")
+				})
+				Convey("IContains", func() {
+					rs = rs.Search(rs.Model().Field("Name").IContains("John"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name ILIKE ? ) `)
+					So(args, ShouldContain, "%John%")
+				})
+				Convey("Not IContains", func() {
+					rs = rs.Search(rs.Model().Field("Name").NotIContains("John"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name NOT ILIKE ? ) `)
+					So(args, ShouldContain, "%John%")
+				})
+				Convey("Contains pattern", func() {
+					rs = rs.Search(rs.Model().Field("Name").Like("John%"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name LIKE ? ) `)
+					So(args, ShouldContain, "John%")
+				})
+				Convey("IContains pattern", func() {
+					rs = rs.Search(rs.Model().Field("Name").ILike("John%"))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".name ILIKE ? ) `)
+					So(args, ShouldContain, "John%")
+				})
+				Convey("In", func() {
+					rs = rs.Search(rs.Model().Field("ID").In([]int64{23, 31}))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".id IN (?) ) `)
+					So(args, ShouldContain, []int64{23, 31})
+				})
+				Convey("Not In", func() {
+					rs = rs.Search(rs.Model().Field("ID").NotIn([]int64{23, 31}))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".id NOT IN (?) ) `)
+					So(args, ShouldContain, []int64{23, 31})
+				})
+				Convey("Child Of without parent field", func() {
+					rs = rs.Search(rs.Model().Field("ID").ChildOf(101))
+					sql, args := rs.query.selectQuery([]string{"Name"})
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".id = ? )  ORDER BY id `)
+					So(args, ShouldContain, 101)
 				})
 			})
 		}
@@ -104,17 +201,17 @@ func TestConditions(t *testing.T) {
 func TestConditionSerialization(t *testing.T) {
 	Convey("Testing condition serialization", t, func() {
 		Convey("Testing simple A AND B condition", func() {
-			cond := newCondition().And().Field("Name").ILike("John").And().Field("Age").Greater(18)
+			cond := newCondition().And().Field("Name").IContains("John").And().Field("Age").Greater(18)
 			dom := cond.Serialize()
 			So(fmt.Sprint(dom), ShouldEqual, "[& [Name ilike John] [Age > 18]]")
 		})
 		Convey("Testing simple A OR B condition", func() {
-			cond := newCondition().And().Field("Name").ILike("John").Or().Field("Age").Greater(18)
+			cond := newCondition().And().Field("Name").IContains("John").Or().Field("Age").Greater(18)
 			dom := cond.Serialize()
 			So(fmt.Sprint(dom), ShouldEqual, "[| [Age > 18] [Name ilike John]]")
 		})
 		Convey("Testing A AND B OR C condition", func() {
-			cond := newCondition().And().Field("Name").ILike("John").And().Field("Age").Greater(18).Or().Field("IsStaff").Equals(true)
+			cond := newCondition().And().Field("Name").IContains("John").And().Field("Age").Greater(18).Or().Field("IsStaff").Equals(true)
 			dom := cond.Serialize()
 			So(fmt.Sprint(dom), ShouldEqual, "[| [IsStaff = true] & [Name ilike John] [Age > 18]]")
 		})

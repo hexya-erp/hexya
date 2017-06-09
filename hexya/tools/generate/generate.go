@@ -223,8 +223,8 @@ func addFieldTypesToModelData(mData *modelData) {
 			IsRS:    f.IsRS,
 			Operators: []operatorDef{
 				{Name: "Equals"}, {Name: "NotEquals"}, {Name: "Greater"}, {Name: "GreaterOrEqual"}, {Name: "Lower"},
-				{Name: "LowerOrEqual"}, {Name: "LikePattern"}, {Name: "Like"}, {Name: "NotLike"}, {Name: "ILike"},
-				{Name: "NotILike"}, {Name: "ILikePattern"}, {Name: "In", Multi: true}, {Name: "NotIn", Multi: true},
+				{Name: "LowerOrEqual"}, {Name: "Like"}, {Name: "Contains"}, {Name: "NotContains"}, {Name: "IContains"},
+				{Name: "NotIContains"}, {Name: "ILike"}, {Name: "In", Multi: true}, {Name: "NotIn", Multi: true},
 				{Name: "ChildOf"},
 			},
 		})

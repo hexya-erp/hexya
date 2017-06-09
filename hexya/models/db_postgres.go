@@ -27,16 +27,16 @@ type postgresAdapter struct{}
 var pgOperators = map[operator.Operator]string{
 	operator.Equals:         "= ?",
 	operator.NotEquals:      "!= ?",
+	operator.Contains:       "LIKE ?",
+	operator.NotContains:    "NOT LIKE ?",
 	operator.Like:           "LIKE ?",
-	operator.NotLike:        "NOT LIKE ?",
-	operator.LikePattern:    "LIKE ?",
+	operator.IContains:      "ILIKE ?",
+	operator.NotIContains:   "NOT ILIKE ?",
 	operator.ILike:          "ILIKE ?",
-	operator.NotILike:       "NOT ILIKE ?",
-	operator.ILikePattern:   "ILIKE ?",
 	operator.In:             "IN (?)",
 	operator.NotIn:          "NOT IN (?)",
 	operator.Lower:          "< ?",
-	operator.LowerOrEqual:   "< ?",
+	operator.LowerOrEqual:   "<= ?",
 	operator.Greater:        "> ?",
 	operator.GreaterOrEqual: ">= ?",
 }
@@ -74,7 +74,7 @@ var pgDefaultValues = map[fieldtype.Type]string{
 func (d *postgresAdapter) operatorSQL(do operator.Operator, arg interface{}) (string, interface{}) {
 	op := pgOperators[do]
 	switch do {
-	case operator.Like, operator.ILike, operator.NotLike, operator.NotILike:
+	case operator.Contains, operator.IContains, operator.NotContains, operator.NotIContains:
 		arg = fmt.Sprintf("%%%s%%", arg)
 	}
 	return op, arg

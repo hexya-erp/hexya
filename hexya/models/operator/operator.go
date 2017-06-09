@@ -14,12 +14,12 @@ const (
 	GreaterOrEqual Operator = ">="
 	Lower          Operator = "<"
 	LowerOrEqual   Operator = "<="
-	LikePattern    Operator = "=like"
-	Like           Operator = "like"
-	NotLike        Operator = "not like"
-	ILike          Operator = "ilike"
-	NotILike       Operator = "not ilike"
-	ILikePattern   Operator = "=ilike"
+	Like           Operator = "=like"
+	Contains       Operator = "like"
+	NotContains    Operator = "not like"
+	IContains      Operator = "ilike"
+	NotIContains   Operator = "not ilike"
+	ILike          Operator = "=ilike"
 	In             Operator = "in"
 	NotIn          Operator = "not in"
 	ChildOf        Operator = "child_of"
@@ -32,12 +32,12 @@ var allowedOperators = map[Operator]bool{
 	GreaterOrEqual: true,
 	Lower:          true,
 	LowerOrEqual:   true,
-	LikePattern:    true,
 	Like:           true,
-	NotLike:        true,
+	Contains:       true,
+	NotContains:    true,
+	IContains:      true,
+	NotIContains:   true,
 	ILike:          true,
-	NotILike:       true,
-	ILikePattern:   true,
 	In:             true,
 	NotIn:          true,
 	ChildOf:        true,

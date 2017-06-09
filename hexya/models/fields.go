@@ -107,30 +107,6 @@ func (fc *FieldsCollection) storedFieldNames(fieldNames ...string) []string {
 	return res
 }
 
-// relatedNonStoredFieldNames returns a slice with all the related
-// non-stored field names.
-func (fc *FieldsCollection) relatedNonStoredFieldNames() []string {
-	var res []string
-	for _, fi := range fc.relatedFields {
-		if !fi.stored {
-			res = append(res, fi.name)
-		}
-	}
-	return res
-}
-
-// nonRelatedFieldJSONNames returns a slice with the JSON names of all the fields that
-// are not relations.
-func (fc *FieldsCollection) nonRelationFieldJSONNames() []string {
-	var res []string
-	for fName, fi := range fc.registryByJSON {
-		if fi.relatedModel == nil {
-			res = append(res, fName)
-		}
-	}
-	return res
-}
-
 // getComputedFields returns the slice of Field of the computed, but not
 // stored fields of the given modelName.
 // If fields are given, return only Field instances in the list

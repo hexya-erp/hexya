@@ -60,7 +60,7 @@ func (env Environment) Context() *types.Context {
 // did not create yourself with NewEnvironment. The framework will
 // automatically commit the Environment.
 func (env Environment) commit() {
-	env.cr.tx.Commit()
+	env.Cr().tx.Commit()
 }
 
 // rollback the transaction of this environment.
@@ -69,7 +69,7 @@ func (env Environment) commit() {
 // did not create yourself with NewEnvironment. Just panic instead
 // for the framework to roll back automatically for you.
 func (env Environment) rollback() {
-	env.cr.tx.Rollback()
+	env.Cr().tx.Rollback()
 }
 
 // newEnvironment returns a new Environment with the given parameters

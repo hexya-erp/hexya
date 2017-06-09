@@ -226,34 +226,34 @@ func (c ConditionField) LowerOrEqual(data interface{}) *Condition {
 	return c.AddOperator(operator.LowerOrEqual, data)
 }
 
-// LikePattern appends the 'LIKE' operator to the current Condition
-func (c ConditionField) LikePattern(data interface{}) *Condition {
-	return c.AddOperator(operator.LikePattern, data)
-}
-
-// ILikePattern appends the 'ILIKE' operator to the current Condition
-func (c ConditionField) ILikePattern(data interface{}) *Condition {
-	return c.AddOperator(operator.ILikePattern, data)
-}
-
-// Like appends the 'LIKE %%' operator to the current Condition
+// Like appends the 'LIKE' operator to the current Condition
 func (c ConditionField) Like(data interface{}) *Condition {
 	return c.AddOperator(operator.Like, data)
 }
 
-// NotLike appends the 'NOT LIKE %%' operator to the current Condition
-func (c ConditionField) NotLike(data interface{}) *Condition {
-	return c.AddOperator(operator.NotLike, data)
-}
-
-// ILike appends the 'ILIKE %%' operator to the current Condition
+// ILike appends the 'ILIKE' operator to the current Condition
 func (c ConditionField) ILike(data interface{}) *Condition {
 	return c.AddOperator(operator.ILike, data)
 }
 
-// NotILike appends the 'NOT ILIKE %%' operator to the current Condition
-func (c ConditionField) NotILike(data interface{}) *Condition {
-	return c.AddOperator(operator.NotILike, data)
+// Contains appends the 'LIKE %%' operator to the current Condition
+func (c ConditionField) Contains(data interface{}) *Condition {
+	return c.AddOperator(operator.Contains, data)
+}
+
+// NotContains appends the 'NOT LIKE %%' operator to the current Condition
+func (c ConditionField) NotContains(data interface{}) *Condition {
+	return c.AddOperator(operator.NotContains, data)
+}
+
+// IContains appends the 'ILIKE %%' operator to the current Condition
+func (c ConditionField) IContains(data interface{}) *Condition {
+	return c.AddOperator(operator.IContains, data)
+}
+
+// NotIContains appends the 'NOT ILIKE %%' operator to the current Condition
+func (c ConditionField) NotIContains(data interface{}) *Condition {
+	return c.AddOperator(operator.NotIContains, data)
 }
 
 // In appends the 'IN' operator to the current Condition

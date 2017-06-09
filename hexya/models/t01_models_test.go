@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hexya-erp/hexya/hexya/models/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -43,6 +44,7 @@ func TestCreateDB(t *testing.T) {
 
 		profile := NewModel("Profile")
 		profile.AddIntegerField("Age", SimpleFieldParams{GoType: new(int16)})
+		profile.AddSelectionField("Gender", SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
 		profile.AddFloatField("Money", FloatFieldParams{})
 		profile.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: "User"})
 		profile.AddOne2OneField("BestPost", ForeignKeyFieldParams{RelationModel: "Post"})
@@ -59,6 +61,7 @@ func TestCreateDB(t *testing.T) {
 		tag.AddCharField("Name", StringFieldParams{})
 		tag.AddMany2OneField("BestPost", ForeignKeyFieldParams{RelationModel: "Post"})
 		tag.AddMany2ManyField("Posts", Many2ManyFieldParams{RelationModel: "Post"})
+		tag.AddMany2OneField("Parent", ForeignKeyFieldParams{RelationModel: "Tag"})
 		tag.AddCharField("Description", StringFieldParams{})
 
 		addressMI := NewMixinModel("AddressMixIn")

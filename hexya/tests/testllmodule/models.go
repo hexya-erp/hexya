@@ -14,7 +14,10 @@
 
 package testllmodule
 
-import "github.com/hexya-erp/hexya/hexya/models"
+import (
+	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/hexya/models/types"
+)
 
 func declareModels() {
 	user := models.NewModel("User")
@@ -46,6 +49,7 @@ func declareModels() {
 	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
 	profile.AddFloatField("Money", models.FloatFieldParams{})
 	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
+	profile.AddSelectionField("Gender", models.SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
 	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
 	profile.AddCharField("City", models.StringFieldParams{})
 	profile.AddCharField("Country", models.StringFieldParams{})
@@ -64,6 +68,7 @@ func declareModels() {
 
 	tag := models.NewModel("Tag")
 	tag.AddCharField("Name", models.StringFieldParams{})
+	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: "Tag"})
 	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
 	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: "Post"})
 	tag.AddCharField("Description", models.StringFieldParams{})
