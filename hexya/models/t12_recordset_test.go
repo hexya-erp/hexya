@@ -46,29 +46,31 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				profile := env.Pool("Profile").Call("Create", userJaneProfileData).(RecordCollection)
 				So(profile.Len(), ShouldEqual, 1)
-				userJaneData := FieldMap{
-					"Name":    "Jane Smith",
-					"Email":   "jane.smith@example.com",
-					"Profile": profile,
-					"Nums":    2,
-				}
-				userJane := env.Pool("User").Call("Create", userJaneData).(RecordCollection)
-				So(userJane.Len(), ShouldEqual, 1)
-				So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.Get("ID"))
 				post1Data := FieldMap{
-					"User":    userJane,
 					"Title":   "1st Post",
 					"Content": "Content of first post",
 				}
 				post1 := env.Pool("Post").Call("Create", post1Data).(RecordCollection)
 				So(post1.Len(), ShouldEqual, 1)
 				post2Data := FieldMap{
-					"User":    userJane,
 					"Title":   "2nd Post",
 					"Content": "Content of second post",
 				}
 				post2 := env.Pool("Post").Call("Create", post2Data).(RecordCollection)
 				So(post2.Len(), ShouldEqual, 1)
+				posts := post1.Union(post2)
+				userJaneData := FieldMap{
+					"Name":    "Jane Smith",
+					"Email":   "jane.smith@example.com",
+					"Profile": profile,
+					"Posts":   posts,
+					"Nums":    2,
+				}
+				userJane := env.Pool("User").Call("Create", userJaneData).(RecordCollection)
+				So(userJane.Len(), ShouldEqual, 1)
+				So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.Get("ID"))
+				So(post1.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
+				So(post2.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
 				janePosts := userJane.Get("Posts").(RecordCollection)
 				So(janePosts.Len(), ShouldEqual, 2)
 
@@ -442,6 +444,18 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userRecs[0].Get("IsActive").(bool), ShouldBeTrue)
 				So(userRecs[1].Get("IsActive").(bool), ShouldBeTrue)
 			})
+			Convey("Updating many2one fields", func() {
+				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Email").Equals("jane.smith@example.com"))
+				profile := userJane.Get("Profile").(RecordCollection)
+				userJane.Set("Profile", nil)
+				So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, 0)
+				userJane.Set("Profile", profile.Get("ID"))
+				So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.ids[0])
+				userJane.Set("Profile", env.Pool("Profile"))
+				So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, 0)
+				userJane.Set("Profile", profile)
+				So(userJane.Get("Profile").(RecordCollection).Get("ID"), ShouldEqual, profile.ids[0])
+			})
 			Convey("Updating many2many fields", func() {
 				posts := env.Pool("Post")
 				post1 := posts.Search(posts.Model().Field("title").Equals("1st Post"))
@@ -455,6 +469,20 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Get("Name"), ShouldBeIn, "Books", "Jane's")
 				So(post2Tags.Records()[1].Get("Name"), ShouldBeIn, "Books", "Jane's")
+			})
+			Convey("Updating One2many fields", func() {
+				posts := env.Pool("Post")
+				post1 := posts.Search(posts.Model().Field("title").Equals("1st Post"))
+				post2 := posts.Search(posts.Model().Field("title").Equals("2nd Post"))
+				post3 := posts.Call("Create", FieldMap{
+					"Title":   "3rd Post",
+					"Content": "Content of third post",
+				}).(RecordCollection)
+				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Email").Equals("jane.smith@example.com"))
+				userJane.Set("Posts", post1.Union(post3))
+				So(post1.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
+				So(post3.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
+				So(post2.Get("User").(RecordCollection).Get("ID"), ShouldEqual, 0)
 			})
 		})
 	})

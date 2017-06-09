@@ -221,7 +221,12 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 		switch {
 		case fMapValue == nil:
 			// dbValue is null, we put the type zero value instead
-			val = reflect.Zero(fType)
+			// except if we have a nullable FK relation field
+			if fi.fieldType.IsFKRelationType() && !fi.required {
+				val = reflect.ValueOf((*interface{})(nil))
+			} else {
+				val = reflect.Zero(fType)
+			}
 		case reflect.PtrTo(fType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
 			// the type implements sql.Scanner, so we call Scan
 			val = reflect.New(fType)
@@ -237,7 +242,7 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 					if len(ids) > 0 {
 						val = reflect.ValueOf(ids[0])
 					} else {
-						val = reflect.ValueOf(nil)
+						val = reflect.ValueOf((*interface{})(nil))
 					}
 				} else if fType == reflect.TypeOf([]int64{}) {
 					val = reflect.ValueOf(ids)

@@ -181,7 +181,24 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 			return view
 		}
 	}
-	log.Panic("No view of this type in model", "type", viewType, "model", model)
+	defaultView := vc.defaultViewForModel(model, viewType)
+	if defaultView == nil {
+		log.Panic("No view of this type in model", "type", viewType, "model", model)
+	}
+	return defaultView
+}
+
+// defaultViewForModel returns a default view for the given model and type
+func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View {
+	switch viewType {
+	case VIEW_TYPE_SEARCH:
+		return &View{
+			Model:  model,
+			Type:   VIEW_TYPE_SEARCH,
+			Fields: []models.FieldName{models.FieldName("Name")},
+			Arch:   `<search><field name="Name"/></search>`,
+		}
+	}
 	return nil
 }
 
@@ -205,8 +222,7 @@ type View struct {
 	Priority    uint8    `json:"priority"`
 	Arch        string   `json:"arch"`
 	FieldParent string   `json:"field_parent"`
-	//Toolbar     actions.Toolbar `json:"toolbar"`
-	Fields []models.FieldName
+	Fields      []models.FieldName
 }
 
 // ViewXML is used to unmarshal the XML definition of a View

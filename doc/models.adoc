@@ -350,6 +350,10 @@ The Sort is not guaranteed to be stable.
 Returns a new RecordSet that is the union of this RecordSet and the given
 `other` RecordSet. The result is guaranteed to be a set of unique records.
 
+`*Subtract(other RecordSetType) RecordSetType*`::
+Returns a RecordSet with the Records that are in this RecordSet but not in the
+given 'other' one. The result is guaranteed to be a set of unique records.
+
 == Environment
 
 The Environment stores various contextual data used by the ORM: the database
@@ -385,6 +389,34 @@ Returns true if the Context has a value for the given key.
 `*Get(key string) interface{}*`::
 Returns the value of the Context for the given key. It returns nil if the
 Context does not contain this key.
+
+NOTE: If you know the expected return type, you would probably use one of the
+following typed methods instead.
+
+`*GetString(key string) string*`::
+Returns the value of the given key in this Context as a string.
+It panics if the value is not of type string
+
+`*GetInteger(key string) int64*`::
+Returns the value of the given key in this Context as an int64.
+It panics if the value cannot be casted to int64
+
+`*GetFloat(key string) float64*`::
+Returns the value of the given key in this Context as a float64.
+It panics if the value cannot be casted to float64
+
+`*GetStringSlice(key string) []string*`::
+Returns the value of the given key in this Context as a []string.
+It panics if the value is not a slice or if any value is not a string
+
+`*GetIntegerSlice(key string) []int64*`::
+Returns the value of the given key in this Context as a []int64.
+It panics if the value is not a slice or if any value cannot be casted to int64
+
+`*GetFloatSlice(key string) []float64*`::
+Returns the value of the given key in this Context as a []float64.
+It panics if the value is not a slice or if any value cannot be casted to
+float64
 
 `*SetEntry(key string, value interface{}) *Context*`::
 Returns a copy of this Context with the given key set to the given value.

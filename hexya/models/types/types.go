@@ -19,8 +19,14 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"reflect"
+	"strconv"
 	"time"
+
+	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
+
+var log *logging.Logger
 
 // A Context is a map of objects that is passed along from function to function
 // during a transaction. A Context is read only.
@@ -37,10 +43,118 @@ func (c Context) Copy() *Context {
 	return newCtx
 }
 
-// Get returns the value of this Context for the given key
+// Get returns the value of the given key in this Context
 func (c *Context) Get(key string) interface{} {
 	value := c.values[key]
 	return value
+}
+
+// GetString returns the value of the given key in
+// this Context as a string.
+// It panics if the value is not of type string
+func (c *Context) GetString(key string) string {
+	return c.Get(key).(string)
+}
+
+// GetInteger returns the value of the given key in
+// this Context as an int64.
+// It panics if the value cannot be casted to int64
+func (c *Context) GetInteger(key string) int64 {
+	val := c.Get(key)
+	res := castToInteger(val, key)
+	return res
+}
+
+// GetFloat returns the value of the given key in
+// this Context as a float64.
+// It panics if the value cannot be casted to float64
+func (c *Context) GetFloat(key string) float64 {
+	val := c.Get(key)
+	res := castToFloat(val, key)
+	return res
+}
+
+// GetStringSlice returns the value of the given key in
+// this Context as a []string.
+// It panics if the value is not a slice or if any value
+// is not a string
+func (c *Context) GetStringSlice(key string) []string {
+	val := c.Get(key)
+	var res []string
+	switch value := val.(type) {
+	case []string:
+		res = value
+	case []interface{}:
+		res = make([]string, len(value))
+		for i, v := range value {
+			res[i] = v.(string)
+		}
+	}
+	return res
+}
+
+// GetIntegerSlice returns the value of the given key in
+// this Context as a []int64.
+// It panics if the value is not a slice or if any value
+// cannot be casted to int64
+func (c *Context) GetIntegerSlice(key string) []int64 {
+	val := c.Get(key)
+	rVal := reflect.ValueOf(val)
+	if rVal.Kind() != reflect.Slice {
+		log.Panic("Value in Context is not a slice", "key", key, "value", val)
+	}
+	res := make([]int64, rVal.Len())
+	for i := 0; i < rVal.Len(); i++ {
+		res[i] = castToInteger(rVal.Index(i).Interface(), key)
+	}
+	return res
+}
+
+// GetFloatSlice returns the value of the given key in
+// this Context as a []float64.
+// It panics if the value is not a slice or if any value
+// cannot be casted to float64
+func (c *Context) GetFloatSlice(key string) []float64 {
+	val := c.Get(key)
+	rVal := reflect.ValueOf(val)
+	if rVal.Kind() != reflect.Slice {
+		log.Panic("Value in Context is not a slice", "key", key, "value", val)
+	}
+	res := make([]float64, rVal.Len())
+	for i := 0; i < rVal.Len(); i++ {
+		res[i] = castToFloat(rVal.Index(i).Interface(), key)
+	}
+	return res
+}
+
+// castToInteger casts the given val to int64 if it is
+// a number type. Panics otherwise
+func castToInteger(val interface{}, key string) int64 {
+	var res int64
+	switch value := val.(type) {
+	case int64:
+		res = value
+	case int, int8, int16, int32, uint, uint8, uint16, uint32, uint64, float32, float64:
+		res, _ = strconv.ParseInt(fmt.Sprintf("%v", value), 10, 64)
+	default:
+		log.Panic("Context value cannot be cast to int64", "key", key, "value", val)
+	}
+	return res
+}
+
+// castToFloat casts the given val to float64 if it is
+// a number type. Panics otherwise
+func castToFloat(val interface{}, key string) float64 {
+	var res float64
+	switch value := val.(type) {
+	case float64:
+		res = value
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32:
+		res, _ = strconv.ParseFloat(fmt.Sprintf("%d", value), 64)
+	default:
+		log.Panic("Context value cannot be cast to float64", "key", key, "value", val)
+	}
+	return res
 }
 
 // HasKey returns true if this Context has the given key
@@ -80,6 +194,23 @@ func (c *Context) UnmarshalXMLAttr(attr xml.Attr) error {
 	(*c).values = cm
 	return err
 }
+
+// MarshalJSON method for Context
+func (c *Context) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.values)
+}
+
+// UnmarshalJSON method for Context
+func (c *Context) UnmarshalJSON(data []byte) error {
+	var cm map[string]interface{}
+	err := json.Unmarshal(data, &cm)
+	(*c).values = cm
+	return err
+}
+
+var _ xml.UnmarshalerAttr = &Context{}
+var _ json.Marshaler = &Context{}
+var _ json.Unmarshaler = &Context{}
 
 // NewContext returns a new Context instance
 func NewContext(data ...map[string]interface{}) *Context {
@@ -187,3 +318,7 @@ func (s Selection) MarshalJSON() ([]byte, error) {
 }
 
 var _ json.Marshaler = Selection{}
+
+func init() {
+	log = logging.GetLogger("types")
+}

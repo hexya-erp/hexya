@@ -58,6 +58,7 @@ func declareBaseMixin() {
 	baseMixin.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
 	baseMixin.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
 	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
+	baseMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
 	declareBaseComputeMethods()
 }
 
@@ -71,9 +72,7 @@ func declareModelMixin() {
 		},
 	})
 	modelMixin.AddIntegerField("HexyaVersion", SimpleFieldParams{GoType: new(int)})
-	modelMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
 	modelMixin.InheritModel(Registry.MustGet("BaseMixin"))
-	declareModelComputeMethods()
 }
 
 // declareComputeMethods declares methods used to compute fields
@@ -98,10 +97,6 @@ func declareBaseComputeMethods() {
 			}
 			return FieldMap{"LastUpdate": lastUpdate}
 		}).AllowGroup(security.GroupEveryone)
-}
-
-func declareModelComputeMethods() {
-	model := Registry.MustGet("ModelMixin")
 
 	model.AddMethod("ComputeNameGet",
 		`ComputeNameGet updates the DisplayName field with the result of NameGet.`,
@@ -254,6 +249,7 @@ func declareRecordSetMethods() {
 		func(rc RecordCollection) FieldMap {
 			res := make(FieldMap)
 			rc.applyDefaults(&res)
+			rc.model.convertValuesToFieldType(&res)
 			return res
 		}).AllowGroup(security.GroupEveryone)
 
@@ -348,6 +344,14 @@ func declareSearchMethods() {
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
 		func(rc RecordCollection, other RecordCollection) RecordCollection {
 			return rc.Union(other)
+		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("Subtract",
+		`Subtract returns a RecordSet with the Records that are in this
+		RecordCollection but not in the given 'other' one.
+		The result is guaranteed to be a set of unique records.`,
+		func(rc RecordCollection, other RecordCollection) RecordCollection {
+			return rc.Subtract(other)
 		}).AllowGroup(security.GroupEveryone)
 }
 

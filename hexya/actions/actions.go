@@ -160,7 +160,7 @@ type BaseAction struct {
 	View         views.ViewRef     `json:"view_id" xml:"view_id,attr"`
 	AutoRefresh  bool              `json:"auto_refresh" xml:"auto_refresh,attr"`
 	ManualSearch bool              `json:"-" xml:"-"`
-	ActViewType  ActionViewType    `json:"-" xml:"-"`
+	ActViewType  ActionViewType    `json:"-" xml:"view_type"`
 	ViewMode     string            `json:"view_mode" xml:"view_mode,attr"`
 	Multi        bool              `json:"multi" xml:"multi,attr"`
 	Target       string            `json:"target" xml:"target,attr"`

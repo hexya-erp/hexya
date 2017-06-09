@@ -46,28 +46,30 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				profile := pool.Profile().Create(env, &profileData)
 				So(profile.Len(), ShouldEqual, 1)
-				userJaneData := pool.UserData{
-					Name:    "Jane Smith",
-					Email:   "jane.smith@example.com",
-					Profile: profile,
-				}
-				userJane := pool.User().Create(env, &userJaneData)
-				So(userJane.Len(), ShouldEqual, 1)
-				So(userJane.Profile().ID(), ShouldEqual, profile.ID())
 				post1Data := pool.PostData{
-					User:    userJane,
 					Title:   "1st Post",
 					Content: "Content of first post",
 				}
 				post1 := pool.Post().Create(env, &post1Data)
 				So(post1.Len(), ShouldEqual, 1)
 				post2Data := pool.PostData{
-					User:    userJane,
 					Title:   "2nd Post",
 					Content: "Content of second post",
 				}
 				post2 := pool.Post().Create(env, &post2Data)
 				So(post2.Len(), ShouldEqual, 1)
+				posts := post1.Union(post2)
+				userJaneData := pool.UserData{
+					Name:    "Jane Smith",
+					Email:   "jane.smith@example.com",
+					Profile: profile,
+					Posts:   posts,
+				}
+				userJane := pool.User().Create(env, &userJaneData)
+				So(userJane.Len(), ShouldEqual, 1)
+				So(userJane.Profile().ID(), ShouldEqual, profile.ID())
+				So(post1.User().ID(), ShouldEqual, userJane.ID())
+				So(post2.User().ID(), ShouldEqual, userJane.ID())
 				So(userJane.Posts().Len(), ShouldEqual, 2)
 
 				tag1 := pool.Tag().Create(env, &pool.TagData{
@@ -379,6 +381,14 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userRecs[0].IsActive(), ShouldBeTrue)
 				So(userRecs[1].IsActive(), ShouldBeTrue)
 			})
+			Convey("Updating many2one fields", func() {
+				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+				profile := userJane.Profile()
+				userJane.SetProfile(pool.Profile().NewSet(env))
+				So(userJane.Profile().ID(), ShouldEqual, 0)
+				userJane.SetProfile(profile)
+				So(userJane.Profile().ID(), ShouldEqual, profile.Ids()[0])
+			})
 			Convey("Updating many2many fields", func() {
 				post1 := pool.Post().Search(env, pool.Post().Title().Equals("1st Post"))
 				tagBooks := pool.Tag().Search(env, pool.Tag().Name().Equals("Books"))
@@ -391,6 +401,20 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Name(), ShouldBeIn, "Books", "Jane's")
 				So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
+			})
+			Convey("Updating One2many fields", func() {
+				posts := pool.Post().NewSet(env)
+				post1 := posts.Search(pool.Post().Title().Equals("1st Post"))
+				post2 := posts.Search(pool.Post().Title().Equals("2nd Post"))
+				post3 := posts.Create(pool.PostData{
+					Title:   "3rd Post",
+					Content: "Content of third post",
+				})
+				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+				userJane.SetPosts(post1.Union(post3))
+				So(post1.User().ID(), ShouldEqual, userJane.ID())
+				So(post3.User().ID(), ShouldEqual, userJane.ID())
+				So(post2.User().ID(), ShouldEqual, 0)
 			})
 		})
 	})

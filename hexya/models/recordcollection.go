@@ -237,6 +237,17 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 		}
 		switch fi.fieldType {
 		case fieldtype.One2Many:
+			// We take only the first record since updating all records
+			// will override each other
+			if rSet.Len() > 1 {
+				log.Warn("Updating one2many relation on multiple record at once", "model", rc.ModelName(), "field", field)
+			}
+			curRS := rc.env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("ID").In(rSet.Get(fi.name).(RecordCollection)))
+			newRS := rc.env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("ID").In(value.([]int64)))
+			// Remove ReverseFK for Records that are no longer our children
+			curRS.Subtract(newRS).Set(fi.reverseFK, nil)
+			// Add new children records
+			newRS.Subtract(curRS).Set(fi.reverseFK, rSet.ids[0])
 		case fieldtype.Rev2One:
 		case fieldtype.Many2Many:
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
@@ -484,6 +495,9 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 
 	if fi.isRelationField() {
 		switch r := res.(type) {
+		case *interface{}:
+			// *interface{} is returned when the field is null
+			res = newRecordCollection(rSet.Env(), fi.relatedModel.name)
 		case int64:
 			res = newRecordCollection(rSet.Env(), fi.relatedModel.name)
 			if r != 0 {
@@ -672,6 +686,32 @@ func (rc RecordCollection) Union(other RecordCollection) RecordCollection {
 	}
 	for _, id := range otherRC.ids {
 		idMap[id] = true
+	}
+	ids := make([]int64, len(idMap))
+	i := 0
+	for id := range idMap {
+		ids[i] = id
+		i++
+	}
+	return newRecordCollection(rc.Env(), rc.ModelName()).withIds(ids)
+}
+
+// Subtract returns a RecordSet with the Records that are in this
+// RecordCollection but not in the given 'other' one.
+// The result is guaranteed to be a set of unique records.
+func (rc RecordCollection) Subtract(other RecordCollection) RecordCollection {
+	if rc.ModelName() != other.ModelName() {
+		log.Panic("Unable to substract RecordCollections of different models", "this", rc.ModelName(),
+			"other", other.ModelName())
+	}
+	thisRC := rc.Fetch()
+	otherRC := other.Fetch()
+	idMap := make(map[int64]bool)
+	for _, id := range thisRC.ids {
+		idMap[id] = true
+	}
+	for _, id := range otherRC.ids {
+		delete(idMap, id)
 	}
 	ids := make([]int64, len(idMap))
 	i := 0
