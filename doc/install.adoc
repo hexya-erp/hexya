@@ -115,6 +115,26 @@ Global Flags:
 
 == Synchronise database
 
+=== Setup Postgresql
+
+For now Hexya only supports Postgresql. Here is the quick setup for evaluating
+Hexya. Please refer to Postgresql documentation for finer setup.
+
+==== Create a hexya user
+[source,shell]
+----
+$ createuser -s -W hexya
+----
+
+==== Create a hexya database
+[source,shell]
+----
+$ createdb -O hexya hexya
+----
+
+
+=== Synchronise database schema with models
+
 This step will synchronise the database with the models defined.
 
 [source,shell]
@@ -122,6 +142,7 @@ This step will synchronise the database with the models defined.
 cd <projectDir>
 hexya updatedb -o --db-password=MY_DB_PASSWORD
 ----
+where `MY_DB_PASSWD` is the password set for the `hexya` db user above.
 
 Type `hexya help updatedb` for the list of available options:
 ----
