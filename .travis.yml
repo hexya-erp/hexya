@@ -20,7 +20,7 @@ before_script:
   - psql -c 'create database hexya_test_tests;' -U postgres
 
 script:
-  - go test -race -coverprofile=coverage.txt -covermode=atomic
+  - ./run_tests.sh
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
