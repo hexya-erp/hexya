@@ -19,5 +19,11 @@ before_script:
   - psql -c 'create database hexya_test_models;' -U postgres
   - psql -c 'create database hexya_test_tests;' -U postgres
 
+script:
+  - go test -race -coverprofile=coverage.txt -covermode=atomic
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
 env:
   - HEXYA_DB_DRIVER=postgres HEXYA_DB_USER=postgres HEXYA_DB_PASSWORD= HEXYA_DB_PREFIX=hexya_test
