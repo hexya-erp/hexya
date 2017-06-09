@@ -701,7 +701,7 @@ func (rc RecordCollection) Union(other RecordCollection) RecordCollection {
 // The result is guaranteed to be a set of unique records.
 func (rc RecordCollection) Subtract(other RecordCollection) RecordCollection {
 	if rc.ModelName() != other.ModelName() {
-		log.Panic("Unable to substract RecordCollections of different models", "this", rc.ModelName(),
+		log.Panic("Unable to subtract RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
 	}
 	thisRC := rc.Fetch()

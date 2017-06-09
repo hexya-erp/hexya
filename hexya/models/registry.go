@@ -16,6 +16,7 @@ package models
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -236,19 +237,11 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 		default:
 			rVal := reflect.ValueOf(fMapValue)
 			if rVal.Type().Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-				// Our field is a related field
-				ids := fMapValue.(RecordSet).Ids()
-				if fType == reflect.TypeOf(int64(0)) {
-					if len(ids) > 0 {
-						val = reflect.ValueOf(ids[0])
-					} else {
-						val = reflect.ValueOf((*interface{})(nil))
-					}
-				} else if fType == reflect.TypeOf([]int64{}) {
-					val = reflect.ValueOf(ids)
-				} else {
-					log.Panic("Non consistent type", "model", m.name, "field", colName, "type", fType, "value", fMapValue)
+				v, err := convertRelationFieldValue(fMapValue, fType)
+				if err != nil {
+					log.Panic(err.Error(), "model", m.name, "field", colName, "type", fType, "value", fMapValue)
 				}
+				val = v
 			} else {
 				val = reflect.ValueOf(fMapValue)
 				if val.IsValid() {
@@ -260,6 +253,29 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 		}
 		destVals.SetMapIndex(reflect.ValueOf(colName), val)
 	}
+}
+
+// convertRelationFieldValue returns value as a reflect.Value with type of targetType
+// It panics if the value is not consistent with a relation field value
+// (i.e. is not of type RecordSet or int64 or []int64)
+func convertRelationFieldValue(value interface{}, targetType reflect.Type) (reflect.Value, error) {
+	ids := value.(RecordSet).Ids()
+	var (
+		val reflect.Value
+		err error
+	)
+	if targetType == reflect.TypeOf(int64(0)) {
+		if len(ids) > 0 {
+			val = reflect.ValueOf(ids[0])
+		} else {
+			val = reflect.ValueOf((*interface{})(nil))
+		}
+	} else if targetType == reflect.TypeOf([]int64{}) {
+		val = reflect.ValueOf(ids)
+	} else {
+		err = errors.New("Non consistent type")
+	}
+	return val, err
 }
 
 // isMixin returns true if this is a mixin model.
