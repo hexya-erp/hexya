@@ -32,10 +32,17 @@ var driver, user, password, prefix, debug string
 //	       tests.RunTests(m, "my_module")
 //     }
 func RunTests(m *testing.M, moduleName string) {
+	var res int
+	defer func() {
+		TearDownTests(moduleName)
+		if r := recover(); r != nil {
+			panic(r)
+		}
+		os.Exit(res)
+	}()
 	InitializeTests(moduleName)
-	res := m.Run()
-	TearDownTests(moduleName)
-	os.Exit(res)
+	res = m.Run()
+
 }
 
 // InitializeTests initializes a database for the tests of the given module.
@@ -75,6 +82,7 @@ func InitializeTests(moduleName string) {
 	models.DBConnect(driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", dbName, user, password))
 	models.BootStrap()
 	models.SyncDatabase()
+	server.LoadDataRecords()
 
 	server.PostInitModules()
 }
