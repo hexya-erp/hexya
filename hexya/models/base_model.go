@@ -16,7 +16,6 @@ package models
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
@@ -79,23 +78,16 @@ func declareModelMixin() {
 func declareBaseComputeMethods() {
 	model := Registry.MustGet("BaseMixin")
 
-	model.AddMethod("ComputeWriteDate",
-		`ComputeWriteDate updates the WriteDate field with the current datetime.`,
-		func(rc RecordCollection) FieldMap {
-			return FieldMap{"WriteDate": types.DateTime(time.Now())}
-		}).AllowGroup(security.GroupEveryone)
-
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
 		func(rc RecordCollection) FieldMap {
-			lastUpdate := types.DateTime(time.Now())
 			if !rc.Get("WriteDate").(types.DateTime).IsNull() {
-				lastUpdate = rc.Get("WriteDate").(types.DateTime)
+				return FieldMap{"LastUpdate": rc.Get("WriteDate").(types.DateTime)}
 			}
 			if !rc.Get("CreateDate").(types.DateTime).IsNull() {
-				lastUpdate = rc.Get("CreateDate").(types.DateTime)
+				return FieldMap{"LastUpdate": rc.Get("CreateDate").(types.DateTime)}
 			}
-			return FieldMap{"LastUpdate": lastUpdate}
+			return FieldMap{"LastUpdate": types.Now()}
 		}).AllowGroup(security.GroupEveryone)
 
 	model.AddMethod("ComputeNameGet",
@@ -165,11 +157,18 @@ func declareCRUDMethods() {
 
 			var fields []string
 			for _, fi := range rc.model.fields.registryByName {
-				if !fi.noCopy {
-					fields = append(fields, fi.json)
+				if fi.noCopy {
+					continue
 				}
+				if fi.fieldType.IsReverseRelationType() {
+					continue
+				}
+				fields = append(fields, fi.json)
 			}
 
+			// We invalidate the cache in case we have noCopy fields that have
+			// been loaded previously
+			rc.env.cache.invalidateRecord(rc.model, rc.Get("id").(int64))
 			rc.Load(fields...)
 
 			fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
@@ -241,7 +240,8 @@ func declareRecordSetMethods() {
 			args := FieldsGetArgs{
 				Fields: []FieldName{field.FieldName()},
 			}
-			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[string(field.FieldName())]
+			fJSON := rc.model.JSONizeFieldName(string(field.FieldName()))
+			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[fJSON]
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("DefaultGet",
@@ -261,12 +261,12 @@ func declareRecordSetMethods() {
 			values := params.Values
 
 			SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
-				rs := rc.WithEnv(env)
+				rs := env.Pool(rc.ModelName())
 				// Tweaks for Onchange to work on creation with empty
 				// RecordSet with ID = 0
 				var rsID int64
-				if !rs.IsEmpty() {
-					rsID = rs.Ids()[0]
+				if !rc.IsEmpty() {
+					rsID = rc.Ids()[0]
 				}
 				values = rc.model.MergeFieldMaps(values, FieldMap{"ID": rsID})
 				rs.ids = []int64{rsID}
@@ -319,6 +319,12 @@ func declareSearchMethods() {
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc RecordCollection, exprs ...FieldNamer) RecordCollection {
 			return rc.GroupBy(exprs...)
+		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("Aggregates",
+		`Aggregates returns the result of this RecordSet query, which must by a grouped query.`,
+		func(rc RecordCollection, exprs ...FieldNamer) []GroupAggregateRow {
+			return rc.Aggregates(exprs...)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Limit",

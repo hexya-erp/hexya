@@ -27,7 +27,7 @@ func declareModels() {
 	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
 	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: "computeDecoratedName"})
 	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
-	user.AddCharField("Password", models.StringFieldParams{})
+	user.AddCharField("Password", models.StringFieldParams{NoCopy: true})
 	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
 	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
 	user.AddBooleanField("IsActive", models.SimpleFieldParams{})

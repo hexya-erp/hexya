@@ -15,9 +15,11 @@
 package types
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -235,11 +237,13 @@ type Digits struct {
 }
 
 // Date type that JSON marshal and unmarshals as "YYYY-MM-DD"
-type Date time.Time
+type Date struct {
+	time.Time
+}
 
 // IsNull returns true if the Date is the zero value
 func (d Date) IsNull() bool {
-	if time.Time(d).Format("2006-01-02") == "0001-01-01" {
+	if d.Time.Format("2006-01-02") == "0001-01-01" {
 		return true
 	}
 	return false
@@ -250,7 +254,7 @@ func (d Date) MarshalJSON() ([]byte, error) {
 	if d.IsNull() {
 		return []byte("false"), nil
 	}
-	dateStr := time.Time(d).Format("2006-01-02")
+	dateStr := d.Time.Format("2006-01-02")
 	dateStr = fmt.Sprintf(`"%s"`, dateStr)
 	return []byte(dateStr), nil
 }
@@ -264,17 +268,32 @@ func (d Date) Value() (driver.Value, error) {
 	return driver.Value(d), nil
 }
 
+// Scan casts the database output to a Date
+func (d *Date) Scan(src interface{}) error {
+	switch t := src.(type) {
+	case time.Time:
+		d.Time = t
+		return nil
+	}
+	return errors.New("Date data is not time.Time")
+}
+
+var _ driver.Valuer = Date{}
+var _ sql.Scanner = new(Date)
+
 // Today returns the current date
 func Today() Date {
-	return Date(time.Now())
+	return Date{time.Now()}
 }
 
 // DateTime type that JSON marshals and unmarshals as "YYYY-MM-DD HH:MM:SS"
-type DateTime time.Time
+type DateTime struct {
+	time.Time
+}
 
 // IsNull returns true if the DateTime is the zero value
 func (d DateTime) IsNull() bool {
-	if time.Time(d).Format("2006-01-02 15:04:05") == "0001-01-01 00:00:00" {
+	if d.Time.Format("2006-01-02 15:04:05") == "0001-01-01 00:00:00" {
 		return true
 	}
 	return false
@@ -282,7 +301,7 @@ func (d DateTime) IsNull() bool {
 
 // Now returns the current date/time
 func Now() DateTime {
-	return DateTime(time.Now())
+	return DateTime{time.Now()}
 }
 
 // MarshalJSON for DateTime type
@@ -290,7 +309,7 @@ func (d DateTime) MarshalJSON() ([]byte, error) {
 	if d.IsNull() {
 		return []byte("false"), nil
 	}
-	dateStr := time.Time(d).Format("2006-01-02 15:04:05")
+	dateStr := d.Time.Format("2006-01-02 15:04:05")
 	dateStr = fmt.Sprintf(`"%s"`, dateStr)
 	return []byte(dateStr), nil
 }
@@ -301,8 +320,21 @@ func (d DateTime) Value() (driver.Value, error) {
 	if d.IsNull() {
 		return driver.Value("0001-01-01 00:00:00"), nil
 	}
-	return driver.Value(time.Time(d).Format("2006-01-02 15:04:05")), nil
+	return driver.Value(d.Time.Format("2006-01-02 15:04:05")), nil
 }
+
+// Scan casts the database output to a DateTime
+func (d *DateTime) Scan(src interface{}) error {
+	switch t := src.(type) {
+	case time.Time:
+		d.Time = t
+		return nil
+	}
+	return errors.New("DateTime data is not time.Time")
+}
+
+var _ driver.Valuer = DateTime{}
+var _ sql.Scanner = new(DateTime)
 
 // A Selection is a set of possible (key, label) values for a model
 // "selection" field.

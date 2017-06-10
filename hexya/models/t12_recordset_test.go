@@ -169,9 +169,10 @@ func TestCreateRecordSet(t *testing.T) {
 func TestSearchRecordSet(t *testing.T) {
 	Convey("Testing search through RecordSets", t, func() {
 		type UserStruct struct {
-			ID    int64
-			Name  string
-			Email string
+			ID      int64
+			Name    string
+			Email   string
+			Profile RecordCollection
 		}
 		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Searching User Jane", func() {
@@ -194,11 +195,12 @@ func TestSearchRecordSet(t *testing.T) {
 					So(userJaneStruct.Name, ShouldEqual, "Jane Smith")
 					So(userJaneStruct.Email, ShouldEqual, "jane.smith@example.com")
 					So(userJaneStruct.ID, ShouldEqual, userJane.Get("ID").(int64))
+					So(userJaneStruct.Profile.Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordCollection).Get("ID"))
 				})
 			})
 
 			Convey("Testing search all users", func() {
-				usersAll := env.Pool("User").FetchAll()
+				usersAll := env.Pool("User").Call("FetchAll").(RecordCollection)
 				So(usersAll.Len(), ShouldEqual, 3)
 				usersAll = env.Pool("User").OrderBy("Name")
 				So(usersAll.Len(), ShouldEqual, 3)
@@ -378,7 +380,7 @@ func TestGroupedQueries(t *testing.T) {
 	Convey("Testing grouped queries", t, func() {
 		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Simple grouped query on the whole table", func() {
-				groupedUsers := env.Pool("User").GroupBy(FieldName("IsStaff")).Aggregates(FieldName("IsStaff"), FieldName("Nums"))
+				groupedUsers := env.Pool("User").Call("GroupBy", []FieldNamer{FieldName("IsStaff")}).(RecordCollection).Call("Aggregates", []FieldNamer{FieldName("IsStaff"), FieldName("Nums")}).([]GroupAggregateRow)
 				So(len(groupedUsers), ShouldEqual, 2)
 				So(groupedUsers[0].Values, ShouldContainKey, "is_staff")
 				So(groupedUsers[0].Values, ShouldContainKey, "nums")
@@ -479,7 +481,7 @@ func TestUpdateRecordSet(t *testing.T) {
 					"Content": "Content of third post",
 				}).(RecordCollection)
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Email").Equals("jane.smith@example.com"))
-				userJane.Set("Posts", post1.Union(post3))
+				userJane.Set("Posts", post1.Call("Union", post3).(RecordCollection))
 				So(post1.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post3.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post2.Get("User").(RecordCollection).Get("ID"), ShouldEqual, 0)

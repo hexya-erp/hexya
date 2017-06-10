@@ -30,7 +30,7 @@ func TestEnvironment(t *testing.T) {
 			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 			Convey("Checking WithEnv", func() {
 				env2 := newEnvironment(2)
-				userJane1 := userJane.WithEnv(env2)
+				userJane1 := userJane.Call("WithEnv", env2).(RecordCollection)
 				So(userJane1.Env().Uid(), ShouldEqual, 2)
 				So(userJane.Env().Uid(), ShouldEqual, 1)
 				So(userJane.Env().Context().HasKey("key"), ShouldBeTrue)
@@ -38,7 +38,7 @@ func TestEnvironment(t *testing.T) {
 				env2.rollback()
 			})
 			Convey("Checking WithContext", func() {
-				userJane1 := userJane.WithContext("newKey", "This is a different key")
+				userJane1 := userJane.Call("WithContext", "newKey", "This is a different key").(RecordCollection)
 				So(userJane1.Env().Context().HasKey("key"), ShouldBeTrue)
 				So(userJane1.Env().Context().HasKey("newKey"), ShouldBeTrue)
 				So(userJane1.Env().Context().Get("key"), ShouldEqual, "context value")
@@ -51,7 +51,7 @@ func TestEnvironment(t *testing.T) {
 			})
 			Convey("Checking WithNewContext", func() {
 				newCtx := types.NewContext().WithKey("newKey", "This is a different key")
-				userJane1 := userJane.WithNewContext(newCtx)
+				userJane1 := userJane.Call("WithNewContext", newCtx).(RecordCollection)
 				So(userJane1.Env().Context().HasKey("key"), ShouldBeFalse)
 				So(userJane1.Env().Context().HasKey("newKey"), ShouldBeTrue)
 				So(userJane1.Env().Context().Get("newKey"), ShouldEqual, "This is a different key")
@@ -63,7 +63,7 @@ func TestEnvironment(t *testing.T) {
 			})
 			Convey("Checking Sudo", func() {
 				userJane1 := userJane.Sudo(2)
-				userJane2 := userJane1.Sudo()
+				userJane2 := userJane1.Call("Sudo").(RecordCollection)
 				So(userJane1.Env().Uid(), ShouldEqual, 2)
 				So(userJane.Env().Uid(), ShouldEqual, security.SuperUserID)
 				So(userJane2.Env().Uid(), ShouldEqual, security.SuperUserID)

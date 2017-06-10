@@ -127,15 +127,6 @@ func (fc *FieldsCollection) getComputedFields(fields ...string) (fil []*Field) {
 	return
 }
 
-/*
-getComputedStoredFields returns the slice of Field of the computed and stored
-fields of the given modelName.
-*/
-func (fc *FieldsCollection) getComputedStoredFields() (fil []*Field) {
-	fil = fc.computedStoredFields
-	return
-}
-
 // newFieldsCollection returns a pointer to a new empty FieldsCollection with
 // all maps initialized.
 func newFieldsCollection() *FieldsCollection {

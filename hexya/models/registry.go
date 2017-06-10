@@ -80,16 +80,6 @@ func (mc *modelCollection) MustGetSequence(nameOrJSON string) *Sequence {
 	return s
 }
 
-// mustGetMixInModel returns the Model of the given mixin name.
-// It panics if the given name is not the name of a registered mixin
-func (mc *modelCollection) mustGetMixInModel(name string) *Model {
-	mixInMI := mc.MustGet(name)
-	if !mixInMI.isMixin() {
-		log.Panic("Model is not a mixin model", "model", name)
-	}
-	return mixInMI
-}
-
 // add the given Model to the modelCollection
 func (mc *modelCollection) add(mi *Model) {
 	if _, exists := mc.Get(mi.name); exists {
@@ -230,10 +220,11 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 			}
 		case reflect.PtrTo(fType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
 			// the type implements sql.Scanner, so we call Scan
-			val = reflect.New(fType)
-			scanFunc := val.MethodByName("Scan")
+			valPtr := reflect.New(fType)
+			scanFunc := valPtr.MethodByName("Scan")
 			inArgs := []reflect.Value{reflect.ValueOf(fMapValue)}
 			scanFunc.Call(inArgs)
+			val = valPtr.Elem()
 		default:
 			rVal := reflect.ValueOf(fMapValue)
 			if rVal.Type().Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {

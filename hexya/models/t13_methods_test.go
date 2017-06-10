@@ -43,7 +43,7 @@ func TestComputedNonStoredFields(t *testing.T) {
 				So(users.Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
 			Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-				users := env.Pool("User").OrderBy("Name").Fetch()
+				users := env.Pool("User").OrderBy("Name").Call("Fetch").(RecordCollection)
 				So(users.Len(), ShouldEqual, 3)
 				userRecs := users.Records()
 				So(userRecs[0].Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")

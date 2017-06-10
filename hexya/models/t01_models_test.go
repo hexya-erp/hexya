@@ -25,11 +25,11 @@ import (
 func TestCreateDB(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
 		user := NewModel("User")
-		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
+		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true, NoCopy: true, OnChange: "computeDecoratedName"})
 		user.AddCharField("DecoratedName", StringFieldParams{Compute: "computeDecoratedName"})
 		user.AddCharField("Email", StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
-		user.AddCharField("Password", StringFieldParams{})
-		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
+		user.AddCharField("Password", StringFieldParams{NoCopy: true})
+		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16), Default: DefaultValue(int16(12))})
 		user.AddBooleanField("IsStaff", SimpleFieldParams{})
 		user.AddBooleanField("IsActive", SimpleFieldParams{})
 		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: "Profile"})
@@ -109,10 +109,10 @@ func TestCreateDB(t *testing.T) {
 			})
 
 		user.AddMethod("computeDecoratedName", "",
-			func(rc RecordCollection) FieldMap {
+			func(rc RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
-				return res
+				return res, []FieldNamer{FieldName("DecoratedName")}
 			})
 
 		user.AddMethod("computeAge", "",

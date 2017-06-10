@@ -85,13 +85,13 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"   ORDER BY id `)
 				})
 				Convey("Testing query with LIMIT clause", func() {
-					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Limit(1).Load()
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordCollection).Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 `)
 				})
 				Convey("Testing query with LIMIT and OFFSET clauses", func() {
-					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Limit(1).Offset(2).Load()
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordCollection).Call("Offset", 2).(RecordCollection).Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 OFFSET 2`)
