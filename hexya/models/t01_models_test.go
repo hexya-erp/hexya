@@ -22,7 +22,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestCreateDB(t *testing.T) {
+func TestModelDeclaration(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
 		user := NewModel("User")
 		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true, NoCopy: true, OnChange: "computeDecoratedName"})
@@ -32,7 +32,7 @@ func TestCreateDB(t *testing.T) {
 		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16), Default: DefaultValue(int16(12))})
 		user.AddBooleanField("IsStaff", SimpleFieldParams{})
 		user.AddBooleanField("IsActive", SimpleFieldParams{})
-		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: "Profile"})
+		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: "Profile", OnDelete: Restrict, Required: true})
 		user.AddIntegerField("Age", SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
 		user.AddOne2ManyField("Posts", ReverseFieldParams{RelationModel: "Post", ReverseFK: "User"})
 		user.AddFloatField("PMoney", FloatFieldParams{Related: "Profile.Money"})
@@ -54,8 +54,12 @@ func TestCreateDB(t *testing.T) {
 		post := NewModel("Post")
 		post.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: "User"})
 		post.AddCharField("Title", StringFieldParams{})
-		post.AddTextField("Content", StringFieldParams{})
+		post.AddHTMLField("Content", StringFieldParams{})
 		post.AddMany2ManyField("Tags", Many2ManyFieldParams{RelationModel: "Tag"})
+		post.AddRev2OneField("BestPostProfile", ReverseFieldParams{RelationModel: "Profile", ReverseFK: "BestPost"})
+		post.AddTextField("Abstract", StringFieldParams{})
+		post.AddBinaryField("Attachment", SimpleFieldParams{})
+		post.AddDateField("LastRead", SimpleFieldParams{})
 
 		tag := NewModel("Tag")
 		tag.AddCharField("Name", StringFieldParams{})
@@ -63,9 +67,10 @@ func TestCreateDB(t *testing.T) {
 		tag.AddMany2ManyField("Posts", Many2ManyFieldParams{RelationModel: "Post"})
 		tag.AddMany2OneField("Parent", ForeignKeyFieldParams{RelationModel: "Tag"})
 		tag.AddCharField("Description", StringFieldParams{})
+		tag.AddFloatField("Rate", FloatFieldParams{GoType: new(float32)})
 
 		addressMI := NewMixinModel("AddressMixIn")
-		addressMI.AddCharField("Street", StringFieldParams{})
+		addressMI.AddCharField("Street", StringFieldParams{GoType: new(string)})
 		addressMI.AddCharField("Zip", StringFieldParams{})
 		addressMI.AddCharField("City", StringFieldParams{})
 		profile.InheritModel(addressMI)
@@ -165,50 +170,47 @@ func TestCreateDB(t *testing.T) {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
-
-		// Creating a dummy table to check that it is correctly removed by Bootstrap
-		dbExecuteNoTx("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
 	})
+}
 
-	Convey("Database creation should run fine", t, func() {
-		Convey("Dummy table should exist", func() {
-			So(testAdapter.tables(), ShouldContainKey, "shouldbedeleted")
-		})
-		Convey("Bootstrap should not panic", func() {
-			So(BootStrap, ShouldNotPanic)
-			So(SyncDatabase, ShouldNotPanic)
-		})
-		Convey("Creating SQL view should run fine", func() {
+func TestFieldModification(t *testing.T) {
+	Convey("Testing field modification", t, func() {
+		numsField := Registry.MustGet("User").Fields().MustGet("Nums")
+		So(numsField.SetString("Nums Reloaded").description, ShouldEqual, "Nums Reloaded")
+		So(numsField.SetHelp("Num's Help").help, ShouldEqual, "Num's Help")
+		So(numsField.SetCompute("ComputeNum").compute, ShouldEqual, "ComputeNum")
+		So(numsField.SetCompute("").compute, ShouldEqual, "")
+		So(numsField.SetDefault(DefaultValue("DV")).defaultFunc(Environment{}, FieldMap{}).(string), ShouldEqual, "DV")
+		numsField.SetDepends([]string{"Dep1", "Dep2"})
+		So(numsField.depends, ShouldHaveLength, 2)
+		So(numsField.depends, ShouldContain, "Dep1")
+		So(numsField.depends, ShouldContain, "Dep2")
+		numsField.SetDepends(nil)
+		So(numsField.depends, ShouldBeEmpty)
+		So(numsField.SetGroupOperator("avg").groupOperator, ShouldEqual, "avg")
+		So(numsField.SetGroupOperator("sum").groupOperator, ShouldEqual, "sum")
+		So(numsField.SetIndex(true).index, ShouldBeTrue)
+		So(numsField.SetNoCopy(true).noCopy, ShouldBeTrue)
+		So(numsField.SetNoCopy(false).noCopy, ShouldBeFalse)
+		So(numsField.SetRelated("Profile.Money").relatedPath, ShouldEqual, "Profile.Money")
+		So(numsField.SetRelated("").relatedPath, ShouldEqual, "")
+		So(numsField.SetRequired(true).required, ShouldBeTrue)
+		So(numsField.SetRequired(false).required, ShouldBeFalse)
+		So(numsField.SetStored(true).stored, ShouldBeTrue)
+		So(numsField.SetStored(false).stored, ShouldBeFalse)
+		So(numsField.SetTranslate(true).translate, ShouldBeTrue)
+		So(numsField.SetUnique(true).unique, ShouldBeTrue)
+		So(numsField.SetUnique(false).unique, ShouldBeFalse)
+	})
+}
+
+func TestErroneousDeclarations(t *testing.T) {
+	Convey("Testing wrong field declarations", t, func() {
+		Convey("Ours = Theirs in M2M field def", func() {
+			userModel := Registry.MustGet("User")
 			So(func() {
-				dbExecuteNoTx(`DROP VIEW IF EXISTS user_view;
-					CREATE VIEW user_view AS (
-						SELECT u.id, u.name, p.city, u.active
-						FROM "user" u
-							LEFT JOIN "profile" p ON p.id = u.profile_id
-					)`)
-			}, ShouldNotPanic)
+				userModel.AddMany2ManyField("Tags", Many2ManyFieldParams{RelationModel: "Tag", M2MOurField: "FT", M2MTheirField: "FT"})
+			}, ShouldPanic)
 		})
-		Convey("All models should have a DB table", func() {
-			dbTables := testAdapter.tables()
-			for tableName, mi := range Registry.registryByTableName {
-				if mi.isMixin() || mi.isManual() {
-					continue
-				}
-				So(dbTables[tableName], ShouldBeTrue)
-			}
-		})
-		Convey("All DB tables should have a model", func() {
-			for dbTable := range testAdapter.tables() {
-				So(Registry.registryByTableName, ShouldContainKey, dbTable)
-			}
-		})
-	})
-	Convey("Truncating all tables...", t, func() {
-		for tn, mi := range Registry.registryByTableName {
-			if mi.isMixin() || mi.isManual() {
-				continue
-			}
-			dbExecuteNoTx(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))
-		}
 	})
 }

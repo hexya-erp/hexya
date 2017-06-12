@@ -42,8 +42,8 @@ var pgOperators = map[operator.Operator]string{
 }
 
 var pgTypes = map[fieldtype.Type]string{
-	fieldtype.Boolean:   "bool",
-	fieldtype.Char:      "varchar",
+	fieldtype.Boolean:   "boolean",
+	fieldtype.Char:      "character varying",
 	fieldtype.Text:      "text",
 	fieldtype.Date:      "date",
 	fieldtype.DateTime:  "timestamp without time zone",

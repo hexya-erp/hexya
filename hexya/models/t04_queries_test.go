@@ -96,6 +96,33 @@ func TestConditions(t *testing.T) {
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 OFFSET 2`)
 				})
+				Convey("Testing query with ORDER BY clauses", func() {
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("OrderBy", []string{"Email", "ID"}).(RecordCollection).Load()
+					fields := []string{"name"}
+					sql, _ := rs.query.selectQuery(fields)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".email AS email, "user".id AS id FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY "user".email , "user".id  `)
+				})
+				Convey("Testing complex conditions", func() {
+					rs = env.Pool("User").Search(rs.Model().Field("Profile.Age").GreaterOrEqual(12).
+						AndNot().Field("Name").IContains("Jane").
+						OrNot().FilteredOn("Profile", env.Pool("Profile").Model().Field("Age").Equals(20)))
+					sql, args := rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user__profile".age >= ? AND NOT "user".name ILIKE ? OR NOT "user__profile".age = ? ) `)
+					So(args, ShouldContain, 12)
+					So(args, ShouldContain, "%Jane%")
+					So(args, ShouldContain, 20)
+					cond1 := env.Pool("User").Model().Field("Name").IContains("Jane")
+					cond2 := env.Pool("User").Model().Field("Name").IContains("John")
+					rs := env.Pool("User").Search(
+						env.Pool("User").Model().Field("Age").GreaterOrEqual(30).
+							AndNotCond(cond1).
+							OrNotCond(cond2))
+					sql, args = rs.query.sqlWhereClause()
+					So(sql, ShouldEqual, `WHERE ("user".age >= ? AND NOT ("user".name ILIKE ? ) OR NOT ("user".name ILIKE ? ) ) `)
+					So(args, ShouldContain, 30)
+					So(args, ShouldContain, "%Jane%")
+					So(args, ShouldContain, "%John%")
+				})
 			})
 		}
 	})

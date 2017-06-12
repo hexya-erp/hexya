@@ -56,6 +56,7 @@ Server
 - [X] Automate routing and include for `static` dir in modules
 - [X] Improve hexya CLI with a cobra commander
 - [ ] Implement hexya REPL console
+- [ ] Redis cache for multi-server session store
 
 Client
 ------
@@ -71,6 +72,7 @@ Modules
     - [X] New schema for internal resources XML
     - [ ] Make hexya-generate create XSD for XML autocompletion
 - [X] Add support for CSV data files
+- [ ] Interface for report engines such as Jasper Reports
 
 Documentation
 -------------
@@ -79,6 +81,6 @@ Documentation
 - [X] Security reference
 - [ ] Views reference
 - [ ] Actions and menus reference
-- [ ] Low level models API reference
 - [ ] Module development tutorial
+- [ ] Low level models API reference
 - [ ] Testing Hexya

@@ -134,6 +134,8 @@ func (cs ConditionStart) FilteredOn(field string, condition *Condition) *Conditi
 	for i, p := range condition.predicates {
 		condition.predicates[i].exprs = append([]string{field}, p.exprs...)
 	}
+	condition.predicates[0].isOr = cs.nextIsOr
+	condition.predicates[0].isNot = cs.nextIsNot
 	res.predicates = append(res.predicates, condition.predicates...)
 	return &res
 }
