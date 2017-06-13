@@ -42,15 +42,16 @@ func init() {
 
 	HexyaCmd.PersistentFlags().String("db-driver", "postgres", "Database driver to use")
 	viper.BindPFlag("DB.Driver", HexyaCmd.PersistentFlags().Lookup("db-driver"))
-	HexyaCmd.PersistentFlags().String("db-host", "", "Database hostname or IP. Leave empty to connect through socket.")
+	HexyaCmd.PersistentFlags().String("db-host", "/var/run/postgresql",
+		"The database host to connect to. Values that start with / are for unix domain sockets directory")
 	viper.BindPFlag("DB.Host", HexyaCmd.PersistentFlags().Lookup("db-host"))
-	HexyaCmd.PersistentFlags().String("db-port", "5432", "Database port. Value is ignored if db-host is not set.")
+	HexyaCmd.PersistentFlags().String("db-port", "5432", "Database port. Value is ignored if db-host is not set")
 	viper.BindPFlag("DB.Port", HexyaCmd.PersistentFlags().Lookup("db-port"))
 	HexyaCmd.PersistentFlags().String("db-user", "", "Database user. Defaults to current user")
 	viper.BindPFlag("DB.User", HexyaCmd.PersistentFlags().Lookup("db-user"))
-	HexyaCmd.PersistentFlags().String("db-password", "", "Database password. Leave empty when connecting through socket.")
+	HexyaCmd.PersistentFlags().String("db-password", "", "Database password. Leave empty when connecting through socket")
 	viper.BindPFlag("DB.Password", HexyaCmd.PersistentFlags().Lookup("db-password"))
-	HexyaCmd.PersistentFlags().String("db-name", "hexya", "Database name. Defaults to 'hexya'")
+	HexyaCmd.PersistentFlags().String("db-name", "hexya", "Database name")
 	viper.BindPFlag("DB.Name", HexyaCmd.PersistentFlags().Lookup("db-name"))
 
 	initVersion()

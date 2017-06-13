@@ -88,8 +88,9 @@ func StartServer(config map[string]interface{}) {
 	menus.BootStrap()
 	server.PostInit()
 	srv := server.GetServer()
-	log.Info("Hexya is up and running")
-	srv.Run()
+	address := fmt.Sprintf("%s:%s", viper.GetString("Server.Interface"), viper.GetString("Server.Port"))
+	log.Info("Hexya is up and running", "address", address)
+	srv.Run(address)
 }
 
 // setupConfig takes the given config map and stores it into the viper configuration
@@ -124,6 +125,10 @@ func connectToDB() {
 }
 
 func initServer() {
+	serverCmd.PersistentFlags().StringP("interface", "i", "", "Interface on which the server should listen. Empty string is all interfaces")
+	viper.BindPFlag("Server.Interface", serverCmd.PersistentFlags().Lookup("interface"))
+	serverCmd.PersistentFlags().StringP("port", "p", "8080", "Port on which the server should listen.")
+	viper.BindPFlag("Server.Port", serverCmd.PersistentFlags().Lookup("port"))
 	HexyaCmd.AddCommand(serverCmd)
 }
 

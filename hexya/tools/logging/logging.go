@@ -205,7 +205,6 @@ func LogForGin(logger *Logger) gin.HandlerFunc {
 			"path", path,
 			"ip", c.ClientIP(),
 			"latency", latency,
-			"user-agent", c.Request.UserAgent(),
 		)
 
 		if len(c.Errors) > 0 {

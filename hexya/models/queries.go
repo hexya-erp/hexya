@@ -213,8 +213,11 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	)
 	for k, v := range data {
 		fi := q.recordSet.model.fields.MustGet(k)
-		if fi.fieldType.IsFKRelationType() && !fi.required && v.(int64) == 0 {
-			continue
+		if fi.fieldType.IsFKRelationType() && !fi.required {
+			if _, ok := v.(*interface{}); ok {
+				// We have a null fk field
+				continue
+			}
 		}
 		cols = append(cols, fi.json)
 		vals = append(vals, v)

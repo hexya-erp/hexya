@@ -123,7 +123,7 @@ func declareCRUDMethods() {
 				}
 			}
 			return res
-		})
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Load",
 		`Load query all data of the RecordCollection and store in cache.

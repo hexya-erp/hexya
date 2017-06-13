@@ -104,13 +104,21 @@ Usage:
   hexya generate [projectDir] [flags]
 
 Flags:
-  -t, --test   Generate pool for test module. When set projectDir is ignored.
+      --empty         Generate an empty pool package. When set projectDir is ignored.
+  -t, --test string   Generate pool for testing the module in the given source directory. When set projectDir is ignored.
 
 Global Flags:
-  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.hexya/
-  -l, --log-file string    File to which the log will be written
-  -L, --log-level string   Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
-  -o, --log-stdout         Enable stdout logging. Use for development or debugging.
+  -c, --config string        Alternate configuration file to read. Defaults to $HOME/.hexya/
+      --db-driver string     Database driver to use (default "postgres")
+      --db-host string       The database host to connect to. Values that start with / are for unix domain sockets directory (default "/var/run/postgresql")
+      --db-name string       Database name (default "hexya")
+      --db-password string   Database password. Leave empty when connecting through socket
+      --db-port string       Database port. Value is ignored if db-host is not set (default "5432")
+      --db-user string       Database user. Defaults to current user
+      --debug                Enable server debug mode for development
+  -l, --log-file string      File to which the log will be written
+  -L, --log-level string     Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
+  -o, --log-stdout           Enable stdout logging. Use for development or debugging.
 ----
 
 == Synchronise database
@@ -120,18 +128,22 @@ Global Flags:
 For now Hexya only supports Postgresql. Here is the quick setup for evaluating
 Hexya. Please refer to Postgresql documentation for finer setup.
 
-==== Create a hexya user
+==== Create a postgres user
+On Linux, use your distribution's package, then create a postgres user named
+like your login:
+
 [source,shell]
 ----
-$ createuser -s -W hexya
+$ sudo su - postgres -c "createuser -s $USER"
 ----
+Because the role login is the same as your unix login unix sockets can be use
+without a password.
 
 ==== Create a hexya database
 [source,shell]
 ----
-$ createdb -O hexya hexya
+$ createdb hexya
 ----
-
 
 === Synchronise database schema with models
 
@@ -140,12 +152,12 @@ This step will synchronise the database with the models defined.
 [source,shell]
 ----
 cd <projectDir>
-hexya updatedb -o --db-password=MY_DB_PASSWORD
+hexya updatedb -o
 ----
-where `MY_DB_PASSWD` is the password set for the `hexya` db user above.
 
 Type `hexya help updatedb` for the list of available options:
 ----
+$ hexya help updatedb
 Synchronize the database schema with the models definitions.
 
 Usage:
@@ -154,10 +166,10 @@ Usage:
 Global Flags:
   -c, --config string        Alternate configuration file to read. Defaults to $HOME/.hexya/
       --db-driver string     Database driver to use (default "postgres")
-      --db-host string       Database hostname or IP. Leave empty to connect through socket.
-      --db-name string       Database name. Defaults to 'hexya' (default "hexya")
-      --db-password string   Database password. Leave empty when connecting through socket.
-      --db-port string       Database port. Value is ignored if db-host is not set. (default "5432")
+      --db-host string       The database host to connect to. Values that start with / are for unix domain sockets directory (default "/var/run/postgresql")
+      --db-name string       Database name (default "hexya")
+      --db-password string   Database password. Leave empty when connecting through socket
+      --db-port string       Database port. Value is ignored if db-host is not set (default "5432")
       --db-user string       Database user. Defaults to current user
       --debug                Enable server debug mode for development
   -l, --log-file string      File to which the log will be written
@@ -172,7 +184,7 @@ Hexya is launched by the `hexya server` command from inside the project director
 [source,shell]
 ----
 cd <projectDir>
-hexya server -o --db-password=MY_DB_PASSWORD
+hexya server -o
 ----
 
 Type `hexya help server` to get the list of available options:
@@ -186,16 +198,19 @@ Usage:
   hexya server [projectDir] [flags]
 
 Flags:
-      --db-driver string     Database driver to use (default "postgres")
-      --db-host string       Database hostname or IP. Leave empty to connect through socket.
-      --db-name string       Database name. Defaults to 'hexya' (default "hexya")
-      --db-password string   Database password. Leave empty when connecting through socket.
-      --db-port string       Database port. Value is ignored if db-host is not set. (default "5432")
-      --db-user string       Database user. Defaults to current user
+  -i, --interface string   Interface on which the server should listen. Empty string is all interfaces
+  -p, --port string        Port on which the server should listen. (default "8080")
 
 Global Flags:
-  -c, --config string      Alternate configuration file to read. Defaults to $HOME/.hexya/
-  -l, --log-file string    File to which the log will be written
-  -L, --log-level string   Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
-  -o, --log-stdout         Enable stdout logging. Use for development or debugging.
+  -c, --config string        Alternate configuration file to read. Defaults to $HOME/.hexya/
+      --db-driver string     Database driver to use (default "postgres")
+      --db-host string       The database host to connect to. Values that start with / are for unix domain sockets directory (default "/var/run/postgresql")
+      --db-name string       Database name (default "hexya")
+      --db-password string   Database password. Leave empty when connecting through socket
+      --db-port string       Database port. Value is ignored if db-host is not set (default "5432")
+      --db-user string       Database user. Defaults to current user
+      --debug                Enable server debug mode for development
+  -l, --log-file string      File to which the log will be written
+  -L, --log-level string     Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
+  -o, --log-stdout           Enable stdout logging. Use for development or debugging.
 ----
