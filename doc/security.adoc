@@ -48,7 +48,7 @@ const (
 )
 ----
 
-They are used when defining Record Rules of Field Access Controls.
+They are used when defining Record Rules or Field Access Controls.
 
 == Method Execution Control (MEC)
 
@@ -146,7 +146,7 @@ NOTE: These methods return a pointer to the receiver so that they can be
 chained.
 
 [source,go]
-salesManager := models.GroupsRegistry.Get("sale_manager")
+salesManager := security.Registry.GetGroup("sale_manager")
 pool.Partner().Fields().Phone().
     RevokeAccess(security.GroupEveryOne, security.Read).
     AllowAccess(salesManager, security.Read)
@@ -190,13 +190,13 @@ rule's `Name` already exists, then the rule is overwritten.
 
 [source,go]
 ----
-salesman := models.GroupsRegistry.Get("sale_user")
+salesman := security.Registry.GetGroup("sale_user")
 
 func getUserID(rs pool.PartnerSet) interface{} {
     return rs.Env().Uid()
 }
 
-cond := models.NewCondition().And("User.ID", "=", getUserID)
+cond := pool.Partner().UserFilteredOn(pool.User().ID().Equals(getUserID))
 
 rule := models.RecordRule {
     Name:      "salesman_own_partner",

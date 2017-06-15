@@ -178,6 +178,9 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
+	if params.OnChange == "" && params.Compute != "" {
+		params.OnChange = params.Compute
+	}
 	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
@@ -214,6 +217,9 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
+	if params.OnChange == "" && params.Compute != "" {
+		params.OnChange = params.Compute
+	}
 	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
@@ -259,6 +265,9 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		required = true
 		noCopy = true
 	}
+	if params.OnChange == "" && params.Compute != "" {
+		params.OnChange = params.Compute
+	}
 	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
@@ -293,6 +302,9 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
+	if params.OnChange == "" && params.Compute != "" {
+		params.OnChange = params.Compute
+	}
 	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
@@ -361,6 +373,9 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldtype.Float, params.JSON, params.String)
+	if params.OnChange == "" && params.Compute != "" {
+		params.OnChange = params.Compute
+	}
 	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
@@ -428,6 +443,9 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, our, their)
 
 	json, str := getJSONAndString(name, fieldtype.Float, params.JSON, params.String)
+	if params.OnChange == "" && params.Compute != "" {
+		params.OnChange = params.Compute
+	}
 	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
@@ -485,6 +503,9 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		Type: reflect.TypeOf(*new(string)),
 	}
 	json, str := getJSONAndString(name, fieldtype.Float, params.JSON, params.String)
+	if params.OnChange == "" && params.Compute != "" {
+		params.OnChange = params.Compute
+	}
 	fInfo := &Field{
 		model:       m,
 		acl:         security.NewAccessControlList(),
@@ -593,5 +614,11 @@ func (f *Field) SetTranslate(value bool) *Field {
 // SetDefault overrides the value of the Default parameter of this Field
 func (f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field {
 	f.defaultFunc = value
+	return f
+}
+
+// SetSelection overrides the value of the Selection parameter of this Field
+func (f *Field) SetSelection(value types.Selection) *Field {
+	f.selection = value
 	return f
 }

@@ -36,6 +36,9 @@ ORM
 - [X] Database foreign keys to related fields
 - [X] Implement "group by" queries
 - [X] Implement 'child_of' domain operator
+- [ ] Implement sending warning and domain with onchange
+- [ ] Implement model constraints
+- [ ] Implement search restrictions for relation fields
 - [ ] Pagination API for RecordSets
 - [ ] i18n and l10n support to ORM models
 
@@ -81,6 +84,6 @@ Documentation
 - [X] Security reference
 - [ ] Views reference
 - [ ] Actions and menus reference
-- [ ] Module development tutorial
+- [X] Module development tutorial
 - [ ] Low level models API reference
 - [ ] Testing Hexya

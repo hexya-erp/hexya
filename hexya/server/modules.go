@@ -29,7 +29,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/views"
 )
 
-var symlinkDirs = []string{"static", "templates", "data", "views"}
+var symlinkDirs = []string{"static", "templates", "data", "resources"}
 
 // A Module is a go package that implements business features.
 // This struct is used to register modules.
@@ -87,13 +87,13 @@ func cleanModuleSymlinks() {
 	}
 }
 
-// LoadInternalResources loads all data in the 'views' directory, that are
+// LoadInternalResources loads all data in the 'resources' directory, that are
 // - views,
 // - actions,
 // - menu items
 // Internal resources are defined in XML files.
 func LoadInternalResources() {
-	loadData("views", "xml", loadXMLResourceFile)
+	loadData("resources", "xml", loadXMLResourceFile)
 }
 
 // LoadDataRecords loads all the data records in the 'data' directory into the database.
@@ -108,7 +108,7 @@ func loadData(dir, ext string, loader func(string)) {
 	for _, mod := range Modules {
 		dataDir := path.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
 		if _, err := os.Stat(dataDir); err != nil {
-			// No views dir in this module
+			// No resources dir in this module
 			continue
 		}
 		dataFiles, err := filepath.Glob(fmt.Sprintf("%s/*.%s", dataDir, ext))
