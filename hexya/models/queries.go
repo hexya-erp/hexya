@@ -16,6 +16,7 @@ package models
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
@@ -117,6 +118,14 @@ func (q *Query) predicateSQLClause(p predicate, first ...bool) (string, SQLParam
 	}
 
 	exprs := jsonizeExpr(q.recordSet.model, p.exprs)
+	fi := q.recordSet.model.getRelatedFieldInfo(strings.Join(exprs, ExprSep))
+	if fi.fieldType.IsFKRelationType() {
+		// If we have a relation type with a 0 as foreign key, we substitute for nil
+		valInt, _ := strconv.ParseInt(fmt.Sprintf("%v", p.arg), 10, 64)
+		if valInt == 0 {
+			p.arg = nil
+		}
+	}
 	field := q.joinedFieldExpression(exprs)
 	if p.arg == nil {
 		switch p.operator {
