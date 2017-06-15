@@ -22,10 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
+	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 )
 
 var log *logging.Logger
@@ -63,7 +63,10 @@ func (c *Context) GetString(key string) string {
 // It panics if the value cannot be casted to int64
 func (c *Context) GetInteger(key string) int64 {
 	val := c.Get(key)
-	res := castToInteger(val, key)
+	res, err := nbutils.CastToInteger(val)
+	if err != nil {
+		log.Panic(err.Error(), "ContextKey", key)
+	}
 	return res
 }
 
@@ -72,7 +75,10 @@ func (c *Context) GetInteger(key string) int64 {
 // It panics if the value cannot be casted to float64
 func (c *Context) GetFloat(key string) float64 {
 	val := c.Get(key)
-	res := castToFloat(val, key)
+	res, err := nbutils.CastToFloat(val)
+	if err != nil {
+		log.Panic(err.Error(), "ContextKey", key)
+	}
 	return res
 }
 
@@ -106,8 +112,12 @@ func (c *Context) GetIntegerSlice(key string) []int64 {
 		log.Panic("Value in Context is not a slice", "key", key, "value", val)
 	}
 	res := make([]int64, rVal.Len())
+	var err error
 	for i := 0; i < rVal.Len(); i++ {
-		res[i] = castToInteger(rVal.Index(i).Interface(), key)
+		res[i], err = nbutils.CastToInteger(rVal.Index(i).Interface())
+		if err != nil {
+			log.Panic(err.Error(), "ContextKey", key)
+		}
 	}
 	return res
 }
@@ -123,38 +133,12 @@ func (c *Context) GetFloatSlice(key string) []float64 {
 		log.Panic("Value in Context is not a slice", "key", key, "value", val)
 	}
 	res := make([]float64, rVal.Len())
+	var err error
 	for i := 0; i < rVal.Len(); i++ {
-		res[i] = castToFloat(rVal.Index(i).Interface(), key)
-	}
-	return res
-}
-
-// castToInteger casts the given val to int64 if it is
-// a number type. Panics otherwise
-func castToInteger(val interface{}, key string) int64 {
-	var res int64
-	switch value := val.(type) {
-	case int64:
-		res = value
-	case int, int8, int16, int32, uint, uint8, uint16, uint32, uint64, float32, float64:
-		res, _ = strconv.ParseInt(fmt.Sprintf("%v", value), 10, 64)
-	default:
-		log.Panic("Context value cannot be cast to int64", "key", key, "value", val)
-	}
-	return res
-}
-
-// castToFloat casts the given val to float64 if it is
-// a number type. Panics otherwise
-func castToFloat(val interface{}, key string) float64 {
-	var res float64
-	switch value := val.(type) {
-	case float64:
-		res = value
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32:
-		res, _ = strconv.ParseFloat(fmt.Sprintf("%d", value), 64)
-	default:
-		log.Panic("Context value cannot be cast to float64", "key", key, "value", val)
+		res[i], err = nbutils.CastToFloat(rVal.Index(i).Interface())
+		if err != nil {
+			log.Panic(err.Error(), "ContextKey", key)
+		}
 	}
 	return res
 }

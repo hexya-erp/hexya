@@ -16,11 +16,11 @@ package models
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/operator"
+	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 )
 
 // An SQLParams is a list of parameters that are passed to the
@@ -121,8 +121,7 @@ func (q *Query) predicateSQLClause(p predicate, first ...bool) (string, SQLParam
 	fi := q.recordSet.model.getRelatedFieldInfo(strings.Join(exprs, ExprSep))
 	if fi.fieldType.IsFKRelationType() {
 		// If we have a relation type with a 0 as foreign key, we substitute for nil
-		valInt, _ := strconv.ParseInt(fmt.Sprintf("%v", p.arg), 10, 64)
-		if valInt == 0 {
+		if valInt, err := nbutils.CastToInteger(p.arg); err == nil && valInt == 0 {
 			p.arg = nil
 		}
 	}
