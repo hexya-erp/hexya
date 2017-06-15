@@ -363,7 +363,7 @@ func processDepends() {
 // in computed fields and for OnChange methods.
 // It panics if it is not the case.
 func checkComputeMethodsSignature() {
-	checkMethType := func(method *Method, stored bool, label string) {
+	checkMethType := func(method *Method, label string) {
 		methType := method.methodType
 		var msg string
 		switch {
@@ -373,7 +373,7 @@ func checkComputeMethodsSignature() {
 			msg = fmt.Sprintf("%s should return a value", label)
 		case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
 			msg = "First return argument must implement models.FieldMapper"
-		case methType.NumOut() == 1 && stored:
+		case methType.NumOut() < 2:
 			msg = fmt.Sprintf("%s must return fields to unset as second value", label)
 		case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldNamer{}):
 			msg = fmt.Sprintf("Second return value of %s must be []models.FieldNamer", label)
@@ -387,18 +387,18 @@ func checkComputeMethodsSignature() {
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.computedFields {
 			method := mi.methods.MustGet(fi.compute)
-			checkMethType(method, false, "Compute methods")
+			checkMethType(method, "Compute methods")
 		}
 		for _, fi := range mi.fields.computedStoredFields {
 			method := mi.methods.MustGet(fi.compute)
-			checkMethType(method, true, "Compute method for stored fields")
+			checkMethType(method, "Compute method for stored fields")
 		}
 		for _, fi := range mi.fields.registryByName {
 			if fi.onChange == "" {
 				continue
 			}
 			method := mi.methods.MustGet(fi.onChange)
-			checkMethType(method, true, "OnChange methods")
+			checkMethType(method, "OnChange methods")
 		}
 	}
 }
