@@ -4,10 +4,12 @@
 package models
 
 import (
+	"encoding/base64"
 	"encoding/csv"
 	"io"
+	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -23,8 +25,9 @@ func LoadCSVDataFile(fileName string) {
 		log.Panic("Unable to open CSV data file", "error", err, "fileName", fileName)
 	}
 
-	elements := strings.Split(path.Base(fileName), "_")
+	elements := strings.Split(filepath.Base(fileName), "_")
 	modelName := strings.Split(elements[0], ".")[0]
+	modelName = strings.TrimLeft(modelName, "01234567890-")
 	var (
 		update  bool
 		version int
@@ -60,7 +63,7 @@ func LoadCSVDataFile(fileName string) {
 				break
 			}
 
-			values := getRecordValuesMap(headers, modelName, record, env, line)
+			values := getRecordValuesMap(headers, modelName, record, env, line, filepath.Dir(fileName))
 
 			externalID := values["id"]
 			delete(values, "id")
@@ -83,7 +86,7 @@ func LoadCSVDataFile(fileName string) {
 	}
 }
 
-func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int) FieldMap {
+func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int, dir string) FieldMap {
 	values := make(map[string]interface{})
 	for i := 0; i < len(headers); i++ {
 		fi := Registry.MustGet(modelName).getRelatedFieldInfo(headers[i])
@@ -114,6 +117,16 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 			ids := strings.Split(record[i], "|")
 			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").In(ids))
 			val = relRC.Ids()
+		case fi.fieldType == fieldtype.Binary:
+			if record[i] == "" {
+				continue
+			}
+			fileName := filepath.Join(dir, record[i])
+			fileContent, err := ioutil.ReadFile(fileName)
+			if err != nil {
+				log.Panic("Unable to open file with binary data", "error", err, "line", line, "field", headers[i], "value", record[i])
+			}
+			val = base64.StdEncoding.EncodeToString(fileContent)
 		default:
 			val = record[i]
 		}

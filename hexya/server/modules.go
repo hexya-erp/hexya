@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sort"
 
 	"github.com/hexya-erp/hexya/hexya/actions"
 	"github.com/hexya-erp/hexya/hexya/menus"
@@ -115,7 +116,9 @@ func loadData(dir, ext string, loader func(string)) {
 		if err != nil {
 			log.Panic("Unable to scan directory for data files", "dir", dataDir, "type", ext, "error", err)
 		}
-		for _, dataFile := range dataFiles {
+		dataFilesSorted := sort.StringSlice(dataFiles)
+		dataFilesSorted.Sort()
+		for _, dataFile := range dataFilesSorted {
 			loader(dataFile)
 		}
 	}

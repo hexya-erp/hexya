@@ -145,6 +145,7 @@ type MethodASTData struct {
 // A ModelASTData holds fields and methods data of a Model
 type ModelASTData struct {
 	Name    string
+	IsMixin bool
 	Fields  map[string]FieldASTData
 	Methods map[string]MethodASTData
 	Mixins  map[string]bool
@@ -182,11 +183,10 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 			ast.Inspect(file, func(n ast.Node) bool {
 				switch node := n.(type) {
 				case *ast.CallExpr:
-					fNode, ok := node.Fun.(*ast.SelectorExpr)
-					if !ok {
+					fnctName, err := extractFunctionName(node)
+					if err != nil {
 						return true
 					}
-					fnctName := fNode.Sel.Name
 					switch {
 					case fnctName == "AddMethod":
 						parseAddMethod(node, modInfo, &modelsData)
@@ -257,21 +257,41 @@ func parseMixInModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 
 // parseNewModel parses the given node which is a NewXXXModel function
 func parseNewModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
-	fNode := node.Fun.(*ast.SelectorExpr)
+	fName, _ := extractFunctionName(node)
 	modelName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, `"`)
-	modelType := strings.TrimSuffix(strings.TrimPrefix(fNode.Sel.Name, "New"), "Model")
+	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, "New"), "Model")
 	if _, exists := (*modelsData)[modelName]; !exists {
 		(*modelsData)[modelName] = newModelASTData(modelName)
 	}
-
-	(*modelsData)[modelName].Mixins["CommonMixin"] = true
+	if modelName != "CommonMixin" {
+		(*modelsData)[modelName].Mixins["CommonMixin"] = true
+	}
 	switch modelType {
 	case "":
 		(*modelsData)[modelName].Mixins["BaseMixin"] = true
 		(*modelsData)[modelName].Mixins["ModelMixin"] = true
 	case "Transient":
 		(*modelsData)[modelName].Mixins["BaseMixin"] = true
+	case "Mixin":
+		mData := (*modelsData)[modelName]
+		mData.IsMixin = true
+		(*modelsData)[modelName] = mData
 	}
+}
+
+// extractFunctionName returns the name of the called function
+// in the given call expression.
+func extractFunctionName(node *ast.CallExpr) (string, error) {
+	var fName string
+	switch nf := node.Fun.(type) {
+	case *ast.SelectorExpr:
+		fName = nf.Sel.Name
+	case *ast.Ident:
+		fName = nf.Name
+	default:
+		return "", errors.New("Unexpected node type")
+	}
+	return fName, nil
 }
 
 // parseAddField parses the given node which is an AddXXXXField function

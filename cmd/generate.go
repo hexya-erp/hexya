@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"go/build"
 	"os"
-	"path"
 	"path/filepath"
 	"text/template"
 
@@ -34,12 +33,6 @@ const (
 	PoolDirRel string = "pool"
 	// TempEmpty is the name of the temporary go file in the pool directory for startup
 	TempEmpty string = "temp.go"
-	// TempStructs is the name of the temporary go file in the pool directory used in stage 1
-	TempStructs string = "temp_structs.go"
-	// TempMethods is the name of the temporary go file in the pool directory used in stage 3
-	TempMethods string = "temp_methods.go"
-	// StructGen is the name of the generated script of stage 4
-	StructGen string = "hexya-temp.go"
 )
 
 var generateCmd = &cobra.Command{
@@ -73,7 +66,7 @@ func initGenerate() {
 }
 
 func runGenerate(projectDir string) {
-	poolDir := path.Join(generate.HexyaDir, PoolDirRel)
+	poolDir := filepath.Join(generate.HexyaDir, PoolDirRel)
 	cleanPoolDir(poolDir)
 	if generateEmptyPool {
 		return
@@ -87,7 +80,7 @@ func runGenerate(projectDir string) {
 ------------`)
 	fmt.Printf("Detected Hexya root directory at %s.\n", generate.HexyaDir)
 
-	targetDir := path.Join(projectDir, "config")
+	targetDir := filepath.Join(projectDir, "config")
 	if testedModule != "" {
 		targetDir, _ = filepath.Abs(testedModule)
 	}
@@ -133,7 +126,7 @@ Warnings may appear here, just ignore them if hexya-generate doesn't crash.`)
 func cleanPoolDir(dirName string) {
 	os.RemoveAll(dirName)
 	os.MkdirAll(dirName, 0755)
-	generate.CreateFileFromTemplate(path.Join(dirName, TempEmpty), emptyPoolTemplate, nil)
+	generate.CreateFileFromTemplate(filepath.Join(dirName, TempEmpty), emptyPoolTemplate, nil)
 }
 
 var emptyPoolTemplate = template.Must(template.New("").Parse(`

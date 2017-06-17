@@ -140,3 +140,8 @@ type FieldMapper interface {
 	// FieldMap returns the object converted to a FieldMap
 	FieldMap(fields ...FieldNamer) FieldMap
 }
+
+// A Methoder can return a Method data object through its Underlying() method
+type Methoder interface {
+	Underlying() *Method
+}

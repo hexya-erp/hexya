@@ -36,6 +36,7 @@ type methodData struct {
 	Doc            string
 	Params         string
 	ParamsWithType string
+	ParamsTypes    string
 	ReturnAsserts  string
 	Returns        string
 	ReturnString   string
@@ -62,7 +63,7 @@ type modelData struct {
 	Deps           []string
 	Fields         []fieldData
 	Methods        []methodData
-	AllMethods     []string
+	AllMethods     []methodData
 	ConditionFuncs []string
 	Types          []fieldType
 }
@@ -122,11 +123,7 @@ func CreatePool(program *loader.Program, dir string) {
 func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *modelData, depsMap *map[string]bool) {
 	modelASTData := modelsASTData[modelData.Name]
 	for methodName, methodASTData := range modelASTData.Methods {
-		modelData.AllMethods = append(modelData.AllMethods, methodName)
-		if specificMethods[methodName] {
-			continue
-		}
-		var params, paramsWithType, call, returns, returnAsserts, returnString string
+		var params, paramsWithType, paramsType, call, returns, returnAsserts, returnString string
 		for _, astParam := range methodASTData.Params {
 			paramType := astParam.Type.Type
 			if astParam.Variadic {
@@ -141,6 +138,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			}
 			params += p
 			paramsWithType += fmt.Sprintf("%s %s,", astParam.Name, paramType)
+			paramsType += fmt.Sprintf("%s,", paramType)
 			(*depsMap)[astParam.Type.ImportPath] = true
 		}
 		if len(methodASTData.Returns) == 1 {
@@ -175,6 +173,14 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 					returnString += fmt.Sprintf("%s,", ret.Type)
 				}
 			}
+		}
+		modelData.AllMethods = append(modelData.AllMethods, methodData{
+			Name:         methodName,
+			ParamsTypes:  strings.TrimRight(paramsType, ","),
+			ReturnString: strings.TrimSuffix(returnString, ","),
+		})
+		if specificMethods[methodName] {
+			continue
 		}
 		modelData.Methods = append(modelData.Methods, methodData{
 			Name:           methodName,
@@ -374,9 +380,30 @@ type {{ .Name }}MethodsCollection struct {
 }
 
 {{ range .AllMethods }}
-// {{ . }} returns a pointer to the {{ . }} Method.
-func (c {{ $.Name }}MethodsCollection) {{ . }}() *models.Method {
-	return c.MustGet("{{ . }}")
+// {{ $.Name }}_{{ .Name }} holds the metadata of the {{ $.Name }}.{{ .Name }}() method
+type {{ $.Name }}_{{ .Name }} struct {
+	*models.Method
+}
+
+// Extend adds the given fnct function as a new layer on this method.
+func (m {{ $.Name }}_{{ .Name }}) Extend(doc string, fnct func({{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) {{ $.Name }}_{{ .Name }} {
+	return {{ $.Name }}_{{ .Name }} {
+		Method: m.Method.Extend(doc, fnct),
+	}
+}
+
+// Underlying returns a pointer to the underlying Method data object.
+func (m {{ $.Name }}_{{ .Name }}) Underlying() *models.Method {
+	return m.Method
+}
+
+var _ models.Methoder = {{ $.Name }}_{{ .Name }}{}
+
+// {{ .Name }} returns a pointer to the {{ .Name }} Method.
+func (c {{ $.Name }}MethodsCollection) {{ .Name }}() {{ $.Name }}_{{ .Name }} {
+	return {{ $.Name }}_{{ .Name }} {
+		Method: c.MustGet("{{ .Name }}"),
+	}
 }
 {{ end }}
 
@@ -490,6 +517,15 @@ func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
 }
 
 var _ models.FieldMapper = {{ .Name }}Data{}
+
+// Get{{ .Name }}DataFromFieldMap returns a {{ .Name }}Data populated with
+// the data from the given FieldMapper
+func Get{{ .Name }}DataFromFieldMap(fMap models.FieldMapper) {{ .Name }}Data {
+	return {{ .Name }}Data {
+{{ range .Fields }}		{{ .Name }}: fMap.FieldMap()["{{ .Name }}"].({{ .Type }}),
+{{ end }}
+	}
+}
 
 // ------- RECORD SET ---------
 

@@ -19,7 +19,7 @@ import (
 	"go/build"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"text/template"
 
 	"github.com/gin-gonic/gin"
@@ -55,7 +55,7 @@ If projectDir is omitted, defaults to the current directory.`,
 
 // generateAndRunFile creates the startup file of the project and runs it.
 func generateAndRunFile(projectDir, fileName string, tmpl *template.Template) {
-	projectPack, err := build.ImportDir(path.Join(projectDir, "config"), 0)
+	projectPack, err := build.ImportDir(filepath.Join(projectDir, "config"), 0)
 	if err != nil {
 		panic(fmt.Errorf("Error while importing project path: %s", err))
 	}
@@ -67,7 +67,7 @@ func generateAndRunFile(projectDir, fileName string, tmpl *template.Template) {
 		Imports: projectPack.Imports,
 		Config:  fmt.Sprintf("%#v", viper.AllSettings()),
 	}
-	startFileName := path.Join(projectDir, fileName)
+	startFileName := filepath.Join(projectDir, fileName)
 	generate.CreateFileFromTemplate(startFileName, tmpl, tmplData)
 	cmd := exec.Command("go", "run", startFileName)
 	cmd.Stdout = os.Stdout

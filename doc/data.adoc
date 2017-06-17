@@ -10,10 +10,12 @@ the Hexya framework provides a way to load data through the use of CSV files.
 
 == CSV Files
 All files that will be put in the `data` subdirectory of a module will be
-automatically loaded in the database following these rules:
+automatically loaded in the database by alphabetical order, following these
+rules:
 
 - The name of the CSV file must be the name of a model defined in the framework
-either in this module or in dependencies of this module.
+either in this module or in dependencies of this module. Numbers and dashes at
+the beginning of the file name are trimmed (used for sorting).
 - The header line of the CSV defines the field names either as their real name
 or their column (JSON) name.
 - Each line is a record, with the values for each field.
@@ -22,6 +24,8 @@ each record known as its "external ID". If it is not defined, the framework
 will provide one for each record.
 - Foreign key fields must be set with the related record external ID
 - Many-to-Many fields must be set with a `|` separated list of external IDs
+- Binary fields must be set with the relative path (from this file's directory)
+to a file with the binary content to load.
 
 == Versions
 Versions of data can be handled through the name of the CSV file.

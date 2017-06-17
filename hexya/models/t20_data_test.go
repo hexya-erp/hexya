@@ -37,7 +37,7 @@ func TestDataLoading(t *testing.T) {
 				So(userPeter.Get("Name"), ShouldEqual, "Peter Modified")
 			})
 			Convey("Check that import with update updates even existing", func() {
-				LoadCSVDataFile("testdata/User_update.csv")
+				LoadCSVDataFile("testdata/200User_update.csv")
 				users := userObj.FetchAll()
 				So(users.Len(), ShouldEqual, 6)
 				userPeter := userObj.Search(userObj.Model().Field("Name").Equals("Peter"))
@@ -99,7 +99,7 @@ func TestDataLoading(t *testing.T) {
 				So(userKen.Get("Size").(float64), ShouldEqual, 1.76)
 			})
 			Convey("Checking imports with foreign keys", func() {
-				LoadCSVDataFile("testdata/Tag.csv")
+				LoadCSVDataFile("testdata/010-Tag.csv")
 				LoadCSVDataFile("testdata/Post.csv")
 				userPeter := userObj.Search(userObj.Model().Field("Name").Equals("Peter"))
 				So(userPeter.Get("Posts").(RecordCollection).Len(), ShouldEqual, 1)

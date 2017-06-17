@@ -115,7 +115,7 @@ func (m *Method) invertedLayers() []*methodLayer {
 // AllowGroup grants the execution permission on this method to the given group
 // If callers are defined, then the permission is granted only when this method
 // is called from one of the callers, otherwise it is granted from any caller.
-func (m *Method) AllowGroup(group *security.Group, callers ...*Method) *Method {
+func (m *Method) AllowGroup(group *security.Group, callers ...Methoder) *Method {
 	m.Lock()
 	defer m.Unlock()
 	if len(callers) == 0 {
@@ -123,8 +123,13 @@ func (m *Method) AllowGroup(group *security.Group, callers ...*Method) *Method {
 		return m
 	}
 	for _, caller := range callers {
-		m.groupsCallers[callerGroup{caller: caller, group: group}] = true
+		m.groupsCallers[callerGroup{caller: caller.Underlying(), group: group}] = true
 	}
+	return m
+}
+
+// Underlying returns the underlysing method data object
+func (m *Method) Underlying() *Method {
 	return m
 }
 
@@ -142,6 +147,8 @@ func (m *Method) RevokeGroup(group *security.Group) *Method {
 	}
 	return m
 }
+
+var _ Methoder = new(Method)
 
 // methodLayer is one layer of a method, that is one function defined in a module
 type methodLayer struct {

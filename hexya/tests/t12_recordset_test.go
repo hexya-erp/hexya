@@ -410,6 +410,8 @@ func TestUpdateRecordSet(t *testing.T) {
 					Title:   "3rd Post",
 					Content: "Content of third post",
 				})
+				So(post3.Title(), ShouldEqual, "3rd Post")
+				So(post3.Content(), ShouldEqual, "Content of third post")
 				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
 				userJane.SetPosts(post1.Union(post3))
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
