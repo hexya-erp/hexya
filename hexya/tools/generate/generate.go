@@ -60,6 +60,7 @@ type fieldType struct {
 // A modelData describes a RecordSet model
 type modelData struct {
 	Name           string
+	IsMixin        bool
 	Deps           []string
 	Fields         []fieldData
 	Methods        []methodData
@@ -96,6 +97,7 @@ func CreatePool(program *loader.Program, dir string) {
 		depsMap := map[string]bool{ModelsPath: true}
 		modelData := modelData{
 			Name:           modelName,
+			IsMixin:        modelASTData.IsMixin,
 			ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
 		}
 		// Add fields
@@ -290,6 +292,15 @@ type {{ .Name }}Model struct {
 	*models.Model
 }
 
+{{ if .IsMixin }}
+// NewSet returns a new {{ .Name }}Set instance wrapping the given model in the given Environment
+func (m {{ .Name }}Model) NewSet(env models.Environment, modelName string) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: env.Pool(modelName),
+	}
+}
+
+{{ else }}
 // NewSet returns a new {{ .Name }}Set instance in the given Environment
 func (m {{ .Name }}Model) NewSet(env models.Environment) {{ .Name }}Set {
 	return {{ .Name }}Set{
@@ -313,6 +324,7 @@ func (m {{ .Name }}Model) Search(env models.Environment, cond {{ .Name }}Conditi
 	}
 }
 
+{{ end }}
 // Fields returns the Field Collection of the {{ .Name }} Model
 func (m {{ .Name }}Model) Fields() {{ .Name }}FieldsCollection {
 	return {{ .Name }}FieldsCollection {
@@ -499,7 +511,7 @@ type {{ .Name }}Data struct {
 // FieldMap returns this {{ .Name }}Data as a FieldMap
 func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
 	res := make(models.FieldMap)
-	noFields := (len(fields) == 0)
+	noFields := len(fields) == 0
 	fieldsMap := make(map[string]bool)
 	if !noFields {
 		for _, field := range fields {
@@ -622,11 +634,6 @@ func (s {{ .Name }}Set) Super() {{ .Name }}Set {
 	return {{ .Name }}Set{
 		RecordCollection: s.RecordCollection.Super(),
 	}
-}
-
-// RC returns the RecordCollection instance of this {{ .Name }}Set
-func (s {{ .Name }}Set) RC() models.RecordCollection {
-	return s.RecordCollection
 }
 
 {{ range .Methods }}

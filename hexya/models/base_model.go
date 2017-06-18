@@ -205,10 +205,7 @@ func declareRecordSetMethods() {
 			fields := args.Fields
 			if len(args.Fields) == 0 {
 				for jName := range rc.model.fields.registryByJSON {
-					//if f.fieldType != tools.MANY2MANY {
-					// We don't want Many2Many as it points to the link table
 					fields = append(fields, FieldName(jName))
-					//}
 				}
 			}
 			for _, f := range fields {
