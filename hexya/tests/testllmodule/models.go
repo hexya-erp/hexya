@@ -21,17 +21,26 @@ import (
 
 func declareModels() {
 	user := models.NewModel("User")
+	profile := models.NewModel("Profile")
+	post := models.NewModel("Post")
+	tag := models.NewModel("Tag")
+	addressMI := models.NewMixinModel("AddressMixIn")
+	activeMI := models.NewMixinModel("ActiveMixIn")
+	viewModel := models.NewManualModel("UserView")
+
 	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
 	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
 	user.AddCharField("Password", models.StringFieldParams{NoCopy: true})
 	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
 	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
 	user.AddBooleanField("IsActive", models.SimpleFieldParams{})
-	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: "Profile"})
-	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
-	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: "Post", ReverseFK: "User"})
+	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("Profile")})
+	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"},
+		Stored: true, GoType: new(int16)})
+	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: models.Registry.MustGet("Post"),
+		ReverseFK: "User"})
 	user.AddFloatField("PMoney", models.FloatFieldParams{Related: "Profile.Money"})
-	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: "Post", Embed: true})
+	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("Post"), Embed: true})
 	user.AddCharField("Email2", models.StringFieldParams{})
 	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
 	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})
@@ -45,20 +54,18 @@ func declareModels() {
 			return res, []models.FieldNamer{models.FieldName("Age")}
 		})
 
-	profile := models.NewModel("Profile")
 	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
 	profile.AddFloatField("Money", models.FloatFieldParams{})
-	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
+	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("User")})
 	profile.AddSelectionField("Gender", models.SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
-	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
+	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("Post")})
 	profile.AddCharField("City", models.StringFieldParams{})
 	profile.AddCharField("Country", models.StringFieldParams{})
 
-	post := models.NewModel("Post")
-	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
+	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("User")})
 	post.AddCharField("Title", models.StringFieldParams{})
 	post.AddTextField("Content", models.StringFieldParams{})
-	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: "Tag"})
+	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: models.Registry.MustGet("Tag")})
 
 	post.Methods().MustGet("Create").Extend("",
 		func(rc models.RecordCollection, data models.FieldMapper) models.RecordCollection {
@@ -66,24 +73,20 @@ func declareModels() {
 			return res
 		})
 
-	tag := models.NewModel("Tag")
 	tag.AddCharField("Name", models.StringFieldParams{})
-	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: "Tag"})
-	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
-	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: "Post"})
+	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("Tag")})
+	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("Post")})
+	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: models.Registry.MustGet("Post")})
 	tag.AddCharField("Description", models.StringFieldParams{})
 
-	addressMI := models.NewMixinModel("AddressMixIn")
 	addressMI.AddCharField("Street", models.StringFieldParams{})
 	addressMI.AddCharField("Zip", models.StringFieldParams{})
 	addressMI.AddCharField("City", models.StringFieldParams{})
 	profile.InheritModel(addressMI)
 
-	activeMI := models.NewMixinModel("ActiveMixIn")
 	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
 	models.Registry.MustGet("CommonMixin").InheritModel(activeMI)
 
-	viewModel := models.NewManualModel("UserView")
 	viewModel.AddCharField("Name", models.StringFieldParams{})
 	viewModel.AddCharField("City", models.StringFieldParams{})
 }

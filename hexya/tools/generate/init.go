@@ -27,6 +27,13 @@ var (
 	log *logging.Logger
 	// HexyaDir is the directory of the base hexya package
 	HexyaDir string
+	// ModelMixins are the names of the mixins declared in the models package
+	ModelMixins map[string]bool = map[string]bool{
+		"CommonMixin":    true,
+		"BaseMixin":      true,
+		"ModelMixin":     true,
+		"TransientMixin": true,
+	}
 )
 
 func init() {

@@ -381,6 +381,13 @@ func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
 	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
+// Underlying returns the underlying Model data object, i.e. itself
+func (m *Model) Underlying() *Model {
+	return m
+}
+
+var _ Modeler = new(Model)
+
 // NewModel creates a new model with the given name and
 // extends it with the given struct pointer.
 func NewModel(name string) *Model {
@@ -415,8 +422,8 @@ func NewManualModel(name string) *Model {
 // InheritModel extends this Model by importing all fields and methods of mixInModel.
 // MixIn methods and fields have a lower priority than those of the model and are
 // overridden by the them when applicable.
-func (m *Model) InheritModel(mixInModel *Model) {
-	m.mixins = append(m.mixins, mixInModel)
+func (m *Model) InheritModel(mixInModel Modeler) {
+	m.mixins = append(m.mixins, mixInModel.Underlying())
 }
 
 // createModel creates and populates a new Model with the given name

@@ -144,12 +144,13 @@ type MethodASTData struct {
 
 // A ModelASTData holds fields and methods data of a Model
 type ModelASTData struct {
-	Name    string
-	IsMixin bool
-	Fields  map[string]FieldASTData
-	Methods map[string]MethodASTData
-	Mixins  map[string]bool
-	Embeds  map[string]bool
+	Name         string
+	ModelType    string
+	IsModelMixin bool
+	Fields       map[string]FieldASTData
+	Methods      map[string]MethodASTData
+	Mixins       map[string]bool
+	Embeds       map[string]bool
 }
 
 // newModelASTData returns an initialized ModelASTData instance
@@ -160,12 +161,20 @@ func newModelASTData(name string) ModelASTData {
 			Type: "int64",
 		},
 	}
+	var modelType string
+	if _, ok := ModelMixins[name]; ok {
+		// mixin declared in models are not parsed by parseNewModel.
+		// So we need to specify here that they are mixins
+		modelType = "Mixin"
+	}
 	return ModelASTData{
-		Name:    name,
-		Fields:  map[string]FieldASTData{"ID": idField},
-		Methods: make(map[string]MethodASTData),
-		Mixins:  make(map[string]bool),
-		Embeds:  make(map[string]bool),
+		Name:         name,
+		Fields:       map[string]FieldASTData{"ID": idField},
+		Methods:      make(map[string]MethodASTData),
+		Mixins:       make(map[string]bool),
+		Embeds:       make(map[string]bool),
+		IsModelMixin: ModelMixins[name],
+		ModelType:    modelType,
 	}
 }
 
@@ -194,7 +203,7 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 						parseMixInModel(node, &modelsData)
 					case strings.HasPrefix(fnctName, "Add") && strings.HasSuffix(fnctName, "Field"):
 						parseAddField(node, modInfo, &modelsData)
-					case strings.HasPrefix(fnctName, "New") && strings.HasSuffix(fnctName, "Model"):
+					case strings.HasPrefix(fnctName, "Declare") && strings.HasSuffix(fnctName, "Model"):
 						parseNewModel(node, &modelsData)
 					}
 				}
@@ -255,28 +264,38 @@ func parseMixInModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 	(*modelsData)[modelName].Mixins[mixinModel] = true
 }
 
-// parseNewModel parses the given node which is a NewXXXModel function
+// parseNewModel parses the given node which is a NewXXXModel or DeclareXXXModel function
 func parseNewModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 	fName, _ := extractFunctionName(node)
-	modelName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, `"`)
-	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, "New"), "Model")
-	if _, exists := (*modelsData)[modelName]; !exists {
-		(*modelsData)[modelName] = newModelASTData(modelName)
+	modelName, err := extractModelNameFromFunc(node.Fun.(*ast.SelectorExpr).X.(*ast.CallExpr))
+	if err != nil {
+		log.Panic("Unable to find model name in DeclareModel", "error", err)
+	}
+	var prefix string
+	if strings.HasPrefix(fName, "New") {
+		prefix = "New"
+	}
+	if strings.HasPrefix(fName, "Declare") {
+		prefix = "Declare"
+	}
+	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, prefix), "Model")
+
+	model, exists := (*modelsData)[modelName]
+	if !exists {
+		model = newModelASTData(modelName)
 	}
 	if modelName != "CommonMixin" {
-		(*modelsData)[modelName].Mixins["CommonMixin"] = true
+		model.Mixins["CommonMixin"] = true
 	}
 	switch modelType {
 	case "":
-		(*modelsData)[modelName].Mixins["BaseMixin"] = true
-		(*modelsData)[modelName].Mixins["ModelMixin"] = true
+		model.Mixins["BaseMixin"] = true
+		model.Mixins["ModelMixin"] = true
 	case "Transient":
-		(*modelsData)[modelName].Mixins["BaseMixin"] = true
-	case "Mixin":
-		mData := (*modelsData)[modelName]
-		mData.IsMixin = true
-		(*modelsData)[modelName] = mData
+		model.Mixins["BaseMixin"] = true
 	}
+	model.ModelType = modelType
+	(*modelsData)[modelName] = model
 }
 
 // extractFunctionName returns the name of the called function
@@ -329,7 +348,11 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 		fElem := elem.(*ast.KeyValueExpr)
 		switch fElem.Key.(*ast.Ident).Name {
 		case "RelationModel":
-			fData.RelModel = strings.Trim(fElem.Value.(*ast.BasicLit).Value, `"`)
+			modName, err := extractModel(fElem.Value)
+			if err != nil {
+				log.Panic("Unable to parse RelationModel", "field", fieldName, "error", err)
+			}
+			fData.RelModel = modName
 			fData.IsRS = true
 		case "GoType":
 			fData.Type = getTypeData(fElem.Value.(*ast.CallExpr).Args[0], modInfo)
@@ -436,14 +459,17 @@ func extractModelNameFromFunc(ce *ast.CallExpr) (string, error) {
 		// func is called without selector, then it is not from pool
 		return "", errors.New("Function call without selector")
 	case *ast.SelectorExpr:
-		pkg, ok := ft.X.(*ast.Ident)
-		if !ok {
-			return "", fmt.Errorf("Selector is not an identifier: %s", ft.X)
+		switch ftt := ft.X.(type) {
+		case *ast.Ident:
+			if ftt.Name != "pool" && ftt.Name != "Registry" {
+				return "", fmt.Errorf("Selector not from pool package: %s", ce.Fun)
+			}
+			return ft.Sel.Name, nil
+		case *ast.CallExpr:
+			return extractModelNameFromFunc(ftt)
+		default:
+			return "", fmt.Errorf("Selector is of not managed type: %T", ftt)
 		}
-		if pkg.Name != "pool" && pkg.Name != "Registry" {
-			return "", fmt.Errorf("Selector not from pool package: %s", ce.Fun)
-		}
-		return ft.Sel.Name, nil
 	}
 	return "", errors.New("Unparsable function call")
 }

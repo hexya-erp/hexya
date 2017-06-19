@@ -60,7 +60,8 @@ type fieldType struct {
 // A modelData describes a RecordSet model
 type modelData struct {
 	Name           string
-	IsMixin        bool
+	ModelType      string
+	IsModelMixin   bool
 	Deps           []string
 	Fields         []fieldData
 	Methods        []methodData
@@ -97,7 +98,8 @@ func CreatePool(program *loader.Program, dir string) {
 		depsMap := map[string]bool{ModelsPath: true}
 		modelData := modelData{
 			Name:           modelName,
-			IsMixin:        modelASTData.IsMixin,
+			ModelType:      modelASTData.ModelType,
+			IsModelMixin:   modelASTData.IsModelMixin,
 			ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
 		}
 		// Add fields
@@ -292,7 +294,7 @@ type {{ .Name }}Model struct {
 	*models.Model
 }
 
-{{ if .IsMixin }}
+{{ if eq .ModelType "Mixin" }}
 // NewSet returns a new {{ .Name }}Set instance wrapping the given model in the given Environment
 func (m {{ .Name }}Model) NewSet(env models.Environment, modelName string) {{ .Name }}Set {
 	return {{ .Name }}Set{
@@ -337,6 +339,19 @@ func (m {{ .Name }}Model) Methods() {{ .Name }}MethodsCollection {
 	return {{ .Name }}MethodsCollection {
 		MethodsCollection: m.Model.Methods(),
 	}
+}
+
+// Underlying returns the underlying models.Model instance
+func (m {{ .Name }}Model) Underlying() *models.Model {
+	return m.Model
+}
+
+var _ models.Modeler = {{ .Name }}Model{}
+
+// Declare{{ .ModelType }}Model is a dummy method used for code generation
+// It just returns m.
+func (m {{ .Name }}Model) Declare{{ .ModelType }}Model() {{ .Name }}Model {
+	return m
 }
 
 {{ range .Fields }}
@@ -648,5 +663,11 @@ func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}
 {{- end }}
 }
 
+{{ end }}
+
+{{ if not .IsModelMixin }}
+func init() {
+	models.New{{ .ModelType }}Model("{{ .Name }}")
+}
 {{ end }}
 `))

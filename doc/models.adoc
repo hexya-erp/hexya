@@ -525,20 +525,29 @@ inspections on the newly created types.
 ====
 
 === Creating a new model
-`*models.NewModel(modelName string) *Model*`::
+`*DeclareModel() *Model*`::
 
-Creates a new model with the given `modelName`. The created model will have a
-single `ID` field which is the model's primary key.
-It returns an pointer to the created model instance.
+Declare a new model. This function should be called on a 'not-yet-created'
+instance of the model we want to create. It is actually a placeholder, the code
+generation will make the actual Model creation.
 
-`*models.NewMixInModel(modelName string) *Model*`::
+[source,go]
+----
+// Create a new model called 'User'
+pool.User().DeclareModel()
+----
 
-Creates a new mixin model with the given name. Mixin model are not be
-accessible like a regular model but are meant to be mixed in other models.
+The created model will have a single `ID` field which is the model's primary
+key. It returns an pointer to the created model instance.
+
+`*DeclareMixinModel() *Model*`::
+
+Declare a new mixin model. Mixin model are not meant to be accessible like a
+ regular model but are meant to be mixed in other models.
 +
 See <<Model Mix In>>
 
-`*models.NewTransientModel(modelName string) *Model*`::
+`*DeclareTransientModel() *Model*`::
 
 Creates a new transient model with the given name. Transient model instances
 have a limited life time and are automatically removed from database. They
@@ -551,7 +560,7 @@ in the example below:
 
 [source,go]
 ----
-course := models.NewModel("Course")
+course := pool.Course().DeclareModel()
 course.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "This is the name of the course", Required: true})
 course.AddDateField("Date", models.SimpleFieldParams{String: "Date of the Course"}
 course.AddMany2OneField("Teacher", models.ForeignKeyParams{RelationModel: "Partner", String: "Teacher"}
@@ -682,7 +691,7 @@ and `sql.Scanner` interfaces.
 
 [source,go]
 ----
-session := models.NewModel("Session")
+session := pool.Session().DeclareModel()
 session.AddIntegerField("Room No", models.SimpleFieldParams{GoType: new(int16)})
 ----
 
@@ -892,7 +901,7 @@ See also <<Defining methods>> to see how to add or override methods in a model.
 
 `*(*Model) InheritModel(mixInModel *Model)*`::
 Extend this model by importing all fields and methods of `mixInModel`.
-`mixInModel` must have been created by `models.NewMixInModel()`.
+`mixInModel` must have been created by `DeclareMixinModel()`.
 
 If a field name conflicts with an existing field name in the model, then:
 

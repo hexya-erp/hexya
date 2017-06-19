@@ -23,7 +23,7 @@ import (
 )
 
 func declareModels() {
-	user := models.NewModel("User")
+	user := pool.User().DeclareModel()
 	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
 	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: "computeDecoratedName"})
 	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
@@ -31,11 +31,11 @@ func declareModels() {
 	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
 	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
 	user.AddBooleanField("IsActive", models.SimpleFieldParams{})
-	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: "Profile"})
+	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: pool.Profile()})
 	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
-	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: "Post", ReverseFK: "User"})
+	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: pool.Post(), ReverseFK: "User"})
 	user.AddFloatField("PMoney", models.FloatFieldParams{Related: "Profile.Money"})
-	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: "Post", Embed: true})
+	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: pool.Post(), Embed: true})
 	user.AddCharField("Email2", models.StringFieldParams{})
 	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
 	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})
@@ -94,12 +94,12 @@ func declareModels() {
 			rs.Profile().SetCity(value)
 		})
 
-	profile := models.NewModel("Profile")
+	profile := pool.Profile().DeclareModel()
 	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
 	profile.AddSelectionField("Gender", models.SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
 	profile.AddFloatField("Money", models.FloatFieldParams{})
-	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
-	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
+	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: pool.User()})
+	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: pool.Post()})
 	profile.AddCharField("City", models.StringFieldParams{})
 	profile.AddCharField("Country", models.StringFieldParams{})
 
@@ -116,11 +116,11 @@ func declareModels() {
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	post := models.NewModel("Post")
-	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: "User"})
+	post := pool.Post().DeclareModel()
+	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: pool.User()})
 	post.AddCharField("Title", models.StringFieldParams{})
 	post.AddTextField("Content", models.StringFieldParams{})
-	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: "Tag"})
+	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: pool.Tag()})
 
 	pool.Post().Methods().Create().Extend("",
 		func(rs pool.PostSet, data models.FieldMapper) pool.PostSet {
@@ -128,14 +128,14 @@ func declareModels() {
 			return res
 		})
 
-	tag := models.NewModel("Tag")
+	tag := pool.Tag().DeclareModel()
 	tag.AddCharField("Name", models.StringFieldParams{})
-	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: "Tag"})
-	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: "Post"})
-	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: "Post"})
+	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: pool.Tag()})
+	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: pool.Post()})
+	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: pool.Post()})
 	tag.AddCharField("Description", models.StringFieldParams{})
 
-	addressMI := models.NewMixinModel("AddressMixIn")
+	addressMI := pool.AddressMixIn().DeclareMixinModel()
 	addressMI.AddCharField("Street", models.StringFieldParams{})
 	addressMI.AddCharField("Zip", models.StringFieldParams{})
 	addressMI.AddCharField("City", models.StringFieldParams{})
@@ -160,7 +160,7 @@ func declareModels() {
 			return fmt.Sprintf("<%s>", res)
 		})
 
-	activeMI := models.NewMixinModel("ActiveMixIn")
+	activeMI := pool.ActiveMixIn().DeclareMixinModel()
 	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
 	pool.ModelMixin().InheritModel(activeMI)
 
@@ -173,7 +173,7 @@ func declareModels() {
 			return rs.Active()
 		})
 
-	viewModel := models.NewManualModel("UserView")
+	viewModel := pool.UserView().DeclareManualModel()
 	viewModel.AddCharField("Name", models.StringFieldParams{})
 	viewModel.AddCharField("City", models.StringFieldParams{})
 }

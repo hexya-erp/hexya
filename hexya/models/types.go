@@ -145,3 +145,8 @@ type FieldMapper interface {
 type Methoder interface {
 	Underlying() *Method
 }
+
+// A Modeler can return a Model data object through its Underlying() method
+type Modeler interface {
+	Underlying() *Model
+}

@@ -107,7 +107,7 @@ type ForeignKeyFieldParams struct {
 	Depends       []string
 	Related       string
 	NoCopy        bool
-	RelationModel string
+	RelationModel Modeler
 	Embed         bool
 	Translate     bool
 	OnDelete      OnDeleteAction
@@ -127,7 +127,7 @@ type ReverseFieldParams struct {
 	Depends       []string
 	Related       string
 	NoCopy        bool
-	RelationModel string
+	RelationModel Modeler
 	ReverseFK     string
 	Translate     bool
 	OnChange      string
@@ -146,7 +146,7 @@ type Many2ManyFieldParams struct {
 	Depends          []string
 	Related          string
 	NoCopy           bool
-	RelationModel    string
+	RelationModel    Modeler
 	M2MLinkModelName string
 	M2MOurField      string
 	M2MTheirField    string
@@ -284,7 +284,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		noCopy:           noCopy,
 		structField:      structField,
 		embed:            params.Embed,
-		relatedModelName: params.RelationModel,
+		relatedModelName: params.RelationModel.Underlying().name,
 		fieldType:        fieldType,
 		onDelete:         onDelete,
 		defaultFunc:      params.Default,
@@ -320,7 +320,7 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		relatedPath:      params.Related,
 		noCopy:           params.NoCopy,
 		structField:      structField,
-		relatedModelName: params.RelationModel,
+		relatedModelName: params.RelationModel.Underlying().name,
 		reverseFK:        params.ReverseFK,
 		fieldType:        fieldType,
 		defaultFunc:      params.Default,
@@ -427,7 +427,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 	}
 	their := params.M2MTheirField
 	if their == "" {
-		their = params.RelationModel
+		their = params.RelationModel.Underlying().name
 	}
 	if our == their {
 		log.Panic("Many2many relation must have different 'm2m_ours' and 'm2m_theirs'",
@@ -461,7 +461,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		relatedPath:      params.Related,
 		noCopy:           params.NoCopy,
 		structField:      structField,
-		relatedModelName: params.RelationModel,
+		relatedModelName: params.RelationModel.Underlying().name,
 		m2mRelModel:      m2mRelModel,
 		m2mOurField:      m2mOurField,
 		m2mTheirField:    m2mTheirField,
