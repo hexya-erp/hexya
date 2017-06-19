@@ -581,7 +581,8 @@ Let's create a model for *sessions*. A session has a name, a start date, a
 duration and a number of seats. Although we could have used the same file
 we will create a new file for sessions to organise our code.
 
-NOTE: Don't forget to run `hexya generate` after creating the new model
+NOTE: Don't forget to run `hexya generate` and `hexya updatedb` after creating
+the new model
 
 .openacademy/session.go
 [source,go]
@@ -668,7 +669,8 @@ A simple link to another object.
 
 [source,go]
 ----
-pool.SaleOrder().AddMany2OneField("Customer", models.ForeignKeyFieldParams{Relation: "Partner"})
+pool.SaleOrder().AddMany2OneField("Customer", models.ForeignKeyFieldParams{
+    RelationModel: pool.Partner()})
 
 fmt.Println(myOrder().Customer().Name())
 ----
@@ -681,7 +683,7 @@ records.
 [source,go]
 ----
 pool.SaleOrder().AddOne2ManyField("OrderLines",
-    models.ReverseFieldParams{Relation: "SaleOrderLine", ReverseFK: "Order"})
+    models.ReverseFieldParams{RelationModel: pool.SaleOrderLine(), ReverseFK: "Order"})
 
 for _, orderLine := range myOrder().OrderLines().Records() {
     fmt.Println(orderLine.AmountTotal())
@@ -700,7 +702,7 @@ accessing it also results in a possibly empty set of records.
 [source,go]
 ----
 pool.SaleOrder().AddMany2ManyField("Tags",
-    models.Many2ManyFieldParams{Relation: "Tag"})
+    models.Many2ManyFieldParams{RelationModel: pool.Tag()})
 
 for _, tag := range myOrder().Tags().Records() {
     fmt.Println(tag.Name())
@@ -724,9 +726,9 @@ func init() {
     pool.OpenAcademyCourse().AddCharField("Name", models.StringFieldParams{})
     pool.OpenAcademyCourse().AddTextField("Description", models.StringFieldParams{})
     pool.OpenAcademyCourse().AddMany2OneField("Responsible", models.ForeignKeyFieldParams{
-        Relation: "User", OnDelete: models.SetNull, Index: true})
+        RelationModel: pool.User(), OnDelete: models.SetNull, Index: true})
     pool.OpenAcademyCourse().AddOne2ManyField("Sessions", models.ReverseFieldParams{
-        Relation: "OpenAcademySession", ReverseFK: "Course"})
+        RelationModel: pool.OpenAcademySession(), ReverseFK: "Course"})
 }
 ----
 
@@ -751,12 +753,12 @@ func init() {
         String: "Number of seats"})
     pool.OpenAcademySession().AddSelectionField("State", models.SelectionFieldParams{
         Selection: types.Selection{"planned": "Planned", "in_progress":"In Progress", "done": "Finished"}})
-    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyParams{
-        Relation: "Partner"})
-    pool.OpenAcademySession().AddMany2OneField("Course", models.ForeignKeyParams{
-        Relation: "OpenAcademyCourse", Required: true, OnDelete: models.Cascade})
+    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
+        RelationModel: pool.Partner()})
+    pool.OpenAcademySession().AddMany2OneField("Course", models.ForeignKeyFieldParams{
+        RelationModel: pool.OpenAcademyCourse(), Required: true, OnDelete: models.Cascade})
     pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        Relation: "Partner"})
+        RelationModel: pool.Partner()})
 }
 ----
 
@@ -978,7 +980,7 @@ import (
 func init() {
     pool.Partner().AddBooleanField("Instructor", models.SimpleFieldParams{})
     pool.Partner().AddMany2ManyField("Attended Sessions", models.Many2ManyFieldParams{
-        Relation: "OpenAcademySession"})
+        RelationModel: pool.OpenAcademySession()})
 }
 ----
 
@@ -1222,7 +1224,7 @@ func init() {
         String: "Number of seats", OnChange: "VerifyValidSeats"})
 (...)
     pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        Relation: "Partner", OnChange: "VerifyValidSeats"})
+        RelationModel: pool.Partner(), OnChange: "VerifyValidSeats"})
 (...)
 
     pool.OpenAcademySession().AddMethod("VerifyValidSeats",
@@ -1624,9 +1626,9 @@ import (
 func init() {
     pool.OpenAcademyWizard().DeclareTransientModel()
     pool.OpenAcademyWizard().AddMany2OneField("Session", models.ForeignKeyFieldParams{
-        Relation: "OpenAcademySession", Required: true})
+        RelationModel: pool.OpenAcademySession(), Required: true})
     pool.OpenAcademyWizard().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        Relation: "Partner"})
+        RelationModel: pool.Partner()})
 }
 ----
 
@@ -1657,7 +1659,7 @@ Let's:
 func init() {
 (...)
     pool.OpenAcademyWizard().AddMany2OneField("Session", models.ForeignKeyFieldParams{
-        Relation: "OpenAcademySession", Required: true, Default:
+        Relation: pool.OpenAcademySession(), Required: true, Default:
         func(env models.Environment, fMap FieldMap) interface{} {
             activeID := env.Context().GetInteger("active_id")
 			return pool.OpenAcademySession().Search(env,
