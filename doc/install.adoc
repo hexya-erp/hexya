@@ -17,6 +17,9 @@ Go website to install on your platform: https://golang.org/dl/ .
 Then setup your Go workspace and define your `$GOPATH` environment variable as
 described here: https://golang.org/doc/code.html#Workspaces
 
+NOTE: It is assumed in the document that you added `$GOPATH/bin` to your
+`$PATH`.
+
 == Download
 
 === Download Hexya
@@ -40,6 +43,8 @@ go get -d github.com/hexya-erp/hexya-base
 go get -d github.com/hexya-erp/hexya-addons
 ----
 
+NOTE: Discard any message about no buildable Go code
+
 == Create a project
 You need to create a project to run a Hexya server. Your project will hold your
 specific configuration, in particular the modules to install.
@@ -53,12 +58,15 @@ go get github.com/hexya-erp/hexya-demo
 ----
 
 === Creating a custom project
-To create a custom project, create a directory with the following structure:
+To create a custom project, create a go package with the following structure:
 ----
 <projectDir>/
     config/
         config.go
 ----
+
+IMPORTANT: Since this is a go package, `<projectDir>` *MUST* be in a
+subdirectory of `$GOPATH/src`.
 
 Edit the `config.go` file and make it look like the following, adding one line
 per module to install in your Hexya instance in the `import` stanza:
@@ -214,3 +222,5 @@ Global Flags:
   -L, --log-level string     Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
   -o, --log-stdout           Enable stdout logging. Use for development or debugging.
 ----
+
+You can now access the Hexya server at http://localhost:8080
