@@ -96,6 +96,7 @@ type Menu struct {
 	ParentCollection *Collection
 	Children         *Collection
 	Sequence         uint8
+	ActionID         string
 	Action           *actions.BaseAction
 	HasChildren      bool
 	HasAction        bool
@@ -106,13 +107,8 @@ type Menu struct {
 func LoadFromEtree(element *etree.Element) {
 	menu := new(Menu)
 	menu.ID = element.SelectAttrValue("id", "NO_ID")
-	actionID := element.SelectAttrValue("action", "")
-	defaultName := "No name"
-	if actionID != "" {
-		menu.Action = actions.Registry.MustGetById(actionID)
-		defaultName = menu.Action.Name
-	}
-	menu.Name = element.SelectAttrValue("name", defaultName)
+	menu.ActionID = element.SelectAttrValue("action", "")
+	menu.Name = element.SelectAttrValue("name", "")
 	menu.ParentID = element.SelectAttrValue("parent", "")
 	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
 	menu.Sequence = uint8(seq)

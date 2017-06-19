@@ -3,7 +3,10 @@
 
 package menus
 
-import "github.com/hexya-erp/hexya/hexya/tools/logging"
+import (
+	"github.com/hexya-erp/hexya/hexya/actions"
+	"github.com/hexya-erp/hexya/hexya/tools/logging"
+)
 
 var log *logging.Logger
 
@@ -17,6 +20,12 @@ func BootStrap() {
 				log.Panic("Unknown parent menu ID", "parentID", menu.ParentID)
 			}
 			menu.Parent = parentMenu
+		}
+		if menu.ActionID != "" {
+			menu.Action = actions.Registry.MustGetById(menu.ActionID)
+			if menu.Name == "" {
+				menu.Name = menu.Action.Name
+			}
 		}
 		Registry.Add(menu)
 	}
