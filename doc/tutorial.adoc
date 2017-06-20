@@ -979,7 +979,7 @@ import (
 
 func init() {
     pool.Partner().AddBooleanField("Instructor", models.SimpleFieldParams{})
-    pool.Partner().AddMany2ManyField("Attended Sessions", models.Many2ManyFieldParams{
+    pool.Partner().AddMany2ManyField("AttendedSessions", models.Many2ManyFieldParams{
         RelationModel: pool.OpenAcademySession()})
 }
 ----
@@ -1123,7 +1123,7 @@ func init() {
 
 Now let's add our new field in the form and tree views:
 
-.openacademy/resources/session.go
+.openacademy/resources/session.xml
 [source,go]
 ----
 (...tree view...)
