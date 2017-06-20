@@ -325,6 +325,10 @@ func TestAdvancedQueries(t *testing.T) {
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").Equals(profile))
 				So(users.Len(), ShouldEqual, 2)
 			})
+			Convey("Empty recordset with IsNull", func() {
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").IsNull())
+				So(users.Len(), ShouldEqual, 2)
+			})
 			Convey("Condition on m2o relation fields with IN operator and ids", func() {
 				profileID := jane.Get("Profile").(RecordCollection).Get("ID").(int64)
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profileID))

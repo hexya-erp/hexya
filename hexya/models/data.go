@@ -127,6 +127,11 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				log.Panic("Unable to open file with binary data", "error", err, "line", line, "field", headers[i], "value", record[i])
 			}
 			val = base64.StdEncoding.EncodeToString(fileContent)
+		case fi.fieldType == fieldtype.Boolean:
+			val = false
+			if strings.ToLower(record[i]) == "true" {
+				val = true
+			}
 		default:
 			val = record[i]
 		}

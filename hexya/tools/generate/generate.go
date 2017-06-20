@@ -522,6 +522,14 @@ func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (
 }
 
 {{ end }}
+
+// IsNull checks if the current condition field is null
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) IsNull() {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: c.ConditionField.IsNull(),
+	}
+}
+
 {{ end }}
 
 // ------- DATA STRUCT ---------

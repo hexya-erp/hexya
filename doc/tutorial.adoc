@@ -1479,8 +1479,6 @@ func init() {
 	})
 	SessionRead = security.Registry.NewGroup("openacademy_session_read", "OpenAcademy / Session Read")
 	Manager = security.Registry.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
-	security.Registry.RegisterGroup(SessionRead)
-	security.Registry.RegisterGroup(Manager)
 }
 ----
 
@@ -1588,7 +1586,7 @@ func init() {
 (...)
     cond := pool.OpenAcademyCourse().
         Responsible().EqualsFunc(getCurrentUser).
-        Or().Responsible().Equals(pool.UserSet{}).
+        Or().Responsible().IsNull()
 
     rule := models.RecordRule {
         Name:      "openacademy_manager_course_write_unlink",

@@ -273,6 +273,11 @@ func (c ConditionField) ChildOf(data interface{}) *Condition {
 	return c.AddOperator(operator.ChildOf, data)
 }
 
+// IsNull checks if the current condition field is null
+func (c ConditionField) IsNull() *Condition {
+	return c.AddOperator(operator.Equals, nil)
+}
+
 // IsEmpty check the condition arguments are empty or not.
 func (c *Condition) IsEmpty() bool {
 	switch {
