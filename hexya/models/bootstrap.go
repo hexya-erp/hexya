@@ -113,8 +113,8 @@ func injectMixInModel(mixInMI, mi *Model) {
 	for methName, methInfo := range mixInMI.methods.registry {
 		// Extract all method layers functions by inverse order
 		layersInv := methInfo.invertedLayers()
-		if emi, exists := mi.methods.registry[methName]; exists {
-			// The method already exists in our target model.
+		if emi, exists := mi.methods.registry[methName]; exists && emi.topLayer != nil {
+			// The method already exists in our target model and has at least one layer.
 			// We insert our new method layers above previous mixins layers
 			// but below the target model implementations.
 			lastImplLayer := emi.topLayer

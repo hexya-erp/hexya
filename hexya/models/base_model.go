@@ -81,10 +81,10 @@ func declareBaseComputeMethods() {
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
 		func(rc RecordCollection) (FieldMap, []FieldNamer) {
-			if !rc.Get("WriteDate").(types.DateTime).IsNull() {
+			if !rc.Get("WriteDate").(types.DateTime).IsZero() {
 				return FieldMap{"LastUpdate": rc.Get("WriteDate").(types.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
 			}
-			if !rc.Get("CreateDate").(types.DateTime).IsNull() {
+			if !rc.Get("CreateDate").(types.DateTime).IsZero() {
 				return FieldMap{"LastUpdate": rc.Get("CreateDate").(types.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
 			}
 			return FieldMap{"LastUpdate": types.Now()}, []FieldNamer{FieldName("LastUpdate")}

@@ -41,6 +41,7 @@ type methodData struct {
 	Returns        string
 	ReturnString   string
 	Call           string
+	ToDeclare      bool
 }
 
 // an operatorDef defines an operator func
@@ -189,6 +190,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 		modelData.Methods = append(modelData.Methods, methodData{
 			Name:           methodName,
 			Doc:            methodASTData.Doc,
+			ToDeclare:      methodASTData.ToDeclare,
 			Params:         strings.TrimRight(params, ","),
 			ParamsWithType: strings.TrimRight(paramsWithType, ","),
 			ReturnAsserts:  strings.TrimSuffix(returnAsserts, "\n"),
@@ -416,6 +418,13 @@ type {{ $.Name }}_{{ .Name }} struct {
 func (m {{ $.Name }}_{{ .Name }}) Extend(doc string, fnct func({{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) {{ $.Name }}_{{ .Name }} {
 	return {{ $.Name }}_{{ .Name }} {
 		Method: m.Method.Extend(doc, fnct),
+	}
+}
+
+// DeclareMethod declares this method to the framework with the given function as the first layer.
+func (m {{ $.Name }}_{{ .Name }}) DeclareMethod(doc string, fnct interface{}) {{ $.Name }}_{{ .Name }} {
+	return {{ $.Name }}_{{ .Name }} {
+		Method: m.Method.DeclareMethod(doc, fnct),
 	}
 }
 
@@ -665,9 +674,13 @@ func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}
 
 {{ end }}
 
-{{ if not .IsModelMixin }}
 func init() {
+{{- if not .IsModelMixin }}
 	models.New{{ .ModelType }}Model("{{ .Name }}")
-}
 {{ end }}
+{{ range .Methods -}}
+{{ if .ToDeclare }}	{{ $.Name }}().AddEmptyMethod("{{ .Name }}")
+{{ end -}}
+{{- end }}
+}
 `))

@@ -245,9 +245,16 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 			curRS := rc.env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("ID").In(rSet.Get(fi.name).(RecordCollection)))
 			newRS := rc.env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("ID").In(value.([]int64)))
 			// Remove ReverseFK for Records that are no longer our children
-			curRS.Subtract(newRS).Set(fi.reverseFK, nil)
+			toRemove := curRS.Subtract(newRS)
+			if toRemove.Len() > 0 {
+				toRemove.Set(fi.reverseFK, nil)
+			}
 			// Add new children records
-			newRS.Subtract(curRS).Set(fi.reverseFK, rSet.ids[0])
+			toAdd := newRS.Subtract(curRS)
+			if toAdd.Len() > 0 {
+				toAdd.Set(fi.reverseFK, rSet.ids[0])
+			}
+
 		case fieldtype.Rev2One:
 		case fieldtype.Many2Many:
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)

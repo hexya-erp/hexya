@@ -135,11 +135,12 @@ type ParamData struct {
 // A MethodASTData is a holder for a method's data that will be used
 // for pool code generation
 type MethodASTData struct {
-	Name    string
-	Doc     string
-	PkgPath string
-	Params  []ParamData
-	Returns []TypeData
+	Name      string
+	Doc       string
+	PkgPath   string
+	Params    []ParamData
+	Returns   []TypeData
+	ToDeclare bool
 }
 
 // A ModelASTData holds fields and methods data of a Model
@@ -197,6 +198,8 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 						return true
 					}
 					switch {
+					case fnctName == "DeclareMethod":
+						parseDeclareMethod(node, modInfo, &modelsData)
 					case fnctName == "AddMethod":
 						parseAddMethod(node, modInfo, &modelsData)
 					case fnctName == "InheritModel":
@@ -395,6 +398,37 @@ func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 	(*modelsData)[modelName].Methods[methodName] = methodData
 }
 
+// parseDeclareMethod parses the given node which is a DeclareMethod function
+func parseDeclareMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
+	fNode := node.Fun.(*ast.SelectorExpr)
+	modelName, err := extractModel(fNode.X)
+	if err != nil {
+		log.Panic("Unable to extract model while visiting AST", "error", err)
+	}
+	methodName := fNode.X.(*ast.CallExpr).Fun.(*ast.SelectorExpr).Sel.Name
+	docStr := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
+
+	var funcType *ast.FuncType
+	switch fd := node.Args[1].(type) {
+	case *ast.Ident:
+		funcType = fd.Obj.Decl.(*ast.FuncDecl).Type
+	case *ast.FuncLit:
+		funcType = fd.Type
+	}
+	if _, exists := (*modelsData)[modelName]; !exists {
+		(*modelsData)[modelName] = newModelASTData(modelName)
+	}
+	methodData := MethodASTData{
+		Name:      methodName,
+		Doc:       formatDocString(docStr),
+		PkgPath:   modInfo.Pkg.Path(),
+		Params:    extractParams(funcType, modInfo),
+		Returns:   extractReturnType(funcType, modInfo),
+		ToDeclare: true,
+	}
+	(*modelsData)[modelName].Methods[methodName] = methodData
+}
+
 // A generalMixinError is returned if the mixin is
 // a general mixin set in NewXXXXModel function.
 type generalMixinError struct{}
@@ -411,7 +445,7 @@ var _ error = generalMixinError{}
 func extractModel(ident ast.Expr) (string, error) {
 	switch idt := ident.(type) {
 	case *ast.Ident:
-		// AddMethod is called on an identifier without selector such as
+		// Method is called on an identifier without selector such as
 		// user.AddMethod. In this case, we try to find out the model from
 		// the identifier declaration.
 		switch decl := idt.Obj.Decl.(type) {
@@ -462,11 +496,11 @@ func extractModelNameFromFunc(ce *ast.CallExpr) (string, error) {
 		switch ftt := ft.X.(type) {
 		case *ast.Ident:
 			if ftt.Name != "pool" && ftt.Name != "Registry" {
-				return "", fmt.Errorf("Selector not from pool package: %s", ce.Fun)
+				return extractModel(ftt)
 			}
 			return ft.Sel.Name, nil
 		case *ast.CallExpr:
-			return extractModelNameFromFunc(ftt)
+			return extractModel(ftt)
 		default:
 			return "", fmt.Errorf("Selector is of not managed type: %T", ftt)
 		}

@@ -275,14 +275,6 @@ type DateTime struct {
 	time.Time
 }
 
-// IsNull returns true if the DateTime is the zero value
-func (d DateTime) IsNull() bool {
-	if d.Time.Format("2006-01-02 15:04:05") == "0001-01-01 00:00:00" {
-		return true
-	}
-	return false
-}
-
 // Now returns the current date/time
 func Now() DateTime {
 	return DateTime{time.Now()}
@@ -290,7 +282,7 @@ func Now() DateTime {
 
 // MarshalJSON for DateTime type
 func (d DateTime) MarshalJSON() ([]byte, error) {
-	if d.IsNull() {
+	if d.IsZero() {
 		return []byte("false"), nil
 	}
 	dateStr := d.Time.Format("2006-01-02 15:04:05")
@@ -301,7 +293,7 @@ func (d DateTime) MarshalJSON() ([]byte, error) {
 // Value formats our DateTime for storing in database
 // Especially handles empty DateTime.
 func (d DateTime) Value() (driver.Value, error) {
-	if d.IsNull() {
+	if d.IsZero() {
 		return driver.Value("0001-01-01 00:00:00"), nil
 	}
 	return driver.Value(d.Time.Format("2006-01-02 15:04:05")), nil

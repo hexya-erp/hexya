@@ -94,7 +94,9 @@ func (m *Method) addMethodLayer(val reflect.Value, doc string) {
 		method:    m,
 		doc:       doc,
 	}
-	m.nextLayer[&ml] = m.topLayer
+	if m.topLayer != nil {
+		m.nextLayer[&ml] = m.topLayer
+	}
 	m.topLayer = &ml
 }
 
@@ -252,6 +254,46 @@ func (m *Model) AddMethod(methodName, doc string, fnct interface{}) *Method {
 	newMethod := newMethod(m, methodName, doc, reflect.ValueOf(fnct))
 	m.methods.set(methodName, newMethod)
 	return newMethod
+}
+
+// AddEmptyMethod creates a new method withoud function layer
+// The resulting method cannot be called until DeclareMethod is called
+func (m *Model) AddEmptyMethod(methodName string) *Method {
+	if m.methods.bootstrapped {
+		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
+	}
+	_, exists := m.methods.get(methodName)
+	if exists {
+		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
+	}
+	newMethod := &Method{
+		model:         m,
+		name:          methodName,
+		nextLayer:     make(map[*methodLayer]*methodLayer),
+		groups:        make(map[*security.Group]bool),
+		groupsCallers: make(map[callerGroup]bool),
+	}
+	m.methods.set(methodName, newMethod)
+	return newMethod
+}
+
+// DeclareMethod overrides the given Method by :
+// - setting documentation string to doc
+// - setting fnct as the first layer
+func (m *Method) DeclareMethod(doc string, fnct interface{}) *Method {
+	m.doc = doc
+	val := reflect.ValueOf(fnct)
+	if val.Kind() != reflect.Func {
+		log.Panic("fnct parameter must be a function", "model", m.model.name, "method", m.name, "fnct", fnct)
+	}
+	funcType := val.Type()
+	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+		log.Panic("Function must have a `RecordSet` as first argument to be used as method.",
+			"model", m.model.name, "method", m.name, "type", funcType.In(0))
+	}
+	m.addMethodLayer(val, doc)
+	m.methodType = val.Type()
+	return m
 }
 
 // Extend adds the given fnct function as a new layer on this method.

@@ -30,8 +30,8 @@ func TestBaseModelMethods(t *testing.T) {
 					"Nums":    1,
 				})
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newUser.Get("WriteDate").(types.DateTime).IsNull(), ShouldBeTrue)
-				So(newUser.Get("LastUpdate").(types.DateTime).Sub(userJane.Get("CreateDate").(types.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
+				So(newUser.Get("WriteDate").(types.DateTime).IsZero(), ShouldBeTrue)
+				So(newUser.Get("LastUpdate").(types.DateTime).Sub(newUser.Get("CreateDate").(types.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {
 				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordCollection)

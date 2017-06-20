@@ -40,7 +40,7 @@ func declareModels() {
 	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
 	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})
 
-	user.AddMethod("PrefixedUser",
+	user.Methods().PrefixedUser().DeclareMethod(
 		`PrefixedUser is a sample method layer for testing`,
 		func(rs pool.UserSet, prefix string) []string {
 			var res []string
@@ -50,13 +50,13 @@ func declareModels() {
 			return res
 		})
 
-	user.AddMethod("DecorateEmail",
+	user.Methods().DecorateEmail().DeclareMethod(
 		`DecorateEmail is a sample method layer for testing`,
 		func(rs pool.UserSet, email string) string {
 			return fmt.Sprintf("<%s>", email)
 		})
 
-	pool.User().Methods().DecorateEmail().Extend(
+	user.Methods().DecorateEmail().Extend(
 		`DecorateEmailExtension is a sample method layer for testing`,
 		func(rs pool.UserSet, email string) string {
 			res := rs.Super().DecorateEmail(email)
@@ -89,7 +89,7 @@ func declareModels() {
 			return &res, []models.FieldNamer{pool.User().DecoratedName()}
 		})
 
-	user.AddMethod("UpdateCity", "",
+	pool.User().Methods().UpdateCity().DeclareMethod("",
 		func(rs pool.UserSet, value string) {
 			rs.Profile().SetCity(value)
 		})
@@ -103,7 +103,7 @@ func declareModels() {
 	profile.AddCharField("City", models.StringFieldParams{})
 	profile.AddCharField("Country", models.StringFieldParams{})
 
-	pool.Profile().AddMethod("PrintAddress",
+	pool.Profile().Methods().PrintAddress().DeclareMethod(
 		`PrintAddress is a sample method layer for testing`,
 		func(rs pool.ProfileSet) string {
 			res := rs.Super().PrintAddress()
@@ -142,13 +142,13 @@ func declareModels() {
 	profile.InheritModel(addressMI)
 
 	addressMI2 := pool.AddressMixIn()
-	addressMI2.AddMethod("SayHello",
+	addressMI2.Methods().SayHello().DeclareMethod(
 		`SayHello is a sample method layer for testing`,
 		func(rs pool.AddressMixInSet) string {
 			return "Hello !"
 		})
 
-	addressMI2.AddMethod("PrintAddress",
+	addressMI2.Methods().PrintAddress().DeclareMethod(
 		`PrintAddressMixIn is a sample method layer for testing`,
 		func(rs pool.AddressMixInSet) string {
 			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
@@ -167,7 +167,7 @@ func declareModels() {
 	// Chained declaration
 	activeMI1 := pool.ActiveMixIn()
 	activeMI2 := activeMI1
-	activeMI2.AddMethod("IsActivated",
+	activeMI2.Methods().IsActivated().DeclareMethod(
 		`IsACtivated is a sample method of ActiveMixIn"`,
 		func(rs pool.ActiveMixInSet) bool {
 			return rs.Active()
