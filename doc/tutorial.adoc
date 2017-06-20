@@ -1113,7 +1113,7 @@ func init() {
             var res pool.OpenAcademySessionData
             // res struct fields default to their Go zero value
             if rs.Seats() != 0 {
-                res.TakenSeats = 100.0 * rs.Attendees().Len() / rs.Seats()
+                res.TakenSeats = 100.0 * float64(rs.Attendees().Len()) / float64(rs.Seats())
             }
             return &res, []models.FieldNamer{pool.OpenAcademySession().TakenSeats()}
         })
