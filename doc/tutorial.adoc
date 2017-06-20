@@ -1476,9 +1476,9 @@ func init() {
     server.RegisterModule(&server.Module{
 		Name: MODULE_NAME,
 		PostInit: func() {},
-	)
-	SessionRead = security.NewGroup("openacademy_session_read", "OpenAcademy / Session Read")
-	Manager = security.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
+	})
+	SessionRead = security.Registry.NewGroup("openacademy_session_read", "OpenAcademy / Session Read")
+	Manager = security.Registry.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
 	security.Registry.RegisterGroup(SessionRead)
 	security.Registry.RegisterGroup(Manager)
 }
@@ -1580,20 +1580,20 @@ of the group must be able to modify it.
 .openacademy/course.go
 [source,go]
 ----
+func getCurrentUser(rs pool.OpenAcademyCourseSet) interface{} {
+    return pool.User().Search(rs.Env(), pool.User().ID().Equals(rs.Env().Uid()))
+}
+
 func init() {
 (...)
-    func getCurrentUser(rs pool.OpenAcademyCourseSet) interface{} {
-        return pool.User().Search(rs.Env(), pool.User().ID().Equals(rs.Env().Uid())
-    }
-
     cond := pool.OpenAcademyCourse().
-        Responsible().Equals(getCurrentUser).
-        Or().Responsible().Equals(pool.Partner().NewSet(env)).
+        Responsible().EqualsFunc(getCurrentUser).
+        Or().Responsible().Equals(pool.UserSet{}).
 
     rule := models.RecordRule {
         Name:      "openacademy_manager_course_write_unlink",
         Group:     Manager,
-        Condition: cond,
+        Condition: cond.Condition,
         Perms:     security.Write|security.Unlink,
     }
     pool.OpenAcademyCourse().AddRecordRule(&rule)
