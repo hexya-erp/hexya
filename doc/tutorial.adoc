@@ -1152,7 +1152,7 @@ Any field can be given a default value. In the field definition, add the option
 `Default: X` where `X` is a function with the following signature:
 
 [source,go]
-func (models.Environment, FieldMap) interface{}
+func (models.Environment, models.FieldMap) interface{}
 
 The default function is called twice by the framework:
 
@@ -1186,7 +1186,7 @@ field that defaults to true.
 func init() {
 (...)
     pool.OpenAcademySession().AddDateField("StartDate", models.SimpleFieldParams{
-        Default: func(env Environment, fMap FieldMap) interface{} {
+        Default: func(env models.Environment, fMap models.FieldMap) interface{} {
                 return types.Today()
             },
         })
