@@ -97,8 +97,7 @@ chained
 
 [source,go]
 ----
-users := pool.Users()
-users.AddMethod("SayHello",
+pool.Users().Methods().SayHello().DeclareMethod(
     "SayHello returns Hello",
     func(rs pool.UsersSet) {
         return "Hello"
@@ -107,6 +106,17 @@ users.AddMethod("SayHello",
     AllowGroup(stock.GroupPicker, pool.Users().Methods().Create())
     // Pickers can say hello only from the 'Create' method
 ----
+
+`*(*MethodCollection) AllowAllToGroup(group *security.Group)*`::
+This is a helper method to grant access to all methods of a model at once:
+
+[source,go]
+pool.Users().Methods().AllowAllToGroup(GroupERPManager)
+
+`*(*MethodCollection) RevokeAllFromGroup(group *security.Group)*`::
+Revokes permissions on all methods given by AllowAllToGroup.
+It simply removes the group from the groups allowed on every method, but does
+not change any specific permission granted on a per method basis.
 
 == Field Access Control (FAC)
 
@@ -196,7 +206,7 @@ func getUserID(rs pool.PartnerSet) interface{} {
     return rs.Env().Uid()
 }
 
-cond := pool.Partner().UserFilteredOn(pool.User().ID().Equals(getUserID))
+cond := pool.Partner().UserFilteredOn(pool.User().ID().EqualsFunc(getUserID))
 
 rule := models.RecordRule {
     Name:      "salesman_own_partner",

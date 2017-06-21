@@ -59,6 +59,7 @@ func (mc *MethodsCollection) set(methodName string, methInfo *Method) {
 }
 
 // AllowAllToGroup grants the given group access to all the methods of this collection
+// This method must be called before bootstrap, or will have no effect.
 func (mc *MethodsCollection) AllowAllToGroup(group *security.Group) {
 	mc.powerGroups[group] = true
 }
