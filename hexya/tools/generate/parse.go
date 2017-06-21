@@ -205,7 +205,7 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 						parseAddField(node, modInfo, &modelsData)
 					case strutils.StartsAndEndsWith(fnctName, "Declare", "Model"):
 						parseDeclareModel(node, &modelsData)
-					case strutils.StartsAndEndsWith(fnctName, "New", "Models"):
+					case strutils.StartsAndEndsWith(fnctName, "New", "Model"):
 						parseNewModel(node, &modelsData)
 					}
 				}
