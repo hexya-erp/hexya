@@ -37,26 +37,18 @@ func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []int
 	if !ok {
 		log.Panic("Unknown method in model", "method", methName, "model", rc.model.name)
 	}
-	methLayer := rc.getExistingLayer(methInfo)
 	rSet := rc
-	if methLayer == nil {
-		methLayer = methInfo.topLayer
-		newEnv := rc.Env()
-		newEnv.callStack = append([]*methodLayer{methLayer}, newEnv.callStack...)
-		rSet = rSet.WithEnv(newEnv)
-	}
-	return rSet.callMulti(methLayer, args...)
-}
 
-// getExistingLayer returns the first methodLayer in this RecordCollection call stack
-// that matches with the given method. Returns nil, if none was found.
-func (rc RecordCollection) getExistingLayer(methInfo *Method) *methodLayer {
-	for _, ml := range rc.env.callStack {
-		if ml.method == methInfo {
-			return ml
-		}
+	methLayer := methInfo.topLayer
+	if rc.env.super != nil {
+		methLayer = rc.env.super
 	}
-	return nil
+	rc.env.super = nil
+	newEnv := rc.Env()
+	newEnv.callStack = append([]*methodLayer{methLayer}, newEnv.callStack...)
+
+	rSet = rSet.WithEnv(newEnv)
+	return rSet.callMulti(methLayer, args...)
 }
 
 // Super returns a RecordSet with a modified callstack so that call to the current
@@ -85,9 +77,8 @@ func (rc RecordCollection) Super() RecordCollection {
 		// No parent
 		log.Panic("Called Super() on a base method", "model", rc.model.name, "method", methInfo.name)
 	}
-	newEnv := rc.Env()
-	newEnv.callStack = append([]*methodLayer{methLayer}, newEnv.callStack...)
-	return rc.WithEnv(newEnv)
+	rc.env.super = methLayer
+	return rc
 }
 
 // MethodType returns the type of the method given by methName

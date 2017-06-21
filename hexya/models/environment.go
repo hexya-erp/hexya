@@ -36,6 +36,7 @@ type Environment struct {
 	context   *types.Context
 	cache     *cache
 	callStack []*methodLayer
+	super     *methodLayer
 	retries   uint8
 }
 

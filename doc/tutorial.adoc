@@ -1114,7 +1114,7 @@ func init() {
     pool.OpenAcademySession().AddFloatField("TakenSeats", models.FloatFieldParams{
         Compute: "ComputeTakenSeats", Depends: []string{"Seats", "Attendees"}})
 
-    pool.OpenAcademyCourse().Methods().ComputeTakenSeats().DeclareMethod(
+    pool.OpenAcademySession().Methods().ComputeTakenSeats().DeclareMethod(
         `ComputeTakenSeats returns the percentage of taken seats in this session`,
         func(rs pool.OpenAcademySessionSet) (*pool.OpenAcademySessionData, []models.FieldNamer) {
             var res pool.OpenAcademySessionData
@@ -1378,16 +1378,16 @@ responsible in the course search view. Make it selected by default.
 [source,xml]
 ----
 (...)
-        <search>
-            <field name="Name"/>
-            <field name="Description"/>
-            <filter name="my_courses" string="My Courses"
-                    domain="[('responsible_id', '=', uid)]"/>
-            <group string="Group By">
-                <filter name="by_responsible" string="Responsible"
-                        context='{"group_by": "responsible_id"}'/>
-            </group>
-        </search>
+            <search>
+                <field name="Name"/>
+                <field name="Description"/>
+                <filter name="my_courses" string="My Courses"
+                        domain="[('responsible_id', '=', uid)]"/>
+                <group string="Group By">
+                    <filter name="by_responsible" string="Responsible"
+                            context='{"group_by": "responsible_id"}'/>
+                </group>
+            </search>
 (...)
         <action id="openacademy_sessions_action" name="Sessions" model="OpenAcademySession"
                 type="ir.actions.act_window" view_mode="tree,form"
@@ -1477,8 +1477,6 @@ func init() {
 		Name: MODULE_NAME,
 		PostInit: func() {},
 	})
-	SessionRead = security.Registry.NewGroup("openacademy_session_read", "OpenAcademy / Session Read")
-	Manager = security.Registry.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
 }
 ----
 
@@ -1487,6 +1485,9 @@ func init() {
 ----
 func init() {
     (...)
+	SessionRead = security.Registry.NewGroup("openacademy_session_read", "OpenAcademy / Session Read")
+	Manager = security.Registry.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
+
     pool.OpenAcademyCourse().Methods().Load().AllowGroup(SessionRead)
     pool.OpenAcademyCourse().Methods().Create().AllowGroup(Manager)
     pool.OpenAcademyCourse().Methods().Write().AllowGroup(Manager)
