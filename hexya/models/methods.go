@@ -21,10 +21,11 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/security"
 )
 
-// MethodsCollection is the Method collection
+// A MethodsCollection is a collection of methods for use in a model
 type MethodsCollection struct {
 	model        *Model
 	registry     map[string]*Method
+	powerGroups  map[*security.Group]bool
 	bootstrapped bool
 }
 
@@ -57,10 +58,24 @@ func (mc *MethodsCollection) set(methodName string, methInfo *Method) {
 	mc.registry[methodName] = methInfo
 }
 
+// AllowAllToGroup grants the given group access to all the methods of this collection
+func (mc *MethodsCollection) AllowAllToGroup(group *security.Group) {
+	mc.powerGroups[group] = true
+}
+
+// RevokeAllFromGroup revokes permissions on all methods given by AllowAllToGroup
+// It simply removes the group from the groups allowed on every method, but does
+// not change any specific permission granted on a per method basis.
+// This method must be called before bootstrap, or will have no effect.
+func (mc *MethodsCollection) RevokeAllFromGroup(group *security.Group) {
+	delete(mc.powerGroups, group)
+}
+
 // newMethodsCollection returns a pointer to a new MethodsCollection
 func newMethodsCollection() *MethodsCollection {
 	mc := MethodsCollection{
-		registry: make(map[string]*Method),
+		registry:    make(map[string]*Method),
+		powerGroups: make(map[*security.Group]bool),
 	}
 	return &mc
 }

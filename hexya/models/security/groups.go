@@ -14,7 +14,10 @@
 
 package security
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 const (
 	// SuperUserID is the uid of the administrator
@@ -53,6 +56,11 @@ type Group struct {
 	ID       string
 	Name     string
 	Inherits []*Group
+}
+
+// String function for group
+func (g Group) String() string {
+	return fmt.Sprintf("Group(%s)", g.ID)
 }
 
 // A GroupCollection keeps a list of groups
@@ -126,7 +134,9 @@ func (gc *GroupCollection) GetGroup(groupID string) *Group {
 
 // AddMembership adds the user defined by its uid to the
 // given group and also to all groups that inherit this group.
-// inherit is set to true when this method is called on an inherited group
+// inherit is set to true when this method is called on an
+// inherited group recursively. You should normally leave it
+// unset.
 func (gc *GroupCollection) AddMembership(uid int64, group *Group, inherit ...bool) {
 	var inheritingGroups []*Group
 	gc.inheritedBy(group, &inheritingGroups)

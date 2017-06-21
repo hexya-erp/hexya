@@ -113,8 +113,8 @@ func injectMixInModel(mixInMI, mi *Model) {
 	for methName, methInfo := range mixInMI.methods.registry {
 		// Extract all method layers functions by inverse order
 		layersInv := methInfo.invertedLayers()
-		if emi, exists := mi.methods.registry[methName]; exists && emi.topLayer != nil {
-			// The method already exists in our target model and has at least one layer.
+		if emi, exists := mi.methods.registry[methName]; exists {
+			// The method already exists in our target model
 			// We insert our new method layers above previous mixins layers
 			// but below the target model implementations.
 			lastImplLayer := emi.topLayer
@@ -135,8 +135,13 @@ func injectMixInModel(mixInMI, mi *Model) {
 				emi.nextLayer[&ml] = firstMixedLayer
 				firstMixedLayer = &ml
 			}
-			emi.nextLayer[lastImplLayer] = firstMixedLayer
+			if emi.topLayer == nil {
+				emi.topLayer = firstMixedLayer
+			} else {
+				emi.nextLayer[lastImplLayer] = firstMixedLayer
+			}
 		} else {
+			// The method does not exist
 			newMethInfo := copyMethod(mi, methInfo)
 			for i := 0; i < len(layersInv); i++ {
 				newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
@@ -478,12 +483,16 @@ func bootStrapMethods() {
 	}
 }
 
-// setupSecurity adds execution permission to the
-// admin group for all methods
+// setupSecurity adds execution permission to:
+// - the admin group for all methods
+// - all methods of a model for groups that have been granted all rights
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
 		for _, meth := range model.methods.registry {
 			meth.groups[security.GroupAdmin] = true
+			for group := range model.methods.powerGroups {
+				meth.groups[group] = true
+			}
 		}
 	}
 }

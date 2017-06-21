@@ -256,6 +256,7 @@ func declareRecordSetMethods() {
 		func(rc RecordCollection, params OnchangeParams) OnchangeResult {
 			var fields []FieldNamer
 			values := params.Values
+			retValues := make(FieldMap)
 
 			SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
 				rs := env.Pool(rc.ModelName())
@@ -279,10 +280,12 @@ func declareRecordSetMethods() {
 					fields = res[1].([]FieldNamer)
 					val := rs.model.JSONizeFieldMap(res[0].(FieldMapper).FieldMap(fields...))
 					values = rs.model.MergeFieldMaps(values, val)
+					retValues = rs.model.MergeFieldMaps(retValues, val)
 				}
 			})
+			retValues.RemovePK()
 			return OnchangeResult{
-				Value: values,
+				Value: retValues,
 			}
 		}).AllowGroup(security.GroupEveryone)
 }

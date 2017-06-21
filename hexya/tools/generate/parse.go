@@ -152,6 +152,7 @@ type ModelASTData struct {
 	Methods      map[string]MethodASTData
 	Mixins       map[string]bool
 	Embeds       map[string]bool
+	Validated    bool
 }
 
 // newModelASTData returns an initialized ModelASTData instance
@@ -163,11 +164,6 @@ func newModelASTData(name string) ModelASTData {
 		},
 	}
 	var modelType string
-	if _, ok := ModelMixins[name]; ok {
-		// mixin declared in models are not parsed by parseNewModel.
-		// So we need to specify here that they are mixins
-		modelType = "Mixin"
-	}
 	return ModelASTData{
 		Name:         name,
 		Fields:       map[string]FieldASTData{"ID": idField},
@@ -207,6 +203,8 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 					case strings.HasPrefix(fnctName, "Add") && strings.HasSuffix(fnctName, "Field"):
 						parseAddField(node, modInfo, &modelsData)
 					case strings.HasPrefix(fnctName, "Declare") && strings.HasSuffix(fnctName, "Model"):
+						parseDeclareModel(node, &modelsData)
+					case strings.HasPrefix(fnctName, "New") && strings.HasSuffix(fnctName, "Model"):
 						parseNewModel(node, &modelsData)
 					}
 				}
@@ -214,7 +212,12 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 			})
 		}
 	}
-	for modelName := range modelsData {
+	for modelName, md := range modelsData {
+		// Delete models that have not been declared explicitly
+		// Because it means we have a typing error
+		if !md.Validated {
+			delete(modelsData, modelName)
+		}
 		inflateMixins(modelName, &modelsData)
 		inflateEmbeds(modelName, &modelsData)
 	}
@@ -267,22 +270,29 @@ func parseMixInModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 	(*modelsData)[modelName].Mixins[mixinModel] = true
 }
 
-// parseNewModel parses the given node which is a NewXXXModel or DeclareXXXModel function
-func parseNewModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
+// parseDeclareModel parses the given node which is aDeclareXXXModel function
+func parseDeclareModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 	fName, _ := extractFunctionName(node)
 	modelName, err := extractModelNameFromFunc(node.Fun.(*ast.SelectorExpr).X.(*ast.CallExpr))
 	if err != nil {
 		log.Panic("Unable to find model name in DeclareModel", "error", err)
 	}
-	var prefix string
-	if strings.HasPrefix(fName, "New") {
-		prefix = "New"
-	}
-	if strings.HasPrefix(fName, "Declare") {
-		prefix = "Declare"
-	}
-	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, prefix), "Model")
+	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, "Declare"), "Model")
 
+	setModelData(modelsData, modelName, modelType)
+}
+
+// parseNewModel parses the given node which is a NewXXXModel function
+func parseNewModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
+	fName, _ := extractFunctionName(node)
+	modelName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, `"`)
+	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, "New"), "Model")
+
+	setModelData(modelsData, modelName, modelType)
+}
+
+// setModelData adds a model with the given name and type to the given modelsData
+func setModelData(modelsData *map[string]ModelASTData, modelName string, modelType string) {
 	model, exists := (*modelsData)[modelName]
 	if !exists {
 		model = newModelASTData(modelName)
@@ -298,6 +308,7 @@ func parseNewModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 		model.Mixins["BaseMixin"] = true
 	}
 	model.ModelType = modelType
+	model.Validated = true
 	(*modelsData)[modelName] = model
 }
 
@@ -441,6 +452,7 @@ func (gme generalMixinError) Error() string {
 var _ error = generalMixinError{}
 
 // extractModel returns the string name of the model of the given ident variable
+// ident must point to the expr which represents a model
 // Returns an error if it cannot determine the model
 func extractModel(ident ast.Expr) (string, error) {
 	switch idt := ident.(type) {

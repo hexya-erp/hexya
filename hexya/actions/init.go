@@ -41,7 +41,7 @@ func bootStrapWindowAction(a *BaseAction) {
 	var present bool
 	// Check if view is present in Views
 	for _, view := range a.Views {
-		if view.ID != "" && len(a.View) > 0 {
+		if len(a.View) > 0 && a.View[0] != "" {
 			if view.ID == a.View[0] {
 				present = true
 				break
