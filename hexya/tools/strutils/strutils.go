@@ -14,7 +14,10 @@
 
 package strutils
 
-import "unicode"
+import (
+	"strings"
+	"unicode"
+)
 
 // SnakeCaseString convert the given string to snake case following the Golang format:
 // acronyms are converted to lower-case and preceded by an underscore.
@@ -56,4 +59,10 @@ func GetDefaultString(str, def string) string {
 		return def
 	}
 	return str
+}
+
+// StartsAndEndsWith returns true if the given string starts with prefix
+// and ends with suffix.
+func StartsAndEndsWith(str, prefix, suffix string) bool {
+	return strings.HasPrefix(str, prefix) && strings.HasSuffix(str, suffix)
 }

@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
+	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 	"golang.org/x/tools/go/loader"
 )
 
@@ -200,11 +201,11 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 						parseAddMethod(node, modInfo, &modelsData)
 					case fnctName == "InheritModel":
 						parseMixInModel(node, &modelsData)
-					case strings.HasPrefix(fnctName, "Add") && strings.HasSuffix(fnctName, "Field"):
+					case strutils.StartsAndEndsWith(fnctName, "Add", "Field"):
 						parseAddField(node, modInfo, &modelsData)
-					case strings.HasPrefix(fnctName, "Declare") && strings.HasSuffix(fnctName, "Model"):
+					case strutils.StartsAndEndsWith(fnctName, "Declare", "Model"):
 						parseDeclareModel(node, &modelsData)
-					case strings.HasPrefix(fnctName, "New") && strings.HasSuffix(fnctName, "Model"):
+					case strutils.StartsAndEndsWith(fnctName, "New", "Models"):
 						parseNewModel(node, &modelsData)
 					}
 				}
