@@ -1450,7 +1450,12 @@ method. Other groups should be manually added to allowed groups.
 
 This is done with `AllowGroup()` applied on a method object.
 
+NOTE: With the helper method `AllowAllToGroup()` applied on the method
+collection of an object, we can grant access to all methods of a model at once
+to a group, including methods that are not yet declared.
+
 Now we create :
+
 - a group "OpenAcademy / Session Read" with read access to the *Session*
 model.
 - a group "OpenAcademy / Manager" with full access to our models
@@ -1489,9 +1494,7 @@ func init() {
 	Manager = security.Registry.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
 
     pool.OpenAcademyCourse().Methods().Load().AllowGroup(SessionRead)
-    pool.OpenAcademyCourse().Methods().Create().AllowGroup(Manager)
-    pool.OpenAcademyCourse().Methods().Write().AllowGroup(Manager)
-    pool.OpenAcademyCourse().Methods().Unlink().AllowGroup(Manager)
+    pool.OpenAcademyCourse().Methods().AllowAllToGroup(Manager)
     (...)
 }
 ----
@@ -1501,10 +1504,7 @@ func init() {
 ----
 func init() {
 (...)
-    pool.OpenAcademySession().Methods().Load().AllowGroup(Manager)
-    pool.OpenAcademySession().Methods().Create().AllowGroup(Manager)
-    pool.OpenAcademySession().Methods().Write().AllowGroup(Manager)
-    pool.OpenAcademySession().Methods().Unlink().AllowGroup(Manager)
+    pool.OpenAcademySession().Methods().AllowAllToGroup(Manager)
 (...)
 }
 ----

@@ -278,6 +278,11 @@ func (c ConditionField) IsNull() *Condition {
 	return c.AddOperator(operator.Equals, nil)
 }
 
+// IsNotNull checks if the current condition field is not null
+func (c ConditionField) IsNotNull() *Condition {
+	return c.AddOperator(operator.NotEquals, nil)
+}
+
 // IsEmpty check the condition arguments are empty or not.
 func (c *Condition) IsEmpty() bool {
 	switch {
@@ -368,6 +373,6 @@ func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
 		}
 
 		res := fnctVal.Call([]reflect.Value{argValue})
-		c.predicates[i].arg = res[0].Interface()
+		c.predicates[i].arg = sanitizeArgs(res[0].Interface(), p.operator.IsMulti())
 	}
 }
