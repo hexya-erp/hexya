@@ -136,7 +136,9 @@ func injectMixInModel(mixInMI, mi *Model) {
 				firstMixedLayer = &ml
 			}
 			if emi.topLayer == nil {
+				// The existing method was empty
 				emi.topLayer = firstMixedLayer
+				emi.methodType = methInfo.methodType
 			} else {
 				emi.nextLayer[lastImplLayer] = firstMixedLayer
 			}

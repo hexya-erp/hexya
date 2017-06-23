@@ -46,6 +46,7 @@ Views
 -----
 - [X] Basic views
 - [X] Inherited views
+- [X] Manage embedded views
 
 Controllers
 -----------

@@ -3,29 +3,19 @@
 
 package views
 
-import (
-	"github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/tools/logging"
-	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
-)
+import "github.com/hexya-erp/hexya/hexya/tools/logging"
 
 var log *logging.Logger
 
 //BootStrap makes the necessary updates to view definitions. In particular:
 //- sets the type of the view from the arch root.
+//- extracts embedded views
 //- populates the fields map from the views arch.
 func BootStrap() {
 	for _, v := range Registry.views {
-		archElem := xmlutils.XMLToElement(v.Arch)
-
-		// Set view type
-		v.Type = ViewType(archElem.Tag)
-
-		// Populate fields map
-		fieldElems := archElem.FindElements("//field")
-		for _, f := range fieldElems {
-			v.Fields = append(v.Fields, models.FieldName(f.SelectAttr("name").Value))
-		}
+		v.setViewType()
+		v.extractSubViews()
+		v.populateFieldsMap()
 	}
 }
 

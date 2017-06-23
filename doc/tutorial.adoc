@@ -1490,8 +1490,8 @@ func init() {
 ----
 func init() {
     (...)
-	SessionRead = security.Registry.NewGroup("openacademy_session_read", "OpenAcademy / Session Read")
-	Manager = security.Registry.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
+    SessionRead = security.Registry.NewGroup("openacademy_session_read", "OpenAcademy / Session Read")
+    Manager = security.Registry.NewGroup("openacademy_manager", "OpenAcademy / Manager", SessionRead)
 
     pool.OpenAcademyCourse().Methods().Load().AllowGroup(SessionRead)
     pool.OpenAcademyCourse().Methods().AllowAllToGroup(Manager)
@@ -1665,8 +1665,8 @@ Let's:
 func init() {
 (...)
     pool.OpenAcademyWizard().AddMany2OneField("Session", models.ForeignKeyFieldParams{
-        Relation: pool.OpenAcademySession(), Required: true, Default:
-        func(env models.Environment, fMap FieldMap) interface{} {
+        RelationModel: pool.OpenAcademySession(), Required: true, Default:
+        func(env models.Environment, fMap models.FieldMap) interface{} {
             activeID := env.Context().GetInteger("active_id")
 			return pool.OpenAcademySession().Search(env,
 			    pool.OpenAcademySession().ID().Equals(activeID))
@@ -1689,8 +1689,8 @@ func init() {
         <view id="openacademy_wizard_form" model="OpenAcademyWizard">
             <form string="Add Attendees">
                 <group>
-                    <field name="session_id"/>
-                    <field name="attendee_ids"/>
+                    <field name="Session"/>
+                    <field name="Attendees"/>
                 </group>
                 <footer>
                     <button name="Subscribe" type="object"

@@ -223,6 +223,59 @@ type View struct {
 	Arch        string   `json:"arch"`
 	FieldParent string   `json:"field_parent"`
 	Fields      []models.FieldName
+	SubViews    map[string]SubViews
+}
+
+// A SubViews is a holder for embedded views of a field
+type SubViews map[ViewType]*View
+
+// populateFieldsMap scans arch, extract field names and put them in the fields slice
+func (v *View) populateFieldsMap() {
+	archElem := xmlutils.XMLToElement(v.Arch)
+	fieldElems := archElem.FindElements("//field")
+	for _, f := range fieldElems {
+		v.Fields = append(v.Fields, models.FieldName(f.SelectAttr("name").Value))
+	}
+}
+
+// setViewType sets the Type field with the view type
+// scanned from arch
+func (v *View) setViewType() {
+	archElem := xmlutils.XMLToElement(v.Arch)
+	v.Type = ViewType(archElem.Tag)
+}
+
+// extractSubViews recursively scans arch for embedded views,
+// extract them from arch and add them to SubViews.
+func (v *View) extractSubViews() {
+	archElem := xmlutils.XMLToElement(v.Arch)
+	fieldElems := archElem.FindElements("//field")
+	for _, f := range fieldElems {
+		if xmlutils.HasParentTag(f, "field") {
+			// Discard fields of embedded views
+			continue
+		}
+		fieldName := f.SelectAttr("name").Value
+		for i, childElement := range f.ChildElements() {
+			if _, exists := v.SubViews[fieldName]; !exists {
+				v.SubViews[fieldName] = make(SubViews)
+			}
+			childView := View{
+				ID:       fmt.Sprintf("%s_childview_%s_%d", v.ID, fieldName, i),
+				Arch:     xmlutils.ElementToXML(childElement),
+				SubViews: make(map[string]SubViews),
+			}
+			childView.setViewType()
+			childView.extractSubViews()
+			v.SubViews[fieldName][childView.Type] = &childView
+		}
+		// Remove all children elements.
+		// We do it in a separate loop to remove text and comments too.
+		for _, childToken := range f.Child {
+			f.RemoveChild(childToken)
+		}
+	}
+	v.Arch = xmlutils.ElementToXML(archElem)
 }
 
 // ViewXML is used to unmarshal the XML definition of a View
@@ -278,6 +331,7 @@ func createNewViewFromXML(viewXML ViewXML) {
 		Priority:    priority,
 		Arch:        arch,
 		FieldParent: viewXML.FieldParent,
+		SubViews:    make(map[string]SubViews),
 	}
 	Registry.Add(&view)
 }

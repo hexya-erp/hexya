@@ -22,7 +22,7 @@ import (
 )
 
 var viewDef1 string = `
-<view id="my_id" name="My View" model="Test__User">
+<view id="my_id" name="My View" model="User">
 	<form>
 		<group>
 			<field name="UserName"/>
@@ -33,7 +33,7 @@ var viewDef1 string = `
 `
 
 var viewDef2 string = `
-<view id="my_other_id" model="Test__Partner" priority="12">
+<view id="my_other_id" model="Partner" priority="12">
 	<form>
 		<h1><field name="Name"/></h1>
 		<group name="position_info">
@@ -81,11 +81,39 @@ var viewDef5 string = `
 `
 
 var viewDef6 string = `
-<view id="my_tree_id" model="Test__User">
+<view id="my_tree_id" model="User">
 	<tree>
 		<field name="UserName"/>
 		<field name="Age"/>
 	</tree>
+</view>
+`
+
+var viewDef7 string = `
+<view id="embedded_form" model="User">
+	<form>
+		<field name="Name"/>
+		<field name="Age"/>
+		<field name="Categories">
+			<tree>
+				<field name="Name"/>
+				<field name="Color"/>
+			</tree>
+			<!-- Comment -->
+			<form>
+				<h1>This is my form</h1>
+				<field name="Name"/>
+				<field name="Color"/>
+				<field name="Sequence"/>
+			</form>
+		</field>
+		<field name="Groups">
+			<tree>
+				<field name="Name"/>
+				<field name="Active"/>
+			</tree>
+		</field>
+	</form>
 </view>
 `
 
@@ -97,7 +125,7 @@ func TestViews(t *testing.T) {
 		view := Registry.GetByID("my_id")
 		So(view.ID, ShouldEqual, "my_id")
 		So(view.Name, ShouldEqual, "My View")
-		So(view.Model, ShouldEqual, "Test__User")
+		So(view.Model, ShouldEqual, "User")
 		So(view.Priority, ShouldEqual, 16)
 		So(view.Arch, ShouldEqual,
 			`<form>
@@ -115,7 +143,7 @@ func TestViews(t *testing.T) {
 		view := Registry.GetByID("my_other_id")
 		So(view.ID, ShouldEqual, "my_other_id")
 		So(view.Name, ShouldEqual, "my.other.id")
-		So(view.Model, ShouldEqual, "Test__Partner")
+		So(view.Model, ShouldEqual, "Partner")
 		So(view.Priority, ShouldEqual, 12)
 		So(view.Arch, ShouldEqual,
 			`<form>
@@ -226,5 +254,54 @@ func TestViews(t *testing.T) {
 		So(view1.Type, ShouldEqual, VIEW_TYPE_FORM)
 		So(view2.Type, ShouldEqual, VIEW_TYPE_FORM)
 		So(view3.Type, ShouldEqual, VIEW_TYPE_TREE)
+	})
+	Convey("Testing embedded views", t, func() {
+		LoadFromEtree(xmlutils.XMLToElement(viewDef7))
+		BootStrap()
+		So(len(Registry.views), ShouldEqual, 4)
+		So(Registry.GetByID("embedded_form"), ShouldNotBeNil)
+		So(Registry.GetByID("embedded_form_childview_1"), ShouldBeNil)
+		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
+		view := Registry.GetByID("embedded_form")
+		So(view.ID, ShouldEqual, "embedded_form")
+		So(view.Arch, ShouldEqual,
+			`<form>
+	<field name="Name"/>
+	<field name="Age"/>
+	<field name="Categories"/>
+	<field name="Groups"/>
+</form>
+`)
+		So(view.SubViews, ShouldHaveLength, 2)
+		So(view.SubViews, ShouldContainKey, "Categories")
+		So(view.SubViews, ShouldContainKey, "Groups")
+		viewsCategories := view.SubViews["Categories"]
+		So(viewsCategories, ShouldHaveLength, 2)
+		viewCategoriesForm := viewsCategories[VIEW_TYPE_FORM]
+		So(viewCategoriesForm.ID, ShouldEqual, "embedded_form_childview_Categories_1")
+		So(viewCategoriesForm.Arch, ShouldEqual, `<form>
+	<h1>This is my form</h1>
+	<field name="Name"/>
+	<field name="Color"/>
+	<field name="Sequence"/>
+</form>
+`)
+		viewCategoriesTree := viewsCategories[VIEW_TYPE_TREE]
+		So(viewCategoriesTree.ID, ShouldEqual, "embedded_form_childview_Categories_0")
+		So(viewCategoriesTree.Arch, ShouldEqual, `<tree>
+	<field name="Name"/>
+	<field name="Color"/>
+</tree>
+`)
+
+		viewsGroups := view.SubViews["Groups"]
+		So(viewsGroups, ShouldHaveLength, 1)
+		viewGroupsTree := viewsGroups[VIEW_TYPE_TREE]
+		So(viewGroupsTree.ID, ShouldEqual, "embedded_form_childview_Groups_0")
+		So(viewGroupsTree.Arch, ShouldEqual, `<tree>
+	<field name="Name"/>
+	<field name="Active"/>
+</tree>
+`)
 	})
 }
