@@ -110,6 +110,13 @@ func (c Condition) Serialize() []interface{} {
 	return serializePredicates(c.predicates)
 }
 
+// Underlying returns the underlying Condition (i.e. itself)
+func (c Condition) Underlying() *Condition {
+	return &c
+}
+
+var _ Conditioner = Condition{}
+
 // A ConditionStart is an object representing a Condition when
 // we just added a logical operator (AND, OR, ...) and we are
 // about to add a predicate.
@@ -365,14 +372,10 @@ func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
 		if !firstArgType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
 			continue
 		}
-		argValue := reflect.ValueOf(rc)
-		if firstArgType != reflect.TypeOf(RecordCollection{}) {
-			newArgValue := reflect.New(firstArgType).Elem()
-			newArgValue.FieldByName("RecordCollection").Set(argValue)
-			argValue = newArgValue
-		}
-
+		argValue := reflect.ValueOf(rc.Collection())
 		res := fnctVal.Call([]reflect.Value{argValue})
 		c.predicates[i].arg = sanitizeArgs(res[0].Interface(), p.operator.IsMulti())
 	}
 }
+
+type ClientEvaluatedString string

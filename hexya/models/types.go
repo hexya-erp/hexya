@@ -150,3 +150,8 @@ type Methoder interface {
 type Modeler interface {
 	Underlying() *Model
 }
+
+// A Conditioner can return a Condition object through its Underlying() method
+type Conditioner interface {
+	Underlying() *Condition
+}

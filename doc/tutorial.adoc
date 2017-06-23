@@ -1204,6 +1204,23 @@ func init() {
 }
 ----
 
+=== Filtering Relation Record Candidates
+
+A `Filter` parameter can be added to relational fields to limit valid records
+for the relation when trying to select records in the client interface. This
+parameter takes a condition on the relation model.
+
+We can add a domain to limit instructors to partners who are instructors:
+
+.openacademy/session.go
+[source,go]
+----
+(...)
+    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
+        RelationModel: pool.Partner(), Filter: pool.Partner().Instructor().Equals(true)})
+(...)
+----
+
 == Onchange
 
 The "onchange" mechanism provides a way for the client interface to update a

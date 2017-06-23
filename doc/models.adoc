@@ -227,20 +227,30 @@ Depending on the field type, all or part of the following operator methods
 will be available:
 
 `Equals`, `NotEquals`, `Greater`, `GreaterOrEqual`, `Lower`, `LowerOrEqual`,
-			`LikePattern`, `Like`, `NotLike`, `ILike`, `NotILike`, `ILikePattern`, `In`, `NotIn`, `ChildOf`
+`Like`, `NotLike`,`Contains`, `NotContains`, `IContains`, `NotIContains`, `In`,
+`NotIn`, `ChildOf`, `IsNull`, `IsNotNull`
 
-Each of these methods take a `value` parameter which can be any of the following:
+Each of these methods take a `value` parameter which is of the same Go type as
+the field on which it is applied.
 
-* A standard type (int, string, etc.)
-* A type that implements `driver.Valuer`
-* A function whose first argument is a RecordSet of the same type as the
-RecordSet we are querying and that returns a value that matches one of the two
-above conditions.
+For each of them there are two derived methods suffixed respectively with
+`Func` and `Eval` :
+
+- `Func` suffixed methods (e.g. `EqualsFunc`) take as argument a function
+whose first argument is a RecordSet and that returns a value with the same Go
+type as the field on which it is called.
 +
-eg. `func(rs pool.PartnerSet) int64`
+eg. `func(rs models.RecordSet) int64`
 +
 The function will be evaluated at the time of the query by passing it the
 RecordSet we are querying and the result will be substituted in the query.
+- `Eval` suffixed methods (e.g. `EqualsEval`) take an expression string as
+argument. This expression will be passed as is to the client and evaluated
+client side.
++
+IMPORTANT: The returned condition of an `Eval` suffixed method cannot be
+evaluated on server side. Thus `Eval` suffixed methods must NOT be used
+within the `Search()` method.
 ====
 ====
 .Searches on joined tables
@@ -294,6 +304,10 @@ type NameSearchParams struct {
 ----
 ====
 
+`*FetchAll() RecordSetType*`::
+Returns a RecordSet with all the records in the database for the RecordSet's
+model.
+
 `*Limit(n int) RecordSetType*`::
 Limit the search to `n` results.
 
@@ -306,7 +320,7 @@ valid field name and optionally a direction.
 
 [source,go]
 ----
-users := pool.Users().NewSet(env).OrderBy("Name ASC", "Email DESC", "ID")
+users := pool.Users().NewSet(env).FetchAll().OrderBy("Name ASC", "Email DESC", "ID")
 ----
 
 ==== RecordSet Operations

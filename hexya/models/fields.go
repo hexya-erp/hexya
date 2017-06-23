@@ -199,6 +199,7 @@ type Field struct {
 	defaultFunc      func(Environment, FieldMap) interface{}
 	onDelete         OnDeleteAction
 	onChange         string
+	filter           *Condition
 	translate        bool
 }
 

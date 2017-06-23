@@ -33,7 +33,7 @@ func TestConditions(t *testing.T) {
 					So(func() { rs.Load() }, ShouldNotPanic)
 				})
 				Convey("Simple query with args inflation", func() {
-					getUserID := func(rs pool.UserSet) int {
+					getUserID := func(rs models.RecordSet) int {
 						return int(rs.Env().Uid())
 					}
 					rs2 := pool.User().Search(env, pool.User().Nums().EqualsFunc(getUserID))

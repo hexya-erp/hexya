@@ -214,6 +214,10 @@ func declareRecordSetMethods() {
 				if fInfo.relatedModel != nil {
 					relation = fInfo.relatedModel.name
 				}
+				var filter interface{}
+				if fInfo.filter != nil {
+					filter = fInfo.filter.Serialize()
+				}
 				res[fInfo.json] = &FieldInfo{
 					Help:       fInfo.help,
 					Searchable: true,
@@ -225,6 +229,7 @@ func declareRecordSetMethods() {
 					Relation:   relation,
 					Required:   fInfo.required,
 					Selection:  fInfo.selection,
+					Domain:     filter,
 				}
 			}
 			return res
@@ -422,9 +427,9 @@ type FieldInfo struct {
 	Type             fieldtype.Type         `json:"type"`
 	Store            bool                   `json:"store"`
 	String           string                 `json:"string"`
-	Domain           *Condition             `json:"domain"`
 	Relation         string                 `json:"relation"`
 	Selection        types.Selection        `json:"selection"`
+	Domain           interface{}            `json:"domain"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method

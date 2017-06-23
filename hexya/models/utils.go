@@ -316,7 +316,7 @@ func getGroupCondition(groups []string, vals map[string]interface{}, initialCond
 }
 
 // serializePredicates returns a list that mimics Odoo domains from the given
-// condition values.
+// condition predicates.
 func serializePredicates(predicates []predicate) []interface{} {
 	var res []interface{}
 	i := 0

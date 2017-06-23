@@ -112,6 +112,7 @@ type ForeignKeyFieldParams struct {
 	Translate     bool
 	OnDelete      OnDeleteAction
 	OnChange      string
+	Filter        Conditioner
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -131,6 +132,7 @@ type ReverseFieldParams struct {
 	ReverseFK     string
 	Translate     bool
 	OnChange      string
+	Filter        Conditioner
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -152,6 +154,7 @@ type Many2ManyFieldParams struct {
 	M2MTheirField    string
 	Translate        bool
 	OnChange         string
+	Filter           Conditioner
 	Default          func(Environment, FieldMap) interface{}
 }
 
@@ -268,6 +271,10 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 	if params.OnChange == "" && params.Compute != "" {
 		params.OnChange = params.Compute
 	}
+	var filter *Condition
+	if params.Filter != nil {
+		filter = params.Filter.Underlying()
+	}
 	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
@@ -290,6 +297,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
 		onChange:         params.OnChange,
+		filter:           filter,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -304,6 +312,10 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
 	if params.OnChange == "" && params.Compute != "" {
 		params.OnChange = params.Compute
+	}
+	var filter *Condition
+	if params.Filter != nil {
+		filter = params.Filter.Underlying()
 	}
 	fInfo := &Field{
 		model:            m,
@@ -325,6 +337,7 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		fieldType:        fieldType,
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
+		filter:           filter,
 		onChange:         params.OnChange,
 	}
 	m.fields.add(fInfo)
@@ -446,6 +459,10 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 	if params.OnChange == "" && params.Compute != "" {
 		params.OnChange = params.Compute
 	}
+	var filter *Condition
+	if params.Filter != nil {
+		filter = params.Filter.Underlying()
+	}
 	fInfo := &Field{
 		model:            m,
 		acl:              security.NewAccessControlList(),
@@ -468,6 +485,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		fieldType:        fieldtype.Many2Many,
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
+		filter:           filter,
 		onChange:         params.OnChange,
 	}
 	m.fields.add(fInfo)

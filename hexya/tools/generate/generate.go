@@ -467,6 +467,13 @@ func (c {{ $.Name }}Condition) {{ . }}Cond(cond {{ $.Name }}Condition) {{ $.Name
 }
 {{ end }}
 
+// Underlying returns the underlying models.Condition instance
+func (c {{ $.Name }}Condition) Underlying() *models.Condition {
+	return c.Condition
+}
+
+var _ models.Conditioner = {{ $.Name }}Condition{}
+
 // ------- CONDITION START ---------
 
 // A {{ .Name }}ConditionStart is an object representing a Condition when
@@ -515,9 +522,19 @@ func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and 
 // {{ .Name }}Func adds a function value to the ConditionPath.
 // The function will be evaluated when the query is performed and
 // it will be given the RecordSet on which the query is made as parameter
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func ({{ $.Name }}Set) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) {{ $.Name }}Condition {
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.RecordSet) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) {{ $.Name }}Condition {
 	return {{ $.Name }}Condition{
 		Condition: c.ConditionField.{{ .Name }}(arg),
+	}
+}
+
+// {{ .Name }}Eval adds an expression value to the ConditionPath.
+// The expression value will be evaluated by the client with the
+// corresponding execution context. The resulting Condition cannot
+// be used server-side.
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}Eval(expression string) {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: c.ConditionField.{{ .Name }}(models.ClientEvaluatedString(expression)),
 	}
 }
 
