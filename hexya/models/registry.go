@@ -103,14 +103,23 @@ func newModelCollection() *modelCollection {
 // A Model is the definition of a business object (e.g. a partner, a sale order, etc.)
 // including fields and methods.
 type Model struct {
-	name          string
-	options       Option
-	acl           *security.AccessControlList
-	rulesRegistry *recordRuleRegistry
-	tableName     string
-	fields        *FieldsCollection
-	methods       *MethodsCollection
-	mixins        []*Model
+	name           string
+	options        Option
+	acl            *security.AccessControlList
+	rulesRegistry  *recordRuleRegistry
+	tableName      string
+	fields         *FieldsCollection
+	methods        *MethodsCollection
+	mixins         []*Model
+	sqlConstraints map[string]sqlConstraint
+	sqlErrors      map[string]string
+}
+
+// An sqlConstraint holds the data needed to create a table constraint in the database
+type sqlConstraint struct {
+	name        string
+	sql         string
+	errorString string
 }
 
 // getRelatedModelInfo returns the Model of the related model when
@@ -381,6 +390,26 @@ func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
 	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
+// AddSQLConstraint adds a table constraint in the database.
+// - name is an arbitrary name to reference this constraint. It will be appended by
+// the table name in the database, so there is only need to ensure that it is unique
+// in this model.
+// - sql is constraint definition to pass to the database.
+// - errorString is the text to display to the user when the constraint is violated
+func (m *Model) AddSQLConstraint(name, sql, errorString string) {
+	constraintName := fmt.Sprintf("%s_%s_mancon", name, m.tableName)
+	m.sqlConstraints[constraintName] = sqlConstraint{
+		name:        constraintName,
+		sql:         sql,
+		errorString: errorString,
+	}
+}
+
+// RemoveSQLConstraint removes the sql constraint with the given name from the database.
+func (m *Model) RemoveSQLConstraint(name string) {
+	delete(m.sqlConstraints, fmt.Sprintf("%s_mancon", name))
+}
+
 // Underlying returns the underlying Model data object, i.e. itself
 func (m *Model) Underlying() *Model {
 	return m
@@ -430,13 +459,15 @@ func (m *Model) InheritModel(mixInModel Modeler) {
 // by parsing the given struct pointer.
 func createModel(name string, options Option) *Model {
 	mi := &Model{
-		name:          name,
-		options:       options,
-		acl:           security.NewAccessControlList(),
-		rulesRegistry: newRecordRuleRegistry(),
-		tableName:     strutils.SnakeCaseString(name),
-		fields:        newFieldsCollection(),
-		methods:       newMethodsCollection(),
+		name:           name,
+		options:        options,
+		acl:            security.NewAccessControlList(),
+		rulesRegistry:  newRecordRuleRegistry(),
+		tableName:      strutils.SnakeCaseString(name),
+		fields:         newFieldsCollection(),
+		methods:        newMethodsCollection(),
+		sqlConstraints: make(map[string]sqlConstraint),
+		sqlErrors:      make(map[string]string),
 	}
 	pk := &Field{
 		name:      "ID",

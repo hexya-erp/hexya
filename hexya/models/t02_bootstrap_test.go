@@ -49,6 +49,10 @@ func TestBootStrap(t *testing.T) {
 				So(Registry.registryByTableName, ShouldContainKey, dbTable)
 			}
 		})
+		Convey("Table constraints should have been created", func() {
+			So(testAdapter.constraints("%_mancon"), ShouldHaveLength, 1)
+			So(testAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
+		})
 	})
 	Convey("Making small changes to test DB sync", t, func() {
 		Convey("Modifying Required and Default values", func() {

@@ -2,6 +2,7 @@
 Author Nicolas Piganeau
 :prewrap!:
 :toc:
+:sectnums:
 
 == Introduction
 
@@ -818,6 +819,25 @@ This behaviour can be changed by overriding the `NameGet` method of the model.
 `Parent` Many2OneField::
 Used in recursive models for the foreign key to this Record's parent Record of
 the same model.
+
+==== Setting constraints on fields
+
+===== SQL constraints
+
+SQL Constraints are managed by the following Model methods that must be run
+before bootstrap.
+
+`*(*Model) AddSQLConstraint(name, sql, errorString string)*`::
+Adds an SQL constraint to this model. `name` is an arbitrary name to reference
+this constraint. It will be appended by the table name in the database, so
+there is only need to ensure that it is unique in this model. `sql` is
+constraint definition to pass to the database. `errorString` is the text to
+display to the user when the constraint is violated
+
+`*(*Model) RemoveSQLConstraint(name)*`::
+Removes the constraint previously created with the given name. This is
+intended for use in a module that want to override the behaviour of a
+previously installed other module.
 
 === Defining methods
 

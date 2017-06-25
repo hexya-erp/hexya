@@ -50,6 +50,9 @@ func TestModelDeclaration(t *testing.T) {
 		user.AddIntegerField("Nums", SimpleFieldParams{GoType: new(int)})
 		user.AddFloatField("Size", FloatFieldParams{})
 
+		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums > 0) OR (IS_PREMIUM = false))",
+			"Premium users must have positive nums")
+
 		profile.AddIntegerField("Age", SimpleFieldParams{GoType: new(int16)})
 		profile.AddSelectionField("Gender", SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
 		profile.AddFloatField("Money", FloatFieldParams{})

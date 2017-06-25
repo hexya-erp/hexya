@@ -295,6 +295,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 		fields:    newFieldsCollection(),
 		methods:   newMethodsCollection(),
 		options:   Many2ManyLinkModel,
+		sqlErrors: make(map[string]string),
 	}
 	ourField := &Field{
 		name:             model1,

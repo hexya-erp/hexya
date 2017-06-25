@@ -2,6 +2,7 @@
 Author Nicolas Piganeau
 :prewrap!:
 :toc:
+:sectnums:
 
 == Prerequisites
 
@@ -1204,23 +1205,6 @@ func init() {
 }
 ----
 
-=== Filtering Relation Record Candidates
-
-A `Filter` parameter can be added to relational fields to limit valid records
-for the relation when trying to select records in the client interface. This
-parameter takes a condition on the relation model.
-
-We can add a domain to limit instructors to partners who are instructors:
-
-.openacademy/session.go
-[source,go]
-----
-(...)
-    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
-        RelationModel: pool.Partner(), Filter: pool.Partner().Instructor().Equals(true)})
-(...)
-----
-
 == Onchange
 
 The "onchange" mechanism provides a way for the client interface to update a
@@ -1272,7 +1256,48 @@ is changed:
 
 == Model constraints
 
-**Not yet implemented**
+=== Filtering Relation Record Candidates
+
+A `Filter` parameter can be added to relational fields to limit valid records
+for the relation when trying to select records in the client interface. This
+parameter takes a condition on the relation model.
+
+We can add a domain to limit instructors to partners who are instructors:
+
+.openacademy/session.go
+[source,go]
+----
+(...)
+    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
+        RelationModel: pool.Partner(), Filter: pool.Partner().Instructor().Equals(true)})
+(...)
+----
+
+=== SQL Constraints
+
+You can add SQL constraints to a model with the `AddSQLConstraint()` method of
+a Model. This method takes a name for the constraint, the SQL code to enforce
+and a string to display to the user when the constraint is violated.
+
+Unique constraints on a single field can also be specified by setting the
+`Unique:` parameter of the field's declaration to true.
+
+Let's add the following SQL constraints to our sessions:
+
+- CHECK that the course description and the course title are different
+- Make the Course's name UNIQUE
+
+.openacademy/course.go
+[source,go]
+----
+(...)
+    pool.OpenAcademyCourse().AddCharField("Name", models.StringFieldParams{Unique: true})
+(...)
+    pool.OpenAcademyCourse().AddSQLConstraint("name_description_check",
+         "CHECK(name != description)",
+         "The title of the course should not be the description")
+(...)
+----
 
 == Advanced Views
 

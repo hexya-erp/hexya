@@ -70,6 +70,11 @@ func (rc RecordCollection) Ids() []int64 {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Create")
 func (rc RecordCollection) create(data FieldMapper) RecordCollection {
+	defer func() {
+		if r := recover(); r != nil {
+			panic(rc.substituteSQLErrorMessage(r))
+		}
+	}()
 	rc.checkExecutionPermission(rc.model.methods.MustGet("Create"))
 	fMap := data.FieldMap()
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
@@ -211,6 +216,9 @@ func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 func (rc RecordCollection) doUpdate(fMap FieldMap) {
 	rc.checkExecutionPermission(rc.model.methods.MustGet("Write"))
 	defer func() {
+		if r := recover(); r != nil {
+			panic(rc.substituteSQLErrorMessage(r))
+		}
 		for _, id := range rc.Ids() {
 			rc.env.cache.invalidateRecord(rc.model, id)
 		}
@@ -311,6 +319,22 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 		rs := rc.env.Pool(ref.ModelName).withIds([]int64{ref.ID})
 		rs.doUpdate(upMap)
 	}
+}
+
+// substituteSQLErrorMessage changes the message from the given recover data
+// if it comes from the database with the message defined in this model
+func (rc RecordCollection) substituteSQLErrorMessage(r interface{}) interface{} {
+	err, ok := r.(error)
+	if !ok {
+		return r
+	}
+	for constraintName, constraint := range rc.model.sqlConstraints {
+		if strings.Contains(err.Error(), constraintName) {
+			res := adapters[db.DriverName()].substituteErrorMessage(err, constraint.errorString)
+			return res
+		}
+	}
+	return r
 }
 
 // unlink deletes the database record of this RecordSet and returns the number of deleted rows.

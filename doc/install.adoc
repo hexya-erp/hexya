@@ -2,6 +2,7 @@
 Author Nicolas Piganeau
 :prewrap!:
 :toc:
+:sectnums:
 
 == Introduction
 Since Hexya is a modular ERP at compile time, it is only distributed as source

@@ -17,7 +17,6 @@ package models
 import (
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
-	"github.com/lib/pq"
 )
 
 // DBSerializationMaxRetries defines the number of time a
@@ -105,7 +104,7 @@ func ExecuteInNewEnvironment(uid int64, fnct func(Environment)) (rError error) {
 	defer func() {
 		if r := recover(); r != nil {
 			env.rollback()
-			if err, ok := r.(pq.Error); ok && err.Code.Class() == "40" {
+			if err, ok := r.(error); ok && adapters[db.DriverName()].isSerializationError(err) {
 				// Transaction error
 				env.retries++
 				if env.retries < DBSerializationMaxRetries {

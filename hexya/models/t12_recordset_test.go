@@ -107,6 +107,15 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	Convey("Checking SQL Constraint enforcement", t, func() {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			userRobData := FieldMap{
+				"Name":      "Rob Smith",
+				"IsPremium": true,
+			}
+			env.Pool("User").Call("Create", userRobData)
+		}).Error(), ShouldStartWith, "pq: Premium users must have positive nums")
+	})
 	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Testing access control list on creation (create only)", t, func() {
 		SimulateInNewEnvironment(2, func(env Environment) {
@@ -492,6 +501,13 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 		})
 	})
+	Convey("Checking SQL Constraint enforcement", t, func() {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			userWill := env.Pool("User").Search(env.Pool("User").Model().Field("Email").Equals("will.smith@example.com"))
+			userWill.Call("Write", FieldMap{"Nums": 0, "IsPremium": true})
+		}).Error(), ShouldStartWith, "pq: Premium users must have positive nums")
+	})
+
 	group1 := security.Registry.NewGroup("group1", "Group 1")
 	security.Registry.AddMembership(2, group1)
 	Convey("Testing access control list on update (write only)", t, func() {

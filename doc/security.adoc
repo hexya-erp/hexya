@@ -2,6 +2,7 @@
 Author Nicolas Piganeau
 :prewrap!:
 :toc:
+:sectnums:
 
 == Introduction
 

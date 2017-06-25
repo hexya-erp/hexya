@@ -57,6 +57,8 @@ type dbAdapter interface {
 	indexExists(table string, name string) bool
 	// constraintExists returns true if a constraint with the given name exists
 	constraintExists(name string) bool
+	// constraints returns a list of all constraints matching the given SQL pattern
+	constraints(pattern string) []string
 	// setTransactionIsolation returns the SQL string to set the transaction isolation
 	// level to serializable
 	setTransactionIsolation() string
@@ -72,6 +74,11 @@ type dbAdapter interface {
 	// a record from table including itself. The query has a placeholder for the
 	// record's ID
 	childrenIdsQuery(table string) string
+	// substituteErrorMessage substitutes the given error's message by newMsg
+	substituteErrorMessage(err error, newMsg string) error
+	// isSerializationError returns true if the given error is a serialization error
+	// and that the failed transaction should be retried.
+	isSerializationError(err error) bool
 }
 
 // registerDBAdapter adds a adapter to the adapters registry
@@ -214,7 +221,9 @@ func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
 func logSQLResult(err error, start time.Time, query string, args ...interface{}) {
 	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(start))
 	if err != nil {
-		logCtx.Panic("Error while executing query", "error", err, "query", query, "args", args)
+		// We don't log.Panic to keep db error information in recovery
+		logCtx.Error("Error while executing query", "error", err, "query", query, "args", args)
+		panic(err)
 	}
 	logCtx.Debug("Query executed")
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/operator"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/lib/pq"
 )
 
 type postgresAdapter struct{}
@@ -190,6 +191,14 @@ func (d *postgresAdapter) constraintExists(name string) bool {
 	return cnt > 0
 }
 
+// constraints returns a list of all constraints matching the given SQL pattern
+func (d *postgresAdapter) constraints(pattern string) []string {
+	query := "SELECT conname FROM pg_constraint WHERE conname ILIKE ?"
+	var res []string
+	dbSelectNoTx(&res, query, pattern)
+	return res
+}
+
 // createSequence creates a DB sequence with the given name
 func (d *postgresAdapter) createSequence(name string) {
 	query := fmt.Sprintf("CREATE SEQUENCE %s", name)
@@ -243,6 +252,25 @@ UNION ALL
 SELECT  id
 FROM    recursive_query_children_ids`, d.quoteTableName(table), d.quoteTableName(table))
 	return res
+}
+
+// substituteErrorMessage substitutes the given error's message by newMsg
+func (d *postgresAdapter) substituteErrorMessage(err error, newMsg string) error {
+	pgError, ok := err.(*pq.Error)
+	if !ok {
+		return err
+	}
+	pgError.Message = newMsg
+	return pgError
+}
+
+// isSerializationError returns true if the given error is a serialization error
+// and that the failed transaction should be retried.
+func (d *postgresAdapter) isSerializationError(err error) bool {
+	if pqErr, ok := err.(*pq.Error); ok && pqErr.Code.Class() == "40" {
+		return true
+	}
+	return false
 }
 
 var _ dbAdapter = new(postgresAdapter)

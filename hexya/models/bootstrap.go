@@ -231,12 +231,14 @@ func SyncDatabase() {
 		updateDBColumns(model)
 		updateDBIndexes(model)
 	}
-	// Setup foreign key constraints
+	// Setup constraints
 	for _, model := range Registry.registryByTableName {
 		if model.isMixin() {
 			continue
 		}
+		buildSQLErrorSubstitutionMap(model)
 		updateDBForeignKeyConstraints(model)
+		updateDBConstraints(model)
 	}
 	// Drop DB tables that are not in the models
 	for dbTable := range adapter.tables() {
@@ -257,6 +259,24 @@ func SyncDatabase() {
 		}
 	}
 	updateDBSequences()
+}
+
+// buildSQLErrorSubstitutionMap populates the sqlErrors map of the
+// model with the appropriate error message substitution
+func buildSQLErrorSubstitutionMap(model *Model) {
+	for sqlConstraintName, sqlConstraint := range model.sqlConstraints {
+		model.sqlErrors[sqlConstraintName] = sqlConstraint.errorString
+	}
+	for _, field := range model.fields.registryByJSON {
+		if field.unique {
+			cName := fmt.Sprintf("%s_%s_key", model.tableName, field.json)
+			model.sqlErrors[cName] = fmt.Sprintf("%s must be unique", field.name)
+		}
+		if field.fieldType.IsFKRelationType() {
+			cName := fmt.Sprintf("%s_%s_fkey", model.tableName, field.json)
+			model.sqlErrors[cName] = fmt.Sprintf("%s must reference an existing %s record", field.name, field.relatedModelName)
+		}
+	}
 }
 
 // updateDBSequences synchronizes sequences between the DB
@@ -428,21 +448,53 @@ func updateDBForeignKeyConstraints(m *Model) {
 	}
 }
 
+// updateDBConstraints creates or updates sql constraints
+// based on the data of the given Model
+func updateDBConstraints(m *Model) {
+	adapter := adapters[db.DriverName()]
+	for constraintName, constraint := range m.sqlConstraints {
+		if !adapter.constraintExists(constraintName) {
+			createConstraint(m.tableName, constraintName, constraint.sql)
+		}
+	}
+dbConLoop:
+	for _, dbConstraintName := range adapter.constraints(fmt.Sprintf("%%_%s_mancon", m.tableName)) {
+		for constraintName := range m.sqlConstraints {
+			if constraintName == dbConstraintName {
+				continue dbConLoop
+			}
+		}
+		dropConstraint(m.tableName, dbConstraintName)
+	}
+}
+
 // createFKConstraint creates an FK constraint for the given column that references the given targetTable
 func createFKConstraint(tableName, colName, targetTable, ondelete string) {
 	adapter := adapters[db.DriverName()]
-	query := fmt.Sprintf(`
-		ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s ON DELETE %s
-	`, adapter.quoteTableName(tableName), fmt.Sprintf("%s_%s_fkey", tableName, colName), colName, adapter.quoteTableName(targetTable), ondelete)
-	dbExecuteNoTx(query)
+	constraint := fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s ON DELETE %s", colName, adapter.quoteTableName(targetTable), ondelete)
+	createConstraint(tableName, fmt.Sprintf("%s_%s_fkey", tableName, colName), constraint)
 }
 
 // dropFKConstraint drops an FK constraint for colName in the given table
 func dropFKConstraint(tableName, colName string) {
+	dropConstraint(tableName, fmt.Sprintf("%s_%s_fkey", tableName, colName))
+}
+
+// createConstraint creates a constraint in the given table
+func createConstraint(tableName, constraintName, sql string) {
+	adapter := adapters[db.DriverName()]
+	query := fmt.Sprintf(`
+		ALTER TABLE %s ADD CONSTRAINT %s %s
+	`, adapter.quoteTableName(tableName), constraintName, sql)
+	dbExecuteNoTx(query)
+}
+
+// dropConstraint drops a constraint with the given name
+func dropConstraint(tableName, constraintName string) {
 	adapter := adapters[db.DriverName()]
 	query := fmt.Sprintf(`
 		ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s
-	`, adapter.quoteTableName(tableName), fmt.Sprintf("%s_%s_fkey", tableName, colName))
+	`, adapter.quoteTableName(tableName), constraintName)
 	dbExecuteNoTx(query)
 }
 
