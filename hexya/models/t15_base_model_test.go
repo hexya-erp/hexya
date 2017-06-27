@@ -4,11 +4,9 @@
 package models
 
 import (
-	"testing"
-
-	"time"
-
 	"fmt"
+	"testing"
+	"time"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
@@ -90,6 +88,27 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fMap, ShouldHaveLength, 1)
 				So(fMap, ShouldContainKey, "decorated_name")
 				So(fMap["decorated_name"], ShouldEqual, "User: William [<will@example.com>]")
+			})
+			Convey("CheckRecursion", func() {
+				So(userJane.Call("CheckRecursion").(bool), ShouldBeTrue)
+				tag1 := env.Pool("Tag").Call("Create", FieldMap{
+					"Name": "Tag1",
+				}).(RecordCollection)
+				So(tag1.Call("CheckRecursion").(bool), ShouldBeTrue)
+				tag2 := env.Pool("Tag").Call("Create", FieldMap{
+					"Name":   "Tag2",
+					"Parent": tag1,
+				}).(RecordCollection)
+				So(tag2.Call("CheckRecursion").(bool), ShouldBeTrue)
+				tag3 := env.Pool("Tag").Call("Create", FieldMap{
+					"Name":   "Tag1",
+					"Parent": tag2,
+				}).(RecordCollection)
+				So(tag3.Call("CheckRecursion").(bool), ShouldBeTrue)
+				tag1.Set("Parent", tag3)
+				So(tag1.Call("CheckRecursion").(bool), ShouldBeFalse)
+				So(tag2.Call("CheckRecursion").(bool), ShouldBeFalse)
+				So(tag3.Call("CheckRecursion").(bool), ShouldBeFalse)
 			})
 		})
 	})
