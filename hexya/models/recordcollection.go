@@ -95,6 +95,7 @@ func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 	rSet.updateRelationFields(fMap)
 	// compute stored fields
 	rSet.updateStoredFields(fMap)
+	rSet.checkConstraints()
 	return rSet
 }
 
@@ -157,6 +158,27 @@ func (rc RecordCollection) applyDefaults(fMap *FieldMap) {
 		val := reflect.ValueOf((*fMap)[fName])
 		if !val.IsValid() || val == reflect.Zero(val.Type()) {
 			(*fMap)[fName] = fi.defaultFunc(rc.Env(), FieldMap{})
+		}
+	}
+}
+
+// checkConstraints executes the constraint method for each field defined
+// in the given fMap with the corresponding value.
+// Each method is only executed once, even if it is called by several fields.
+// It panics as soon as one constraint fails.
+func (rc RecordCollection) checkConstraints() {
+	methods := make(map[string]bool)
+	for _, fi := range rc.model.fields.registryByJSON {
+		if fi.constraint != "" {
+			methods[fi.constraint] = true
+		}
+	}
+	if len(methods) == 0 {
+		return
+	}
+	for method := range methods {
+		for _, rec := range rc.Records() {
+			rec.Call(method)
 		}
 	}
 }
@@ -232,6 +254,7 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 			log.Panic("Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
 		}
 	}
+	rc.checkConstraints()
 }
 
 // updateRelationFields updates reverse relations fields of the

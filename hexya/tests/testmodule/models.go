@@ -17,7 +17,10 @@ package testmodule
 import (
 	"fmt"
 
+	"log"
+
 	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/pool"
 )
@@ -129,11 +132,28 @@ func declareModels() {
 		})
 
 	tag := pool.Tag().DeclareModel()
-	tag.AddCharField("Name", models.StringFieldParams{})
+	tag.AddCharField("Name", models.StringFieldParams{Constraint: "CheckNameDescription"})
 	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: pool.Tag()})
 	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: pool.Post()})
 	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: pool.Post()})
-	tag.AddCharField("Description", models.StringFieldParams{})
+	tag.AddCharField("Description", models.StringFieldParams{Constraint: "CheckNameDescription"})
+	tag.AddFloatField("Rate", models.FloatFieldParams{Constraint: "CheckRate", GoType: new(float32)})
+
+	tag.Methods().CheckNameDescription().DeclareMethod(
+		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
+		func(rs pool.TagSet) {
+			if rs.Rate() < 0 || rs.Rate() > 10 {
+				log.Panic("Tag rate must be between 0 and 10")
+			}
+		}).AllowGroup(security.GroupEveryone)
+
+	tag.Methods().CheckRate().DeclareMethod(
+		`CheckNameDescription checks that the description of a tag is not equal to its name`,
+		func(rs pool.TagSet) {
+			if rs.Name() == rs.Description() {
+				log.Panic("Tag name and description must be different")
+			}
+		})
 
 	addressMI := pool.AddressMixIn().DeclareMixinModel()
 	addressMI.AddCharField("Street", models.StringFieldParams{})

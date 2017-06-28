@@ -101,6 +101,24 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userWill.Len(), ShouldEqual, 1)
 				So(userWill.ID(), ShouldBeGreaterThan, 0)
 			})
+			Convey("Checking constraint methods enforcement", func() {
+				tag1Data := pool.TagData{
+					Name:        "Tag1",
+					Description: "Tag1",
+				}
+				So(func() { pool.Tag().Create(env, tag1Data) }, ShouldPanic)
+				tag2Data := pool.TagData{
+					Name: "Tag2",
+					Rate: 12,
+				}
+				So(func() { pool.Tag().Create(env, tag2Data) }, ShouldPanic)
+				tag3Data := pool.TagData{
+					Name:        "Tag2",
+					Description: "Tag2",
+					Rate:        -3,
+				}
+				So(func() { pool.Tag().Create(env, tag3Data) }, ShouldPanic)
+			})
 		})
 	})
 	group1 := security.Registry.NewGroup("group1", "Group 1")
@@ -421,6 +439,18 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
 				So(post3.User().ID(), ShouldEqual, userJane.ID())
 				So(post2.User().ID(), ShouldEqual, 0)
+			})
+			Convey("Checking constraint methods enforcement", func() {
+				tag1 := pool.Tag().Search(env, pool.Tag().Name().Equals("Trending"))
+				So(func() { tag1.SetDescription("Trending") }, ShouldPanic)
+				tag2 := pool.Tag().Search(env, pool.Tag().Name().Equals("Books"))
+				So(func() { tag2.SetRate(12) }, ShouldPanic)
+				So(func() {
+					tag2.Write(pool.TagData{
+						Description: "Books",
+						Rate:        -3,
+					}, pool.Tag().Description(), pool.Tag().Rate())
+				}, ShouldPanic)
 			})
 		})
 	})

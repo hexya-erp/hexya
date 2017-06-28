@@ -31,6 +31,7 @@ type SimpleFieldParams struct {
 	GoType        interface{}
 	Translate     bool
 	OnChange      string
+	Constraint    string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -52,6 +53,7 @@ type FloatFieldParams struct {
 	GoType        interface{}
 	Translate     bool
 	OnChange      string
+	Constraint    string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -73,26 +75,28 @@ type StringFieldParams struct {
 	GoType        interface{}
 	Translate     bool
 	OnChange      string
+	Constraint    string
 	Default       func(Environment, FieldMap) interface{}
 }
 
 // A SelectionFieldParams holds all the possible options for a selection field
 type SelectionFieldParams struct {
-	JSON      string
-	String    string
-	Help      string
-	Stored    bool
-	Required  bool
-	Unique    bool
-	Index     bool
-	Compute   string
-	Depends   []string
-	Related   string
-	NoCopy    bool
-	Selection types.Selection
-	Translate bool
-	OnChange  string
-	Default   func(Environment, FieldMap) interface{}
+	JSON       string
+	String     string
+	Help       string
+	Stored     bool
+	Required   bool
+	Unique     bool
+	Index      bool
+	Compute    string
+	Depends    []string
+	Related    string
+	NoCopy     bool
+	Selection  types.Selection
+	Translate  bool
+	OnChange   string
+	Constraint string
+	Default    func(Environment, FieldMap) interface{}
 }
 
 // A ForeignKeyFieldParams holds all the possible options for a many2one or one2one field
@@ -112,6 +116,7 @@ type ForeignKeyFieldParams struct {
 	Translate     bool
 	OnDelete      OnDeleteAction
 	OnChange      string
+	Constraint    string
 	Filter        Conditioner
 	Default       func(Environment, FieldMap) interface{}
 }
@@ -132,6 +137,7 @@ type ReverseFieldParams struct {
 	ReverseFK     string
 	Translate     bool
 	OnChange      string
+	Constraint    string
 	Filter        Conditioner
 	Default       func(Environment, FieldMap) interface{}
 }
@@ -154,6 +160,7 @@ type Many2ManyFieldParams struct {
 	M2MTheirField    string
 	Translate        bool
 	OnChange         string
+	Constraint       string
 	Filter           Conditioner
 	Default          func(Environment, FieldMap) interface{}
 }
@@ -205,6 +212,7 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
 		onChange:      params.OnChange,
+		constraint:    params.Constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -245,6 +253,7 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
 		onChange:      params.OnChange,
+		constraint:    params.Constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -298,6 +307,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		translate:        params.Translate,
 		onChange:         params.OnChange,
 		filter:           filter,
+		constraint:       params.Constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -339,6 +349,7 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		translate:        params.Translate,
 		filter:           filter,
 		onChange:         params.OnChange,
+		constraint:       params.Constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -411,6 +422,7 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
 		onChange:      params.OnChange,
+		constraint:    params.Constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -487,6 +499,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		translate:        params.Translate,
 		filter:           filter,
 		onChange:         params.OnChange,
+		constraint:       params.Constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -545,6 +558,7 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		defaultFunc: params.Default,
 		translate:   params.Translate,
 		onChange:    params.OnChange,
+		constraint:  params.Constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -638,5 +652,17 @@ func (f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field
 // SetSelection overrides the value of the Selection parameter of this Field
 func (f *Field) SetSelection(value types.Selection) *Field {
 	f.selection = value
+	return f
+}
+
+// SetOnchange overrides the value of the Onchange parameter of this Field
+func (f *Field) SetOnchange(value string) *Field {
+	f.onChange = value
+	return f
+}
+
+// SetConstraint overrides the value of the Constraint parameter of this Field
+func (f *Field) SetConstraint(value string) *Field {
+	f.constraint = value
 	return f
 }

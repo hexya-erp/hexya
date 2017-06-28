@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -71,12 +72,12 @@ func TestModelDeclaration(t *testing.T) {
 		post.AddBinaryField("Attachment", SimpleFieldParams{})
 		post.AddDateField("LastRead", SimpleFieldParams{})
 
-		tag.AddCharField("Name", StringFieldParams{})
+		tag.AddCharField("Name", StringFieldParams{Constraint: "CheckNameDescription"})
 		tag.AddMany2OneField("BestPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post")})
 		tag.AddMany2ManyField("Posts", Many2ManyFieldParams{RelationModel: Registry.MustGet("Post")})
 		tag.AddMany2OneField("Parent", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Tag")})
-		tag.AddCharField("Description", StringFieldParams{})
-		tag.AddFloatField("Rate", FloatFieldParams{GoType: new(float32)})
+		tag.AddCharField("Description", StringFieldParams{Constraint: "CheckNameDescription"})
+		tag.AddFloatField("Rate", FloatFieldParams{Constraint: "CheckRate", GoType: new(float32)})
 
 		addressMI.AddCharField("Street", StringFieldParams{GoType: new(string)})
 		addressMI.AddCharField("Zip", StringFieldParams{})
@@ -148,7 +149,8 @@ func TestModelDeclaration(t *testing.T) {
 				return "Hello !"
 			})
 
-		addressMI.AddMethod("PrintAddress", "",
+		printAddress := addressMI.AddEmptyMethod("PrintAddress")
+		printAddress.DeclareMethod("",
 			func(rc RecordCollection) string {
 				return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
 			})
@@ -176,6 +178,22 @@ func TestModelDeclaration(t *testing.T) {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
+
+		tag.AddMethod("CheckRate",
+			`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
+			func(rc RecordCollection) {
+				if rc.Get("Rate").(float32) < 0 || rc.Get("Rate").(float32) > 10 {
+					log.Panic("Tag rate must be between 0 and 10")
+				}
+			}).AllowGroup(security.GroupEveryone)
+
+		tag.AddMethod("CheckNameDescription",
+			`CheckNameDescription checks that the description of a tag is not equal to its name`,
+			func(rc RecordCollection) {
+				if rc.Get("Name").(string) == rc.Get("Description").(string) {
+					log.Panic("Tag name and description must be different")
+				}
+			}).AllowGroup(security.GroupEveryone)
 	})
 }
 

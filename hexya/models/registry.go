@@ -367,17 +367,16 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 	return &res
 }
 
-// MergeFieldMaps returns a new map which is a copy of dest
-// with key-value pairs from src copied into it.
+// MergeFieldMaps updates dest with key-value pairs from
+// src copied into it.
 // If the key already exists, the value is overridden,
 // otherwise, the key is inserted.
-// All keys are converted to json names.
-func (m *Model) MergeFieldMaps(dest, src FieldMap) FieldMap {
+// All keys of src are converted to json names.
+func (m *Model) MergeFieldMaps(dest, src FieldMap) {
 	for k, v := range src {
 		jsonName := m.fields.MustGet(k).json
 		dest[jsonName] = v
 	}
-	return dest
 }
 
 // Create creates a new record in this model with the given data.

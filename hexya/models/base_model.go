@@ -257,8 +257,8 @@ func declareRecordSetMethods() {
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Onchange",
-		`Onchange returns the values that must be modified in the pseudo-record
-		given as params.Values`,
+		`Onchange returns the values that must be modified according to each field's Onchange
+		method in the pseudo-record given as params.Values`,
 		func(rc RecordCollection, params OnchangeParams) OnchangeResult {
 			var fields []FieldNamer
 			values := params.Values
@@ -272,7 +272,7 @@ func declareRecordSetMethods() {
 				if !rc.IsEmpty() {
 					rsID = rc.Ids()[0]
 				}
-				values = rc.model.MergeFieldMaps(values, FieldMap{"ID": rsID})
+				rc.model.MergeFieldMaps(values, FieldMap{"ID": rsID})
 				rs.ids = []int64{rsID}
 
 				for _, field := range params.Fields {
@@ -285,8 +285,8 @@ func declareRecordSetMethods() {
 					res := rs.CallMulti(fi.onChange)
 					fields = res[1].([]FieldNamer)
 					val := rs.model.JSONizeFieldMap(res[0].(FieldMapper).FieldMap(fields...))
-					values = rs.model.MergeFieldMaps(values, val)
-					retValues = rs.model.MergeFieldMaps(retValues, val)
+					rs.model.MergeFieldMaps(values, val)
+					rs.model.MergeFieldMaps(retValues, val)
 				}
 			})
 			retValues.RemovePK()
@@ -324,7 +324,7 @@ func declareRecordSetMethods() {
 				}
 			}
 			return true
-		})
+		}).AllowGroup(security.GroupEveryone)
 }
 
 func declareSearchMethods() {

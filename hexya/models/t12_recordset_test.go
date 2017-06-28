@@ -105,6 +105,24 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userWill.Len(), ShouldEqual, 1)
 				So(userWill.Get("ID"), ShouldBeGreaterThan, 0)
 			})
+			Convey("Checking constraint methods enforcement", func() {
+				tag1Data := FieldMap{
+					"Name":        "Tag1",
+					"Description": "Tag1",
+				}
+				So(func() { env.Pool("Tag").Call("Create", tag1Data) }, ShouldPanic)
+				tag2Data := FieldMap{
+					"Name": "Tag2",
+					"Rate": 12,
+				}
+				So(func() { env.Pool("Tag").Call("Create", tag2Data) }, ShouldPanic)
+				tag3Data := FieldMap{
+					"Name":        "Tag2",
+					"Description": "Tag2",
+					"Rate":        -3,
+				}
+				So(func() { env.Pool("Tag").Call("Create", tag3Data) }, ShouldPanic)
+			})
 		})
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {
@@ -498,6 +516,18 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post1.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post3.Get("User").(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post2.Get("User").(RecordCollection).Get("ID"), ShouldEqual, 0)
+			})
+			Convey("Checking constraint methods enforcement", func() {
+				tag1 := env.Pool("Tag").Search(Registry.MustGet("Tag").Field("Name").Equals("Trending"))
+				So(func() { tag1.Set("Description", "Trending") }, ShouldPanic)
+				tag2 := env.Pool("Tag").Search(Registry.MustGet("Tag").Field("Name").Equals("Books"))
+				So(func() { tag2.Set("Rate", 12) }, ShouldPanic)
+				So(func() {
+					tag2.Call("Write", FieldMap{
+						"Description": "Books",
+						"Rate":        -3,
+					})
+				}, ShouldPanic)
 			})
 		})
 	})
