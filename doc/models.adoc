@@ -634,6 +634,8 @@ apply on a Field instance.
 `*(f *Field) SetNoCopy(value bool) *Field*`::
 `*(f *Field) SetTranslate(value bool) *Field*`::
 `*(f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field*`::
+`*(f *Field) SetOnchange(value string) *Field*`::
+`*(f *Field) SetConstraint(value string) *Field*`::
 
 [source,go]
 ----
@@ -755,6 +757,21 @@ interface, not by code.
 IMPORTANT: OnChange methods are executed in an isolated environment that is
 rolled back after execution. You should therefore not try to create or
 write any RecordSet in these methods, or they will fail.
+
+`Constraint` string::
+The name of a method to call to validate the value of this field in a record.
+The value must be the name of a method on this RecordSet with the following
+signature:
+
+[source,go]
+----
+func (RecordSetType)
+----
+
+The given method must panic if the given RecordSet is not valid.
+
+NOTE: Several fields can set their `Constraint:` to the same method. In this
+case the method will only be called once, even if both fields are modified.
 
 `GroupOperator` string::
 A valid database function name that will be used on this field when aggregating

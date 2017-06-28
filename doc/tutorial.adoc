@@ -1299,6 +1299,41 @@ Let's add the following SQL constraints to our sessions:
 (...)
 ----
 
+=== Constraint by method
+
+Constraints on models can also be defined as methods on models. This is done by
+setting the `Constraint:` parameter of a field to the name of a method that
+will check if its given recordset is valid. This method must panic if it is not
+the case.
+
+NOTE: Several fields can set their `Constraint:` to the same method. In this
+case the method will only be called once, even if both fields are modified.
+
+Now we will add a constraint that checks that the instructor is not present
+in the attendees of his/her own session.
+
+.openacademy/session.go
+[source,go]
+----
+    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
+        RelationModel: pool.Partner(), Filter: pool.Partner().Instructor().Equals(true),
+        Constraint: "CheckInstructorNotInAttendees"})
+    pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
+        RelationModel: pool.Partner(), OnChange: "VerifyValidSeats",
+        Constraint: "CheckInstructorNotInAttendees"})
+
+    pool.Methods().CheckInstructorNotInAttendees().DeclareMethod(
+        `CheckInstructorNotInAttendees checks that the instructor is not present
+        in the attendees of his/her own session`,
+        func(rs pool.OpenAcademySessionSet) {
+            for _, attendee := range rs.Attendees() {
+                if attendee.ID() == rs.Instructor().ID() {
+                    panic("The session's instructor can't be an attendee of his own session")
+                }
+            }
+        })
+----
+
 == Advanced Views
 
 === List views
