@@ -46,6 +46,7 @@ func BootStrap() {
 	syncRelatedFieldInfo()
 	bootStrapMethods()
 	processDepends()
+	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
 }
@@ -546,6 +547,24 @@ func setupSecurity() {
 			meth.groups[security.GroupAdmin] = true
 			for group := range model.methods.powerGroups {
 				meth.groups[group] = true
+			}
+		}
+	}
+}
+
+// checkFieldMethodsExist checks that all methods referenced by fields,
+// such as Compute, Constraint or Onchange exist.
+func checkFieldMethodsExist() {
+	for _, model := range Registry.registryByName {
+		for _, field := range model.fields.registryByName {
+			if field.onChange != "" {
+				model.methods.MustGet(field.onChange)
+			}
+			if field.constraint != "" {
+				model.methods.MustGet(field.constraint)
+			}
+			if field.compute != "" {
+				model.methods.MustGet(field.compute)
 			}
 		}
 	}
