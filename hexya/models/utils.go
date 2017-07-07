@@ -160,9 +160,10 @@ func jsonizePath(mi *Model, path string) string {
 	return strings.Join(exprs, ExprSep)
 }
 
-// mapToStruct populates the given structPtr with the values in fMap.
-func mapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
+// MapToStruct populates the given structPtr with the values in fMap.
+func MapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 	fMap = nestMap(fMap)
+	rc.model.convertValuesToFieldType(&fMap)
 	val := reflect.ValueOf(structPtr)
 	ind := reflect.Indirect(val)
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
@@ -176,27 +177,31 @@ func mapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 			log.Panic("Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
 		}
 
+		isRecordSet := sf.Type.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem())
 		mValue, mValExists := fMap[fi.json]
-		if mValExists && mValue != nil {
-			var convertedValue reflect.Value
-			if sf.Type.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-				var relRC RecordCollection
-				switch r := mValue.(type) {
-				case int64:
-					relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
-				case []int64:
-					relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
-				}
-				if sf.Type == reflect.TypeOf(RecordCollection{}) {
-					convertedValue = reflect.ValueOf(relRC)
-				} else {
-					// We have a generated RecordSet Type
-					convertedValue = reflect.New(sf.Type).Elem()
-					convertedValue.FieldByName("RecordCollection").Set(reflect.ValueOf(relRC))
-				}
-			} else {
-				convertedValue = reflect.ValueOf(mValue).Convert(fVal.Type())
+		var convertedValue reflect.Value
+		if isRecordSet {
+			var relRC RecordCollection
+			switch r := mValue.(type) {
+			case nil:
+				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name)
+			case int64:
+				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
+			case []int64:
+				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
 			}
+			if sf.Type == reflect.TypeOf(RecordCollection{}) {
+				convertedValue = reflect.ValueOf(relRC)
+			} else {
+				// We have a generated RecordSet Type
+				convertedValue = reflect.New(sf.Type).Elem()
+				convertedValue.FieldByName("RecordCollection").Set(reflect.ValueOf(relRC))
+			}
+			fVal.Set(convertedValue)
+			continue
+		}
+		if mValExists && mValue != nil {
+			convertedValue = reflect.ValueOf(mValue).Convert(fVal.Type())
 			fVal.Set(convertedValue)
 		}
 	}

@@ -328,6 +328,14 @@ func (m {{ .Name }}Model) Search(env models.Environment, cond {{ .Name }}Conditi
 	}
 }
 
+// Browse returns a new RecordSet with the records with the given ids.
+// Note that this function is just a shorcut for Search on a list of ids.
+func (m {{ .Name }}Model) Browse(env models.Environment, ids []int64) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: m.Model.Browse(env, ids),
+	}
+}
+
 {{ end }}
 // Fields returns the Field Collection of the {{ .Name }} Model
 func (m {{ .Name }}Model) Fields() {{ .Name }}FieldsCollection {
@@ -690,6 +698,14 @@ func (s {{ .Name }}Set) Super() {{ .Name }}Set {
 	return {{ .Name }}Set{
 		RecordCollection: s.RecordCollection.Super(),
 	}
+}
+
+// DataStruct returns a new {{ .Name }}Data object populated with the values
+// of the given FieldMap.
+func (s {{ .Name }}Set) DataStruct(fMap models.FieldMap) *{{ .Name }}Data {
+	var res {{ .Name }}Data
+	models.MapToStruct(s.Collection(), &res, fMap)
+	return &res
 }
 
 {{ range .Methods }}

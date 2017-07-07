@@ -605,7 +605,7 @@ func (rc RecordCollection) First(structPtr interface{}) {
 	}
 	rSet.Load(fields...)
 	fMap := rSet.env.cache.getRecord(rSet.ModelName(), rSet.ids[0])
-	mapToStruct(rSet, structPtr, fMap)
+	MapToStruct(rSet, structPtr, fMap)
 }
 
 // All fetches a copy of all records of the RecordCollection and populates structSlicePtr.
@@ -624,7 +624,7 @@ func (rc RecordCollection) All(structSlicePtr interface{}) {
 	for i := 0; i < rSet.Len(); i++ {
 		fMap := rSet.env.cache.getRecord(rSet.ModelName(), recs[i].ids[0])
 		newStructPtr := reflect.New(structType).Interface()
-		mapToStruct(rSet, newStructPtr, fMap)
+		MapToStruct(rSet, newStructPtr, fMap)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
 	}
 }

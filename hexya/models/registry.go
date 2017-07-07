@@ -389,6 +389,12 @@ func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
 	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
+// Browse returns a new RecordSet with the records with the given ids.
+// Note that this function is just a shorcut for Search on a list of ids.
+func (m *Model) Browse(env Environment, ids []int64) RecordCollection {
+	return env.Pool(m.name).Call("Browse", ids).(RecordSet).Collection()
+}
+
 // AddSQLConstraint adds a table constraint in the database.
 // - name is an arbitrary name to reference this constraint. It will be appended by
 // the table name in the database, so there is only need to ensure that it is unique
