@@ -583,7 +583,8 @@ func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
 		}
 	}
 	var fieldValue reflect.Value
-{{ range .Fields }}	fieldValue = reflect.ValueOf(d.{{ .Name }})
+{{ range .Fields -}}
+	fieldValue = reflect.ValueOf(d.{{ .Name }})
 	if fieldsMap["{{ .Name }}"] ||
 		(noFields && !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface())) {
 		res["{{ .Name }}"] = d.{{ .Name }}
