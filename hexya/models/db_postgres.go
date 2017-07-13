@@ -19,7 +19,7 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/operator"
-	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	"github.com/lib/pq"
 )
 
@@ -49,7 +49,7 @@ var pgTypes = map[fieldtype.Type]string{
 	fieldtype.Date:      "date",
 	fieldtype.DateTime:  "timestamp without time zone",
 	fieldtype.Integer:   "integer",
-	fieldtype.Float:     "double precision",
+	fieldtype.Float:     "numeric",
 	fieldtype.HTML:      "text",
 	fieldtype.Binary:    "bytea",
 	fieldtype.Selection: "varchar",
@@ -101,7 +101,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 			res = fmt.Sprintf("%s(%d)", res, fi.size)
 		}
 	case fieldtype.Float:
-		emptyD := types.Digits{}
+		emptyD := nbutils.Digits{}
 		if fi.digits != emptyD {
 			res = fmt.Sprintf("numeric(%d, %d)", fi.digits.Precision, fi.digits.Scale)
 		}

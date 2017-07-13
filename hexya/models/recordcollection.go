@@ -776,6 +776,31 @@ func (rc RecordCollection) Subtract(other RecordCollection) RecordCollection {
 	return newRecordCollection(rc.Env(), rc.ModelName()).withIds(ids)
 }
 
+// Equals returns true if this RecordCollection is the same as other
+// i.e. they are of the same model and have the same ids
+func (rc RecordCollection) Equals(other RecordCollection) bool {
+	if rc.ModelName() != other.ModelName() {
+		return false
+	}
+	if rc.Len() != other.Len() {
+		return false
+	}
+	theseIds := make(map[int64]bool)
+	for _, id := range rc.Ids() {
+		theseIds[id] = true
+	}
+	for _, id := range other.Ids() {
+		if !theseIds[id] {
+			return false
+		}
+		delete(theseIds, id)
+	}
+	if len(theseIds) != 0 {
+		return false
+	}
+	return true
+}
+
 // withIdMap returns a new RecordCollection pointing to the given ids.
 // It overrides the current query with ("ID", "in", ids).
 func (rc RecordCollection) withIds(ids []int64) RecordCollection {

@@ -58,6 +58,20 @@ func (c *Context) GetString(key string) string {
 	return c.Get(key).(string)
 }
 
+// GetDate returns the value of the given key in
+// this Context as a Date.
+// It panics if the value is not of type Date
+func (c *Context) GetDate(key string) Date {
+	return c.Get(key).(Date)
+}
+
+// GetDateTime returns the value of the given key in
+// this Context as a DateTime.
+// It panics if the value is not of type DateTime
+func (c *Context) GetDateTime(key string) DateTime {
+	return c.Get(key).(DateTime)
+}
+
 // GetInteger returns the value of the given key in
 // this Context as an int64.
 // It panics if the value cannot be casted to int64
@@ -211,15 +225,6 @@ func NewContext(data ...map[string]interface{}) *Context {
 	}
 }
 
-// Digits holds precision and scale information for a float (numeric) type:
-// - The precision: the total number of digits
-// - The scale: the number of digits to the right of the decimal point
-// (PostgresSQL definitions)
-type Digits struct {
-	Precision int8
-	Scale     int8
-}
-
 // Date type that JSON marshal and unmarshals as "YYYY-MM-DD"
 type Date struct {
 	time.Time
@@ -278,6 +283,11 @@ type DateTime struct {
 // Now returns the current date/time
 func Now() DateTime {
 	return DateTime{time.Now()}
+}
+
+// ToDate returns the Date of this DateTime
+func (d DateTime) ToDate() Date {
+	return Date{d.Time}
 }
 
 // MarshalJSON for DateTime type

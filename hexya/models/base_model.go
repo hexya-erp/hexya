@@ -403,6 +403,13 @@ func declareSearchMethods() {
 		func(rc RecordCollection, other RecordCollection) RecordCollection {
 			return rc.Subtract(other)
 		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("Equals",
+		`Equals returns true if this RecordSet is the same as other
+		i.e. they are of the same model and have the same ids`,
+		func(rc RecordCollection, other RecordCollection) bool {
+			return rc.Equals(other)
+		}).AllowGroup(security.GroupEveryone)
 }
 
 func declareEnvironmentMethods() {

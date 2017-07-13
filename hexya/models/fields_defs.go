@@ -11,6 +11,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
@@ -49,7 +50,7 @@ type FloatFieldParams struct {
 	Related       string
 	GroupOperator string
 	NoCopy        bool
-	Digits        types.Digits
+	Digits        nbutils.Digits
 	GoType        interface{}
 	Translate     bool
 	OnChange      string

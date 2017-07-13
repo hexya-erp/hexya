@@ -23,6 +23,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
@@ -190,7 +191,7 @@ type Field struct {
 	fieldType        fieldtype.Type
 	groupOperator    string
 	size             int
-	digits           types.Digits
+	digits           nbutils.Digits
 	structField      reflect.StructField
 	relatedPath      string
 	dependencies     []computeData

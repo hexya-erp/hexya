@@ -110,6 +110,36 @@ func TestBaseModelMethods(t *testing.T) {
 				So(tag2.Call("CheckRecursion").(bool), ShouldBeFalse)
 				So(tag3.Call("CheckRecursion").(bool), ShouldBeFalse)
 			})
+			Convey("Browse", func() {
+				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordCollection)
+				So(browsedUser.Ids(), ShouldHaveLength, 1)
+				So(browsedUser.Ids(), ShouldContain, userJane.Ids()[0])
+			})
+			Convey("Equals", func() {
+				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordCollection)
+				So(browsedUser.Equals(userJane), ShouldBeTrue)
+				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
+					Field("Name").Equals("John Smith")).(RecordCollection)
+				So(userJohn.Equals(userJane), ShouldBeFalse)
+				johnAndJane := userJohn.Union(userJane)
+				usersJ := env.Pool("User").Call("Search", env.Pool("User").Model().
+					Field("Name").Like("J% Smith")).(RecordCollection)
+				So(usersJ.Records(), ShouldHaveLength, 2)
+				So(usersJ.Equals(johnAndJane), ShouldBeTrue)
+			})
+			Convey("Subtract", func() {
+				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
+					Field("Name").Equals("John Smith")).(RecordCollection)
+				johnAndJane := userJohn.Union(userJane)
+				So(johnAndJane.Subtract(userJane).Equals(userJohn), ShouldBeTrue)
+				So(johnAndJane.Subtract(userJohn).Equals(userJane), ShouldBeTrue)
+			})
+			Convey("ConvertLimitToInt", func() {
+				So(ConvertLimitToInt(12), ShouldEqual, 12)
+				So(ConvertLimitToInt(false), ShouldEqual, -1)
+				So(ConvertLimitToInt(0), ShouldEqual, 0)
+				So(ConvertLimitToInt(nil), ShouldEqual, 80)
+			})
 		})
 	})
 }

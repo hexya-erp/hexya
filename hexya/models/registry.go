@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -235,30 +236,52 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 			scanFunc.Call(inArgs)
 			val = valPtr.Elem()
 		default:
-			rVal := reflect.ValueOf(fMapValue)
-			if rVal.Type().Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-				v, err := convertRelationFieldValue(fMapValue, fType)
-				if err != nil {
-					log.Panic(err.Error(), "model", m.name, "field", colName, "type", fType, "value", fMapValue)
-				}
-				val = v
+			var err error
+			if _, ok := fMapValue.(RecordSet); ok {
+				val, err = getRelationFieldValue(fMapValue, fType)
 			} else {
-				val = reflect.ValueOf(fMapValue)
-				if val.IsValid() {
-					if typ := val.Type(); typ.ConvertibleTo(fType) {
-						val = val.Convert(fType)
-					}
-				}
+				val, err = getSimpleTypeValue(fMapValue, fType)
+			}
+			if err != nil {
+				log.Panic(err.Error(), "model", m.name, "field", colName, "type", fType, "value", fMapValue)
 			}
 		}
 		destVals.SetMapIndex(reflect.ValueOf(colName), val)
 	}
 }
 
-// convertRelationFieldValue returns value as a reflect.Value with type of targetType
-// It panics if the value is not consistent with a relation field value
+// getSimpleTypeValue returns value as a reflect.Value with type of targetType
+// It returns an error if the value cannot be converted to the target type
+func getSimpleTypeValue(value interface{}, targetType reflect.Type) (reflect.Value, error) {
+	val := reflect.ValueOf(value)
+	if val.IsValid() {
+		typ := val.Type()
+		switch {
+		case typ.ConvertibleTo(targetType):
+			val = val.Convert(targetType)
+		case typ == reflect.TypeOf([]byte{}) && targetType.Kind() == reflect.Float32:
+			// backend may return floats as []byte when stored as numeric
+			fval, err := strconv.ParseFloat(string(value.([]byte)), 32)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			val = reflect.ValueOf(float32(fval))
+		case typ == reflect.TypeOf([]byte{}) && targetType.Kind() == reflect.Float64:
+			// backend may return floats as []byte when stored as numeric
+			fval, err := strconv.ParseFloat(string(value.([]byte)), 64)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			val = reflect.ValueOf(fval)
+		}
+	}
+	return val, nil
+}
+
+// getRelationFieldValue returns value as a reflect.Value with type of targetType
+// It returns an error if the value is not consistent with a relation field value
 // (i.e. is not of type RecordSet or int64 or []int64)
-func convertRelationFieldValue(value interface{}, targetType reflect.Type) (reflect.Value, error) {
+func getRelationFieldValue(value interface{}, targetType reflect.Type) (reflect.Value, error) {
 	ids := value.(RecordSet).Ids()
 	var (
 		val reflect.Value
@@ -396,11 +419,11 @@ func (m *Model) Browse(env Environment, ids []int64) RecordCollection {
 }
 
 // AddSQLConstraint adds a table constraint in the database.
-// - name is an arbitrary name to reference this constraint. It will be appended by
-// the table name in the database, so there is only need to ensure that it is unique
-// in this model.
-// - sql is constraint definition to pass to the database.
-// - errorString is the text to display to the user when the constraint is violated
+//    - name is an arbitrary name to reference this constraint. It will be appended by
+//      the table name in the database, so there is only need to ensure that it is unique
+//      in this model.
+//    - sql is constraint definition to pass to the database.
+//    - errorString is the text to display to the user when the constraint is violated
 func (m *Model) AddSQLConstraint(name, sql, errorString string) {
 	constraintName := fmt.Sprintf("%s_%s_mancon", name, m.tableName)
 	m.sqlConstraints[constraintName] = sqlConstraint{
