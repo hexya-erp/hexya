@@ -279,6 +279,13 @@ cond := pool.Users().PartnerFilteredOn(pool.Partner().Function().ILike("manager"
 ----
 ====
 
+`*(Model) Browse(env Environment, ids []int64) RecordSetType*`::
+Search the database and returns a RecordSet with the records having the given ids.
+
+`*(RecordSet) Browse(ids []int64) RecordSetType*`::
+Narrows this RecordSet by selecting only those with the given ids.
+This function is only a shortcut for `Search` on a list on ids.
+
 `*SearchCount() int*`::
 Return the number of records matching the search condition.
 
@@ -368,6 +375,10 @@ Returns a new RecordSet that is the union of this RecordSet and the given
 `*Subtract(other RecordSetType) RecordSetType*`::
 Returns a RecordSet with the Records that are in this RecordSet but not in the
 given 'other' one. The result is guaranteed to be a set of unique records.
+
+`*Equals(other RecordSetType) bool*`::
+Returns true if this RecordSet is equal to the other RecordSet, that is they
+are from the same model and reference the same ids.
 
 == Environment
 
@@ -636,6 +647,7 @@ apply on a Field instance.
 `*(f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field*`::
 `*(f *Field) SetOnchange(value string) *Field*`::
 `*(f *Field) SetConstraint(value string) *Field*`::
+`*(f *Field) SetInverse(value string) *Field*`::
 
 [source,go]
 ----
@@ -787,6 +799,15 @@ Record with the values to update and a slice of field names to unset.
 [source,go]
 ----
 func (RecordSetType) (*RecordType, []models.FieldNamer)
+----
+
+`Inverse` string::
+Declares a inverse method for a computed field. This method will be called when
+the field is set. The given method must have the following signature:
+
+[source,go]
+----
+func (RecordSetType, models.FieldMapper)
 ----
 
 `Related` string::

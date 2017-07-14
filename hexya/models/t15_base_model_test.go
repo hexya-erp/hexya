@@ -117,10 +117,10 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Equals", func() {
 				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordCollection)
-				So(browsedUser.Equals(userJane), ShouldBeTrue)
+				So(browsedUser.Call("Equals", userJane), ShouldBeTrue)
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field("Name").Equals("John Smith")).(RecordCollection)
-				So(userJohn.Equals(userJane), ShouldBeFalse)
+				So(userJohn.Call("Equals", userJane), ShouldBeFalse)
 				johnAndJane := userJohn.Union(userJane)
 				usersJ := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field("Name").Like("J% Smith")).(RecordCollection)

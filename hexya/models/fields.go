@@ -201,6 +201,7 @@ type Field struct {
 	onDelete         OnDeleteAction
 	onChange         string
 	constraint       string
+	inverse          string
 	filter           *Condition
 	translate        bool
 }
@@ -403,6 +404,19 @@ func checkComputeMethodsSignature() {
 			}
 			method := mi.methods.MustGet(fi.onChange)
 			checkMethType(method, "OnChange methods")
+		}
+		for _, fi := range mi.fields.registryByName {
+			if fi.inverse == "" {
+				continue
+			}
+			method := mi.methods.MustGet(fi.inverse)
+			methType := method.methodType
+			switch {
+			case methType.NumIn() != 2:
+				log.Panic("Inverse methods should have 2 arguments", "model", mi.name, "field", fi.name, "method", method.name)
+			case !methType.In(1).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
+				log.Panic("Inverse method second argument must be FieldMapper", "model", mi.name, "field", fi.name, "method", method.name)
+			}
 		}
 	}
 }

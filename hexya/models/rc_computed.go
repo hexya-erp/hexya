@@ -63,7 +63,7 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 			retVal := rec.CallMulti(cData.compute)
 			vals := retVal[0].(FieldMapper).FieldMap()
 			toUnset := retVal[1].([]FieldNamer)
-			rec.Call("Write", vals, toUnset)
+			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals, toUnset)
 		}
 	}
 }

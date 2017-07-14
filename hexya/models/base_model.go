@@ -338,7 +338,7 @@ func declareSearchMethods() {
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Browse",
-		`Browse returns a new RecordSet with the records with the given ids.
+		`Browse returns a new RecordSet with only the records with the given ids.
 		Note that this function is just a shorcut for Search on a list of ids.`,
 		func(rc RecordCollection, ids []int64) RecordCollection {
 			return rc.Call("Search", rc.Model().Field("ID").In(ids)).(RecordSet).Collection()

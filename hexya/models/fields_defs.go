@@ -33,6 +33,7 @@ type SimpleFieldParams struct {
 	Translate     bool
 	OnChange      string
 	Constraint    string
+	Inverse       string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -55,6 +56,7 @@ type FloatFieldParams struct {
 	Translate     bool
 	OnChange      string
 	Constraint    string
+	Inverse       string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -77,6 +79,7 @@ type StringFieldParams struct {
 	Translate     bool
 	OnChange      string
 	Constraint    string
+	Inverse       string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -97,6 +100,7 @@ type SelectionFieldParams struct {
 	Translate  bool
 	OnChange   string
 	Constraint string
+	Inverse    string
 	Default    func(Environment, FieldMap) interface{}
 }
 
@@ -119,6 +123,7 @@ type ForeignKeyFieldParams struct {
 	OnChange      string
 	Constraint    string
 	Filter        Conditioner
+	Inverse       string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -140,6 +145,7 @@ type ReverseFieldParams struct {
 	OnChange      string
 	Constraint    string
 	Filter        Conditioner
+	Inverse       string
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -163,6 +169,7 @@ type Many2ManyFieldParams struct {
 	OnChange         string
 	Constraint       string
 	Filter           Conditioner
+	Inverse          string
 	Default          func(Environment, FieldMap) interface{}
 }
 
@@ -204,6 +211,7 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		unique:        params.Unique,
 		index:         params.Index,
 		compute:       params.Compute,
+		inverse:       params.Inverse,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
 		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
@@ -244,6 +252,7 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		unique:        params.Unique,
 		index:         params.Index,
 		compute:       params.Compute,
+		inverse:       params.Inverse,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
 		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
@@ -296,6 +305,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		required:         required,
 		index:            params.Index,
 		compute:          params.Compute,
+		inverse:          params.Inverse,
 		depends:          params.Depends,
 		relatedPath:      params.Related,
 		noCopy:           noCopy,
@@ -339,6 +349,7 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		required:         params.Required,
 		index:            params.Index,
 		compute:          params.Compute,
+		inverse:          params.Inverse,
 		depends:          params.Depends,
 		relatedPath:      params.Related,
 		noCopy:           params.NoCopy,
@@ -413,6 +424,7 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		unique:        params.Unique,
 		index:         params.Index,
 		compute:       params.Compute,
+		inverse:       params.Inverse,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
 		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
@@ -487,6 +499,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		required:         params.Required,
 		index:            params.Index,
 		compute:          params.Compute,
+		inverse:          params.Inverse,
 		depends:          params.Depends,
 		relatedPath:      params.Related,
 		noCopy:           params.NoCopy,
@@ -550,6 +563,7 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		unique:      params.Unique,
 		index:       params.Index,
 		compute:     params.Compute,
+		inverse:     params.Inverse,
 		depends:     params.Depends,
 		relatedPath: params.Related,
 		noCopy:      params.NoCopy,
@@ -665,5 +679,11 @@ func (f *Field) SetOnchange(value string) *Field {
 // SetConstraint overrides the value of the Constraint parameter of this Field
 func (f *Field) SetConstraint(value string) *Field {
 	f.constraint = value
+	return f
+}
+
+// SetInverse overrides the value of the Inverse parameter of this Field
+func (f *Field) SetInverse(value string) *Field {
+	f.inverse = value
 	return f
 }

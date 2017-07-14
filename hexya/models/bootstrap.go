@@ -566,6 +566,12 @@ func checkFieldMethodsExist() {
 			if field.compute != "" {
 				model.methods.MustGet(field.compute)
 			}
+			if field.inverse != "" {
+				if _, ok := model.methods.get(field.compute); !ok {
+					log.Panic("Inverse method must only be set on computed fields", "model", model.name, "field", field.name, "method", field.inverse)
+				}
+				model.methods.MustGet(field.inverse)
+			}
 		}
 	}
 }

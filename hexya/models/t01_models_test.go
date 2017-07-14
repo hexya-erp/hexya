@@ -33,19 +33,24 @@ func TestModelDeclaration(t *testing.T) {
 		activeMI := NewMixinModel("ActiveMixIn")
 		viewModel := NewManualModel("UserView")
 
-		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true, NoCopy: true, OnChange: "computeDecoratedName"})
+		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true,
+			NoCopy: true, OnChange: "computeDecoratedName"})
 		user.AddCharField("DecoratedName", StringFieldParams{Compute: "computeDecoratedName"})
 		user.AddCharField("Email", StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
 		user.AddCharField("Password", StringFieldParams{NoCopy: true})
-		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16), Default: DefaultValue(int16(12))})
+		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16),
+			Default: DefaultValue(int16(12))})
 		user.AddBooleanField("IsStaff", SimpleFieldParams{})
 		user.AddBooleanField("IsActive", SimpleFieldParams{})
-		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Profile"), OnDelete: Restrict, Required: true})
-		user.AddIntegerField("Age", SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
+		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Profile"),
+			OnDelete: Restrict, Required: true})
+		user.AddIntegerField("Age", SimpleFieldParams{Compute: "computeAge", Inverse: "inverseSetAge",
+			Depends: []string{"Profile", "Profile.Age"}, Stored: true})
 		user.AddOne2ManyField("Posts", ReverseFieldParams{RelationModel: Registry.MustGet("Post"),
 			ReverseFK: "User"})
 		user.AddFloatField("PMoney", FloatFieldParams{Related: "Profile.Money"})
-		user.AddMany2OneField("LastPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post"), Embed: true})
+		user.AddMany2OneField("LastPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post"),
+			Embed: true})
 		user.AddCharField("Email2", StringFieldParams{})
 		user.AddBooleanField("IsPremium", SimpleFieldParams{})
 		user.AddIntegerField("Nums", SimpleFieldParams{GoType: new(int)})
@@ -132,6 +137,15 @@ func TestModelDeclaration(t *testing.T) {
 				res := make(FieldMap)
 				res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
 				return res, []FieldNamer{}
+			})
+
+		user.AddMethod("inverseSetAge", "",
+			func(rc RecordCollection, vals FieldMapper) {
+				value, ok := vals.FieldMap(FieldName("Age"))["Age"]
+				if !ok {
+					return
+				}
+				rc.Get("Profile").(RecordCollection).Set("Age", value)
 			})
 
 		user.AddMethod("UpdateCity", "",

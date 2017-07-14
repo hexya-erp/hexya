@@ -84,6 +84,7 @@ func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 	fMap = rc.createEmbeddedRecords(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
+	fMap = rc.processInverseMethods(fMap)
 	storedFieldMap := filterMapOnStoredFields(rc.model, fMap)
 	// insert in DB
 	var createdId int64
@@ -210,6 +211,7 @@ func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer)
 	rSet.model.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
+	fMap = rSet.processInverseMethods(fMap)
 	storedFieldMap := filterMapOnStoredFields(rSet.model, fMap)
 	rSet.doUpdate(storedFieldMap)
 	// Let's fetch once for all
@@ -255,6 +257,25 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 		}
 	}
 	rc.checkConstraints()
+}
+
+// processInverseMethods executes inverse methods of fields in the given
+// FieldMap if it exists. It returns a copy of the FieldMap without the
+// fields that had their inverse method executed.
+func (rc RecordCollection) processInverseMethods(fMap FieldMap) FieldMap {
+	res := make(FieldMap)
+	for fieldName, value := range fMap {
+		fi := rc.model.getRelatedFieldInfo(fieldName)
+		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {
+			res[fieldName] = value
+			continue
+		}
+		if fi.inverse == "" {
+			log.Panic("Trying to write a computed field without inverse method", "model", rc.model.name, "field", fieldName)
+		}
+		rc.Call(fi.inverse, fMap)
+	}
+	return res
 }
 
 // updateRelationFields updates reverse relations fields of the
@@ -340,7 +361,7 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 	// Make the update for each record
 	for ref, upMap := range updateMap {
 		rs := rc.env.Pool(ref.ModelName).withIds([]int64{ref.ID})
-		rs.doUpdate(upMap)
+		rs.Call("Write", upMap)
 	}
 }
 
