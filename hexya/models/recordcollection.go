@@ -741,18 +741,17 @@ func (rc RecordCollection) Model() *Model {
 // Union returns a new RecordCollection that is the union of this RecordCollection
 // and the given `other` RecordCollection. The result is guaranteed to be a
 // set of unique records.
-func (rc RecordCollection) Union(other RecordCollection) RecordCollection {
+func (rc RecordCollection) Union(other RecordSet) RecordCollection {
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to union RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
 	}
 	thisRC := rc.Fetch()
-	otherRC := other.Fetch()
 	idMap := make(map[int64]bool)
 	for _, id := range thisRC.ids {
 		idMap[id] = true
 	}
-	for _, id := range otherRC.ids {
+	for _, id := range other.Ids() {
 		idMap[id] = true
 	}
 	ids := make([]int64, len(idMap))
@@ -767,18 +766,17 @@ func (rc RecordCollection) Union(other RecordCollection) RecordCollection {
 // Subtract returns a RecordSet with the Records that are in this
 // RecordCollection but not in the given 'other' one.
 // The result is guaranteed to be a set of unique records.
-func (rc RecordCollection) Subtract(other RecordCollection) RecordCollection {
+func (rc RecordCollection) Subtract(other RecordSet) RecordCollection {
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to subtract RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
 	}
 	thisRC := rc.Fetch()
-	otherRC := other.Fetch()
 	idMap := make(map[int64]bool)
 	for _, id := range thisRC.ids {
 		idMap[id] = true
 	}
-	for _, id := range otherRC.ids {
+	for _, id := range other.Ids() {
 		delete(idMap, id)
 	}
 	ids := make([]int64, len(idMap))
@@ -792,7 +790,7 @@ func (rc RecordCollection) Subtract(other RecordCollection) RecordCollection {
 
 // Equals returns true if this RecordCollection is the same as other
 // i.e. they are of the same model and have the same ids
-func (rc RecordCollection) Equals(other RecordCollection) bool {
+func (rc RecordCollection) Equals(other RecordSet) bool {
 	if rc.ModelName() != other.ModelName() {
 		return false
 	}

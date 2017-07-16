@@ -390,7 +390,7 @@ func declareSearchMethods() {
 	commonMixin.AddMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
-		func(rc RecordCollection, other RecordCollection) RecordCollection {
+		func(rc RecordCollection, other RecordSet) RecordCollection {
 			return rc.Union(other)
 		}).AllowGroup(security.GroupEveryone)
 
@@ -398,14 +398,14 @@ func declareSearchMethods() {
 		`Subtract returns a RecordSet with the Records that are in this
 		RecordCollection but not in the given 'other' one.
 		The result is guaranteed to be a set of unique records.`,
-		func(rc RecordCollection, other RecordCollection) RecordCollection {
+		func(rc RecordCollection, other RecordSet) RecordCollection {
 			return rc.Subtract(other)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Equals",
 		`Equals returns true if this RecordSet is the same as other
 		i.e. they are of the same model and have the same ids`,
-		func(rc RecordCollection, other RecordCollection) bool {
+		func(rc RecordCollection, other RecordSet) bool {
 			return rc.Equals(other)
 		}).AllowGroup(security.GroupEveryone)
 }

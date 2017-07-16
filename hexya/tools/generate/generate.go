@@ -136,7 +136,6 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			}
 			p := fmt.Sprintf("%s,", astParam.Name)
 			if isRS, isRC := isRecordSetType(astParam.Type.Type, modelsASTData); isRS {
-				p = fmt.Sprintf("%s.RecordCollection,", astParam.Name)
 				if isRC {
 					paramType = fmt.Sprintf("%sSet", modelData.Name)
 				}
@@ -245,10 +244,13 @@ func addFieldTypesToModelData(mData *modelData) {
 
 // isRecordSetType returns true if the given typ is a RecordSet according
 // to the AST data stored in models.
-// The second returned value is true if typ is models.RecordCollection and
-// false if it is another RecordSet type
+// The second returned value is true if typ is models.RecordCollection or models.RecordSet
+// and false if it is a specific RecordSet type
 func isRecordSetType(typ string, models map[string]ModelASTData) (bool, bool) {
 	if typ == "RecordCollection" || typ == "models.RecordCollection" {
+		return true, true
+	}
+	if typ == "RecordSet" || typ == "models.RecordSet" {
 		return true, true
 	}
 	if _, exists := models[strings.TrimSuffix(typ, "Set")]; exists {

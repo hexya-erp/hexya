@@ -105,6 +105,8 @@ type RecordSet interface {
 	Ids() []int64
 	// Env returns the current Environment of this RecordSet
 	Env() Environment
+	// Len returns the number of records in this RecordSet
+	Len() int
 	// Collection returns the underlying RecordCollection instance
 	Collection() RecordCollection
 }
