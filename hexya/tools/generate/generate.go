@@ -572,21 +572,19 @@ type {{ .Name }}Data struct {
 {{ end }}
 }
 
-// FieldMap returns this {{ .Name }}Data as a FieldMap
+// FieldMap returns this {{ .Name }}Data as a FieldMap.
+// Only {{ .Name }}Data with non zero values will be set in the FieldMap.
+// To add fields with zero values to the map, give them as fields in parameters.
 func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
 	res := make(models.FieldMap)
-	noFields := len(fields) == 0
 	fieldsMap := make(map[string]bool)
-	if !noFields {
-		for _, field := range fields {
-			fieldsMap[string(field.FieldName())] = true
-		}
+	for _, field := range fields {
+		fieldsMap[string(field.FieldName())] = true
 	}
 	var fieldValue reflect.Value
 {{ range .Fields -}}
 	fieldValue = reflect.ValueOf(d.{{ .Name }})
-	if fieldsMap["{{ .Name }}"] ||
-		(noFields && !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface())) {
+	if fieldsMap["{{ .Name }}"] || !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface()) {
 		res["{{ .Name }}"] = d.{{ .Name }}
 	}
 {{ end }}

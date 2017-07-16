@@ -50,9 +50,10 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Copy", func() {
 				userJane.Call("Write", FieldMap{"Password": "Jane's Password"})
-				userJaneCopy := userJane.Call("Copy").(RecordCollection)
-				So(userJaneCopy.Get("Name"), ShouldBeBlank)
+				userJaneCopy := userJane.Call("Copy", FieldMap{"Name": "Jane's Copy", "Email2": "js@example.com"}).(RecordCollection)
+				So(userJaneCopy.Get("Name"), ShouldEqual, "Jane's Copy")
 				So(userJaneCopy.Get("Email"), ShouldEqual, "jane.smith@example.com")
+				So(userJaneCopy.Get("Email2"), ShouldEqual, "js@example.com")
 				So(userJaneCopy.Get("Password"), ShouldBeBlank)
 				So(userJaneCopy.Get("Age"), ShouldEqual, 24)
 				So(userJaneCopy.Get("Nums"), ShouldEqual, 2)

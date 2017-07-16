@@ -35,7 +35,8 @@ func declareModels() {
 	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
 	user.AddBooleanField("IsActive", models.SimpleFieldParams{})
 	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: pool.Profile()})
-	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
+	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Inverse: "InverseSetAge",
+		Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
 	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: pool.Post(), ReverseFK: "User"})
 	user.AddFloatField("PMoney", models.FloatFieldParams{Related: "Profile.Money"})
 	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: pool.Post(), Embed: true})
@@ -73,6 +74,12 @@ func declareModels() {
 				Age: rs.Profile().Age(),
 			}
 			return &res, []models.FieldNamer{pool.User().Age()}
+		})
+
+	user.Methods().InverseSetAge().DeclareMethod("",
+		func(rs pool.UserSet, vals models.FieldMapper) {
+			values := rs.DataStruct(vals.FieldMap())
+			rs.Profile().SetAge(values.Age)
 		})
 
 	pool.User().Methods().PrefixedUser().Extend("",

@@ -199,14 +199,7 @@ func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // Instead use rs.Call("Write")
 func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer) bool {
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
-	fMap := data.FieldMap()
-	if _, ok := data.(FieldMap); !ok {
-		for _, f := range fieldsToUnset {
-			if _, exists := fMap[string(f.FieldName())]; !exists {
-				fMap[string(f.FieldName())] = nil
-			}
-		}
-	}
+	fMap := data.FieldMap(fieldsToUnset...)
 	rSet.addAccessFieldsUpdateData(&fMap)
 	rSet.model.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields

@@ -153,15 +153,12 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
-		func(rc RecordCollection) RecordCollection {
+		func(rc RecordCollection, overrides FieldMapper, fieldsToUnset ...FieldNamer) RecordCollection {
 			rc.EnsureOne()
 
 			var fields []string
 			for _, fi := range rc.model.fields.registryByName {
-				if fi.noCopy {
-					continue
-				}
-				if fi.fieldType.IsReverseRelationType() {
+				if fi.noCopy || fi.fieldType.IsReverseRelationType() || fi.isComputedField() {
 					continue
 				}
 				fields = append(fields, fi.json)
@@ -174,6 +171,7 @@ func declareCRUDMethods() {
 
 			fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
 			fMap.RemovePK()
+			rc.model.MergeFieldMaps(fMap, overrides.FieldMap(fieldsToUnset...))
 			newRs := rc.Call("Create", fMap).(RecordSet).Collection()
 			return newRs
 		})

@@ -64,6 +64,7 @@ func TestCreateRecordSet(t *testing.T) {
 					Email:   "jane.smith@example.com",
 					Profile: profile,
 					Posts:   posts,
+					Nums:    2,
 				}
 				userJane := pool.User().Create(env, &userJaneData)
 				So(userJane.Len(), ShouldEqual, 1)
