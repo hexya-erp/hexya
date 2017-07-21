@@ -233,7 +233,10 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 			valPtr := reflect.New(fType)
 			scanFunc := valPtr.MethodByName("Scan")
 			inArgs := []reflect.Value{reflect.ValueOf(fMapValue)}
-			scanFunc.Call(inArgs)
+			res := scanFunc.Call(inArgs)
+			if res[0].Interface() != nil {
+				log.Panic("Unable to scan into target Type", "error", res[0].Interface())
+			}
 			val = valPtr.Elem()
 		default:
 			var err error

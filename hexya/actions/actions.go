@@ -91,6 +91,21 @@ func (ar *ActionRef) Scan(src interface{}) error {
 	return nil
 }
 
+// ID returns the ID of the current action reference
+func (ar *ActionRef) ID() string {
+	return ar[0]
+}
+
+// Name returns the name of the current action reference
+func (ar *ActionRef) Name() string {
+	return ar[1]
+}
+
+// IsNull returns true if this ActionRef references no action
+func (ar *ActionRef) IsNull() bool {
+	return ar[0] == "" && ar[1] == ""
+}
+
 var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
 var _ json.Marshaler = &ActionRef{}

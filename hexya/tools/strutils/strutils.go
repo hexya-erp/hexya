@@ -15,9 +15,18 @@
 package strutils
 
 import (
+	"encoding/json"
 	"strings"
 	"unicode"
+
+	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
+
+var log *logging.Logger
+
+func init() {
+	log = logging.GetLogger("strutils")
+}
 
 // SnakeCaseString convert the given string to snake case following the Golang format:
 // acronyms are converted to lower-case and preceded by an underscore.
@@ -65,4 +74,17 @@ func GetDefaultString(str, def string) string {
 // and ends with suffix.
 func StartsAndEndsWith(str, prefix, suffix string) bool {
 	return strings.HasPrefix(str, prefix) && strings.HasSuffix(str, suffix)
+}
+
+// MarshalToJSONString marshals the given data to its JSON representation and
+// returns it as a string. It panics in case of error.
+func MarshalToJSONString(data interface{}) string {
+	if _, ok := data.(string); !ok {
+		domBytes, err := json.Marshal(data)
+		if err != nil {
+			log.Panic("Unable to marshal given data", "error", err, "data", data)
+		}
+		return string(domBytes)
+	}
+	return data.(string)
 }

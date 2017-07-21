@@ -342,6 +342,12 @@ func declareSearchMethods() {
 			return rc.Call("Search", rc.Model().Field("ID").In(ids)).(RecordSet).Collection()
 		}).AllowGroup(security.GroupEveryone)
 
+	commonMixin.AddMethod("SearchCount",
+		`SearchCount fetch from the database the number of records that match the RecordSet conditions`,
+		func(rc RecordCollection) int {
+			return rc.SearchCount()
+		}).AllowGroup(security.GroupEveryone)
+
 	commonMixin.AddMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
 		with the queries ids. Fetch is lazy and only return ids. Use Load() instead

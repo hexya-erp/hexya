@@ -121,6 +121,7 @@ type TypeData struct {
 // for pool code generation
 type FieldASTData struct {
 	Name     string
+	JSON     string
 	RelModel string
 	Type     TypeData
 	IsRS     bool
@@ -160,6 +161,7 @@ type ModelASTData struct {
 func newModelASTData(name string) ModelASTData {
 	idField := FieldASTData{
 		Name: "ID",
+		JSON: "id",
 		Type: TypeData{
 			Type: "int64",
 		},
@@ -362,6 +364,8 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 	for _, elem := range fieldElems {
 		fElem := elem.(*ast.KeyValueExpr)
 		switch fElem.Key.(*ast.Ident).Name {
+		case "JSON":
+			fData.JSON = strings.Trim(fElem.Value.(*ast.BasicLit).Value, `"`)
 		case "RelationModel":
 			modName, err := extractModel(fElem.Value)
 			if err != nil {

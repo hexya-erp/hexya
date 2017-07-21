@@ -208,6 +208,47 @@ func (c *Context) UnmarshalJSON(data []byte) error {
 	return err
 }
 
+// String function for Context type
+func (c Context) String() string {
+	jsb, err := json.Marshal(c)
+	if err != nil {
+		log.Panic("Unable to stringify context", "error", err)
+	}
+	return string(jsb)
+}
+
+// Value JSON encode our Context for storing in the database.
+func (c Context) Value() (driver.Value, error) {
+	bytes, err := json.Marshal(c)
+	return driver.Value(bytes), err
+}
+
+// Scan JSON decodes the value of the database into a Context
+func (c *Context) Scan(src interface{}) error {
+	var data []byte
+	switch s := src.(type) {
+	case string:
+		data = []byte(s)
+	case []byte:
+		data = s
+	case map[string]interface{}:
+		c.values = s
+		return nil
+	default:
+		return fmt.Errorf("Invalid type for Context: %T", src)
+	}
+	var ctx Context
+	err := json.Unmarshal(data, &ctx)
+	if err != nil {
+		return err
+	}
+	*c = ctx
+	return nil
+
+}
+
+var _ driver.Valuer = Context{}
+var _ sql.Scanner = &Context{}
 var _ xml.UnmarshalerAttr = &Context{}
 var _ json.Marshaler = &Context{}
 var _ json.Unmarshaler = &Context{}
@@ -228,6 +269,12 @@ func NewContext(data ...map[string]interface{}) *Context {
 // Date type that JSON marshal and unmarshals as "YYYY-MM-DD"
 type Date struct {
 	time.Time
+}
+
+// String method for Date.
+func (d Date) String() string {
+	bs, _ := d.MarshalJSON()
+	return string(bs)
 }
 
 // IsNull returns true if the Date is the zero value
@@ -283,6 +330,12 @@ type DateTime struct {
 // Now returns the current date/time
 func Now() DateTime {
 	return DateTime{time.Now()}
+}
+
+// String method for DateTime.
+func (d DateTime) String() string {
+	bs, _ := d.MarshalJSON()
+	return string(bs)
 }
 
 // ToDate returns the Date of this DateTime

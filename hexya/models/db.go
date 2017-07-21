@@ -208,9 +208,10 @@ func dbQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
 // sanitizeQuery calls 'In' expansion and 'Rebind' on the given query and
 // returns the new values to use. It panics in case of error
 func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
+	originalArgs := args
 	q, args, err := sqlx.In(query, args...)
 	if err != nil {
-		log.Panic("Unable to expand 'IN' statement", "error", err, "query", query, "args", args)
+		log.Panic("Unable to expand 'IN' statement", "error", err, "query", query, "args", originalArgs)
 	}
 	q = sqlx.Rebind(sqlx.BindType(db.DriverName()), q)
 	return q, args
