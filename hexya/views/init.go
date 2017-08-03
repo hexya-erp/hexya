@@ -13,9 +13,7 @@ var log *logging.Logger
 //- populates the fields map from the views arch.
 func BootStrap() {
 	for _, v := range Registry.views {
-		v.setViewType()
-		v.extractSubViews()
-		v.populateFieldsMap()
+		v.postProcess()
 	}
 }
 

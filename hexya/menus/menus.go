@@ -19,8 +19,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/actions"
-	"github.com/hexya-erp/hexya/hexya/tools/etree"
 )
 
 // Registry is the menu Collection of the application
@@ -100,18 +100,36 @@ type Menu struct {
 	Action           *actions.BaseAction
 	HasChildren      bool
 	HasAction        bool
+	names            map[string]string
+}
+
+// TranslatedName returns the translated name of this menu
+// in the given language
+func (m Menu) TranslatedName(lang string) string {
+	res, ok := m.names[lang]
+	if !ok {
+		res = m.Name
+	}
+	return res
 }
 
 // LoadFromEtree reads the menu given etree.Element, creates or updates the menu
 // and adds it to the menu registry if it not already.
 func LoadFromEtree(element *etree.Element) {
-	menu := new(Menu)
-	menu.ID = element.SelectAttrValue("id", "NO_ID")
-	menu.ActionID = element.SelectAttrValue("action", "")
-	menu.Name = element.SelectAttrValue("name", "")
-	menu.ParentID = element.SelectAttrValue("parent", "")
-	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
-	menu.Sequence = uint8(seq)
+	AddMenuToMapFromEtree(element, bootstrapMap)
+}
 
-	bootstrapMap[menu.ID] = menu
+// AddMenuToMapFromEtree reads the menu from the given element
+// and adds it to the given map.
+func AddMenuToMapFromEtree(element *etree.Element, mMap map[string]*Menu) map[string]*Menu {
+	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
+	menu := Menu{
+		ID:       element.SelectAttrValue("id", "NO_ID"),
+		ActionID: element.SelectAttrValue("action", ""),
+		Name:     element.SelectAttrValue("name", ""),
+		ParentID: element.SelectAttrValue("parent", ""),
+		Sequence: uint8(seq),
+	}
+	mMap[menu.ID] = &menu
+	return mMap
 }

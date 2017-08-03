@@ -17,20 +17,20 @@ package server
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"sort"
 
+	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/actions"
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/menus"
 	"github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/tools/etree"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/views"
 )
 
-var symlinkDirs = []string{"static", "templates", "data", "resources"}
+var symlinkDirs = []string{"static", "templates", "data", "resources", "i18n"}
 
 // A Module is a go package that implements business features.
 // This struct is used to register modules.
@@ -70,8 +70,8 @@ func createModuleSymlinks(mod *Module) {
 		log.Panic("Unable to find caller", "module", mod.Name)
 	}
 	for _, dir := range symlinkDirs {
-		srcPath := path.Join(path.Dir(fileName), dir)
-		dstPath := path.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
+		srcPath := filepath.Join(filepath.Dir(fileName), dir)
+		dstPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
 		if _, err := os.Stat(srcPath); err == nil {
 			os.Symlink(srcPath, dstPath)
 		}
@@ -82,7 +82,7 @@ func createModuleSymlinks(mod *Module) {
 // Note that this function actually removes and recreates the symlink directories.
 func cleanModuleSymlinks() {
 	for _, dir := range symlinkDirs {
-		dirPath := path.Join(generate.HexyaDir, "hexya", "server", dir)
+		dirPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir)
 		os.RemoveAll(dirPath)
 		os.Mkdir(dirPath, 0775)
 	}
@@ -103,11 +103,41 @@ func LoadDataRecords() {
 	loadData("data", "csv", models.LoadCSVDataFile)
 }
 
+// LoadTranslations loads all translation data from the PO files in the 'i18n' directory
+// into the translations registry.
+func LoadTranslations(langs []string) {
+	for _, mod := range Modules {
+		dataDir := filepath.Join(generate.HexyaDir, "hexya", "server", "i18n", mod.Name)
+		if _, err := os.Stat(dataDir); err != nil {
+			// No resources dir in this module
+			return
+		}
+		LoadModuleTranslations(dataDir, langs)
+	}
+}
+
+// LoadModuleTranslations loads the PO files in the given directory for the given languages
+func LoadModuleTranslations(i18nDir string, langs []string) {
+	var poFiles []string
+	for _, lang := range langs {
+		dataFiles, err := filepath.Glob(fmt.Sprintf("%s/%s.po", i18nDir, lang))
+		if err != nil {
+			log.Panic("Unable to scan directory for data files", "dir", i18nDir, "type", "po", "error", err)
+		}
+		poFiles = append(poFiles, dataFiles...)
+	}
+	dataFilesSorted := sort.StringSlice(poFiles)
+	dataFilesSorted.Sort()
+	for _, dataFile := range dataFilesSorted {
+		i18n.LoadPOFile(dataFile)
+	}
+}
+
 // loadData loads the files in the given dir with the given extension (without .)
 // using the loader function.
 func loadData(dir, ext string, loader func(string)) {
 	for _, mod := range Modules {
-		dataDir := path.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
+		dataDir := filepath.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
 		if _, err := os.Stat(dataDir); err != nil {
 			// No resources dir in this module
 			continue

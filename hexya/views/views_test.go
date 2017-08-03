@@ -127,7 +127,7 @@ func TestViews(t *testing.T) {
 		So(view.Name, ShouldEqual, "My View")
 		So(view.Model, ShouldEqual, "User")
 		So(view.Priority, ShouldEqual, 16)
-		So(view.Arch, ShouldEqual,
+		So(view.Arch(""), ShouldEqual,
 			`<form>
 	<group>
 		<field name="UserName"/>
@@ -145,7 +145,7 @@ func TestViews(t *testing.T) {
 		So(view.Name, ShouldEqual, "my.other.id")
 		So(view.Model, ShouldEqual, "Partner")
 		So(view.Priority, ShouldEqual, 12)
-		So(view.Arch, ShouldEqual,
+		So(view.Arch(""), ShouldEqual,
 			`<form>
 	<h1>
 		<field name="Name"/>
@@ -165,7 +165,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view1 := Registry.GetByID("my_id")
-		So(view1.Arch, ShouldEqual,
+		So(view1.Arch(""), ShouldEqual,
 			`<form>
 	<group>
 		<field name="UserName"/>
@@ -174,7 +174,7 @@ func TestViews(t *testing.T) {
 </form>
 `)
 		view2 := Registry.GetByID("my_other_id")
-		So(view2.Arch, ShouldEqual,
+		So(view2.Arch(""), ShouldEqual,
 			`<form>
 	<h1>
 		<field name="Name"/>
@@ -196,7 +196,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
-		So(view2.Arch, ShouldEqual,
+		So(view2.Arch(""), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -222,7 +222,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
-		So(view2.Arch, ShouldEqual,
+		So(view2.Arch(""), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -264,7 +264,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
 		view := Registry.GetByID("embedded_form")
 		So(view.ID, ShouldEqual, "embedded_form")
-		So(view.Arch, ShouldEqual,
+		So(view.Arch(""), ShouldEqual,
 			`<form>
 	<field name="Name"/>
 	<field name="Age"/>
@@ -275,30 +275,30 @@ func TestViews(t *testing.T) {
 		So(view.SubViews, ShouldHaveLength, 2)
 		So(view.SubViews, ShouldContainKey, "Categories")
 		So(view.SubViews, ShouldContainKey, "Groups")
-		viewsCategories := view.SubViews["Categories"]
-		So(viewsCategories, ShouldHaveLength, 2)
-		viewCategoriesForm := viewsCategories[VIEW_TYPE_FORM]
+		viewCategories := view.SubViews["Categories"]
+		So(viewCategories, ShouldHaveLength, 2)
+		viewCategoriesForm := viewCategories[VIEW_TYPE_FORM]
 		So(viewCategoriesForm.ID, ShouldEqual, "embedded_form_childview_Categories_1")
-		So(viewCategoriesForm.Arch, ShouldEqual, `<form>
+		So(viewCategoriesForm.Arch(""), ShouldEqual, `<form>
 	<h1>This is my form</h1>
 	<field name="Name"/>
 	<field name="Color"/>
 	<field name="Sequence"/>
 </form>
 `)
-		viewCategoriesTree := viewsCategories[VIEW_TYPE_TREE]
+		viewCategoriesTree := viewCategories[VIEW_TYPE_TREE]
 		So(viewCategoriesTree.ID, ShouldEqual, "embedded_form_childview_Categories_0")
-		So(viewCategoriesTree.Arch, ShouldEqual, `<tree>
+		So(viewCategoriesTree.Arch(""), ShouldEqual, `<tree>
 	<field name="Name"/>
 	<field name="Color"/>
 </tree>
 `)
 
-		viewsGroups := view.SubViews["Groups"]
-		So(viewsGroups, ShouldHaveLength, 1)
-		viewGroupsTree := viewsGroups[VIEW_TYPE_TREE]
+		viewGroups := view.SubViews["Groups"]
+		So(viewGroups, ShouldHaveLength, 1)
+		viewGroupsTree := viewGroups[VIEW_TYPE_TREE]
 		So(viewGroupsTree.ID, ShouldEqual, "embedded_form_childview_Groups_0")
-		So(viewGroupsTree.Arch, ShouldEqual, `<tree>
+		So(viewGroupsTree.Arch(""), ShouldEqual, `<tree>
 	<field name="Name"/>
 	<field name="Active"/>
 </tree>

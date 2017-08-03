@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
@@ -827,6 +828,20 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 		rSet.query.cond = rc.Model().Field("ID").In(ids)
 	}
 	return rSet
+}
+
+// T translates the given string to the language specified by
+// the 'lang' key of rc.Env().Context(). If for any reason the
+// string cannot be translated, then src is returned.
+//
+// You MUST pass a string literal as src to have it extracted automatically
+//
+// The given src will be passed to fmt.Sprintf with the optional args
+// before being returned.
+func (rc RecordCollection) T(src string, args ...interface{}) string {
+	lang := rc.Env().Context().GetString("lang")
+	transCode := i18n.TranslateCode(lang, "", src)
+	return fmt.Sprintf(transCode, args...)
 }
 
 // Collection returns the underlying RecordCollection instance

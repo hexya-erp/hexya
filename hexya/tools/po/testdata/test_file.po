@@ -1,0 +1,48 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Poedit 1.5\n"
+"Report-Msgid-Bugs-To: poedit@googlegroups.com\n"
+"POT-Creation-Date: 2012-07-30 10:34+0200\n"
+"PO-Revision-Date: 2013-02-24 21:00+0800\n"
+"Last-Translator: Christopher Meng <trans@cicku.me>\n"
+"Language-Team: \n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 1.5.5\n"
+
+#: ../src/edframe.cpp:2060
+msgid " (modified)"
+msgstr " (已修改)"
+
+#. TRANSLATORS: This is version information in about dialog, it is followed
+#. by version number when used (wxWidgets 2.8)
+#: ../src/edframe.cpp:2431
+msgid " Version \\"
+msgstr " 版本 \\"
+
+#: ../src/edframe.cpp:1367
+#, c-format
+msgid "%d issue with the translation found."
+msgid_plural "%d issues with the translation found."
+msgstr[0] "在翻译中发现了 %d 个问题。"
+
+#: ../src/edframe.cpp:2024
+#, c-format
+msgid "%i %% translated\n\t %i string"
+msgid_plural "%i %% translated\n\t %i strings"
+msgstr[0] "%i%% 已翻译\n\t %i 个字串"
+
+#: ../src/edframe.cpp:2029
+#, c-format
+msgctxt "some-context-string"
+msgid "%i %% translated, %i string (%s)"
+msgid_plural "%i %% translated, %i strings (%s)"
+msgstr[0] "%i%% 已翻译，%i 个字串 (%s)"

@@ -162,7 +162,7 @@ func jsonizePath(mi *Model, path string) string {
 
 // MapToStruct populates the given structPtr with the values in fMap.
 func MapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
-	fMap = rc.model.JSONizeFieldMap(fMap)
+	fMap = fMap.JSONized(rc.model)
 	fMap = nestMap(fMap)
 	rc.model.convertValuesToFieldType(&fMap)
 	val := reflect.ValueOf(structPtr)

@@ -14,7 +14,7 @@
 
 package xmlutils
 
-import "github.com/hexya-erp/hexya/hexya/tools/etree"
+import "github.com/beevik/etree"
 
 // ElementToXML returns the XML string of the given element and
 // all its children.

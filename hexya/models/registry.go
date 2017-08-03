@@ -360,18 +360,6 @@ func (m *Model) JSONizeFieldName(fieldName string) string {
 	return jsonizePath(m, string(fieldName))
 }
 
-// JSONizeFieldMap returns the given FieldMap with all its keys (field names)
-// changed to their json names. Keys that are aleady json field names are
-// unchanged.
-func (m *Model) JSONizeFieldMap(fMap FieldMap) FieldMap {
-	res := make(FieldMap)
-	for f, v := range fMap {
-		jsonFieldName := m.JSONizeFieldName(f)
-		res[jsonFieldName] = v
-	}
-	return res
-}
-
 // Field starts a condition on this model
 func (m *Model) Field(name string) *ConditionField {
 	newExprs := strings.Split(name, ExprSep)
@@ -391,18 +379,6 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 		i++
 	}
 	return &res
-}
-
-// MergeFieldMaps updates dest with key-value pairs from
-// src copied into it.
-// If the key already exists, the value is overridden,
-// otherwise, the key is inserted.
-// All keys of src are converted to json names.
-func (m *Model) MergeFieldMaps(dest, src FieldMap) {
-	for k, v := range src {
-		jsonName := m.fields.MustGet(k).json
-		dest[jsonName] = v
-	}
 }
 
 // Create creates a new record in this model with the given data.

@@ -6,6 +6,7 @@ package actions
 import (
 	"strings"
 
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/hexya-erp/hexya/hexya/views"
 )
@@ -19,6 +20,14 @@ func BootStrap() {
 		switch a.Type {
 		case ActionActWindow:
 			bootStrapWindowAction(a)
+		}
+		// Populate translations
+		if a.names == nil {
+			a.names = make(map[string]string)
+		}
+		for _, lang := range i18n.Langs {
+			nameTrans := i18n.TranslateResourceItem(lang, a.ID, a.Name)
+			a.names[lang] = nameTrans
 		}
 	}
 }
@@ -100,5 +109,5 @@ func fixViewModes(a *BaseAction) {
 
 func init() {
 	log = logging.GetLogger("actions")
-	Registry = NewActionsCollection()
+	Registry = NewCollection()
 }

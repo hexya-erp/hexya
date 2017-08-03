@@ -15,9 +15,12 @@
 package cmd
 
 import (
+	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var log *logging.Logger
 
 // HexyaCmd is the base 'hexya' command of the commander
 var HexyaCmd = &cobra.Command{
@@ -28,12 +31,14 @@ It is designed for high demand business data processing while being easily custo
 }
 
 func init() {
+	log = logging.GetLogger("init")
+
 	HexyaCmd.PersistentFlags().StringP("config", "c", "", "Alternate configuration file to read. Defaults to $HOME/.hexya/")
 	viper.BindPFlag("ConfigFileName", HexyaCmd.PersistentFlags().Lookup("config"))
 
 	HexyaCmd.PersistentFlags().StringP("log-level", "L", "info", "Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit'")
 	viper.BindPFlag("LogLevel", HexyaCmd.PersistentFlags().Lookup("log-level"))
-	HexyaCmd.PersistentFlags().StringP("log-file", "l", "", "File to which the log will be written")
+	HexyaCmd.PersistentFlags().String("log-file", "", "File to which the log will be written")
 	viper.BindPFlag("LogFile", HexyaCmd.PersistentFlags().Lookup("log-file"))
 	HexyaCmd.PersistentFlags().BoolP("log-stdout", "o", false, "Enable stdout logging. Use for development or debugging.")
 	viper.BindPFlag("LogStdout", HexyaCmd.PersistentFlags().Lookup("log-stdout"))
@@ -58,4 +63,5 @@ func init() {
 	initGenerate()
 	initServer()
 	initUpdateDB()
+	initI18n()
 }

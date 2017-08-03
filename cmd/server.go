@@ -25,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/hexya/actions"
 	"github.com/hexya-erp/hexya/hexya/controllers"
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/menus"
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/server"
@@ -36,8 +37,6 @@ import (
 )
 
 const startFileName = "start.go"
-
-var log *logging.Logger
 
 var serverCmd = &cobra.Command{
 	Use:   "server [projectDir]",
@@ -81,6 +80,8 @@ func StartServer(config map[string]interface{}) {
 	setupConfig(config)
 	connectToDB()
 	models.BootStrap()
+	i18n.BootStrap()
+	server.LoadTranslations(i18n.Langs)
 	server.LoadInternalResources()
 	views.BootStrap()
 	actions.BootStrap()
@@ -129,6 +130,8 @@ func initServer() {
 	viper.BindPFlag("Server.Interface", serverCmd.PersistentFlags().Lookup("interface"))
 	serverCmd.PersistentFlags().StringP("port", "p", "8080", "Port on which the server should listen.")
 	viper.BindPFlag("Server.Port", serverCmd.PersistentFlags().Lookup("port"))
+	serverCmd.PersistentFlags().StringSliceP("languages", "l", []string{}, "Comma separated list of language codes to load (ex: fr,de,es).")
+	viper.BindPFlag("Server.Languages", serverCmd.PersistentFlags().Lookup("languages"))
 	HexyaCmd.AddCommand(serverCmd)
 }
 

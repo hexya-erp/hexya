@@ -23,8 +23,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/beevik/etree"
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/tools/etree"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 )
 
@@ -44,6 +45,10 @@ const (
 	VIEW_TYPE_SEARCH   ViewType = "search"
 	VIEW_TYPE_QWEB     ViewType = "qweb"
 )
+
+// translatableAttributes is the list of XML attribute names the
+// value of which needs to be translated.
+var translatableAttributes = []string{"string", "placeholder"}
 
 // Registry is the views collection of the application
 var Registry *Collection
@@ -174,6 +179,18 @@ func (vc *Collection) GetByID(id string) *View {
 	return vc.views[id]
 }
 
+// GetAll returns a list of all views of this Collection.
+// Views are returned in an arbitrary order
+func (vc *Collection) GetAll() []*View {
+	res := make([]*View, len(vc.views))
+	var i int
+	for _, view := range vc.views {
+		res[i] = view
+		i++
+	}
+	return res
+}
+
 // GetFirstViewForModel returns the first view of type viewType for the given model
 func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *View {
 	for _, view := range vc.orderedViews[model] {
@@ -192,12 +209,15 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View {
 	switch viewType {
 	case VIEW_TYPE_SEARCH:
-		return &View{
+		view := View{
 			Model:  model,
 			Type:   VIEW_TYPE_SEARCH,
 			Fields: []models.FieldName{models.FieldName("Name")},
-			Arch:   `<search><field name="Name"/></search>`,
+			arch:   `<search><field name="Name"/></search>`,
+			arches: make(map[string]string),
 		}
+		view.translateArch()
+		return &view
 	}
 	return nil
 }
@@ -213,107 +233,25 @@ func (vc *Collection) GetAllViewsForModel(model string) []*View {
 	return res
 }
 
-// View is the internal definition of a view in the application
-type View struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Model       string   `json:"model"`
-	Type        ViewType `json:"type"`
-	Priority    uint8    `json:"priority"`
-	Arch        string   `json:"arch"`
-	FieldParent string   `json:"field_parent"`
-	Fields      []models.FieldName
-	SubViews    map[string]SubViews
-}
-
-// A SubViews is a holder for embedded views of a field
-type SubViews map[ViewType]*View
-
-// populateFieldsMap scans arch, extract field names and put them in the fields slice
-func (v *View) populateFieldsMap() {
-	archElem := xmlutils.XMLToElement(v.Arch)
-	fieldElems := archElem.FindElements("//field")
-	for _, f := range fieldElems {
-		v.Fields = append(v.Fields, models.FieldName(f.SelectAttr("name").Value))
-	}
-}
-
-// setViewType sets the Type field with the view type
-// scanned from arch
-func (v *View) setViewType() {
-	archElem := xmlutils.XMLToElement(v.Arch)
-	v.Type = ViewType(archElem.Tag)
-}
-
-// extractSubViews recursively scans arch for embedded views,
-// extract them from arch and add them to SubViews.
-func (v *View) extractSubViews() {
-	archElem := xmlutils.XMLToElement(v.Arch)
-	fieldElems := archElem.FindElements("//field")
-	for _, f := range fieldElems {
-		if xmlutils.HasParentTag(f, "field") {
-			// Discard fields of embedded views
-			continue
-		}
-		fieldName := f.SelectAttr("name").Value
-		for i, childElement := range f.ChildElements() {
-			if _, exists := v.SubViews[fieldName]; !exists {
-				v.SubViews[fieldName] = make(SubViews)
-			}
-			childView := View{
-				ID:       fmt.Sprintf("%s_childview_%s_%d", v.ID, fieldName, i),
-				Arch:     xmlutils.ElementToXML(childElement),
-				SubViews: make(map[string]SubViews),
-			}
-			childView.setViewType()
-			childView.extractSubViews()
-			v.SubViews[fieldName][childView.Type] = &childView
-		}
-		// Remove all children elements.
-		// We do it in a separate loop to remove text and comments too.
-		for _, childToken := range f.Child {
-			f.RemoveChild(childToken)
-		}
-	}
-	v.Arch = xmlutils.ElementToXML(archElem)
-}
-
-// ViewXML is used to unmarshal the XML definition of a View
-type ViewXML struct {
-	ID          string `xml:"id,attr"`
-	Name        string `xml:"name,attr"`
-	Model       string `xml:"model,attr"`
-	Priority    uint8  `xml:"priority,attr"`
-	Arch        string `xml:",innerxml"`
-	InheritID   string `xml:"inherit_id,attr"`
-	FieldParent string `xml:"field_parent,attr"`
-}
-
-// LoadFromEtree reads the view given etree.Element, creates or updates the view
-// and adds it to the view registry if it not already.
-func LoadFromEtree(element *etree.Element) {
+// LoadFromEtree loads the given view given as Element
+// into this collection.
+func (vc *Collection) LoadFromEtree(element *etree.Element) {
 	xmlBytes := []byte(xmlutils.ElementToXML(element))
 	var viewXML ViewXML
 	if err := xml.Unmarshal(xmlBytes, &viewXML); err != nil {
 		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
-	updateViewRegistry(viewXML)
-}
-
-// updateViewRegistry creates or updates the view in the Registry
-// that is defined by the given ViewXML.
-func updateViewRegistry(viewXML ViewXML) {
 	if viewXML.InheritID != "" {
 		// Update an existing view
-		updateExistingViewFromXML(viewXML)
+		vc.updateExistingViewFromXML(viewXML)
 	} else {
 		// Create a new view
-		createNewViewFromXML(viewXML)
+		vc.createNewViewFromXML(viewXML)
 	}
 }
 
 // createNewViewFromXML creates and register a new view with the given XML
-func createNewViewFromXML(viewXML ViewXML) {
+func (vc *Collection) createNewViewFromXML(viewXML ViewXML) {
 	priority := uint8(16)
 	if viewXML.Priority != 0 {
 		priority = viewXML.Priority
@@ -329,18 +267,19 @@ func createNewViewFromXML(viewXML ViewXML) {
 		Name:        name,
 		Model:       viewXML.Model,
 		Priority:    priority,
-		Arch:        arch,
+		arch:        arch,
 		FieldParent: viewXML.FieldParent,
 		SubViews:    make(map[string]SubViews),
+		arches:      make(map[string]string),
 	}
-	Registry.Add(&view)
+	vc.Add(&view)
 }
 
 // updateExistingViewFromXML updates an existing view with the given XML
 // viewXML must have an InheritID
-func updateExistingViewFromXML(viewXML ViewXML) {
-	baseView := Registry.GetByID(viewXML.InheritID)
-	baseElem := xmlutils.XMLToElement(baseView.Arch)
+func (vc *Collection) updateExistingViewFromXML(viewXML ViewXML) {
+	baseView := vc.GetByID(viewXML.InheritID)
+	baseElem := xmlutils.XMLToElement(baseView.arch)
 	specDoc := etree.NewDocument()
 	if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
 		log.Panic("Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
@@ -376,7 +315,154 @@ func updateExistingViewFromXML(viewXML ViewXML) {
 			}
 		}
 	}
-	baseView.Arch = xmlutils.ElementToXML(baseElem)
+	baseView.arch = xmlutils.ElementToXML(baseElem)
+}
+
+// View is the internal definition of a view in the application
+type View struct {
+	ID          string
+	Name        string
+	Model       string
+	Type        ViewType
+	Priority    uint8
+	arch        string
+	FieldParent string
+	Fields      []models.FieldName
+	SubViews    map[string]SubViews
+	arches      map[string]string
+}
+
+// A SubViews is a holder for embedded views of a field
+type SubViews map[ViewType]*View
+
+// populateFieldsMap scans arch, extract field names and put them in the fields slice
+func (v *View) populateFieldsMap() {
+	archElem := xmlutils.XMLToElement(v.arch)
+	fieldElems := archElem.FindElements("//field")
+	for _, f := range fieldElems {
+		v.Fields = append(v.Fields, models.FieldName(f.SelectAttr("name").Value))
+	}
+}
+
+// Arch returns the arch XML string of this view for the given language.
+// Call with empty string to get the default language's arch
+func (v *View) Arch(lang string) string {
+	res, ok := v.arches[lang]
+	if !ok || lang == "" {
+		res = v.arch
+	}
+	return res
+}
+
+// setViewType sets the Type field with the view type
+// scanned from arch
+func (v *View) setViewType() {
+	archElem := xmlutils.XMLToElement(v.arch)
+	v.Type = ViewType(archElem.Tag)
+}
+
+// extractSubViews recursively scans arch for embedded views,
+// extract them from arch and add them to SubViews.
+func (v *View) extractSubViews() {
+	archElem := xmlutils.XMLToElement(v.arch)
+	fieldElems := archElem.FindElements("//field")
+	for _, f := range fieldElems {
+		if xmlutils.HasParentTag(f, "field") {
+			// Discard fields of embedded views
+			continue
+		}
+		fieldName := f.SelectAttr("name").Value
+		for i, childElement := range f.ChildElements() {
+			if _, exists := v.SubViews[fieldName]; !exists {
+				v.SubViews[fieldName] = make(SubViews)
+			}
+			childView := View{
+				ID:       fmt.Sprintf("%s_childview_%s_%d", v.ID, fieldName, i),
+				arch:     xmlutils.ElementToXML(childElement),
+				SubViews: make(map[string]SubViews),
+				arches:   make(map[string]string),
+			}
+			childView.postProcess()
+			v.SubViews[fieldName][childView.Type] = &childView
+		}
+		// Remove all children elements.
+		// We do it in a separate loop on tokens to remove text and comments too.
+		for _, childToken := range f.Child {
+			f.RemoveChild(childToken)
+		}
+	}
+	v.arch = xmlutils.ElementToXML(archElem)
+}
+
+// postProcess executes all actions that are needed the view for bootstrapping
+func (v *View) postProcess() {
+	v.setViewType()
+	v.extractSubViews()
+	v.populateFieldsMap()
+	v.translateArch()
+}
+
+// translateArch populates the arches map with all the translations
+func (v *View) translateArch() {
+	labels := v.TranslatableStrings()
+	archElt := xmlutils.XMLToElement(v.arch)
+	for _, lang := range i18n.Langs {
+		tArchElt := archElt.Copy()
+		for _, label := range labels {
+			attrElts := tArchElt.FindElements(fmt.Sprintf("//[@%s]", label.Attribute))
+			for i, attrElt := range attrElts {
+				if attrElt.SelectAttrValue(label.Attribute, "") != label.Value {
+					continue
+				}
+				transLabel := i18n.TranslateResourceItem(lang, v.ID, label.Value)
+				attrElts[i].RemoveAttr(label.Attribute)
+				attrElts[i].CreateAttr(label.Attribute, transLabel)
+			}
+		}
+		v.arches[lang] = xmlutils.ElementToXML(tArchElt)
+	}
+}
+
+// A TranslatableAttribute is a reference to an attribute in a
+// XML view definition that can be translated.
+type TranslatableAttribute struct {
+	Attribute string
+	Value     string
+}
+
+// TranslatableStrings returns the list of all the strings in the
+// view arch that must be translated.
+func (v *View) TranslatableStrings() []TranslatableAttribute {
+	archElt := xmlutils.XMLToElement(v.arch)
+	var labels []TranslatableAttribute
+	for _, tagName := range translatableAttributes {
+		elts := archElt.FindElements(fmt.Sprintf("[@%s]", tagName))
+		for _, elt := range elts {
+			label := elt.SelectAttrValue(tagName, "")
+			if label == "" {
+				continue
+			}
+			labels = append(labels, TranslatableAttribute{Attribute: tagName, Value: label})
+		}
+	}
+	return labels
+}
+
+// ViewXML is used to unmarshal the XML definition of a View
+type ViewXML struct {
+	ID          string `xml:"id,attr"`
+	Name        string `xml:"name,attr"`
+	Model       string `xml:"model,attr"`
+	Priority    uint8  `xml:"priority,attr"`
+	Arch        string `xml:",innerxml"`
+	InheritID   string `xml:"inherit_id,attr"`
+	FieldParent string `xml:"field_parent,attr"`
+}
+
+// LoadFromEtree reads the view given etree.Element, creates or updates the view
+// and adds it to the view registry if it not already.
+func LoadFromEtree(element *etree.Element) {
+	Registry.LoadFromEtree(element)
 }
 
 // getInheritXPathFromSpec returns an XPath string that is suitable for

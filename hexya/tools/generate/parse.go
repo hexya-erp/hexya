@@ -100,17 +100,6 @@ func GetModulePackages(program *loader.Program) []*ModuleInfo {
 	return modSlice
 }
 
-// GetModulePaths returns the list of paths of all packages that
-// are part of a module.
-func GetModulePaths(program *loader.Program) []string {
-	modules := GetModulePackages(program)
-	res := make([]string, len(modules))
-	for i, module := range modules {
-		res[i] = module.Pkg.Path()
-	}
-	return res
-}
-
 // A TypeData holds a Type string and optional import path for this type.
 type TypeData struct {
 	Type       string
@@ -120,11 +109,14 @@ type TypeData struct {
 // A FieldASTData is a holder for a field's data that will be used
 // for pool code generation
 type FieldASTData struct {
-	Name     string
-	JSON     string
-	RelModel string
-	Type     TypeData
-	IsRS     bool
+	Name        string
+	JSON        string
+	Help        string
+	Description string
+	Selection   map[string]string
+	RelModel    string
+	Type        TypeData
+	IsRS        bool
 }
 
 // A ParamData holds the name and type of a method parameter
@@ -181,18 +173,21 @@ func newModelASTData(name string) ModelASTData {
 // GetModelsASTData returns the ModelASTData of all models found when parsing program.
 func GetModelsASTData(program *loader.Program) map[string]ModelASTData {
 	modInfos := GetModulePackages(program)
-	return GetModelsASTDataForModules(modInfos)
+	return GetModelsASTDataForModules(modInfos, true)
 }
 
 // GetModelsASTDataForModules returns the MethodASTData for all methods in given modules.
-func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData {
+// If validate is true, then only models that have been explicitly declared will appear in
+// the result. Mixins and embeddings will be inflated too. Use this if you want validate the
+// whole application.
+func GetModelsASTDataForModules(modInfos []*ModuleInfo, validate bool) map[string]ModelASTData {
 	modelsData := make(map[string]ModelASTData)
 	for _, modInfo := range modInfos {
 		for _, file := range modInfo.Files {
 			ast.Inspect(file, func(n ast.Node) bool {
 				switch node := n.(type) {
 				case *ast.CallExpr:
-					fnctName, err := extractFunctionName(node)
+					fnctName, err := ExtractFunctionName(node)
 					if err != nil {
 						return true
 					}
@@ -215,6 +210,10 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 			})
 		}
 	}
+	if !validate {
+		// We don't want validation, so we exit early
+		return modelsData
+	}
 	for modelName, md := range modelsData {
 		// Delete models that have not been declared explicitly
 		// Because it means we have a typing error
@@ -224,7 +223,6 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo) map[string]ModelASTData 
 		inflateMixins(modelName, &modelsData)
 		inflateEmbeds(modelName, &modelsData)
 	}
-	//inflateEmbeds(&modelsData)
 	return modelsData
 }
 
@@ -275,7 +273,7 @@ func parseMixInModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 
 // parseDeclareModel parses the given node which is aDeclareXXXModel function
 func parseDeclareModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
-	fName, _ := extractFunctionName(node)
+	fName, _ := ExtractFunctionName(node)
 	modelName, err := extractModelNameFromFunc(node.Fun.(*ast.SelectorExpr).X.(*ast.CallExpr))
 	if err != nil {
 		log.Panic("Unable to find model name in DeclareModel", "error", err)
@@ -287,8 +285,8 @@ func parseDeclareModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) 
 
 // parseNewModel parses the given node which is a NewXXXModel function
 func parseNewModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
-	fName, _ := extractFunctionName(node)
-	modelName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, `"`)
+	fName, _ := ExtractFunctionName(node)
+	modelName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
 	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, "New"), "Model")
 
 	setModelData(modelsData, modelName, modelType)
@@ -315,9 +313,9 @@ func setModelData(modelsData *map[string]ModelASTData, modelName string, modelTy
 	(*modelsData)[modelName] = model
 }
 
-// extractFunctionName returns the name of the called function
+// ExtractFunctionName returns the name of the called function
 // in the given call expression.
-func extractFunctionName(node *ast.CallExpr) (string, error) {
+func ExtractFunctionName(node *ast.CallExpr) (string, error) {
 	var fName string
 	switch nf := node.Fun.(type) {
 	case *ast.SelectorExpr:
@@ -341,7 +339,7 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 		(*modelsData)[modelName] = newModelASTData(modelName)
 	}
 
-	fieldName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, `"`)
+	fieldName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
 	typeStr := strings.TrimSuffix(strings.TrimPrefix(fNode.Sel.Name, "Add"), "Field")
 	var importPath string
 	if typeStr == "Date" || typeStr == "DateTime" {
@@ -365,7 +363,13 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 		fElem := elem.(*ast.KeyValueExpr)
 		switch fElem.Key.(*ast.Ident).Name {
 		case "JSON":
-			fData.JSON = strings.Trim(fElem.Value.(*ast.BasicLit).Value, `"`)
+			fData.JSON = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+		case "Help":
+			fData.Help = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+		case "String":
+			fData.Description = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+		case "Selection":
+			fData.Selection = extractSelection(fElem.Value)
 		case "RelationModel":
 			modName, err := extractModel(fElem.Value)
 			if err != nil {
@@ -382,6 +386,22 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 		}
 	}
 	(*modelsData)[modelName].Fields[fieldName] = fData
+}
+
+// extractSelection returns a map with the keys and values of the Selection
+// specified by expr.
+func extractSelection(expr ast.Expr) map[string]string {
+	res := make(map[string]string)
+	switch e := expr.(type) {
+	case *ast.CompositeLit:
+		for _, elt := range e.Elts {
+			elem := elt.(*ast.KeyValueExpr)
+			key := elem.Key.(*ast.BasicLit).Value
+			value := strings.Trim(elem.Value.(*ast.BasicLit).Value, "\"`")
+			res[key] = value
+		}
+	}
+	return res
 }
 
 // parseAddMethod parses the given node which is an AddMethod function
@@ -480,7 +500,7 @@ func extractModel(ident ast.Expr) (string, error) {
 				}
 				switch fnIdent.Name {
 				case "MustGet", "NewModel", "NewMixinModel", "NewTransientModel", "NewManualModel":
-					return strings.Trim(rd.Args[0].(*ast.BasicLit).Value, `"`), nil
+					return strings.Trim(rd.Args[0].(*ast.BasicLit).Value, "\"`"), nil
 				case "createModel":
 					// This is a call from inside a NewXXXXModel function
 					return "", generalMixinError{}

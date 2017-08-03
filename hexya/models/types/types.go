@@ -53,29 +53,45 @@ func (c *Context) Get(key string) interface{} {
 
 // GetString returns the value of the given key in
 // this Context as a string.
+// It returns an empty string if there is no such key in the context.
 // It panics if the value is not of type string
 func (c *Context) GetString(key string) string {
+	if !c.HasKey(key) {
+		return ""
+	}
 	return c.Get(key).(string)
 }
 
 // GetDate returns the value of the given key in
 // this Context as a Date.
+// It returns an null Date if there is no such key in the context.
 // It panics if the value is not of type Date
 func (c *Context) GetDate(key string) Date {
+	if !c.HasKey(key) {
+		return Date{}
+	}
 	return c.Get(key).(Date)
 }
 
 // GetDateTime returns the value of the given key in
 // this Context as a DateTime.
+// It returns an null DateTime if there is no such key in the context.
 // It panics if the value is not of type DateTime
 func (c *Context) GetDateTime(key string) DateTime {
+	if !c.HasKey(key) {
+		return DateTime{}
+	}
 	return c.Get(key).(DateTime)
 }
 
 // GetInteger returns the value of the given key in
 // this Context as an int64.
+// It returns 0 if there is no such key in the context.
 // It panics if the value cannot be casted to int64
 func (c *Context) GetInteger(key string) int64 {
+	if !c.HasKey(key) {
+		return 0
+	}
 	val := c.Get(key)
 	res, err := nbutils.CastToInteger(val)
 	if err != nil {
@@ -86,8 +102,12 @@ func (c *Context) GetInteger(key string) int64 {
 
 // GetFloat returns the value of the given key in
 // this Context as a float64.
+// It returns 0 if there is no such key in the context.
 // It panics if the value cannot be casted to float64
 func (c *Context) GetFloat(key string) float64 {
+	if !c.HasKey(key) {
+		return 0
+	}
 	val := c.Get(key)
 	res, err := nbutils.CastToFloat(val)
 	if err != nil {
@@ -98,9 +118,13 @@ func (c *Context) GetFloat(key string) float64 {
 
 // GetStringSlice returns the value of the given key in
 // this Context as a []string.
+// It returns an empty slice if there is no such key in the context.
 // It panics if the value is not a slice or if any value
 // is not a string
 func (c *Context) GetStringSlice(key string) []string {
+	if !c.HasKey(key) {
+		return []string{}
+	}
 	val := c.Get(key)
 	var res []string
 	switch value := val.(type) {
@@ -117,9 +141,13 @@ func (c *Context) GetStringSlice(key string) []string {
 
 // GetIntegerSlice returns the value of the given key in
 // this Context as a []int64.
+// It returns an empty slice if there is no such key in the context.
 // It panics if the value is not a slice or if any value
 // cannot be casted to int64
 func (c *Context) GetIntegerSlice(key string) []int64 {
+	if !c.HasKey(key) {
+		return []int64{}
+	}
 	val := c.Get(key)
 	rVal := reflect.ValueOf(val)
 	if rVal.Kind() != reflect.Slice {
@@ -138,9 +166,13 @@ func (c *Context) GetIntegerSlice(key string) []int64 {
 
 // GetFloatSlice returns the value of the given key in
 // this Context as a []float64.
+// It returns an empty slice if there is no such key in the context.
 // It panics if the value is not a slice or if any value
 // cannot be casted to float64
 func (c *Context) GetFloatSlice(key string) []float64 {
+	if !c.HasKey(key) {
+		return []float64{}
+	}
 	val := c.Get(key)
 	rVal := reflect.ValueOf(val)
 	if rVal.Kind() != reflect.Slice {

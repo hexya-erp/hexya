@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
@@ -171,7 +172,7 @@ func declareCRUDMethods() {
 
 			fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
 			fMap.RemovePK()
-			rc.model.MergeFieldMaps(fMap, overrides.FieldMap(fieldsToUnset...))
+			fMap.MergeWith(overrides.FieldMap(fieldsToUnset...), rc.model)
 			newRs := rc.Call("Create", fMap).(RecordSet).Collection()
 			return newRs
 		})
@@ -199,7 +200,7 @@ func declareRecordSetMethods() {
 		The embedded fields are included.
 		The string, help, and selection (if present) attributes are translated.`,
 		func(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
-			//TODO The string, help, and selection (if present) attributes are translated.
+			lang := rc.Env().Context().GetString("lang")
 			res := make(map[string]*FieldInfo)
 			fields := args.Fields
 			if len(args.Fields) == 0 {
@@ -218,16 +219,16 @@ func declareRecordSetMethods() {
 					filter = fInfo.filter.Serialize()
 				}
 				res[fInfo.json] = &FieldInfo{
-					Help:       fInfo.help,
+					Help:       i18n.Registry.TranslateFieldHelp(lang, fInfo.model.name, fInfo.name, fInfo.help),
 					Searchable: true,
 					Depends:    fInfo.depends,
 					Sortable:   true,
 					Type:       fInfo.fieldType,
 					Store:      fInfo.isStored(),
-					String:     fInfo.description,
+					String:     i18n.Registry.TranslateFieldDescription(lang, fInfo.model.name, fInfo.name, fInfo.description),
 					Relation:   relation,
 					Required:   fInfo.required,
-					Selection:  fInfo.selection,
+					Selection:  i18n.Registry.TranslateFieldSelection(lang, fInfo.model.name, fInfo.name, fInfo.selection),
 					Domain:     filter,
 				}
 			}
@@ -270,7 +271,7 @@ func declareRecordSetMethods() {
 				if !rc.IsEmpty() {
 					rsID = rc.Ids()[0]
 				}
-				rc.model.MergeFieldMaps(values, FieldMap{"ID": rsID})
+				values.MergeWith(FieldMap{"ID": rsID}, rc.model)
 				rs.ids = []int64{rsID}
 
 				for _, field := range params.Fields {
@@ -282,9 +283,10 @@ func declareRecordSetMethods() {
 					env.cache.addRecord(rs.model, rsID, values)
 					res := rs.CallMulti(fi.onChange)
 					fields = res[1].([]FieldNamer)
-					val := rs.model.JSONizeFieldMap(res[0].(FieldMapper).FieldMap(fields...))
-					rs.model.MergeFieldMaps(values, val)
-					rs.model.MergeFieldMaps(retValues, val)
+					resMap := res[0].(FieldMapper).FieldMap(fields...)
+					val := resMap.JSONized(rs.Model())
+					values.MergeWith(val, rs.model)
+					retValues.MergeWith(val, rs.model)
 				}
 			})
 			retValues.RemovePK()
@@ -388,7 +390,10 @@ func declareSearchMethods() {
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("OrderBy",
-		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions`,
+		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions.
+		Each expression contains a field name and optionally one of "asc" or "desc", such as:
+
+		rs.OrderBy("Company", "Name desc")`,
 		func(rc RecordCollection, exprs ...string) RecordCollection {
 			return rc.OrderBy(exprs...)
 		}).AllowGroup(security.GroupEveryone)

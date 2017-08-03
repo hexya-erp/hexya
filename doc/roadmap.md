@@ -36,11 +36,11 @@ ORM
 - [X] Database foreign keys to related fields
 - [X] Implement "group by" queries
 - [X] Implement 'child_of' domain operator
-- [ ] Implement sending warning and domain with onchange
-- [ ] Implement model constraints
-- [ ] Implement search restrictions for relation fields
-- [ ] Pagination API for RecordSets
+- [X] Implement model constraints
+- [X] Implement search restrictions for relation fields
 - [ ] i18n and l10n support to ORM models
+- [ ] Implement sending warning and domain with onchange
+- [ ] Pagination API for RecordSets
 
 Views
 -----

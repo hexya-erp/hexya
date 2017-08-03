@@ -52,6 +52,66 @@ func (fm *FieldMap) RemovePKIfZero() {
 	}
 }
 
+// JSONized returns a new field map identical to this one but
+// with all its keys switched to the JSON name of the fields
+func (fm *FieldMap) JSONized(model *Model) FieldMap {
+	res := make(FieldMap)
+	for f, v := range *fm {
+		jsonFieldName := model.JSONizeFieldName(f)
+		res[jsonFieldName] = v
+	}
+	return res
+}
+
+// Get returns the value of the given field referring to the given model.
+// field can be either a field name (or path) or a field JSON name (or path).
+// The second returned value is true if the field has been found in the FieldMap
+func (fm *FieldMap) Get(field string, model *Model) (interface{}, bool) {
+	fi := model.getRelatedFieldInfo(field)
+	val, ok := (*fm)[fi.name]
+	if !ok {
+		val, ok = (*fm)[fi.json]
+		if !ok {
+			return nil, false
+		}
+	}
+	return val, true
+}
+
+// MustGet returns the value of the given field referring to the given model.
+// field can be either a field name (or path) or a field JSON name (or path).
+// It panics if the field is not found.
+func (fm *FieldMap) MustGet(field string, model *Model) interface{} {
+	val, ok := fm.Get(field, model)
+	if !ok {
+		log.Panic("Field not found in FieldMap", "field", field, "fMap", *fm, "model", model)
+	}
+	return val
+}
+
+// Set sets the given field with the given value.
+// If the field already exists, then it is updated with value.
+// Otherwise, a new entry is inserted in the FieldMap with the
+// JSON name of the field.
+func (fm *FieldMap) Set(field string, value interface{}, model *Model) {
+	fi := model.getRelatedFieldInfo(field)
+	key := fi.name
+	_, ok := (*fm)[key]
+	if !ok {
+		key = fi.json
+	}
+	(*fm)[key] = value
+}
+
+// MergeWith updates this FieldMap with the given other FieldMap
+// If a key of the other FieldMap already exists here, the value is overridden,
+// otherwise, the key is inserted with its json name.
+func (fm *FieldMap) MergeWith(other FieldMap, model *Model) {
+	for field, value := range other {
+		fm.Set(field, value, model)
+	}
+}
+
 // FieldMap returns the object converted to a FieldMap
 // i.e. itself
 func (fm FieldMap) FieldMap(fields ...FieldNamer) FieldMap {

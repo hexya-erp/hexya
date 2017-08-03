@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/models/types"
-	"github.com/hexya-erp/hexya/hexya/tools/etree"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 	"github.com/hexya-erp/hexya/hexya/views"
 )
@@ -117,9 +117,9 @@ type Collection struct {
 	links   map[string][]*BaseAction
 }
 
-// NewActionsCollection returns a pointer to a new
+// NewCollection returns a pointer to a new
 // Collection instance
-func NewActionsCollection() *Collection {
+func NewCollection() *Collection {
 	res := Collection{
 		actions: make(map[string]*BaseAction),
 		links:   make(map[string][]*BaseAction),
@@ -140,6 +140,18 @@ func (ar *Collection) GetById(id string) *BaseAction {
 	return ar.actions[id]
 }
 
+// GetAll returns a list of all actions of this Collection.
+// Actions are returned in an arbitrary order
+func (ar *Collection) GetAll() []*BaseAction {
+	res := make([]*BaseAction, len(ar.actions))
+	var i int
+	for _, action := range ar.actions {
+		res[i] = action
+		i++
+	}
+	return res
+}
+
 // MustGetById returns the Action with the given id
 // It panics if the id is not found in the action registry
 func (ar *Collection) MustGetById(id string) *BaseAction {
@@ -154,6 +166,17 @@ func (ar *Collection) MustGetById(id string) *BaseAction {
 // for the model with the given name
 func (ar *Collection) GetActionLinksForModel(modelName string) []*BaseAction {
 	return ar.links[modelName]
+}
+
+// LoadFromEtree reads the action given etree.Element, creates or updates the action
+// and adds it to the given Collection if it not already.
+func (ar *Collection) LoadFromEtree(element *etree.Element) {
+	xmlBytes := []byte(xmlutils.ElementToXML(element))
+	var action BaseAction
+	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
+		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
+	}
+	ar.Add(&action)
 }
 
 // A BaseAction is the definition of an action. Actions define the
@@ -183,16 +206,22 @@ type BaseAction struct {
 	Filter       bool              `json:"filter" xml:"filter,attr"`
 	Limit        int64             `json:"limit" xml:"limit,attr"`
 	Context      *types.Context    `json:"context" xml:"context,attr"`
+	names        map[string]string
 	//Flags interface{}`json:"flags"`
+}
+
+// TranslatedName returns the translated name of this action
+// in the given language
+func (a BaseAction) TranslatedName(lang string) string {
+	res, ok := a.names[lang]
+	if !ok {
+		res = a.Name
+	}
+	return res
 }
 
 // LoadFromEtree reads the action given etree.Element, creates or updates the action
 // and adds it to the action registry if it not already.
 func LoadFromEtree(element *etree.Element) {
-	xmlBytes := []byte(xmlutils.ElementToXML(element))
-	var action BaseAction
-	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
-		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
-	}
-	Registry.Add(&action)
+	Registry.LoadFromEtree(element)
 }
