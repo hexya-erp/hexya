@@ -6,7 +6,7 @@ package fieldtype
 import (
 	"reflect"
 
-	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 )
 
 // A Type defines a type of a model's field
@@ -78,9 +78,9 @@ func (t Type) DefaultGoType() reflect.Type {
 	case Boolean:
 		return reflect.TypeOf(true)
 	case Date:
-		return reflect.TypeOf(*new(types.Date))
+		return reflect.TypeOf(*new(dates.Date))
 	case DateTime:
-		return reflect.TypeOf(*new(types.DateTime))
+		return reflect.TypeOf(*new(dates.DateTime))
 	case Float:
 		return reflect.TypeOf(*new(float64))
 	case Integer, Many2One, One2One, Rev2One:

@@ -23,7 +23,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
-	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -189,7 +189,7 @@ func (rc RecordCollection) checkConstraints() {
 // the given FieldMap.
 func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
-		(*fMap)["CreateDate"] = types.Now()
+		(*fMap)["CreateDate"] = dates.Now()
 		(*fMap)["CreateUID"] = rc.env.uid
 	}
 }
@@ -223,7 +223,7 @@ func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer)
 // the given FieldMap.
 func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
-		(*fMap)["WriteDate"] = types.Now()
+		(*fMap)["WriteDate"] = dates.Now()
 		(*fMap)["WriteUID"] = rc.env.uid
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 )
 
 const (
@@ -83,19 +84,19 @@ func declareBaseComputeMethods() {
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
 		func(rc RecordCollection) (FieldMap, []FieldNamer) {
-			if !rc.Get("WriteDate").(types.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("WriteDate").(types.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
+			if !rc.Get("WriteDate").(dates.DateTime).IsZero() {
+				return FieldMap{"LastUpdate": rc.Get("WriteDate").(dates.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
 			}
-			if !rc.Get("CreateDate").(types.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("CreateDate").(types.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
+			if !rc.Get("CreateDate").(dates.DateTime).IsZero() {
+				return FieldMap{"LastUpdate": rc.Get("CreateDate").(dates.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
 			}
-			return FieldMap{"LastUpdate": types.Now()}, []FieldNamer{FieldName("LastUpdate")}
+			return FieldMap{"LastUpdate": dates.Now()}, []FieldNamer{FieldName("LastUpdate")}
 		}).AllowGroup(security.GroupEveryone)
 
 	model.AddMethod("ComputeNameGet",
 		`ComputeNameGet updates the DisplayName field with the result of NameGet.`,
 		func(rc RecordCollection) (FieldMap, []FieldNamer) {
-			return FieldMap{"DisplayName": rc.Call("NameGet").(string)}, []FieldNamer{FieldName("LastUpdate")}
+			return FieldMap{"DisplayName": rc.Call("NameGet")}, []FieldNamer{FieldName("LastUpdate")}
 		}).AllowGroup(security.GroupEveryone)
 
 }
@@ -190,7 +191,14 @@ func declareRecordSetMethods() {
 				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}) {
 					rc.Load("Name")
 				}
-				return rc.Get("Name").(string)
+				switch name := rc.Get("Name").(type) {
+				case string:
+					return name
+				case fmt.Stringer:
+					return name.String()
+				default:
+					log.Panic("Name field is neither a string nor a fmt.Stringer", "model", rc.model)
+				}
 			}
 			return rc.String()
 		}).AllowGroup(security.GroupEveryone)

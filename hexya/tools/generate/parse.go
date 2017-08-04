@@ -343,7 +343,7 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 	typeStr := strings.TrimSuffix(strings.TrimPrefix(fNode.Sel.Name, "Add"), "Field")
 	var importPath string
 	if typeStr == "Date" || typeStr == "DateTime" {
-		importPath = TypesPath
+		importPath = DatesPath
 	}
 	fData := FieldASTData{
 		Name: fieldName,

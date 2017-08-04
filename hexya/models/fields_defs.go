@@ -11,6 +11,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
@@ -388,13 +389,13 @@ func (m *Model) AddCharField(name string, params StringFieldParams) *Field {
 // AddDateField adds a date field with the given name to this Model.
 // Date fields are mapped to Date type.
 func (m *Model) AddDateField(name string, params SimpleFieldParams) *Field {
-	return m.addSimpleField(name, params, fieldtype.Date, reflect.TypeOf(*new(types.Date)))
+	return m.addSimpleField(name, params, fieldtype.Date, reflect.TypeOf(*new(dates.Date)))
 }
 
 // AddDateTimeField adds a datetime field with the given name to this Model.
 // DateTime fields are mapped to DateTime type.
 func (m *Model) AddDateTimeField(name string, params SimpleFieldParams) *Field {
-	return m.addSimpleField(name, params, fieldtype.DateTime, reflect.TypeOf(*new(types.DateTime)))
+	return m.addSimpleField(name, params, fieldtype.DateTime, reflect.TypeOf(*new(dates.DateTime)))
 }
 
 // AddFloatField adds a float field with the given name to this Model.

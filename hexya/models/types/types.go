@@ -19,11 +19,10 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"reflect"
-	"time"
 
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 )
@@ -66,22 +65,22 @@ func (c *Context) GetString(key string) string {
 // this Context as a Date.
 // It returns an null Date if there is no such key in the context.
 // It panics if the value is not of type Date
-func (c *Context) GetDate(key string) Date {
+func (c *Context) GetDate(key string) dates.Date {
 	if !c.HasKey(key) {
-		return Date{}
+		return dates.Date{}
 	}
-	return c.Get(key).(Date)
+	return c.Get(key).(dates.Date)
 }
 
 // GetDateTime returns the value of the given key in
 // this Context as a DateTime.
 // It returns an null DateTime if there is no such key in the context.
 // It panics if the value is not of type DateTime
-func (c *Context) GetDateTime(key string) DateTime {
+func (c *Context) GetDateTime(key string) dates.DateTime {
 	if !c.HasKey(key) {
-		return DateTime{}
+		return dates.DateTime{}
 	}
-	return c.Get(key).(DateTime)
+	return c.Get(key).(dates.DateTime)
 }
 
 // GetInteger returns the value of the given key in
@@ -297,115 +296,6 @@ func NewContext(data ...map[string]interface{}) *Context {
 		values: values,
 	}
 }
-
-// Date type that JSON marshal and unmarshals as "YYYY-MM-DD"
-type Date struct {
-	time.Time
-}
-
-// String method for Date.
-func (d Date) String() string {
-	bs, _ := d.MarshalJSON()
-	return string(bs)
-}
-
-// IsNull returns true if the Date is the zero value
-func (d Date) IsNull() bool {
-	if d.Time.Format("2006-01-02") == "0001-01-01" {
-		return true
-	}
-	return false
-}
-
-// MarshalJSON for Date type
-func (d Date) MarshalJSON() ([]byte, error) {
-	if d.IsNull() {
-		return []byte("false"), nil
-	}
-	dateStr := d.Time.Format("2006-01-02")
-	dateStr = fmt.Sprintf(`"%s"`, dateStr)
-	return []byte(dateStr), nil
-}
-
-// Value formats our Date for storing in database
-// Especially handles empty Date.
-func (d Date) Value() (driver.Value, error) {
-	if d.IsNull() {
-		return driver.Value("0001-01-01"), nil
-	}
-	return driver.Value(d), nil
-}
-
-// Scan casts the database output to a Date
-func (d *Date) Scan(src interface{}) error {
-	switch t := src.(type) {
-	case time.Time:
-		d.Time = t
-		return nil
-	}
-	return errors.New("Date data is not time.Time")
-}
-
-var _ driver.Valuer = Date{}
-var _ sql.Scanner = new(Date)
-
-// Today returns the current date
-func Today() Date {
-	return Date{time.Now()}
-}
-
-// DateTime type that JSON marshals and unmarshals as "YYYY-MM-DD HH:MM:SS"
-type DateTime struct {
-	time.Time
-}
-
-// Now returns the current date/time
-func Now() DateTime {
-	return DateTime{time.Now()}
-}
-
-// String method for DateTime.
-func (d DateTime) String() string {
-	bs, _ := d.MarshalJSON()
-	return string(bs)
-}
-
-// ToDate returns the Date of this DateTime
-func (d DateTime) ToDate() Date {
-	return Date{d.Time}
-}
-
-// MarshalJSON for DateTime type
-func (d DateTime) MarshalJSON() ([]byte, error) {
-	if d.IsZero() {
-		return []byte("false"), nil
-	}
-	dateStr := d.Time.Format("2006-01-02 15:04:05")
-	dateStr = fmt.Sprintf(`"%s"`, dateStr)
-	return []byte(dateStr), nil
-}
-
-// Value formats our DateTime for storing in database
-// Especially handles empty DateTime.
-func (d DateTime) Value() (driver.Value, error) {
-	if d.IsZero() {
-		return driver.Value("0001-01-01 00:00:00"), nil
-	}
-	return driver.Value(d.Time.Format("2006-01-02 15:04:05")), nil
-}
-
-// Scan casts the database output to a DateTime
-func (d *DateTime) Scan(src interface{}) error {
-	switch t := src.(type) {
-	case time.Time:
-		d.Time = t
-		return nil
-	}
-	return errors.New("DateTime data is not time.Time")
-}
-
-var _ driver.Valuer = DateTime{}
-var _ sql.Scanner = new(DateTime)
 
 // A Selection is a set of possible (key, label) values for a model
 // "selection" field.

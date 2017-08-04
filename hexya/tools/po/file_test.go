@@ -21,7 +21,7 @@ func TestReadPOFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(&po.MimeHeader, &testFile.MimeHeader) {
-		t.Fatalf("%d: \nExpected:\n---------\n%#v\n\nGot:\n----\n%#v", &testFile.MimeHeader, &po.MimeHeader)
+		t.Fatalf("Expected:\n---------\n%#v\n\nGot:\n----\n%#v", &testFile.MimeHeader, &po.MimeHeader)
 	}
 	if len(po.Messages) != len(testFile.Messages) {
 		t.Fatal("size not equal")
