@@ -10,7 +10,7 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
-	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -20,7 +20,7 @@ func TestBaseModelMethods(t *testing.T) {
 			userModel := Registry.MustGet("User")
 			userJane := userModel.Search(env, userModel.Field("Email").Equals("jane.smith@example.com"))
 			Convey("LastUpdate", func() {
-				So(userJane.Get("LastUpdate").(types.DateTime).Sub(userJane.Get("WriteDate").(types.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
+				So(userJane.Get("LastUpdate").(dates.DateTime).Sub(userJane.Get("WriteDate").(dates.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
 				newUser := userModel.Create(env, FieldMap{
 					"Name":    "Alex Smith",
 					"Email":   "jsmith@example.com",
@@ -28,8 +28,8 @@ func TestBaseModelMethods(t *testing.T) {
 					"Nums":    1,
 				})
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newUser.Get("WriteDate").(types.DateTime).IsZero(), ShouldBeTrue)
-				So(newUser.Get("LastUpdate").(types.DateTime).Sub(newUser.Get("CreateDate").(types.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
+				So(newUser.Get("WriteDate").(dates.DateTime).IsZero(), ShouldBeTrue)
+				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {
 				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordCollection)
