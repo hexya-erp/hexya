@@ -1791,14 +1791,41 @@ func init() {
 
 == Internationalization
 
-**Not yet implemented**
+=== Translating the application
+The application terms can be translated by use of PO files that live in the
+`i18n/`subdirectory of our module. Let's see how to create a French
+translation:
+
+[source]
+----
+$ cd $GOPATH/src/github.com/hexya-erp/hexya-demo
+$ mkdir openacademy/i18n
+$ hexya i18n update openacademy/ -l fr
+----
+
+Now you should have a PO file inside `openacademy/i18n` directory with the
+module strings to translate. Go for the translation, and save the file.
+
+Restart the application, but pass the `-l fr` parameter to load the french
+translation:
+
+[source]
+hexya server -o -l fr
+
+After logging in, go to the preferences menu (top right of the screen) and
+set the `lang` field to `fr`. Reload your browser's page and you should see
+your translated terms instead of the original ones.
+
+=== Translating record data
+
+**Not implemented yet**
 
 == Reporting
 
 === Printed reports
 
-**Not yet implemented**
+**Not implemented yet**
 
 === Dashboards
 
-**Not yet implemented**
+**Not implemented yet**

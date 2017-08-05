@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// A Message is a PO file entry.
 // A PO file is made up of many entries,
 // each entry holding the relation between an original untranslated string
 // and its corresponding translation.

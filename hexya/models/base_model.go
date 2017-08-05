@@ -47,6 +47,7 @@ func declareCommonMixin() {
 	NewMixinModel("CommonMixin")
 	declareCRUDMethods()
 	declareRecordSetMethods()
+	declareRecordSetSpecificMethods()
 	declareSearchMethods()
 	declareEnvironmentMethods()
 }
@@ -302,6 +303,10 @@ func declareRecordSetMethods() {
 				Value: retValues,
 			}
 		}).AllowGroup(security.GroupEveryone)
+}
+
+func declareRecordSetSpecificMethods() {
+	commonMixin := Registry.MustGet("CommonMixin")
 
 	commonMixin.AddMethod("CheckRecursion",
 		`CheckRecursion verifies that there is no loop in a hierarchical structure of records,

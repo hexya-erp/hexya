@@ -117,6 +117,7 @@ type FieldASTData struct {
 	RelModel    string
 	Type        TypeData
 	IsRS        bool
+	embed       bool
 }
 
 // A ParamData holds the name and type of a method parameter
@@ -361,31 +362,40 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 	}
 	for _, elem := range fieldElems {
 		fElem := elem.(*ast.KeyValueExpr)
-		switch fElem.Key.(*ast.Ident).Name {
-		case "JSON":
-			fData.JSON = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
-		case "Help":
-			fData.Help = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
-		case "String":
-			fData.Description = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
-		case "Selection":
-			fData.Selection = extractSelection(fElem.Value)
-		case "RelationModel":
-			modName, err := extractModel(fElem.Value)
-			if err != nil {
-				log.Panic("Unable to parse RelationModel", "field", fieldName, "error", err)
-			}
-			fData.RelModel = modName
-			fData.IsRS = true
-		case "GoType":
-			fData.Type = getTypeData(fElem.Value.(*ast.CallExpr).Args[0], modInfo)
-		case "Embed":
-			if fElem.Value.(*ast.Ident).Name == "true" {
-				(*modelsData)[modelName].Embeds[fieldName] = true
-			}
+		fData = parseFieldAttribute(fElem, fData, modInfo)
+		if fData.embed {
+			(*modelsData)[modelName].Embeds[fieldName] = true
 		}
 	}
 	(*modelsData)[modelName].Fields[fieldName] = fData
+}
+
+// parseFieldAttribute parses the given KeyValueExpr of a field definition
+func parseFieldAttribute(fElem *ast.KeyValueExpr, fData FieldASTData, modInfo *ModuleInfo) FieldASTData {
+	switch fElem.Key.(*ast.Ident).Name {
+	case "JSON":
+		fData.JSON = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+	case "Help":
+		fData.Help = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+	case "String":
+		fData.Description = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+	case "Selection":
+		fData.Selection = extractSelection(fElem.Value)
+	case "RelationModel":
+		modName, err := extractModel(fElem.Value)
+		if err != nil {
+			log.Panic("Unable to parse RelationModel", "field", fData.Name, "error", err)
+		}
+		fData.RelModel = modName
+		fData.IsRS = true
+	case "GoType":
+		fData.Type = getTypeData(fElem.Value.(*ast.CallExpr).Args[0], modInfo)
+	case "Embed":
+		if fElem.Value.(*ast.Ident).Name == "true" {
+			fData.embed = true
+		}
+	}
+	return fData
 }
 
 // extractSelection returns a map with the keys and values of the Selection

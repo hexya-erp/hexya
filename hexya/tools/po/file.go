@@ -53,7 +53,7 @@ func (f *File) Save(name string) error {
 	return ioutil.WriteFile(name, []byte(f.String()), 0666)
 }
 
-// Save returns a po file format data.
+// Data returns a po file format data.
 func (f *File) Data() []byte {
 	// sort the message as ReferenceFile/ReferenceLine field
 	var messages []Message

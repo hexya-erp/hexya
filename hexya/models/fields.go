@@ -368,27 +368,6 @@ func processDepends() {
 // in computed fields and for OnChange methods.
 // It panics if it is not the case.
 func checkComputeMethodsSignature() {
-	checkMethType := func(method *Method, label string) {
-		methType := method.methodType
-		var msg string
-		switch {
-		case methType.NumIn() != 1:
-			msg = fmt.Sprintf("%s should have no arguments", label)
-		case methType.NumOut() == 0:
-			msg = fmt.Sprintf("%s should return a value", label)
-		case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
-			msg = "First return argument must implement models.FieldMapper"
-		case methType.NumOut() < 2:
-			msg = fmt.Sprintf("%s must return fields to unset as second value", label)
-		case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldNamer{}):
-			msg = fmt.Sprintf("Second return value of %s must be []models.FieldNamer", label)
-		case methType.NumOut() > 2:
-			msg = fmt.Sprintf("Too many return values for %s", label)
-		}
-		if msg != "" {
-			log.Panic(msg, "model", method.model.name, "method", method.name)
-		}
-	}
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.computedFields {
 			method := mi.methods.MustGet(fi.compute)
@@ -418,5 +397,29 @@ func checkComputeMethodsSignature() {
 				log.Panic("Inverse method second argument must be FieldMapper", "model", mi.name, "field", fi.name, "method", method.name)
 			}
 		}
+	}
+}
+
+// checkMethType panics if the given method does not have
+// the correct number and type for its arguments and returns
+func checkMethType(method *Method, label string) {
+	methType := method.methodType
+	var msg string
+	switch {
+	case methType.NumIn() != 1:
+		msg = fmt.Sprintf("%s should have no arguments", label)
+	case methType.NumOut() == 0:
+		msg = fmt.Sprintf("%s should return a value", label)
+	case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
+		msg = "First return argument must implement models.FieldMapper"
+	case methType.NumOut() < 2:
+		msg = fmt.Sprintf("%s must return fields to unset as second value", label)
+	case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldNamer{}):
+		msg = fmt.Sprintf("Second return value of %s must be []models.FieldNamer", label)
+	case methType.NumOut() > 2:
+		msg = fmt.Sprintf("Too many return values for %s", label)
+	}
+	if msg != "" {
+		log.Panic(msg, "model", method.model.name, "method", method.name)
 	}
 }

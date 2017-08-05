@@ -179,38 +179,31 @@ func addResourceItemsToMessages(lang string, resourcesDir string, messages map[m
 		for _, view := range viewColl.GetAll() {
 			labels := view.TranslatableStrings()
 			for _, label := range labels {
-				labelTrans := i18n.TranslateResourceItem(lang, view.ID, label.Value)
-				if labelTrans == label.Value {
-					labelTrans = ""
-				}
-				msgRef := messageRef{msgId: label.Value}
-				msg := getOrCreateMessage(messages, msgRef, labelTrans)
-				msg.ExtractedComment += fmt.Sprintf("resource:%s\n", view.ID)
-				messages[msgRef] = msg
+				messages = updateMessagesWithResourceTranslation(lang, view.ID, label.Value, messages)
 			}
 			// TODO add text data
 		}
 		for _, menu := range menuColl {
-			nameTrans := i18n.TranslateResourceItem(lang, menu.ID, menu.Name)
-			if nameTrans == menu.Name {
-				nameTrans = ""
-			}
-			msgRef := messageRef{msgId: menu.Name}
-			msg := getOrCreateMessage(messages, msgRef, nameTrans)
-			msg.ExtractedComment += fmt.Sprintf("resource:%s\n", menu.ID)
-			messages[msgRef] = msg
+			messages = updateMessagesWithResourceTranslation(lang, menu.ID, menu.Name, messages)
 		}
 		for _, action := range actionColl.GetAll() {
-			nameTrans := i18n.TranslateResourceItem(lang, action.ID, action.Name)
-			if nameTrans == action.Name {
-				nameTrans = ""
-			}
-			msgRef := messageRef{msgId: action.Name}
-			msg := getOrCreateMessage(messages, msgRef, nameTrans)
-			msg.ExtractedComment += fmt.Sprintf("resource:%s\n", action.ID)
-			messages[msgRef] = msg
+			messages = updateMessagesWithResourceTranslation(lang, action.ID, action.Name, messages)
 		}
 	}
+	return messages
+}
+
+// updateMessagesWithResourceTranslation returns the message map updated with a message
+// corresponding to the given ID and source
+func updateMessagesWithResourceTranslation(lang, id, source string, messages map[messageRef]po.Message) map[messageRef]po.Message {
+	nameTrans := i18n.TranslateResourceItem(lang, id, source)
+	if nameTrans == source {
+		nameTrans = ""
+	}
+	msgRef := messageRef{msgId: source}
+	msg := getOrCreateMessage(messages, msgRef, nameTrans)
+	msg.ExtractedComment += fmt.Sprintf("resource:%s\n", id)
+	messages[msgRef] = msg
 	return messages
 }
 

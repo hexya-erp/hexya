@@ -1,0 +1,87 @@
+= Internationalization
+Author Nicolas Piganeau
+:prewrap!:
+:toc:
+:sectnums:
+
+== Introduction
+Internationalization in Hexya groups several aspects:
+
+- Translating the application so that the user sees the user interface in his own language.
+- Displaying numbers, dates, currency amounts, etc. according to the user's locale
+- Translating record data
+
+=== Available languages
+Available languages in the application are defined at startup by passing the `--languages` (or `-l`) flag with a comma separated list of language codes:
+
+[source]
+----
+$ hexya server --languages fr,es,it,de
+----
+
+If a translation does not exist in the source code of one or several modules, then the original string in the default language is displayed (typically English).
+
+== Application translation
+This section covers translating the application, that all the text that will appear in the user interface.
+
+The translation process is made of 4 stages:
+
+- Define what needs to be translated
+- Extract the PO files with the translation strings
+- Translate the strings
+- Load back the translation
+
+=== Define what needs to be translated
+
+Strings to be translated may appear in different contexts:
+
+Strings in resources::
+This includes strings in views, menus and actions.
+No special action is needed here, Hexya knows by itself which strings are to be extracted from their XML definition.
+
+Strings in model definition::
+This includes model fields description and help strings, as well as Selection fields labels.
+These are also extracted automatically without any special declaration.
+
+Strings inside Go Code::
+This includes strings that can be displayed to the client or to the log from inside a Go method.
+To translate such strings, they need to be passed to the `T()` method of a RecordSet or a model:
+
+[source,go]
+----
+pool.OpenAcademyCourse().Methods().HelloWorld().DeclareMethod(
+    `HelloWorld returns a localized "Hello World" message`,
+    func(rs pool.PartnerSet) string {
+        return rs.T("Hello World")
+    })
+
+----
+
+Strings inside client code::
+This includes strings hardcoded into the client.
+Since Hexya is client-agnostic, each client should register an extract function for their strings.
+
+=== Extract the PO files
+A PO file with all the strings to be translated can be created by the hexya command:
+
+[source]
+$ hexya i18n update path/to/a/module -l fr,it,de
+
+The above command will create 3 files `fr.po`, `it.po` and `de.po` in the `i18n/` subdirectory of the module at `path/to/a/module`.
+The `i18n/` subdirectory must exist prior to running `hexya i18n update`.
+
+NOTE: If there is already a `XX.po` file in the `i18n/` directory, its translated strings will be kept in the newly generated PO file.
+
+=== Translate the strings
+PO files are a common translation file format and can be edited by many dedicated tools.
+
+=== Load back the translation
+No special step is necessary here other than a server restart with the newly translated language(s) set with the `--languages` flag.
+
+== Displaying according to user's locale
+
+**Not implemented yet**
+
+== Translating record data
+
+**Not implemented yet**

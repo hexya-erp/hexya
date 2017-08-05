@@ -12,6 +12,7 @@ import (
 
 const fieldSep string = "."
 
+// Registry holds all the translation of the application
 var Registry *TranslationsCollection
 
 // A TranslationsCollection holds all the translations of the application
@@ -227,7 +228,7 @@ func NewTranslationsCollection() *TranslationsCollection {
 
 // LoadPOFile load the file with the given filename into the Registry.
 // This function is meant to be called several times to load all translations
-// accross all languages and modules.
+// across all languages and modules.
 // It panics in case of errors in the PO file.
 func LoadPOFile(fileName string) {
 	Registry.LoadPOFile(fileName)

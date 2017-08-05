@@ -378,4 +378,5 @@ func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
 	}
 }
 
+// A ClientEvaluatedString is a string that contains code that will be evaluated by the client
 type ClientEvaluatedString string

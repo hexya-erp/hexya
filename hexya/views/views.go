@@ -48,7 +48,7 @@ const (
 
 // translatableAttributes is the list of XML attribute names the
 // value of which needs to be translated.
-var translatableAttributes = []string{"string", "placeholder"}
+var translatableAttributes = []string{"string", "help", "sum", "confirm", "placeholder"}
 
 // Registry is the views collection of the application
 var Registry *Collection

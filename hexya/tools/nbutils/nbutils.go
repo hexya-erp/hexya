@@ -119,7 +119,7 @@ func Compare(value1, value2 float64, precision Digits) (greater, equal bool) {
 	return
 }
 
-// Compare 'value1' and 'value2' after rounding them according to the
+// Compare32 'value1' and 'value2' after rounding them according to the
 // given precision. This function is just a wrapper for Compare() with float32 values
 func Compare32(value1, value2 float32, precision Digits) (greater, equal bool) {
 	greater, equal = Compare(float64(value1), float64(value2), precision)
