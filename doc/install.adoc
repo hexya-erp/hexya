@@ -60,6 +60,8 @@ go get github.com/hexya-erp/hexya-demo
 
 === Creating a custom project
 To create a custom project, create a go package with the following structure:
+
+[source,shell]
 ----
 <projectDir>/
     config/
@@ -100,6 +102,8 @@ hexya generate
 ----
 
 Type `hexya help generate` for the list of available options:
+
+[source,shell]
 ----
 $ hexya help generate
 Generate the source code of the pool package which includes the definition of all the models.
@@ -165,6 +169,8 @@ hexya updatedb -o
 ----
 
 Type `hexya help updatedb` for the list of available options:
+
+[source,shell]
 ----
 $ hexya help updatedb
 Synchronize the database schema with the models definitions.
@@ -198,6 +204,7 @@ hexya server -o
 
 Type `hexya help server` to get the list of available options:
 
+[source,shell]
 ----
 $ hexya help server
 Start the Hexya server of the project in 'projectDir'.

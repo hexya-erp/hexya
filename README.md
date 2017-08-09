@@ -9,3 +9,5 @@ Hexya is an open source ERP and a business application development framework
 written in Go.
 
 See `/doc` directory
+
+**WARNING: Hexya is under heavy development. API is subject to change without notice**

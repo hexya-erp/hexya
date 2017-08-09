@@ -52,6 +52,7 @@ peter_id,Peter,1,true,1.78
 mary_id,Mary,3,false,1.59
 nick_id_3,Nick,8,true,1.85
 ----
+[source,csv]
 .Tag_update.csv
 ----
 ID,Name
@@ -60,6 +61,7 @@ tag_app,Application
 tag_film,Film
 tag_music,Music
 ----
+[source,csv]
 .Post_1.csv
 ----
 ID,User,Title,Content,Tags

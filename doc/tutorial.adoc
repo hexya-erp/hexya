@@ -186,6 +186,7 @@ $ hexya generate
 This command will output several warnings during its execution. Just check
 that it terminated correctly:
 
+[source]
 ----
 (...)
 Generating pool...Ok

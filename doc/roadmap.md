@@ -38,7 +38,7 @@ ORM
 - [X] Implement 'child_of' domain operator
 - [X] Implement model constraints
 - [X] Implement search restrictions for relation fields
-- [ ] i18n and l10n support to ORM models
+- [X] i18n and l10n support to ORM models
 - [ ] Implement sending warning and domain with onchange
 - [ ] Pagination API for RecordSets
 
@@ -67,6 +67,8 @@ Client
 - [X] Adapt Odoo web client to be used in Hexya (V8)
 - [X] Adapt Odoo web client to be used in Hexya (V9)
 - [X] Rebrand web client
+- [ ] Adapt Odoo web client to be used in Hexya (V10)
+- [ ] i18n for client
 
 Modules
 -------
@@ -85,6 +87,7 @@ Documentation
 - [X] Security reference
 - [ ] Views reference
 - [ ] Actions and menus reference
+- [X] Internationalization reference
 - [X] Module development tutorial
 - [ ] Low level models API reference
 - [ ] Testing Hexya
