@@ -30,6 +30,12 @@ func TestMethods(t *testing.T) {
 				res := users.Call("PrefixedUser", "Prefix")
 				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 			})
+			Convey("Calling `PrefixedUser` with context", func() {
+				users := env.Pool("User")
+				users = users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+				res := users.WithContext("use_double_square", true).Call("PrefixedUser", "Prefix")
+				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [[jane.smith@example.com]]")
+			})
 		})
 	})
 }

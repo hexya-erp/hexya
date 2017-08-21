@@ -61,7 +61,7 @@ func declareBaseMixin() {
 	baseMixin.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
 	baseMixin.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
 	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
-	baseMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeNameGet"})
+	baseMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeDisplayName"})
 	declareBaseComputeMethods()
 }
 
@@ -94,10 +94,10 @@ func declareBaseComputeMethods() {
 			return FieldMap{"LastUpdate": dates.Now()}, []FieldNamer{FieldName("LastUpdate")}
 		}).AllowGroup(security.GroupEveryone)
 
-	model.AddMethod("ComputeNameGet",
-		`ComputeNameGet updates the DisplayName field with the result of NameGet.`,
+	model.AddMethod("ComputeDisplayName",
+		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
 		func(rc RecordCollection) (FieldMap, []FieldNamer) {
-			return FieldMap{"DisplayName": rc.Call("NameGet")}, []FieldNamer{FieldName("LastUpdate")}
+			return FieldMap{"DisplayName": rc.Call("NameGet")}, []FieldNamer{FieldName("DisplayName")}
 		}).AllowGroup(security.GroupEveryone)
 
 }
@@ -227,6 +227,10 @@ func declareRecordSetMethods() {
 				if fInfo.filter != nil {
 					filter = fInfo.filter.Serialize()
 				}
+				var readonly bool
+				if fInfo.compute != "" && fInfo.inverse == "" {
+					readonly = true
+				}
 				res[fInfo.json] = &FieldInfo{
 					Help:       i18n.Registry.TranslateFieldHelp(lang, fInfo.model.name, fInfo.name, fInfo.help),
 					Searchable: true,
@@ -239,6 +243,7 @@ func declareRecordSetMethods() {
 					Required:   fInfo.required,
 					Selection:  i18n.Registry.TranslateFieldSelection(lang, fInfo.model.name, fInfo.name, fInfo.selection),
 					Domain:     filter,
+					ReadOnly:   readonly,
 				}
 			}
 			return res
@@ -447,6 +452,9 @@ func declareEnvironmentMethods() {
 		`WithContext returns a copy of the current RecordSet with
 		its context extended by the given key and value.`,
 		func(rc RecordCollection, key string, value interface{}) RecordCollection {
+			// Because this method returns an env with the same callstack as inside this layer,
+			// we need to remove ourselves from the callstack.
+			rc.env.callStack = rc.env.callStack[1:]
 			return rc.WithContext(key, value)
 		}).AllowGroup(security.GroupEveryone)
 
@@ -454,6 +462,9 @@ func declareEnvironmentMethods() {
 		`WithNewContext returns a copy of the current RecordSet with its context
 	 	replaced by the given one.`,
 		func(rc RecordCollection, context *types.Context) RecordCollection {
+			// Because this method returns an env with the same callstack as inside this layer,
+			// we need to remove ourselves from the callstack.
+			rc.env.callStack = rc.env.callStack[1:]
 			return rc.WithNewContext(context)
 		}).AllowGroup(security.GroupEveryone)
 
@@ -461,6 +472,9 @@ func declareEnvironmentMethods() {
 		`Sudo returns a new RecordSet with the given userID
 	 	or the superuser ID if not specified`,
 		func(rc RecordCollection, userID ...int64) RecordCollection {
+			// Because this method returns an env with the same callstack as inside this layer,
+			// we need to remove ourselves from the callstack.
+			rc.env.callStack = rc.env.callStack[1:]
 			return rc.Sudo(userID...)
 		}).AllowGroup(security.GroupEveryone)
 }

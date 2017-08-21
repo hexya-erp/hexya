@@ -116,12 +116,21 @@ func TestModelDeclaration(t *testing.T) {
 
 		user.AddMethod("DecorateEmail", "",
 			func(rc RecordCollection, email string) string {
+				if rc.Env().Context().HasKey("use_square_brackets") {
+					return fmt.Sprintf("[%s]", email)
+				}
 				return fmt.Sprintf("<%s>", email)
 			})
 
 		user.Methods().MustGet("DecorateEmail").Extend("",
 			func(rc RecordCollection, email string) string {
-				res := rc.Super().Call("DecorateEmail", email).(string)
+				rSet := rc
+				if rc.Env().Context().HasKey("use_double_square") {
+					rSet = rSet.
+						Call("WithContext", "use_square_brackets", true).(RecordCollection).
+						WithContext("fake_key", true)
+				}
+				res := rSet.Super().Call("DecorateEmail", email).(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 
@@ -191,6 +200,11 @@ func TestModelDeclaration(t *testing.T) {
 			func(rc RecordCollection, data FieldMapper) RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
+			})
+
+		post.Methods().MustGet("WithContext").Extend("",
+			func(rc RecordCollection, key string, value interface{}) RecordCollection {
+				return rc.Super().Call("WithContext", key, value).(RecordCollection)
 			})
 
 		tag.AddMethod("CheckRate",

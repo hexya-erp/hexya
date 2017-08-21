@@ -199,7 +199,9 @@ type GroupAggregateRow struct {
 
 // A FieldMapper is an object that can convert itself into a FieldMap
 type FieldMapper interface {
-	// FieldMap returns the object converted to a FieldMap
+	// FieldMap returns the object converted to a FieldMap.
+	// If this is a struct, only non zero fields will be added to the result
+	// To put additional fields with zero value in the map, specify them in fields.
 	FieldMap(fields ...FieldNamer) FieldMap
 }
 
