@@ -25,16 +25,16 @@ type SimpleFieldParams struct {
 	Required      bool
 	Unique        bool
 	Index         bool
-	Compute       string
+	Compute       Methoder
 	Depends       []string
 	Related       string
 	GroupOperator string
 	NoCopy        bool
 	GoType        interface{}
 	Translate     bool
-	OnChange      string
-	Constraint    string
-	Inverse       string
+	OnChange      Methoder
+	Constraint    Methoder
+	Inverse       Methoder
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -47,7 +47,7 @@ type FloatFieldParams struct {
 	Required      bool
 	Unique        bool
 	Index         bool
-	Compute       string
+	Compute       Methoder
 	Depends       []string
 	Related       string
 	GroupOperator string
@@ -55,9 +55,9 @@ type FloatFieldParams struct {
 	Digits        nbutils.Digits
 	GoType        interface{}
 	Translate     bool
-	OnChange      string
-	Constraint    string
-	Inverse       string
+	OnChange      Methoder
+	Constraint    Methoder
+	Inverse       Methoder
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -70,7 +70,7 @@ type StringFieldParams struct {
 	Required      bool
 	Unique        bool
 	Index         bool
-	Compute       string
+	Compute       Methoder
 	Depends       []string
 	Related       string
 	GroupOperator string
@@ -78,9 +78,9 @@ type StringFieldParams struct {
 	Size          int
 	GoType        interface{}
 	Translate     bool
-	OnChange      string
-	Constraint    string
-	Inverse       string
+	OnChange      Methoder
+	Constraint    Methoder
+	Inverse       Methoder
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -93,15 +93,15 @@ type SelectionFieldParams struct {
 	Required   bool
 	Unique     bool
 	Index      bool
-	Compute    string
+	Compute    Methoder
 	Depends    []string
 	Related    string
 	NoCopy     bool
 	Selection  types.Selection
 	Translate  bool
-	OnChange   string
-	Constraint string
-	Inverse    string
+	OnChange   Methoder
+	Constraint Methoder
+	Inverse    Methoder
 	Default    func(Environment, FieldMap) interface{}
 }
 
@@ -113,7 +113,7 @@ type ForeignKeyFieldParams struct {
 	Stored        bool
 	Required      bool
 	Index         bool
-	Compute       string
+	Compute       Methoder
 	Depends       []string
 	Related       string
 	NoCopy        bool
@@ -121,10 +121,10 @@ type ForeignKeyFieldParams struct {
 	Embed         bool
 	Translate     bool
 	OnDelete      OnDeleteAction
-	OnChange      string
-	Constraint    string
+	OnChange      Methoder
+	Constraint    Methoder
 	Filter        Conditioner
-	Inverse       string
+	Inverse       Methoder
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -136,17 +136,17 @@ type ReverseFieldParams struct {
 	Stored        bool
 	Required      bool
 	Index         bool
-	Compute       string
+	Compute       Methoder
 	Depends       []string
 	Related       string
 	NoCopy        bool
 	RelationModel Modeler
 	ReverseFK     string
 	Translate     bool
-	OnChange      string
-	Constraint    string
+	OnChange      Methoder
+	Constraint    Methoder
 	Filter        Conditioner
-	Inverse       string
+	Inverse       Methoder
 	Default       func(Environment, FieldMap) interface{}
 }
 
@@ -158,7 +158,7 @@ type Many2ManyFieldParams struct {
 	Stored           bool
 	Required         bool
 	Index            bool
-	Compute          string
+	Compute          Methoder
 	Depends          []string
 	Related          string
 	NoCopy           bool
@@ -167,10 +167,10 @@ type Many2ManyFieldParams struct {
 	M2MOurField      string
 	M2MTheirField    string
 	Translate        bool
-	OnChange         string
-	Constraint       string
+	OnChange         Methoder
+	Constraint       Methoder
 	Filter           Conditioner
-	Inverse          string
+	Inverse          Methoder
 	Default          func(Environment, FieldMap) interface{}
 }
 
@@ -187,6 +187,25 @@ func getJSONAndString(name string, typ fieldtype.Type, json, str string) (string
 	return json, str
 }
 
+// getFuncNames returns the methods names of the given Methoder instances in the same order.
+// Returns "" if the Methoder is nil
+func getFuncNames(compute, inverse, onchange, constraint Methoder) (string, string, string, string) {
+	var com, inv, onc, con string
+	if compute != nil {
+		com = compute.Underlying().name
+	}
+	if inverse != nil {
+		inv = inverse.Underlying().name
+	}
+	if onchange != nil {
+		onc = onchange.Underlying().name
+	}
+	if constraint != nil {
+		con = constraint.Underlying().name
+	}
+	return com, inv, onc, con
+}
+
 // addSimpleField adds or overrides a new simple field with the given data and returns the Field
 func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType fieldtype.Type, typ reflect.Type) *Field {
 	if params.GoType != nil {
@@ -197,9 +216,7 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
-	if params.OnChange == "" && params.Compute != "" {
-		params.OnChange = params.Compute
-	}
+	compute, inverse, onchange, constraint := getFuncNames(params.Compute, params.Inverse, params.OnChange, params.Constraint)
 	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
@@ -211,8 +228,8 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		required:      params.Required,
 		unique:        params.Unique,
 		index:         params.Index,
-		compute:       params.Compute,
-		inverse:       params.Inverse,
+		compute:       compute,
+		inverse:       inverse,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
 		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
@@ -221,8 +238,8 @@ func (m *Model) addSimpleField(name string, params SimpleFieldParams, fieldType 
 		fieldType:     fieldType,
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
-		onChange:      params.OnChange,
-		constraint:    params.Constraint,
+		onChange:      onchange,
+		constraint:    constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -238,9 +255,7 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
-	if params.OnChange == "" && params.Compute != "" {
-		params.OnChange = params.Compute
-	}
+	compute, inverse, onchange, constraint := getFuncNames(params.Compute, params.Inverse, params.OnChange, params.Constraint)
 	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
@@ -252,8 +267,8 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		required:      params.Required,
 		unique:        params.Unique,
 		index:         params.Index,
-		compute:       params.Compute,
-		inverse:       params.Inverse,
+		compute:       compute,
+		inverse:       inverse,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
 		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
@@ -263,8 +278,8 @@ func (m *Model) addStringField(name string, params StringFieldParams, fieldType 
 		fieldType:     fieldType,
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
-		onChange:      params.OnChange,
-		constraint:    params.Constraint,
+		onChange:      onchange,
+		constraint:    constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -288,9 +303,7 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		required = true
 		noCopy = true
 	}
-	if params.OnChange == "" && params.Compute != "" {
-		params.OnChange = params.Compute
-	}
+	compute, inverse, onchange, constraint := getFuncNames(params.Compute, params.Inverse, params.OnChange, params.Constraint)
 	var filter *Condition
 	if params.Filter != nil {
 		filter = params.Filter.Underlying()
@@ -305,8 +318,8 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		stored:           params.Stored,
 		required:         required,
 		index:            params.Index,
-		compute:          params.Compute,
-		inverse:          params.Inverse,
+		compute:          compute,
+		inverse:          inverse,
 		depends:          params.Depends,
 		relatedPath:      params.Related,
 		noCopy:           noCopy,
@@ -317,9 +330,9 @@ func (m *Model) addForeignKeyField(name string, params ForeignKeyFieldParams, fi
 		onDelete:         onDelete,
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
-		onChange:         params.OnChange,
+		onChange:         onchange,
 		filter:           filter,
-		constraint:       params.Constraint,
+		constraint:       constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -332,9 +345,7 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldType, params.JSON, params.String)
-	if params.OnChange == "" && params.Compute != "" {
-		params.OnChange = params.Compute
-	}
+	compute, inverse, onchange, constraint := getFuncNames(params.Compute, params.Inverse, params.OnChange, params.Constraint)
 	var filter *Condition
 	if params.Filter != nil {
 		filter = params.Filter.Underlying()
@@ -349,8 +360,8 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		stored:           params.Stored,
 		required:         params.Required,
 		index:            params.Index,
-		compute:          params.Compute,
-		inverse:          params.Inverse,
+		compute:          compute,
+		inverse:          inverse,
 		depends:          params.Depends,
 		relatedPath:      params.Related,
 		noCopy:           params.NoCopy,
@@ -361,8 +372,8 @@ func (m *Model) addReverseField(name string, params ReverseFieldParams, fieldTyp
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
 		filter:           filter,
-		onChange:         params.OnChange,
-		constraint:       params.Constraint,
+		onChange:         onchange,
+		constraint:       constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -410,9 +421,7 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		Type: typ,
 	}
 	json, str := getJSONAndString(name, fieldtype.Float, params.JSON, params.String)
-	if params.OnChange == "" && params.Compute != "" {
-		params.OnChange = params.Compute
-	}
+	compute, inverse, onchange, constraint := getFuncNames(params.Compute, params.Inverse, params.OnChange, params.Constraint)
 	fInfo := &Field{
 		model:         m,
 		acl:           security.NewAccessControlList(),
@@ -424,8 +433,8 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		required:      params.Required,
 		unique:        params.Unique,
 		index:         params.Index,
-		compute:       params.Compute,
-		inverse:       params.Inverse,
+		compute:       compute,
+		inverse:       inverse,
 		depends:       params.Depends,
 		relatedPath:   params.Related,
 		groupOperator: strutils.GetDefaultString(params.GroupOperator, "sum"),
@@ -435,8 +444,8 @@ func (m *Model) AddFloatField(name string, params FloatFieldParams) *Field {
 		fieldType:     fieldtype.Float,
 		defaultFunc:   params.Default,
 		translate:     params.Translate,
-		onChange:      params.OnChange,
-		constraint:    params.Constraint,
+		onChange:      onchange,
+		constraint:    constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -482,9 +491,7 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, our, their)
 
 	json, str := getJSONAndString(name, fieldtype.Float, params.JSON, params.String)
-	if params.OnChange == "" && params.Compute != "" {
-		params.OnChange = params.Compute
-	}
+	compute, inverse, onchange, constraint := getFuncNames(params.Compute, params.Inverse, params.OnChange, params.Constraint)
 	var filter *Condition
 	if params.Filter != nil {
 		filter = params.Filter.Underlying()
@@ -499,8 +506,8 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		stored:           params.Stored,
 		required:         params.Required,
 		index:            params.Index,
-		compute:          params.Compute,
-		inverse:          params.Inverse,
+		compute:          compute,
+		inverse:          inverse,
 		depends:          params.Depends,
 		relatedPath:      params.Related,
 		noCopy:           params.NoCopy,
@@ -513,8 +520,8 @@ func (m *Model) AddMany2ManyField(name string, params Many2ManyFieldParams) *Fie
 		defaultFunc:      params.Default,
 		translate:        params.Translate,
 		filter:           filter,
-		onChange:         params.OnChange,
-		constraint:       params.Constraint,
+		onChange:         onchange,
+		constraint:       constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo
@@ -549,9 +556,7 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		Type: reflect.TypeOf(*new(string)),
 	}
 	json, str := getJSONAndString(name, fieldtype.Float, params.JSON, params.String)
-	if params.OnChange == "" && params.Compute != "" {
-		params.OnChange = params.Compute
-	}
+	compute, inverse, onchange, constraint := getFuncNames(params.Compute, params.Inverse, params.OnChange, params.Constraint)
 	fInfo := &Field{
 		model:       m,
 		acl:         security.NewAccessControlList(),
@@ -563,8 +568,8 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		required:    params.Required,
 		unique:      params.Unique,
 		index:       params.Index,
-		compute:     params.Compute,
-		inverse:     params.Inverse,
+		compute:     compute,
+		inverse:     inverse,
 		depends:     params.Depends,
 		relatedPath: params.Related,
 		noCopy:      params.NoCopy,
@@ -573,8 +578,8 @@ func (m *Model) AddSelectionField(name string, params SelectionFieldParams) *Fie
 		fieldType:   fieldtype.Selection,
 		defaultFunc: params.Default,
 		translate:   params.Translate,
-		onChange:    params.OnChange,
-		constraint:  params.Constraint,
+		onChange:    onchange,
+		constraint:  constraint,
 	}
 	m.fields.add(fInfo)
 	return fInfo

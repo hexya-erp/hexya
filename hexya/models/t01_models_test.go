@@ -33,68 +33,6 @@ func TestModelDeclaration(t *testing.T) {
 		activeMI := NewMixinModel("ActiveMixIn")
 		viewModel := NewManualModel("UserView")
 
-		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true,
-			NoCopy: true, OnChange: "computeDecoratedName"})
-		user.AddCharField("DecoratedName", StringFieldParams{Compute: "computeDecoratedName"})
-		user.AddCharField("Email", StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
-		user.AddCharField("Password", StringFieldParams{NoCopy: true})
-		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16),
-			Default: DefaultValue(int16(12))})
-		user.AddBooleanField("IsStaff", SimpleFieldParams{})
-		user.AddBooleanField("IsActive", SimpleFieldParams{})
-		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Profile"),
-			OnDelete: Restrict, Required: true})
-		user.AddIntegerField("Age", SimpleFieldParams{Compute: "computeAge", Inverse: "inverseSetAge",
-			Depends: []string{"Profile", "Profile.Age"}, Stored: true})
-		user.AddOne2ManyField("Posts", ReverseFieldParams{RelationModel: Registry.MustGet("Post"),
-			ReverseFK: "User"})
-		user.AddFloatField("PMoney", FloatFieldParams{Related: "Profile.Money"})
-		user.AddMany2OneField("LastPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post"),
-			Embed: true})
-		user.AddCharField("Email2", StringFieldParams{})
-		user.AddBooleanField("IsPremium", SimpleFieldParams{})
-		user.AddIntegerField("Nums", SimpleFieldParams{GoType: new(int)})
-		user.AddFloatField("Size", FloatFieldParams{})
-
-		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums > 0) OR (IS_PREMIUM = false))",
-			"Premium users must have positive nums")
-
-		profile.AddIntegerField("Age", SimpleFieldParams{GoType: new(int16)})
-		profile.AddSelectionField("Gender", SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
-		profile.AddFloatField("Money", FloatFieldParams{})
-		profile.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: Registry.MustGet("User")})
-		profile.AddOne2OneField("BestPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post")})
-		profile.AddCharField("City", StringFieldParams{})
-		profile.AddCharField("Country", StringFieldParams{})
-
-		post.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: Registry.MustGet("User")})
-		post.AddCharField("Title", StringFieldParams{})
-		post.AddHTMLField("Content", StringFieldParams{})
-		post.AddMany2ManyField("Tags", Many2ManyFieldParams{RelationModel: Registry.MustGet("Tag")})
-		post.AddRev2OneField("BestPostProfile", ReverseFieldParams{RelationModel: Registry.MustGet("Profile"),
-			ReverseFK: "BestPost"})
-		post.AddTextField("Abstract", StringFieldParams{})
-		post.AddBinaryField("Attachment", SimpleFieldParams{})
-		post.AddDateField("LastRead", SimpleFieldParams{})
-
-		tag.AddCharField("Name", StringFieldParams{Constraint: "CheckNameDescription"})
-		tag.AddMany2OneField("BestPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post")})
-		tag.AddMany2ManyField("Posts", Many2ManyFieldParams{RelationModel: Registry.MustGet("Post")})
-		tag.AddMany2OneField("Parent", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Tag")})
-		tag.AddCharField("Description", StringFieldParams{Constraint: "CheckNameDescription"})
-		tag.AddFloatField("Rate", FloatFieldParams{Constraint: "CheckRate", GoType: new(float32)})
-
-		addressMI.AddCharField("Street", StringFieldParams{GoType: new(string)})
-		addressMI.AddCharField("Zip", StringFieldParams{})
-		addressMI.AddCharField("City", StringFieldParams{})
-		profile.InheritModel(addressMI)
-
-		activeMI.AddBooleanField("Active", SimpleFieldParams{})
-		Registry.MustGet("ModelMixin").InheritModel(activeMI)
-
-		viewModel.AddCharField("Name", StringFieldParams{})
-		viewModel.AddCharField("City", StringFieldParams{})
-
 		user.AddMethod("PrefixedUser", "",
 			func(rc RecordCollection, prefix string) []string {
 				var res []string
@@ -134,21 +72,21 @@ func TestModelDeclaration(t *testing.T) {
 				return fmt.Sprintf("[%s]", res)
 			})
 
-		user.AddMethod("computeDecoratedName", "",
+		user.AddMethod("ComputeDecoratedName", "",
 			func(rc RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 				return res, []FieldNamer{FieldName("DecoratedName")}
 			})
 
-		user.AddMethod("computeAge", "",
+		user.AddMethod("ComputeAge", "",
 			func(rc RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
 				res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
 				return res, []FieldNamer{}
 			})
 
-		user.AddMethod("inverseSetAge", "",
+		user.AddMethod("InverseSetAge", "",
 			func(rc RecordCollection, vals FieldMapper) {
 				value, ok := vals.FieldMap(FieldName("Age"))["Age"]
 				if !ok {
@@ -222,6 +160,70 @@ func TestModelDeclaration(t *testing.T) {
 					log.Panic("Tag name and description must be different")
 				}
 			}).AllowGroup(security.GroupEveryone)
+
+		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true,
+			NoCopy: true, OnChange: user.Methods().MustGet("ComputeDecoratedName")})
+		user.AddCharField("DecoratedName", StringFieldParams{Compute: user.Methods().MustGet("ComputeDecoratedName")})
+		user.AddCharField("Email", StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
+		user.AddCharField("Password", StringFieldParams{NoCopy: true})
+		user.AddIntegerField("Status", SimpleFieldParams{JSON: "status_json", GoType: new(int16),
+			Default: DefaultValue(int16(12))})
+		user.AddBooleanField("IsStaff", SimpleFieldParams{})
+		user.AddBooleanField("IsActive", SimpleFieldParams{})
+		user.AddMany2OneField("Profile", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Profile"),
+			OnDelete: Restrict, Required: true})
+		user.AddIntegerField("Age", SimpleFieldParams{Compute: user.Methods().MustGet("ComputeAge"),
+			Inverse: user.Methods().MustGet("InverseSetAge"),
+			Depends: []string{"Profile", "Profile.Age"}, Stored: true})
+		user.AddOne2ManyField("Posts", ReverseFieldParams{RelationModel: Registry.MustGet("Post"),
+			ReverseFK: "User"})
+		user.AddFloatField("PMoney", FloatFieldParams{Related: "Profile.Money"})
+		user.AddMany2OneField("LastPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post"),
+			Embed: true})
+		user.AddCharField("Email2", StringFieldParams{})
+		user.AddBooleanField("IsPremium", SimpleFieldParams{})
+		user.AddIntegerField("Nums", SimpleFieldParams{GoType: new(int)})
+		user.AddFloatField("Size", FloatFieldParams{})
+
+		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums > 0) OR (IS_PREMIUM = false))",
+			"Premium users must have positive nums")
+
+		profile.AddIntegerField("Age", SimpleFieldParams{GoType: new(int16)})
+		profile.AddSelectionField("Gender", SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
+		profile.AddFloatField("Money", FloatFieldParams{})
+		profile.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: Registry.MustGet("User")})
+		profile.AddOne2OneField("BestPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post")})
+		profile.AddCharField("City", StringFieldParams{})
+		profile.AddCharField("Country", StringFieldParams{})
+
+		post.AddMany2OneField("User", ForeignKeyFieldParams{RelationModel: Registry.MustGet("User")})
+		post.AddCharField("Title", StringFieldParams{})
+		post.AddHTMLField("Content", StringFieldParams{})
+		post.AddMany2ManyField("Tags", Many2ManyFieldParams{RelationModel: Registry.MustGet("Tag")})
+		post.AddRev2OneField("BestPostProfile", ReverseFieldParams{RelationModel: Registry.MustGet("Profile"),
+			ReverseFK: "BestPost"})
+		post.AddTextField("Abstract", StringFieldParams{})
+		post.AddBinaryField("Attachment", SimpleFieldParams{})
+		post.AddDateField("LastRead", SimpleFieldParams{})
+
+		tag.AddCharField("Name", StringFieldParams{Constraint: tag.Methods().MustGet("CheckNameDescription")})
+		tag.AddMany2OneField("BestPost", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Post")})
+		tag.AddMany2ManyField("Posts", Many2ManyFieldParams{RelationModel: Registry.MustGet("Post")})
+		tag.AddMany2OneField("Parent", ForeignKeyFieldParams{RelationModel: Registry.MustGet("Tag")})
+		tag.AddCharField("Description", StringFieldParams{Constraint: tag.Methods().MustGet("CheckNameDescription")})
+		tag.AddFloatField("Rate", FloatFieldParams{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)})
+
+		addressMI.AddCharField("Street", StringFieldParams{GoType: new(string)})
+		addressMI.AddCharField("Zip", StringFieldParams{})
+		addressMI.AddCharField("City", StringFieldParams{})
+		profile.InheritModel(addressMI)
+
+		activeMI.AddBooleanField("Active", SimpleFieldParams{})
+		Registry.MustGet("ModelMixin").InheritModel(activeMI)
+
+		viewModel.AddCharField("Name", StringFieldParams{})
+		viewModel.AddCharField("City", StringFieldParams{})
+
 	})
 }
 

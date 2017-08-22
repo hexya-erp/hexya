@@ -27,15 +27,36 @@ import (
 
 func declareModels() {
 	user := pool.User().DeclareModel()
+
+	// Methods directly declared with AddMethod must be defined before being referenced in the field declaration
+
+	user.AddMethod("ComputeDecoratedName", "",
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
+			res := pool.UserData{
+				DecoratedName: rs.PrefixedUser("User")[0],
+			}
+			return &res, []models.FieldNamer{pool.User().DecoratedName()}
+		})
+
+	user.AddMethod("ComputeAge",
+		`ComputeAge is a sample method layer for testing`,
+		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
+			res := pool.UserData{
+				Age: rs.Profile().Age(),
+			}
+			return &res, []models.FieldNamer{pool.User().Age()}
+		})
+
 	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
-	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: "computeDecoratedName"})
+	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: pool.User().Methods().ComputeDecoratedName()})
 	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
 	user.AddCharField("Password", models.StringFieldParams{NoCopy: true})
 	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
 	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
 	user.AddBooleanField("IsActive", models.SimpleFieldParams{})
 	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: pool.Profile()})
-	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Inverse: "InverseSetAge",
+	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: pool.User().Methods().ComputeAge(),
+		Inverse: pool.User().Methods().InverseSetAge(),
 		Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
 	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: pool.Post(), ReverseFK: "User"})
 	user.AddFloatField("PMoney", models.FloatFieldParams{Related: "Profile.Money"})
@@ -67,15 +88,6 @@ func declareModels() {
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	user.AddMethod("computeAge",
-		`ComputeAge is a sample method layer for testing`,
-		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
-			res := pool.UserData{
-				Age: rs.Profile().Age(),
-			}
-			return &res, []models.FieldNamer{pool.User().Age()}
-		})
-
 	user.Methods().InverseSetAge().DeclareMethod("",
 		func(rs pool.UserSet, vals models.FieldMapper) {
 			values := rs.DataStruct(vals.FieldMap())
@@ -89,14 +101,6 @@ func declareModels() {
 				res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
 			}
 			return res
-		})
-
-	user.AddMethod("computeDecoratedName", "",
-		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
-			res := pool.UserData{
-				DecoratedName: rs.PrefixedUser("User")[0],
-			}
-			return &res, []models.FieldNamer{pool.User().DecoratedName()}
 		})
 
 	pool.User().Methods().UpdateCity().DeclareMethod("",
@@ -139,12 +143,12 @@ func declareModels() {
 		})
 
 	tag := pool.Tag().DeclareModel()
-	tag.AddCharField("Name", models.StringFieldParams{Constraint: "CheckNameDescription"})
+	tag.AddCharField("Name", models.StringFieldParams{Constraint: pool.Tag().Methods().CheckNameDescription()})
 	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: pool.Tag()})
 	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: pool.Post()})
 	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: pool.Post()})
-	tag.AddCharField("Description", models.StringFieldParams{Constraint: "CheckNameDescription"})
-	tag.AddFloatField("Rate", models.FloatFieldParams{Constraint: "CheckRate", GoType: new(float32)})
+	tag.AddCharField("Description", models.StringFieldParams{Constraint: pool.Tag().Methods().CheckNameDescription()})
+	tag.AddFloatField("Rate", models.FloatFieldParams{Constraint: pool.Tag().Methods().CheckRate(), GoType: new(float32)})
 
 	tag.Methods().CheckNameDescription().DeclareMethod(
 		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,

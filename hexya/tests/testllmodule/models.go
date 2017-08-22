@@ -35,12 +35,13 @@ func declareModels() {
 	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
 	user.AddBooleanField("IsActive", models.SimpleFieldParams{})
 	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("Profile")})
-	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: "computeAge", Depends: []string{"Profile", "Profile.Age"},
-		Stored: true, GoType: new(int16)})
+	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: user.Methods().MustGet("ComputeAge"),
+		Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
 	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: models.Registry.MustGet("Post"),
 		ReverseFK: "User"})
 	user.AddFloatField("PMoney", models.FloatFieldParams{Related: "Profile.Money"})
-	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: models.Registry.MustGet("Post"), Embed: true})
+	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{
+		RelationModel: models.Registry.MustGet("Post"), Embed: true})
 	user.AddCharField("Email2", models.StringFieldParams{})
 	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
 	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})

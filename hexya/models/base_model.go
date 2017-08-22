@@ -55,14 +55,14 @@ func declareCommonMixin() {
 // declareBaseMixin creates the mixin that implements all the necessary base methods of a model
 func declareBaseMixin() {
 	baseMixin := NewMixinModel("BaseMixin")
+	declareBaseComputeMethods()
 	baseMixin.AddDateTimeField("CreateDate", SimpleFieldParams{NoCopy: true})
 	baseMixin.AddIntegerField("CreateUID", SimpleFieldParams{NoCopy: true})
 	baseMixin.AddDateTimeField("WriteDate", SimpleFieldParams{NoCopy: true})
 	baseMixin.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
-	baseMixin.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: "ComputeLastUpdate"})
+	baseMixin.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: baseMixin.Methods().MustGet("ComputeLastUpdate")})
 	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
-	baseMixin.AddCharField("DisplayName", StringFieldParams{Compute: "ComputeDisplayName"})
-	declareBaseComputeMethods()
+	baseMixin.AddCharField("DisplayName", StringFieldParams{Compute: baseMixin.Methods().MustGet("ComputeDisplayName")})
 }
 
 func declareModelMixin() {

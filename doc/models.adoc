@@ -752,9 +752,9 @@ values. The given FieldMap holds the values passed to the Create function.
 This function is also called by clients to set a default value in the user
 interface before calling Create. In this case, the FieldMap will be empty.
 
-`OnChange` string::
-The name of a method to call when this field is changed in the interface.
-The value must be the name of a method on this RecordSet with the following
+`OnChange` Methoder::
+The method to call when this field is changed in the interface.
+The value must be a method on this RecordSet with the following
 signature, which returns a Record with the values to update and a slice of
 field names to unset.
 
@@ -770,9 +770,9 @@ IMPORTANT: OnChange methods are executed in an isolated environment that is
 rolled back after execution. You should therefore not try to create or
 write any RecordSet in these methods, or they will fail.
 
-`Constraint` string::
-The name of a method to call to validate the value of this field in a record.
-The value must be the name of a method on this RecordSet with the following
+`Constraint` Methoder::
+The method to call to validate the value of this field in a record.
+The value must be a method on this RecordSet with the following
 signature:
 
 [source,go]
@@ -791,8 +791,8 @@ the model. It defaults to `sum`.
 
 ===== Computed fields parameters
 
-`Compute` string::
-Declares this field as a computed field. The value must be the name of a
+`Compute` Methoder::
+Declares this field as a computed field. The value must be a
 method on this RecordSet with the following signature, which returns a
 Record with the values to update and a slice of field names to unset.
 
@@ -801,8 +801,8 @@ Record with the values to update and a slice of field names to unset.
 func (RecordSetType) (*RecordType, []models.FieldNamer)
 ----
 
-`Inverse` string::
-Declares a inverse method for a computed field. This method will be called when
+`Inverse` Methoder::
+Declares an inverse method for a computed field. This method will be called when
 the field is set. The given method must have the following signature:
 
 [source,go]

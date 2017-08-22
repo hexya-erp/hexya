@@ -1083,8 +1083,7 @@ retrieved from the database but computed on-the-fly by calling a method of the
 model.
 
 To create a computed field, create a field and set its attribute `Compute` to
-the name of a method. The computation method should have the following
-signature:
+a method. The computation method should have the following signature:
 
 [source,go]
 func (RecordSet) (*RecordData, []models.FieldNamer)
@@ -1114,7 +1113,8 @@ Let's add the percentage of taken seats to the *Session* model.
 func init() {
 (...)
     pool.OpenAcademySession().AddFloatField("TakenSeats", models.FloatFieldParams{
-        Compute: "ComputeTakenSeats", Depends: []string{"Seats", "Attendees"}})
+        Compute: pool.OpenAcademySession().Methods().ComputeTakenSeats(),
+        Depends: []string{"Seats", "Attendees"}})
 
     pool.OpenAcademySession().Methods().ComputeTakenSeats().DeclareMethod(
         `ComputeTakenSeats returns the percentage of taken seats in this session`,
@@ -1212,8 +1212,8 @@ The "onchange" mechanism provides a way for the client interface to update a
 form whenever the user has filled in a value in a field, without saving anything
 to the database.
 
-To achieve this, set the `OnChange:` parameter of the field
-with the name of a computation function.
+To achieve this, set the `OnChange:` parameter of the field with a computation
+function.
 
 Such fonction have the same signature as the functions in `Compute:` parameter
 (see <<Computed fields and default values>>).
@@ -1230,10 +1230,12 @@ We now add an explicit onchange to prevent negative number of seats.
 func init() {
 (...)
     pool.OpenAcademySession().AddIntegerField("Seats", models.SimpleFieldParams{
-        String: "Number of seats", OnChange: "VerifyValidSeats"})
+        String: "Number of seats",
+        OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats()})
 (...)
     pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        RelationModel: pool.Partner(), OnChange: "VerifyValidSeats"})
+        RelationModel: pool.Partner(),
+        OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats()})
 (...)
 
     pool.OpenAcademySession().Methods().VerifyValidSeats().DeclareMethod(
@@ -1303,7 +1305,7 @@ Let's add the following SQL constraints to our sessions:
 === Constraint by method
 
 Constraints on models can also be defined as methods on models. This is done by
-setting the `Constraint:` parameter of a field to the name of a method that
+setting the `Constraint:` parameter of a field to a method that
 will check if its given recordset is valid. This method must panic if it is not
 the case.
 
@@ -1317,11 +1319,13 @@ in the attendees of his/her own session.
 [source,go]
 ----
     pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
-        RelationModel: pool.Partner(), Filter: pool.Partner().Instructor().Equals(true),
-        Constraint: "CheckInstructorNotInAttendees"})
+        RelationModel: pool.Partner(),
+        Filter: pool.Partner().Instructor().Equals(true),
+        Constraint: pool.OpenAcademySession().Methods().CheckInstructorNotInAttendees()})
     pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        RelationModel: pool.Partner(), OnChange: "VerifyValidSeats",
-        Constraint: "CheckInstructorNotInAttendees"})
+        RelationModel: pool.Partner(),
+        OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats(),
+        Constraint: pool.OpenAcademySession().Methods().CheckInstructorNotInAttendees()})
 
     pool.Methods().CheckInstructorNotInAttendees().DeclareMethod(
         `CheckInstructorNotInAttendees checks that the instructor is not present
