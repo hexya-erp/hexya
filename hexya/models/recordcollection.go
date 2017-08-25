@@ -451,6 +451,8 @@ func (rc RecordCollection) FetchAll() RecordCollection {
 // It panics in case of error
 func (rc RecordCollection) SearchCount() int {
 	rSet := rc.Limit(0)
+	addNameSearchesToCondition(rSet.model, rSet.query.cond)
+	inflate2ManyConditions(rSet.model, rSet.query.cond)
 	sql, args := rSet.query.countQuery()
 	var res int
 	rSet.env.cr.Get(&res, sql, args...)

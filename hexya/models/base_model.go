@@ -116,15 +116,16 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
 		func(rc RecordCollection, fields []string) []FieldMap {
-			res := make([]FieldMap, rc.Len())
+			var res []FieldMap
 			// Check if we have id in fields, and add it otherwise
 			fields = addIDIfNotPresent(fields)
 			// Do the actual reading
-			for i, rec := range rc.Records() {
-				res[i] = make(FieldMap)
+			for _, rec := range rc.Records() {
+				fData := make(FieldMap)
 				for _, fName := range fields {
-					res[i][fName] = rec.Get(fName)
+					fData[fName] = rec.Get(fName)
 				}
+				res = append(res, fData)
 			}
 			return res
 		}).AllowGroup(security.GroupEveryone)
@@ -175,7 +176,7 @@ func declareCRUDMethods() {
 			fMap := rc.env.cache.getRecord(rc.ModelName(), rc.Get("id").(int64))
 			fMap.RemovePK()
 			fMap.MergeWith(overrides.FieldMap(fieldsToUnset...), rc.model)
-			newRs := rc.Call("Create", fMap).(RecordSet).Collection()
+			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", fMap).(RecordSet).Collection()
 			return newRs
 		})
 
@@ -244,6 +245,7 @@ func declareRecordSetMethods() {
 					Selection:  i18n.Registry.TranslateFieldSelection(lang, fInfo.model.name, fInfo.name, fInfo.selection),
 					Domain:     filter,
 					ReadOnly:   readonly,
+					OnChange:   fInfo.onChange != "",
 				}
 			}
 			return res
@@ -512,6 +514,7 @@ type FieldInfo struct {
 	Relation         string                 `json:"relation"`
 	Selection        types.Selection        `json:"selection"`
 	Domain           interface{}            `json:"domain"`
+	OnChange         bool                   `json:"-"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method
