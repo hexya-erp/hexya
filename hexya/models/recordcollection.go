@@ -826,6 +826,8 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 			rSet.env.cache.addEntry(rSet.model, id, "id", id)
 		}
 		rSet.query.cond = rc.Model().Field("ID").In(ids)
+		rSet.query.limit = 0
+		rSet.query.offset = 0
 	}
 	return rSet
 }
