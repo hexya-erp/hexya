@@ -67,7 +67,7 @@ Client
 - [X] Adapt Odoo web client to be used in Hexya (V8)
 - [X] Adapt Odoo web client to be used in Hexya (V9)
 - [X] Rebrand web client
-- [ ] Adapt Odoo web client to be used in Hexya (V10)
+- [X] Adapt Odoo web client to be used in Hexya (V10)
 - [ ] i18n for client
 
 Modules

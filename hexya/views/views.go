@@ -19,6 +19,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -139,6 +140,27 @@ type ViewTuple struct {
 func (vt ViewTuple) MarshalJSON() ([]byte, error) {
 	return json.Marshal([2]string{vt.ID, string(vt.Type)})
 }
+
+// UnmarshalJSON method for ViewTuple
+func (vt *ViewTuple) UnmarshalJSON(data []byte) error {
+	var src interface{}
+	err := json.Unmarshal(data, &src)
+	if err != nil {
+		return err
+	}
+	switch s := src.(type) {
+	case []interface{}:
+		vID, _ := s[0].(string)
+		vt.ID = vID
+		vt.Type = ViewType(s[1].(string))
+	default:
+		return errors.New("Unexpected type in ViewTuple Unmarshal")
+	}
+	return nil
+}
+
+var _ json.Marshaler = ViewTuple{}
+var _ json.Unmarshaler = &ViewTuple{}
 
 // A Collection is a view collection
 type Collection struct {
