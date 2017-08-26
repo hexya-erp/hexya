@@ -76,7 +76,7 @@ func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 			panic(rc.substituteSQLErrorMessage(r))
 		}
 	}()
-	rc.checkExecutionPermission(rc.model.methods.MustGet("Create"))
+	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
 	fMap := data.FieldMap()
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	rc.applyDefaults(&fMap)
@@ -232,7 +232,7 @@ func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 // this RecordCollection with the given fieldMap. It also
 // invalidates the cache for the record
 func (rc RecordCollection) doUpdate(fMap FieldMap) {
-	rc.checkExecutionPermission(rc.model.methods.MustGet("Write"))
+	rc.CheckExecutionPermission(rc.model.methods.MustGet("Write"))
 	defer func() {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
@@ -379,7 +379,7 @@ func (rc RecordCollection) substituteSQLErrorMessage(r interface{}) interface{} 
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Unlink() or rs.Call("Unlink")
 func (rc RecordCollection) unlink() int64 {
-	rc.checkExecutionPermission(rc.model.methods.MustGet("Unlink"))
+	rc.CheckExecutionPermission(rc.model.methods.MustGet("Unlink"))
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Unlink)
 	sql, args := rSet.query.deleteQuery()
 	res := rSet.env.cr.Execute(sql, args...)
@@ -466,7 +466,7 @@ func (rc RecordCollection) SearchCount() int {
 // model are retrieved. Non-DB fields must be explicitly given in
 // fields to be retrieved.
 func (rc RecordCollection) Load(fields ...string) RecordCollection {
-	rc.checkExecutionPermission(rc.model.methods.MustGet("Load"))
+	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	if rc.query.isEmpty() {
 		// Never load RecordSets without query.
 		return rc

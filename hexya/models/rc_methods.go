@@ -92,7 +92,7 @@ func (rc RecordCollection) MethodType(methName string) reflect.Type {
 
 // callMulti is a wrapper around reflect.Value.Call() to use with interface{} type.
 func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
-	rc.checkExecutionPermission(methLayer.method)
+	rc.CheckExecutionPermission(methLayer.method)
 	inVals := make([]reflect.Value, len(args)+1)
 	inVals[0] = reflect.ValueOf(rc)
 	for i, arg := range args {
@@ -108,28 +108,36 @@ func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}
 	return res
 }
 
-// checkExecutionPermission panics if the current user is not allowed to
-// execute the given method
-func (rc RecordCollection) checkExecutionPermission(method *Method) {
+// CheckExecutionPermission panics if the current user is not allowed to
+// execute the given method.
+//
+// If dontPanic is false, this function will panic, otherwise it returns true
+// if the user has the execution permission and false otherwise.
+func (rc RecordCollection) CheckExecutionPermission(method *Method, dontPanic ...bool) bool {
 	var caller *Method
 	if len(rc.env.callStack) > 1 {
 		caller = rc.env.callStack[1].method
 	}
 	if caller == method {
 		// We are calling Super on the same method, so it's ok
-		return
+		return true
 	}
 	userGroups := security.Registry.UserGroups(rc.env.uid)
 	for group := range userGroups {
 		if method.groups[group] {
-			return
+			return true
 		}
 		if caller == nil {
 			continue
 		}
 		if method.groupsCallers[callerGroup{caller: caller, group: group}] {
-			return
+			return true
 		}
 	}
+	if len(dontPanic) > 0 && dontPanic[0] {
+		return false
+	}
 	log.Panic("You are not allowed to execute this method", "model", rc.ModelName(), "method", method.name, "uid", rc.env.uid)
+	// Unreachable
+	return false
 }
