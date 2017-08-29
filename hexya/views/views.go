@@ -185,12 +185,16 @@ func (vc *Collection) Add(v *View) {
 	var index int8
 	for i, view := range vc.orderedViews[v.Model] {
 		index = int8(i)
-		if view.Priority >= v.Priority {
+		if view.Priority > v.Priority {
 			break
 		}
 	}
 	defer vc.Unlock()
 	vc.views[v.ID] = v
+	if index == int8(len(vc.orderedViews)-1) {
+		vc.orderedViews[v.Model] = append(vc.orderedViews[v.Model], v)
+		return
+	}
 	endElems := make([]*View, len(vc.orderedViews[v.Model][index:]))
 	copy(endElems, vc.orderedViews[v.Model][index:])
 	vc.orderedViews[v.Model] = append(append(vc.orderedViews[v.Model][:index], v), endElems...)
@@ -236,6 +240,16 @@ func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View
 			Type:   VIEW_TYPE_SEARCH,
 			Fields: []models.FieldName{models.FieldName("Name")},
 			arch:   `<search><field name="Name"/></search>`,
+			arches: make(map[string]string),
+		}
+		view.translateArch()
+		return &view
+	case VIEW_TYPE_LIST, VIEW_TYPE_TREE:
+		view := View{
+			Model:  model,
+			Type:   VIEW_TYPE_TREE,
+			Fields: []models.FieldName{models.FieldName("Name")},
+			arch:   `<tree><field name="Name"/></tree>`,
 			arches: make(map[string]string),
 		}
 		view.translateArch()
@@ -490,22 +504,19 @@ func LoadFromEtree(element *etree.Element) {
 // getInheritXPathFromSpec returns an XPath string that is suitable for
 // searching the base view and find the node to modify.
 func getInheritXPathFromSpec(spec *etree.Element) string {
-	var xpath string
 	if spec.Tag == "xpath" {
 		// We have an xpath expression, we take it
-		xpath = spec.SelectAttr("expr").Value
-	} else {
-		if len(spec.Attr) < 1 || len(spec.Attr) > 2 {
-			log.Panic("Invalid view inherit spec", "spec", xmlutils.ElementToXML(spec))
-		}
-		var attrStr string
-		for _, attr := range spec.Attr {
-			if attr.Key != "position" {
-				attrStr = fmt.Sprintf("[@%s='%s']", attr.Key, attr.Value)
-				break
-			}
-		}
-		xpath = fmt.Sprintf("//%s%s", spec.Tag, attrStr)
+		return spec.SelectAttr("expr").Value
 	}
-	return xpath
+	if len(spec.Attr) < 1 || len(spec.Attr) > 2 {
+		log.Panic("Invalid view inherit spec", "spec", xmlutils.ElementToXML(spec))
+	}
+	var attrStr string
+	for _, attr := range spec.Attr {
+		if attr.Key != "position" {
+			attrStr = fmt.Sprintf("[@%s='%s']", attr.Key, attr.Value)
+			break
+		}
+	}
+	return fmt.Sprintf("//%s%s", spec.Tag, attrStr)
 }

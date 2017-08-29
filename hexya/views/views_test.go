@@ -15,6 +15,9 @@
 package views
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"encoding/xml"
 	"testing"
 
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
@@ -303,5 +306,103 @@ func TestViews(t *testing.T) {
 	<field name="Active"/>
 </tree>
 `)
+	})
+	Convey("Testing GetViews functions", t, func() {
+		allViews := Registry.GetAll()
+		So(allViews, ShouldHaveLength, 4)
+		userViews := Registry.GetAllViewsForModel("User")
+		So(userViews, ShouldHaveLength, 3)
+		userFirstView := Registry.GetFirstViewForModel("User", VIEW_TYPE_FORM)
+		So(userFirstView.ID, ShouldEqual, "my_id")
+	})
+	Convey("Testing default views", t, func() {
+		soSearch := Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_SEARCH)
+		So(soSearch.arch, ShouldEqual, `<search><field name="Name"/></search>`)
+		soTree := Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_TREE)
+		So(soTree.arch, ShouldEqual, `<tree><field name="Name"/></tree>`)
+		So(func() { Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_FORM) }, ShouldPanic)
+	})
+
+	Convey("Testing ViewRef objects", t, func() {
+		userFormRef := MakeViewRef("my_id")
+		Convey("Creating ViewRef instance", func() {
+			So(userFormRef[0], ShouldEqual, "my_id")
+			So(userFormRef[1], ShouldEqual, "My View")
+			data, err := json.Marshal(userFormRef)
+			So(err, ShouldBeNil)
+			So(string(data), ShouldEqual, `["my_id","My View"]`)
+			val, err := userFormRef.Value()
+			So(err, ShouldBeNil)
+			So(val, ShouldEqual, driver.Value("my_id"))
+		})
+		Convey("Creating empty viewRef", func() {
+			emptyVR := MakeViewRef("unknownID")
+			So(emptyVR[0], ShouldEqual, "")
+			So(emptyVR[1], ShouldEqual, "")
+			data, err := json.Marshal(emptyVR)
+			So(err, ShouldBeNil)
+			So(string(data), ShouldEqual, `null`)
+			val, err := emptyVR.Value()
+			So(err, ShouldBeNil)
+			So(val, ShouldEqual, driver.Value(""))
+		})
+		Convey("Unmarshalling JSON viewRef", func() {
+			data := []byte(`["view_id","View Name"]`)
+			var vr ViewRef
+			err := json.Unmarshal(data, &vr)
+			So(err, ShouldBeNil)
+			So(vr[0], ShouldEqual, "view_id")
+			So(vr[1], ShouldEqual, "View Name")
+		})
+		Convey("Unmarshalling JSON empty viewRef", func() {
+			data := []byte(`null`)
+			var vr ViewRef
+			err := json.Unmarshal(data, &vr)
+			So(err, ShouldBeNil)
+			So(vr[0], ShouldEqual, "")
+			So(vr[1], ShouldEqual, "")
+		})
+		Convey("Unmarshalling XML viewRef", func() {
+			type stuff struct {
+				Ref ViewRef `xml:"ref,attr"`
+			}
+			data := []byte(`<stuff ref="my_id"/>`)
+			var st stuff
+			err := xml.Unmarshal(data, &st)
+			So(err, ShouldBeNil)
+			So(st.Ref[0], ShouldEqual, "my_id")
+			So(st.Ref[1], ShouldEqual, "My View")
+		})
+		Convey("Scanning viewRefs", func() {
+			var vr ViewRef
+			err := vr.Scan("my_id")
+			So(err, ShouldBeNil)
+			So(vr[0], ShouldEqual, "my_id")
+			So(vr[1], ShouldEqual, "My View")
+
+			err = vr.Scan([]byte("my_tree_id"))
+			So(err, ShouldBeNil)
+			So(vr[0], ShouldEqual, "my_tree_id")
+			So(vr[1], ShouldEqual, "my.tree.id")
+		})
+	})
+	Convey("Testing ViewTuple objects", t, func() {
+		Convey("Marshalling a ViewTuple", func() {
+			vt := ViewTuple{
+				ID:   "my_id",
+				Type: VIEW_TYPE_FORM,
+			}
+			data, err := json.Marshal(vt)
+			So(err, ShouldBeNil)
+			So(string(data), ShouldEqual, `["my_id","form"]`)
+		})
+		Convey("Unmarshalling ViewTuples", func() {
+			data := []byte(`["my_tree_id","tree"]`)
+			var vt ViewTuple
+			err := json.Unmarshal(data, &vt)
+			So(err, ShouldBeNil)
+			So(vt.ID, ShouldEqual, "my_tree_id")
+			So(vt.Type, ShouldEqual, VIEW_TYPE_TREE)
+		})
 	})
 }
