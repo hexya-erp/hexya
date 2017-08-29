@@ -121,6 +121,21 @@ func (vr *ViewRef) Scan(src interface{}) error {
 	return nil
 }
 
+// ID returns the ID of the current view reference
+func (vr ViewRef) ID() string {
+	return vr[0]
+}
+
+// Name returns the name of the current view reference
+func (vr ViewRef) Name() string {
+	return vr[1]
+}
+
+// IsNull returns true if this ViewRef references no view
+func (vr ViewRef) IsNull() bool {
+	return vr[0] == "" && vr[1] == ""
+}
+
 var _ driver.Valuer = &ViewRef{}
 var _ sql.Scanner = &ViewRef{}
 var _ json.Marshaler = &ViewRef{}
@@ -233,29 +248,15 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 
 // defaultViewForModel returns a default view for the given model and type
 func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View {
-	switch viewType {
-	case VIEW_TYPE_SEARCH:
-		view := View{
-			Model:  model,
-			Type:   VIEW_TYPE_SEARCH,
-			Fields: []models.FieldName{models.FieldName("Name")},
-			arch:   `<search><field name="Name"/></search>`,
-			arches: make(map[string]string),
-		}
-		view.translateArch()
-		return &view
-	case VIEW_TYPE_LIST, VIEW_TYPE_TREE:
-		view := View{
-			Model:  model,
-			Type:   VIEW_TYPE_TREE,
-			Fields: []models.FieldName{models.FieldName("Name")},
-			arch:   `<tree><field name="Name"/></tree>`,
-			arches: make(map[string]string),
-		}
-		view.translateArch()
-		return &view
+	view := View{
+		Model:  model,
+		Type:   viewType,
+		Fields: []models.FieldName{models.FieldName("Name")},
+		arch:   fmt.Sprintf(`<%s><field name="Name"/></%s>`, viewType, viewType),
+		arches: make(map[string]string),
 	}
-	return nil
+	view.translateArch()
+	return &view
 }
 
 // GetAllViewsForModel returns a list with all views for the given model

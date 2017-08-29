@@ -50,18 +50,18 @@ func bootStrapWindowAction(a *BaseAction) {
 	var present bool
 	// Check if view is present in Views
 	for _, view := range a.Views {
-		if len(a.View) > 0 && a.View[0] != "" {
-			if view.ID == a.View[0] {
+		if !a.View.IsNull() {
+			if view.ID == a.View.ID() {
 				present = true
 				break
 			}
 		}
 	}
 	// Add View if not present in Views
-	if !present && len(a.View) > 0 && a.View[0] != "" {
-		vType := views.Registry.GetByID(a.View[0]).Type
+	if !present && !a.View.IsNull() {
+		vType := views.Registry.GetByID(a.View.ID()).Type
 		newRef := views.ViewTuple{
-			ID:   a.View[0],
+			ID:   a.View.ID(),
 			Type: vType,
 		}
 		a.Views = append(a.Views, newRef)

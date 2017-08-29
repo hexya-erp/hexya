@@ -92,17 +92,17 @@ func (ar *ActionRef) Scan(src interface{}) error {
 }
 
 // ID returns the ID of the current action reference
-func (ar *ActionRef) ID() string {
+func (ar ActionRef) ID() string {
 	return ar[0]
 }
 
 // Name returns the name of the current action reference
-func (ar *ActionRef) Name() string {
+func (ar ActionRef) Name() string {
 	return ar[1]
 }
 
 // IsNull returns true if this ActionRef references no action
-func (ar *ActionRef) IsNull() bool {
+func (ar ActionRef) IsNull() bool {
 	return ar[0] == "" && ar[1] == ""
 }
 

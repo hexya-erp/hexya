@@ -320,14 +320,13 @@ func TestViews(t *testing.T) {
 		So(soSearch.arch, ShouldEqual, `<search><field name="Name"/></search>`)
 		soTree := Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_TREE)
 		So(soTree.arch, ShouldEqual, `<tree><field name="Name"/></tree>`)
-		So(func() { Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_FORM) }, ShouldPanic)
 	})
 
 	Convey("Testing ViewRef objects", t, func() {
 		userFormRef := MakeViewRef("my_id")
 		Convey("Creating ViewRef instance", func() {
-			So(userFormRef[0], ShouldEqual, "my_id")
-			So(userFormRef[1], ShouldEqual, "My View")
+			So(userFormRef.ID(), ShouldEqual, "my_id")
+			So(userFormRef.Name(), ShouldEqual, "My View")
 			data, err := json.Marshal(userFormRef)
 			So(err, ShouldBeNil)
 			So(string(data), ShouldEqual, `["my_id","My View"]`)
@@ -337,8 +336,8 @@ func TestViews(t *testing.T) {
 		})
 		Convey("Creating empty viewRef", func() {
 			emptyVR := MakeViewRef("unknownID")
-			So(emptyVR[0], ShouldEqual, "")
-			So(emptyVR[1], ShouldEqual, "")
+			So(emptyVR.ID(), ShouldEqual, "")
+			So(emptyVR.Name(), ShouldEqual, "")
 			data, err := json.Marshal(emptyVR)
 			So(err, ShouldBeNil)
 			So(string(data), ShouldEqual, `null`)
@@ -351,16 +350,15 @@ func TestViews(t *testing.T) {
 			var vr ViewRef
 			err := json.Unmarshal(data, &vr)
 			So(err, ShouldBeNil)
-			So(vr[0], ShouldEqual, "view_id")
-			So(vr[1], ShouldEqual, "View Name")
+			So(vr.ID(), ShouldEqual, "view_id")
+			So(vr.Name(), ShouldEqual, "View Name")
 		})
 		Convey("Unmarshalling JSON empty viewRef", func() {
 			data := []byte(`null`)
 			var vr ViewRef
 			err := json.Unmarshal(data, &vr)
 			So(err, ShouldBeNil)
-			So(vr[0], ShouldEqual, "")
-			So(vr[1], ShouldEqual, "")
+			So(vr.IsNull(), ShouldBeTrue)
 		})
 		Convey("Unmarshalling XML viewRef", func() {
 			type stuff struct {
@@ -370,20 +368,20 @@ func TestViews(t *testing.T) {
 			var st stuff
 			err := xml.Unmarshal(data, &st)
 			So(err, ShouldBeNil)
-			So(st.Ref[0], ShouldEqual, "my_id")
-			So(st.Ref[1], ShouldEqual, "My View")
+			So(st.Ref.ID(), ShouldEqual, "my_id")
+			So(st.Ref.Name(), ShouldEqual, "My View")
 		})
 		Convey("Scanning viewRefs", func() {
 			var vr ViewRef
 			err := vr.Scan("my_id")
 			So(err, ShouldBeNil)
-			So(vr[0], ShouldEqual, "my_id")
-			So(vr[1], ShouldEqual, "My View")
+			So(vr.ID(), ShouldEqual, "my_id")
+			So(vr.Name(), ShouldEqual, "My View")
 
 			err = vr.Scan([]byte("my_tree_id"))
 			So(err, ShouldBeNil)
-			So(vr[0], ShouldEqual, "my_tree_id")
-			So(vr[1], ShouldEqual, "my.tree.id")
+			So(vr.ID(), ShouldEqual, "my_tree_id")
+			So(vr.Name(), ShouldEqual, "my.tree.id")
 		})
 	})
 	Convey("Testing ViewTuple objects", t, func() {
