@@ -13,6 +13,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
+// LessCompilerCommand is the executable lessc to be called to compile less files
 const LessCompilerCommand string = "lessc"
 
 var log *logging.Logger

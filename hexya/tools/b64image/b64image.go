@@ -2,7 +2,7 @@
 // See LICENSE file for full licensing details.
 
 /*
-Package imageutils provides helper functions for manipulating
+Package b64image provides helper functions for manipulating
 base64 encoded PNG or JPEG images
 */
 package b64image
@@ -13,13 +13,14 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	// Load jpeg driver
 	_ "image/jpeg"
 	"image/png"
 	"math/rand"
 	"strings"
 )
 
-// Colorize adds a color to the transparent background of the orginal image
+// Colorize adds a color to the transparent background of the original image
 // and returns the result. If color is the zero value, then a random color
 // is applied.
 //

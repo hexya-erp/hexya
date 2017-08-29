@@ -270,6 +270,41 @@ func declareRecordSetMethods() {
 			rc.model.convertValuesToFieldType(&res)
 			return res
 		}).AllowGroup(security.GroupEveryone)
+}
+
+func declareRecordSetSpecificMethods() {
+	commonMixin := Registry.MustGet("CommonMixin")
+
+	commonMixin.AddMethod("CheckRecursion",
+		`CheckRecursion verifies that there is no loop in a hierarchical structure of records,
+        by following the parent relationship using the 'Parent' field until a loop is detected or
+        until a top-level record is found.
+
+        It returns true if no loop was found, false otherwise`,
+		func(rc RecordCollection) bool {
+			if _, exists := rc.model.fields.get("Parent"); !exists {
+				// No Parent field in model, so no loop
+				return true
+			}
+			// We use direct SQL query to bypass access control
+			query := fmt.Sprintf(`SELECT parent_id FROM %s WHERE id = ?`, adapters[db.DriverName()].quoteTableName(rc.model.tableName))
+			rc.Load("Parent")
+			for _, record := range rc.Records() {
+				currentID := record.ids[0]
+				for {
+					var parentID sql.NullInt64
+					rc.env.cr.Get(&parentID, query, currentID)
+					if !parentID.Valid {
+						break
+					}
+					currentID = parentID.Int64
+					if currentID == record.ids[0] {
+						return false
+					}
+				}
+			}
+			return true
+		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified according to each field's Onchange
@@ -309,41 +344,6 @@ func declareRecordSetMethods() {
 			return OnchangeResult{
 				Value: retValues,
 			}
-		}).AllowGroup(security.GroupEveryone)
-}
-
-func declareRecordSetSpecificMethods() {
-	commonMixin := Registry.MustGet("CommonMixin")
-
-	commonMixin.AddMethod("CheckRecursion",
-		`CheckRecursion verifies that there is no loop in a hierarchical structure of records,
-        by following the parent relationship using the 'Parent' field until a loop is detected or
-        until a top-level record is found.
-
-        It returns true if no loop was found, false otherwise`,
-		func(rc RecordCollection) bool {
-			if _, exists := rc.model.fields.get("Parent"); !exists {
-				// No Parent field in model, so no loop
-				return true
-			}
-			// We use direct SQL query to bypass access control
-			query := fmt.Sprintf(`SELECT parent_id FROM %s WHERE id = ?`, adapters[db.DriverName()].quoteTableName(rc.model.tableName))
-			rc.Load("Parent")
-			for _, record := range rc.Records() {
-				currentID := record.ids[0]
-				for {
-					var parentID sql.NullInt64
-					rc.env.cr.Get(&parentID, query, currentID)
-					if !parentID.Valid {
-						break
-					}
-					currentID = parentID.Int64
-					if currentID == record.ids[0] {
-						return false
-					}
-				}
-			}
-			return true
 		}).AllowGroup(security.GroupEveryone)
 }
 
