@@ -228,10 +228,6 @@ func declareRecordSetMethods() {
 				if fInfo.filter != nil {
 					filter = fInfo.filter.Serialize()
 				}
-				var readonly bool
-				if fInfo.compute != "" && fInfo.inverse == "" {
-					readonly = true
-				}
 				res[fInfo.json] = &FieldInfo{
 					Help:       i18n.Registry.TranslateFieldHelp(lang, fInfo.model.name, fInfo.name, fInfo.help),
 					Searchable: true,
@@ -244,7 +240,7 @@ func declareRecordSetMethods() {
 					Required:   fInfo.required,
 					Selection:  i18n.Registry.TranslateFieldSelection(lang, fInfo.model.name, fInfo.name, fInfo.selection),
 					Domain:     filter,
-					ReadOnly:   readonly,
+					ReadOnly:   fInfo.isReadOnly(),
 					OnChange:   fInfo.onChange != "",
 				}
 			}

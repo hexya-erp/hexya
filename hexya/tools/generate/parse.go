@@ -247,6 +247,7 @@ func inflateMixins(modelName string, modelsData *map[string]ModelASTData) {
 			(*modelsData)[modelName].Fields[fieldName] = field
 		}
 		for methodName, method := range (*modelsData)[mixin].Methods {
+			method.ToDeclare = false
 			(*modelsData)[modelName].Methods[methodName] = method
 		}
 	}

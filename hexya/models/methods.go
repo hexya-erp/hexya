@@ -29,10 +29,21 @@ type MethodsCollection struct {
 	bootstrapped bool
 }
 
-// get returns the Method of the given method.
-func (mc *MethodsCollection) get(methodName string) (mi *Method, ok bool) {
-	mi, ok = mc.registry[methodName]
-	return
+// get returns the Method with the given method name.
+func (mc *MethodsCollection) get(methodName string) (*Method, bool) {
+	mi, ok := mc.registry[methodName]
+	if !ok {
+		// We didn't find the method, but maybe it exists in mixins
+		miMethod, found := mc.model.findMethodInMixin(methodName)
+		if !found || mc.bootstrapped {
+			return nil, false
+		}
+		// The method exists in a mixin so we create it here with our layer.
+		// Bootstrap will take care of putting them the right way round afterwards.
+		mi = copyMethod(mc.model, miMethod)
+		mc.set(methodName, mi)
+	}
+	return mi, true
 }
 
 // MustGet returns the Method of the given method. It panics if the
@@ -40,15 +51,7 @@ func (mc *MethodsCollection) get(methodName string) (mi *Method, ok bool) {
 func (mc *MethodsCollection) MustGet(methodName string) *Method {
 	methInfo, exists := mc.get(methodName)
 	if !exists {
-		// We didn't find the method, but maybe it exists in mixins
-		miMethod, found := mc.model.findMethodInMixin(methodName)
-		if !found || mc.bootstrapped {
-			log.Panic("Unknown method in model", "model", mc.model.name, "method", methodName)
-		}
-		// The method exists in a mixin so we create it here with our layer.
-		// Bootstrap will take care of putting them the right way round afterwards.
-		methInfo = copyMethod(mc.model, miMethod)
-		mc.set(methodName, methInfo)
+		log.Panic("Unknown method in model", "model", mc.model.name, "method", methodName)
 	}
 	return methInfo
 }
@@ -176,30 +179,6 @@ type methodLayer struct {
 	doc       string
 }
 
-// newMethod creates a new method ref with the given func value as first layer.
-// First argument of given function must implement RecordSet.
-func newMethod(m *Model, methodName, doc string, val reflect.Value) *Method {
-	funcType := val.Type()
-	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-		log.Panic("Function must have a `RecordSet` as first argument to be used as method.", "model", m.name, "method", methodName, "type", funcType.In(0))
-	}
-
-	method := Method{
-		model:         m,
-		name:          methodName,
-		methodType:    val.Type(),
-		nextLayer:     make(map[*methodLayer]*methodLayer),
-		groups:        make(map[*security.Group]bool),
-		groupsCallers: make(map[callerGroup]bool),
-	}
-	method.topLayer = &methodLayer{
-		funcValue: wrapFunctionForMethodLayer(val),
-		method:    &method,
-		doc:       doc,
-	}
-	return &method
-}
-
 // copyMethod creates a new method without any method layer for
 // the given model by taking data from the given method.
 func copyMethod(m *Model, method *Method) *Method {
@@ -256,20 +235,9 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 // first argument.
 // It returns a pointer to the newly created Method instance.
 func (m *Model) AddMethod(methodName, doc string, fnct interface{}) *Method {
-	if m.methods.bootstrapped {
-		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
-	}
-	val := reflect.ValueOf(fnct)
-	if val.Kind() != reflect.Func {
-		log.Panic("fnct parameter must be a function", "model", m.name, "method", methodName, "fnct", fnct)
-	}
-	_, exists := m.methods.get(methodName)
-	if exists {
-		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
-	}
-	newMethod := newMethod(m, methodName, doc, reflect.ValueOf(fnct))
-	m.methods.set(methodName, newMethod)
-	return newMethod
+	meth := m.AddEmptyMethod(methodName)
+	meth.declareMethod(doc, fnct)
+	return meth
 }
 
 // AddEmptyMethod creates a new method withoud function layer
@@ -282,31 +250,33 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 	if exists {
 		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
 	}
-	newMethod := &Method{
+	meth := &Method{
 		model:         m,
 		name:          methodName,
 		nextLayer:     make(map[*methodLayer]*methodLayer),
 		groups:        make(map[*security.Group]bool),
 		groupsCallers: make(map[callerGroup]bool),
 	}
-	m.methods.set(methodName, newMethod)
-	return newMethod
+	m.methods.set(methodName, meth)
+	return meth
 }
 
 // DeclareMethod overrides the given Method by :
 // - setting documentation string to doc
 // - setting fnct as the first layer
 func (m *Method) DeclareMethod(doc string, fnct interface{}) *Method {
+	return m.declareMethod(doc, fnct)
+}
+
+// declareMethod is the actual implementation of DeclareMethod
+// so that it can be called without triggering code generation
+func (m *Method) declareMethod(doc string, fnct interface{}) *Method {
+	if m.topLayer != nil {
+		log.Panic("Call to AddMethod with an existing method name", "model", m.model.name, "method", m.name)
+	}
+	m.checkMethodAndFnctType(fnct)
 	m.doc = doc
 	val := reflect.ValueOf(fnct)
-	if val.Kind() != reflect.Func {
-		log.Panic("fnct parameter must be a function", "model", m.model.name, "method", m.name, "fnct", fnct)
-	}
-	funcType := val.Type()
-	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-		log.Panic("Function must have a `RecordSet` as first argument to be used as method.",
-			"model", m.model.name, "method", m.name, "type", funcType.In(0))
-	}
 	m.addMethodLayer(val, doc)
 	m.methodType = val.Type()
 	return m
@@ -318,11 +288,19 @@ func (m *Method) Extend(doc string, fnct interface{}) *Method {
 	m.checkMethodAndFnctType(fnct)
 	methInfo := m
 	val := reflect.ValueOf(fnct)
+	if methInfo.methodType.NumIn() != val.Type().NumIn() {
+		log.Panic("Number of args do not match", "model", m.model.name, "method", m.name,
+			"no_arguments", val.Type().NumIn(), "expected", methInfo.methodType.NumIn())
+	}
 	for i := 1; i < methInfo.methodType.NumIn(); i++ {
 		if !checkTypesMatch(methInfo.methodType.In(i), val.Type().In(i)) {
 			log.Panic("Function signature does not match", "model", m.model.name, "method", m.name,
 				"argument", i, "expected", methInfo.methodType.In(i), "received", val.Type().In(i))
 		}
+	}
+	if methInfo.methodType.NumOut() != val.Type().NumOut() {
+		log.Panic("Number of returns do not match", "model", m.model.name, "method", m.name,
+			"no_arguments", val.Type().NumOut(), "expected", methInfo.methodType.NumOut())
 	}
 	for i := 1; i < methInfo.methodType.NumOut(); i++ {
 		if !checkTypesMatch(methInfo.methodType.Out(i), val.Type().Out(i)) {
@@ -347,9 +325,6 @@ func (m *Method) Extend(doc string, fnct interface{}) *Method {
 // - if one type is a FieldMap and the other implements FieldMapper
 func checkTypesMatch(type1, type2 reflect.Type) bool {
 	if type1 == type2 {
-		return true
-	}
-	if type2.Implements(type1) {
 		return true
 	}
 	if type1 == reflect.TypeOf(RecordCollection{}) && type2.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
@@ -384,14 +359,18 @@ func (m *Model) findMethodInMixin(methodName string) (*Method, bool) {
 }
 
 // checkMethodAndFnctType checks whether the given arguments are valid for
-// AddMethod or ExtendMethod
+// AddMethod or ExtendMethod. It panics if this is not the case
 func (m *Method) checkMethodAndFnctType(fnct interface{}) {
 	if m.model.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", m.name)
 	}
-
 	val := reflect.ValueOf(fnct)
 	if val.Kind() != reflect.Func {
 		log.Panic("fnct parameter must be a function", "model", m.name, "method", m.name, "fnct", fnct)
+	}
+	funcType := val.Type()
+	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+		log.Panic("Function must have a `RecordSet` as first argument to be used as method.",
+			"model", m.model.name, "method", m.name, "type", funcType.In(0))
 	}
 }

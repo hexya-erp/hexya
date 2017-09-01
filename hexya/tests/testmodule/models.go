@@ -117,19 +117,6 @@ func declareModels() {
 	profile.AddCharField("City", models.StringFieldParams{})
 	profile.AddCharField("Country", models.StringFieldParams{})
 
-	pool.Profile().Methods().PrintAddress().DeclareMethod(
-		`PrintAddress is a sample method layer for testing`,
-		func(rs pool.ProfileSet) string {
-			res := rs.Super().PrintAddress()
-			return fmt.Sprintf("%s, %s", res, rs.Country())
-		})
-
-	pool.Profile().Methods().PrintAddress().Extend("",
-		func(rs pool.ProfileSet) string {
-			res := rs.Super().PrintAddress()
-			return fmt.Sprintf("[%s]", res)
-		})
-
 	post := pool.Post().DeclareModel()
 	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: pool.User()})
 	post.AddCharField("Title", models.StringFieldParams{})
@@ -171,6 +158,19 @@ func declareModels() {
 	addressMI.AddCharField("Zip", models.StringFieldParams{})
 	addressMI.AddCharField("City", models.StringFieldParams{})
 	profile.InheritModel(addressMI)
+
+	pool.Profile().Methods().PrintAddress().DeclareMethod(
+		`PrintAddress is a sample method layer for testing`,
+		func(rs pool.ProfileSet) string {
+			res := rs.Super().PrintAddress()
+			return fmt.Sprintf("%s, %s", res, rs.Country())
+		})
+
+	pool.Profile().Methods().PrintAddress().Extend("",
+		func(rs pool.ProfileSet) string {
+			res := rs.Super().PrintAddress()
+			return fmt.Sprintf("[%s]", res)
+		})
 
 	addressMI2 := pool.AddressMixIn()
 	addressMI2.Methods().SayHello().DeclareMethod(

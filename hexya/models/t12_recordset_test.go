@@ -166,6 +166,23 @@ func TestCreateRecordSet(t *testing.T) {
 				userTom := env.Pool("User").Call("Create", userTomData).(RecordCollection)
 				So(func() { userTom.Get("Name") }, ShouldPanic)
 			})
+			Convey("Revoking model access rights to user 2 for posts and it doesn't works", func() {
+				postModel.methods.MustGet("Create").RevokeGroup(group1)
+				userTomData := FieldMap{
+					"Name":  "Tom Smith",
+					"Email": "tsmith@example.com",
+				}
+				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
+			})
+			Convey("Regranting model access rights to user 2 for posts and it works", func() {
+				postModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
+				userTomData := FieldMap{
+					"Name":  "Tom Smith",
+					"Email": "tsmith@example.com",
+				}
+				userTom := env.Pool("User").Call("Create", userTomData).(RecordCollection)
+				So(func() { userTom.Get("Name") }, ShouldPanic)
+			})
 			Convey("Checking creation again with read rights too", func() {
 				userModel.methods.MustGet("Load").AllowGroup(group1)
 				userTomData := FieldMap{
@@ -187,6 +204,12 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userTom.Get("Email").(string), ShouldBeBlank)
 
 				userModel.fields.MustGet("Email").GrantAccess(security.GroupEveryone, security.Write)
+			})
+			Convey("Checking that we can create tags", func() {
+				tagData := FieldMap{
+					"Name": "My Tag",
+				}
+				So(func() { env.Pool("Tag").Call("Create", tagData) }, ShouldNotPanic)
 			})
 		})
 	})
@@ -284,6 +307,17 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Get("Name").(string), ShouldEqual, "Jane Smith")
 				So(userJane.Get("Email").(string), ShouldEqual, "jane.smith@example.com")
 				So(userJane.Get("Age"), ShouldEqual, 23)
+				So(func() { userJane.Get("Profile").(RecordCollection).Get("Age") }, ShouldPanic)
+			})
+			Convey("Revoking model access rights to user 2 and checking access", func() {
+				userModel.methods.MustGet("Load").RevokeGroup(group1)
+				userJohn := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
+				So(func() { userJohn.Load() }, ShouldPanic)
+			})
+			Convey("Regranting model access rights to user 2 and checking access", func() {
+				userModel.methods.MustGet("Load").AllowGroup(group1)
+				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
+				So(func() { userJane.Load() }, ShouldNotPanic)
 				So(func() { userJane.Get("Profile").(RecordCollection).Get("Age") }, ShouldPanic)
 			})
 			Convey("Adding field access rights to user 2 and checking access", func() {

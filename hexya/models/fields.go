@@ -236,6 +236,19 @@ func (f *Field) isStored() bool {
 	return true
 }
 
+// isReadOnly returns true if this field must not be set directly
+// by the user.
+func (f *Field) isReadOnly() bool {
+	fInfo := f
+	if fInfo.isRelatedField() {
+		fInfo = f.model.getRelatedFieldInfo(fInfo.relatedPath)
+	}
+	if fInfo.compute != "" && fInfo.inverse == "" {
+		return true
+	}
+	return false
+}
+
 // checkFieldInfo makes sanity checks on the given Field.
 // It panics in case of severe error and logs recoverable errors.
 func checkFieldInfo(fi *Field) {

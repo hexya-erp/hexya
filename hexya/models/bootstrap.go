@@ -207,6 +207,7 @@ func syncRelatedFieldInfo() {
 			newFI.index = false
 			newFI.compute = ""
 			newFI.constraint = ""
+			newFI.inverse = ""
 			newFI.depends = nil
 			*fi = newFI
 		}

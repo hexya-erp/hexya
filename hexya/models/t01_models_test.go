@@ -151,7 +151,7 @@ func TestModelDeclaration(t *testing.T) {
 				if rc.Get("Rate").(float32) < 0 || rc.Get("Rate").(float32) > 10 {
 					log.Panic("Tag rate must be between 0 and 10")
 				}
-			}).AllowGroup(security.GroupEveryone)
+			})
 
 		tag.AddMethod("CheckNameDescription",
 			`CheckNameDescription checks that the description of a tag is not equal to its name`,
@@ -159,7 +159,11 @@ func TestModelDeclaration(t *testing.T) {
 				if rc.Get("Name").(string) == rc.Get("Description").(string) {
 					log.Panic("Tag name and description must be different")
 				}
-			}).AllowGroup(security.GroupEveryone)
+			})
+
+		tag.methods.AllowAllToGroup(security.GroupEveryone)
+		tag.methods.RevokeAllFromGroup(security.GroupEveryone)
+		tag.methods.AllowAllToGroup(security.GroupEveryone)
 
 		user.AddCharField("Name", StringFieldParams{String: "Name", Help: "The user's username", Unique: true,
 			NoCopy: true, OnChange: user.Methods().MustGet("ComputeDecoratedName")})
