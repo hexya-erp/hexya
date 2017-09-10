@@ -29,6 +29,6 @@ var versionCmd = &cobra.Command{
 	},
 }
 
-func initVersion() {
+func init() {
 	HexyaCmd.AddCommand(versionCmd)
 }

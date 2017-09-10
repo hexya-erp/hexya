@@ -37,7 +37,7 @@ func UpdateDB(config map[string]interface{}) {
 	log.Info("Database updated successfully")
 }
 
-func initUpdateDB() {
+func init() {
 	HexyaCmd.AddCommand(updateDBCmd)
 }
 

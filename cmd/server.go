@@ -125,7 +125,7 @@ func connectToDB() {
 	models.DBConnect(viper.GetString("DB.Driver"), connectString)
 }
 
-func initServer() {
+func init() {
 	serverCmd.PersistentFlags().StringP("interface", "i", "", "Interface on which the server should listen. Empty string is all interfaces")
 	viper.BindPFlag("Server.Interface", serverCmd.PersistentFlags().Lookup("interface"))
 	serverCmd.PersistentFlags().StringP("port", "p", "8080", "Port on which the server should listen.")

@@ -272,7 +272,7 @@ func addHelpToMessages(lang string, model string, field string, fieldASTData gen
 	return messages
 }
 
-func initI18n() {
+func init() {
 	i18nUpdate.PersistentFlags().StringSliceP("languages", "l", []string{}, "Comma separated list of languages codes to load (ex: fr,de,es).")
 	HexyaCmd.AddCommand(i18nCmd)
 	i18nCmd.AddCommand(i18nUpdate)

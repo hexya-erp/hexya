@@ -59,7 +59,7 @@ var (
 	importedPaths     []string
 )
 
-func initGenerate() {
+func init() {
 	HexyaCmd.AddCommand(generateCmd)
 	generateCmd.Flags().StringVarP(&testedModule, "test", "t", "", "Generate pool for testing the module in the given source directory. When set projectDir is ignored.")
 	generateCmd.Flags().BoolVar(&generateEmptyPool, "empty", false, "Generate an empty pool package. When set projectDir is ignored.")

@@ -15,6 +15,10 @@
 package cmd
 
 import (
+	"os/user"
+	"path/filepath"
+	"runtime"
+
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,6 +36,7 @@ It is designed for high demand business data processing while being easily custo
 
 func init() {
 	log = logging.GetLogger("init")
+	cobra.OnInitialize(initConfig)
 
 	HexyaCmd.PersistentFlags().StringP("config", "c", "", "Alternate configuration file to read. Defaults to $HOME/.hexya/")
 	viper.BindPFlag("ConfigFileName", HexyaCmd.PersistentFlags().Lookup("config"))
@@ -58,10 +63,29 @@ func init() {
 	viper.BindPFlag("DB.Password", HexyaCmd.PersistentFlags().Lookup("db-password"))
 	HexyaCmd.PersistentFlags().String("db-name", "hexya", "Database name")
 	viper.BindPFlag("DB.Name", HexyaCmd.PersistentFlags().Lookup("db-name"))
+}
 
-	initVersion()
-	initGenerate()
-	initServer()
-	initUpdateDB()
-	initI18n()
+func initConfig() {
+	cfgFile := viper.GetString("ConfigFileName")
+	if runtime.GOOS != "windows" {
+		viper.AddConfigPath("/etc/hexya")
+	}
+
+	osUser, err := user.Current()
+	if err != nil {
+		log.Panic("Unable to retrieve current user", "error", err)
+	}
+	viper.AddConfigPath(filepath.Join(osUser.HomeDir, ".hexya"))
+	viper.AddConfigPath(".")
+
+	viper.SetConfigName("hexya")
+
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	}
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		log.Warn("Error while loading configuration file", "error", err)
+	}
 }
