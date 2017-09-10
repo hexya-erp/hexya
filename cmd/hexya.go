@@ -32,6 +32,7 @@ It is designed for high demand business data processing while being easily custo
 
 func init() {
 	log = logging.GetLogger("init")
+	cobra.OnInitialize(initConfig)
 
 	HexyaCmd.PersistentFlags().StringP("config", "c", "", "Alternate configuration file to read. Defaults to $HOME/.hexya/")
 	viper.BindPFlag("ConfigFileName", HexyaCmd.PersistentFlags().Lookup("config"))
@@ -64,4 +65,18 @@ func init() {
 	initServer()
 	initUpdateDB()
 	initI18n()
+}
+
+func initConfig() {
+	cfgFile := viper.GetString("ConfigFileName")
+
+	// Read config either from cfgFile or from home directory!
+	viper.AddConfigPath("/etc/hexya/")
+	viper.AddConfigPath("$HOME/.hexya")
+	viper.AddConfigPath(".")
+	if cfgFile == "" {
+		cfgFile = "hexya"
+	}
+	viper.SetConfigFile(cfgFile)
+	viper.ReadInConfig()
 }
