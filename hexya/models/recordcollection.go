@@ -85,7 +85,6 @@ func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 	fMap = rc.createEmbeddedRecords(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
-	fMap = rc.processInverseMethods(fMap)
 	storedFieldMap := filterMapOnStoredFields(rc.model, fMap)
 	// insert in DB
 	var createdId int64
@@ -96,6 +95,7 @@ func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 	// update reverse relation fields
 	rSet.updateRelationFields(fMap)
 	// compute stored fields
+	rSet.processInverseMethods(fMap)
 	rSet.updateStoredFields(fMap)
 	rSet.checkConstraints()
 	return rSet
@@ -205,7 +205,6 @@ func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer)
 	rSet.model.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
-	fMap = rSet.processInverseMethods(fMap)
 	storedFieldMap := filterMapOnStoredFields(rSet.model, fMap)
 	rSet.doUpdate(storedFieldMap)
 	// Let's fetch once for all
@@ -215,6 +214,7 @@ func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer)
 	// write related fields
 	rSet.updateRelatedFields(fMap)
 	// compute stored fields
+	rSet.processInverseMethods(fMap)
 	rSet.updateStoredFields(fMap)
 	return true
 }
@@ -237,6 +237,14 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
 		}
+		if rc.env.context.GetBool("hexya_keep_cache") {
+			for _, rec := range rc.Records() {
+				for k, v := range fMap {
+					rc.env.cache.addEntry(rc.model, rec.Ids()[0], k, v)
+				}
+			}
+			return
+		}
 		for _, id := range rc.Ids() {
 			rc.env.cache.invalidateRecord(rc.model, id)
 		}
@@ -251,25 +259,6 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 		}
 	}
 	rc.checkConstraints()
-}
-
-// processInverseMethods executes inverse methods of fields in the given
-// FieldMap if it exists. It returns a copy of the FieldMap without the
-// fields that had their inverse method executed.
-func (rc RecordCollection) processInverseMethods(fMap FieldMap) FieldMap {
-	res := make(FieldMap)
-	for fieldName, value := range fMap {
-		fi := rc.model.getRelatedFieldInfo(fieldName)
-		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {
-			res[fieldName] = value
-			continue
-		}
-		if fi.inverse == "" {
-			log.Panic("Trying to write a computed field without inverse method", "model", rc.model.name, "field", fieldName)
-		}
-		rc.Call(fi.inverse, fMap)
-	}
-	return res
 }
 
 // updateRelationFields updates reverse relations fields of the
@@ -561,7 +550,7 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 	if res == nil {
 		// res is nil if we do not have access rights on the field.
 		// then return the field's type zero value
-		return reflect.Zero(fi.structField.Type).Interface()
+		res = reflect.Zero(fi.structField.Type).Interface()
 	}
 
 	if fi.isRelationField() {
@@ -727,7 +716,21 @@ func (rc RecordCollection) EnsureOne() {
 
 // IsEmpty returns true if rc is an empty RecordCollection
 func (rc RecordCollection) IsEmpty() bool {
-	return rc.Len() == 0
+	return !rc.IsValid() || rc.Len() == 0
+}
+
+// IsValid returns true if this RecordSet has been initialized.
+func (rc RecordCollection) IsValid() bool {
+	if rc.model == nil {
+		return false
+	}
+	if rc.query == nil {
+		return false
+	}
+	if rc.env == nil {
+		return false
+	}
+	return true
 }
 
 // Len returns the number of records in this RecordCollection

@@ -40,6 +40,9 @@ func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 
 //updateStoredFields updates all dependent fields of rc that are included in the given FieldMap.
 func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
+	if rc.Env().Context().GetBool("hexya_no_recompute_stored_fields") {
+		return
+	}
 	fieldNames := fMap.Keys()
 	var toUpdate []computeData
 	for _, fieldName := range fieldNames {
@@ -65,5 +68,24 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 			vals := retVal[0].(FieldMapper).FieldMap(toUnset...)
 			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals, toUnset)
 		}
+	}
+}
+
+// processInverseMethods executes inverse methods of fields in the given
+// FieldMap if it exists. It returns a new FieldMap to be used by Create/Write
+// instead of the original one.
+func (rc RecordCollection) processInverseMethods(fMap FieldMap) {
+	for fieldName := range fMap {
+		fi := rc.model.getRelatedFieldInfo(fieldName)
+		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {
+			continue
+		}
+		if fi.inverse == "" {
+			if rc.Env().Context().GetBool("hexya_allow_without_inverse") {
+				continue
+			}
+			log.Panic("Trying to write a computed field without inverse method", "model", rc.model.name, "field", fieldName)
+		}
+		rc.CallMulti(fi.inverse, fMap)
 	}
 }

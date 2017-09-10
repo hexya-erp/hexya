@@ -188,6 +188,17 @@ func (c *Context) GetFloatSlice(key string) []float64 {
 	return res
 }
 
+// GetBool returns the value of the given key in
+// this Context as a bool.
+// It returns false if there is no such key in the context.
+// It panics if the value is not of type bool
+func (c *Context) GetBool(key string) bool {
+	if !c.HasKey(key) {
+		return false
+	}
+	return c.Get(key).(bool)
+}
+
 // HasKey returns true if this Context has the given key
 func (c *Context) HasKey(key string) bool {
 	_, exists := c.values[key]
@@ -241,11 +252,7 @@ func (c *Context) UnmarshalJSON(data []byte) error {
 
 // String function for Context type
 func (c Context) String() string {
-	jsb, err := json.Marshal(c)
-	if err != nil {
-		log.Panic("Unable to stringify context", "error", err)
-	}
-	return string(jsb)
+	return fmt.Sprintf("%v", c.values)
 }
 
 // Value JSON encode our Context for storing in the database.

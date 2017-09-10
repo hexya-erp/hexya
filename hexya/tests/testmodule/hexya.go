@@ -26,7 +26,6 @@ const (
 )
 
 func init() {
-	declareModels()
 	server.RegisterModule(&server.Module{
 		Name: MODULE_NAME,
 		PostInit: func() {

@@ -285,7 +285,7 @@ var poolModelTemplate = template.Must(template.New("").Parse(`
 package pool
 
 import (
-	"reflect"
+	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
 {{ range .Deps }} 	"{{ . }}"
 {{ end }}
 )
@@ -583,29 +583,21 @@ type {{ .Name }}Data struct {
 func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
 	res := make(models.FieldMap)
 	fieldsMap := make(map[string]bool)
+	var fJSON string
 	for _, field := range fields {
-		fieldsMap[string(field.FieldName())] = true
+		fJSON = {{ .Name }}().JSONizeFieldName(field.String())
+		fieldsMap[fJSON] = true
 	}
-	var fieldValue reflect.Value
 {{ range .Fields -}}
-	fieldValue = reflect.ValueOf(d.{{ .Name }})
-	if fieldsMap["{{ .Name }}"] || !reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(fieldValue.Type()).Interface()) {
-		res["{{ .Name }}"] = d.{{ .Name }}
+	fJSON = {{ $.Name }}().JSONizeFieldName("{{ .Name }}")
+	if fieldsMap[fJSON] || !typesutils.IsZero(d.{{ .Name }}) {
+		res[fJSON] = d.{{ .Name }}
 	}
 {{ end }}
 	return res
 }
 
 var _ models.FieldMapper = {{ .Name }}Data{}
-
-// Get{{ .Name }}DataFromFieldMap returns a {{ .Name }}Data populated with
-// the data from the given FieldMapper
-func Get{{ .Name }}DataFromFieldMap(fMap models.FieldMapper) {{ .Name }}Data {
-	return {{ .Name }}Data {
-{{ range .Fields }}		{{ .Name }}: fMap.FieldMap()["{{ .Name }}"].({{ .Type }}),
-{{ end }}
-	}
-}
 
 // ------- RECORD SET ---------
 
@@ -670,7 +662,8 @@ func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
 {{ if .IsRS }}	return {{ .Type }}{
 		RecordCollection: s.RecordCollection.Get("{{ .Name }}").(models.RecordCollection),
 	}{{ else -}}
-	return s.RecordCollection.Get("{{ .Name }}").({{ .Type }}) {{ end }}
+	res, _ := s.RecordCollection.Get("{{ .Name }}").({{ .Type }})
+	return res {{ end }}
 }
 
 // Set{{ .Name }} is a setter for the value of the "{{ .Name }}" field of this
@@ -705,11 +698,12 @@ func (s {{ .Name }}Set) Super() {{ .Name }}Set {
 }
 
 // DataStruct returns a new {{ .Name }}Data object populated with the values
-// of the given FieldMap.
-func (s {{ .Name }}Set) DataStruct(fMap models.FieldMap) *{{ .Name }}Data {
+// of the given FieldMap. It returns as a second argument the list of keys of the
+// given FieldMap.
+func (s {{ .Name }}Set) DataStruct(fMap models.FieldMap) (*{{ .Name }}Data, []models.FieldNamer) {
 	var res {{ .Name }}Data
 	models.MapToStruct(s.Collection(), &res, fMap)
-	return &res
+	return &res, fMap.FieldNames()
 }
 
 {{ range .Methods }}

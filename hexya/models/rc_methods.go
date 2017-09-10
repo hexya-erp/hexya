@@ -41,6 +41,9 @@ func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []int
 
 	methLayer := methInfo.topLayer
 	if rc.env.super != nil {
+		if rc.env.super.method != methInfo {
+			log.Panic("Trying to call a different method on Super()", "current", methInfo.name, "called", rc.env.super.method.name)
+		}
 		methLayer = rc.env.super
 	}
 	rc.env.super = nil

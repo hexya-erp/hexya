@@ -159,6 +159,11 @@ func (c ConditionField) FieldName() FieldName {
 	return FieldName(strings.Join(c.exprs, ExprSep))
 }
 
+// String method for ConditionField
+func (c ConditionField) String() string {
+	return FieldName(strings.Join(c.exprs, ExprSep)).String()
+}
+
 var _ FieldNamer = ConditionField{}
 
 // AddOperator adds a condition value to the condition with the given operator and data

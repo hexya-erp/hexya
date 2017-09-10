@@ -14,6 +14,8 @@
 
 package models
 
+import "fmt"
+
 // FieldMap is a map of interface{} specifically used for holding model
 // fields values.
 type FieldMap map[string]interface{}
@@ -22,6 +24,16 @@ type FieldMap map[string]interface{}
 func (fm FieldMap) Keys() (res []string) {
 	for k := range fm {
 		res = append(res, k)
+	}
+	return
+}
+
+// FieldNames returns the FieldMap keys as a slice of FieldNamer.
+// As within a FieldMap, the result can be field names or JSON names
+// or a mix of both.
+func (fm FieldMap) FieldNames() (res []FieldNamer) {
+	for k := range fm {
+		res = append(res, FieldName(k))
 	}
 	return
 }
@@ -66,11 +78,11 @@ func (fm *FieldMap) JSONized(model *Model) FieldMap {
 // Get returns the value of the given field referring to the given model.
 // field can be either a field name (or path) or a field JSON name (or path).
 // The second returned value is true if the field has been found in the FieldMap
-func (fm *FieldMap) Get(field string, model *Model) (interface{}, bool) {
+func (fm FieldMap) Get(field string, model *Model) (interface{}, bool) {
 	fi := model.getRelatedFieldInfo(field)
-	val, ok := (*fm)[fi.name]
+	val, ok := fm[fi.name]
 	if !ok {
-		val, ok = (*fm)[fi.json]
+		val, ok = fm[fi.json]
 		if !ok {
 			return nil, false
 		}
@@ -81,10 +93,10 @@ func (fm *FieldMap) Get(field string, model *Model) (interface{}, bool) {
 // MustGet returns the value of the given field referring to the given model.
 // field can be either a field name (or path) or a field JSON name (or path).
 // It panics if the field is not found.
-func (fm *FieldMap) MustGet(field string, model *Model) interface{} {
+func (fm FieldMap) MustGet(field string, model *Model) interface{} {
 	val, ok := fm.Get(field, model)
 	if !ok {
-		log.Panic("Field not found in FieldMap", "field", field, "fMap", *fm, "model", model)
+		log.Panic("Field not found in FieldMap", "field", field, "fMap", fm, "model", model)
 	}
 	return val
 }
@@ -101,6 +113,18 @@ func (fm *FieldMap) Set(field string, value interface{}, model *Model) {
 		key = fi.json
 	}
 	(*fm)[key] = value
+}
+
+// Delete removes the given field from this FieldMap.
+// Calling Del on a non existent field is a no op.
+func (fm *FieldMap) Delete(field string, model *Model) {
+	fi := model.getRelatedFieldInfo(field)
+	key := fi.name
+	_, ok := (*fm)[key]
+	if !ok {
+		key = fi.json
+	}
+	delete(*fm, key)
 }
 
 // MergeWith updates this FieldMap with the given other FieldMap
@@ -167,6 +191,8 @@ type RecordSet interface {
 	Env() Environment
 	// Len returns the number of records in this RecordSet
 	Len() int
+	// IsEmpty returns true if this RecordSet has no records
+	IsEmpty() bool
 	// Collection returns the underlying RecordCollection instance
 	Collection() RecordCollection
 }
@@ -179,11 +205,17 @@ func (fn FieldName) FieldName() FieldName {
 	return fn
 }
 
+// String function for FieldName
+func (fn FieldName) String() string {
+	return string(fn)
+}
+
 var _ FieldNamer = FieldName("")
 
 // A FieldNamer is a type that can yield a FieldName through
 // its FieldName() method
 type FieldNamer interface {
+	fmt.Stringer
 	FieldName() FieldName
 }
 
@@ -200,8 +232,12 @@ type GroupAggregateRow struct {
 // A FieldMapper is an object that can convert itself into a FieldMap
 type FieldMapper interface {
 	// FieldMap returns the object converted to a FieldMap.
-	// If this is a struct, only non zero fields will be added to the result
+	//
+	// If this is a struct, only non zero fields will be added to the result.
 	// To put additional fields with zero value in the map, specify them in fields.
+	//
+	// If this is already a FieldMap, then fields are ignored and the map is
+	// returned as is.
 	FieldMap(fields ...FieldNamer) FieldMap
 }
 

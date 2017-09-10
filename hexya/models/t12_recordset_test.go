@@ -476,14 +476,18 @@ func TestUpdateRecordSet(t *testing.T) {
 				john := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
 				johnValues := FieldMap{
-					"Email": "jsmith2@example.com",
-					"Nums":  13,
+					"Email":   "jsmith2@example.com",
+					"Nums":    13,
+					"IsStaff": false,
 				}
 				john.Call("Write", johnValues)
 				john.Load()
 				So(john.Get("Name"), ShouldEqual, "John Smith")
 				So(john.Get("Email"), ShouldEqual, "jsmith2@example.com")
 				So(john.Get("Nums"), ShouldEqual, 13)
+				So(john.Get("IsStaff"), ShouldBeFalse)
+				john.Set("IsStaff", true)
+				So(john.Get("IsStaff"), ShouldBeTrue)
 			})
 			Convey("Multiple updates at once on users", func() {
 				cond := env.Pool("User").Model().Field("Name").Equals("Jane A. Smith").Or().Field("Name").Equals("John Smith")

@@ -208,7 +208,9 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
 		The embedded fields are included.
-		The string, help, and selection (if present) attributes are translated.`,
+		The string, help, and selection (if present) attributes are translated.
+
+		The result map is indexed by the fields JSON names.`,
 		func(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 			lang := rc.Env().Context().GetString("lang")
 			res := make(map[string]*FieldInfo)
@@ -254,7 +256,7 @@ func declareRecordSetMethods() {
 			args := FieldsGetArgs{
 				Fields: []FieldName{field.FieldName()},
 			}
-			fJSON := rc.model.JSONizeFieldName(string(field.FieldName()))
+			fJSON := rc.model.JSONizeFieldName(field.String())
 			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[fJSON]
 		}).AllowGroup(security.GroupEveryone)
 
@@ -308,6 +310,7 @@ func declareRecordSetSpecificMethods() {
 		func(rc RecordCollection, params OnchangeParams) OnchangeResult {
 			var fields []FieldNamer
 			values := params.Values
+			rc.model.convertValuesToFieldType(&values)
 			retValues := make(FieldMap)
 
 			SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
@@ -328,6 +331,12 @@ func declareRecordSetSpecificMethods() {
 					}
 					env.cache.invalidateRecord(rs.model, rsID)
 					env.cache.addRecord(rs.model, rsID, values)
+					// Unlike create/write, onchange may receive values from readonly fields.
+					// We pass the context key hexya_allow_without_inverse not to panic. Those values will be simply ignored.
+					rs.WithContext("hexya_allow_without_inverse", true).
+						WithContext("hexya_keep_cache", true).
+						WithContext("hexya_no_recompute_stored_fields", true).
+						processInverseMethods(values)
 					res := rs.CallMulti(fi.onChange)
 					fields = res[1].([]FieldNamer)
 					resMap := res[0].(FieldMapper).FieldMap(fields...)

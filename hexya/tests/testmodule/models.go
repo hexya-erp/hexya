@@ -25,7 +25,7 @@ import (
 	"github.com/hexya-erp/hexya/pool"
 )
 
-func declareModels() {
+func init() {
 	user := pool.User().DeclareModel()
 
 	// Methods directly declared with AddMethod must be defined before being referenced in the field declaration
@@ -90,7 +90,7 @@ func declareModels() {
 
 	user.Methods().InverseSetAge().DeclareMethod("",
 		func(rs pool.UserSet, vals models.FieldMapper) {
-			values := rs.DataStruct(vals.FieldMap())
+			values, _ := rs.DataStruct(vals.FieldMap())
 			rs.Profile().SetAge(values.Age)
 		})
 

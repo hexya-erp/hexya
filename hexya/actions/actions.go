@@ -182,32 +182,32 @@ func (ar *Collection) LoadFromEtree(element *etree.Element) {
 // A BaseAction is the definition of an action. Actions define the
 // behavior of the system in response to user requests.
 type BaseAction struct {
-	ID           string            `json:"id" xml:"id,attr"`
-	Type         ActionType        `json:"type" xml:"type,attr"`
-	Name         string            `json:"name" xml:"name,attr"`
-	Model        string            `json:"res_model" xml:"model,attr"`
-	ResID        int64             `json:"res_id" xml:"res_id,attr"`
-	Method       string            `json:"method" xml:"method,attr"`
-	Groups       []string          `json:"groups_id" xml:"groups,attr"`
-	Domain       string            `json:"domain" xml:"domain,attr"`
-	Help         string            `json:"help" xml:"help"`
-	SearchView   views.ViewRef     `json:"search_view_id" xml:"search_view_id,attr"`
-	SrcModel     string            `json:"src_model" xml:"src_model,attr"`
-	Usage        string            `json:"usage" xml:"usage,attr"`
-	Views        []views.ViewTuple `json:"views" xml:"view"`
-	View         views.ViewRef     `json:"view_id" xml:"view_id,attr"`
-	AutoRefresh  bool              `json:"auto_refresh" xml:"auto_refresh,attr"`
-	ManualSearch bool              `json:"-" xml:"-"`
-	ActViewType  ActionViewType    `json:"-" xml:"view_type"`
-	ViewMode     string            `json:"view_mode" xml:"view_mode,attr"`
-	Multi        bool              `json:"multi" xml:"multi,attr"`
-	Target       string            `json:"target" xml:"target,attr"`
-	AutoSearch   bool              `json:"auto_search" xml:"auto_search,attr"`
-	Filter       bool              `json:"filter" xml:"filter,attr"`
-	Limit        int64             `json:"limit" xml:"limit,attr"`
-	Context      *types.Context    `json:"context" xml:"context,attr"`
+	ID           string                 `json:"id" xml:"id,attr"`
+	Type         ActionType             `json:"type" xml:"type,attr"`
+	Name         string                 `json:"name" xml:"name,attr"`
+	Model        string                 `json:"res_model" xml:"model,attr"`
+	ResID        int64                  `json:"res_id" xml:"res_id,attr"`
+	Method       string                 `json:"method" xml:"method,attr"`
+	Groups       []string               `json:"groups_id" xml:"groups,attr"`
+	Domain       string                 `json:"domain" xml:"domain,attr"`
+	Help         string                 `json:"help" xml:"help"`
+	SearchView   views.ViewRef          `json:"search_view_id" xml:"search_view_id,attr"`
+	SrcModel     string                 `json:"src_model" xml:"src_model,attr"`
+	Usage        string                 `json:"usage" xml:"usage,attr"`
+	Views        []views.ViewTuple      `json:"views" xml:"view"`
+	View         views.ViewRef          `json:"view_id" xml:"view_id,attr"`
+	AutoRefresh  bool                   `json:"auto_refresh" xml:"auto_refresh,attr"`
+	ManualSearch bool                   `json:"-" xml:"-"`
+	ActViewType  ActionViewType         `json:"-" xml:"view_type"`
+	ViewMode     string                 `json:"view_mode" xml:"view_mode,attr"`
+	Multi        bool                   `json:"multi" xml:"multi,attr"`
+	Target       string                 `json:"target" xml:"target,attr"`
+	AutoSearch   bool                   `json:"auto_search" xml:"auto_search,attr"`
+	Filter       bool                   `json:"filter" xml:"filter,attr"`
+	Limit        int64                  `json:"limit" xml:"limit,attr"`
+	Context      *types.Context         `json:"context" xml:"context,attr"`
+	Flags        map[string]interface{} `json:"flags"`
 	names        map[string]string
-	//Flags interface{}`json:"flags"`
 }
 
 // TranslatedName returns the translated name of this action

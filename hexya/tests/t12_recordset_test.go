@@ -28,8 +28,9 @@ func TestCreateRecordSet(t *testing.T) {
 		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Creating simple user John with no relations and checking ID", func() {
 				userJohnData := pool.UserData{
-					Name:  "John Smith",
-					Email: "jsmith@example.com",
+					Name:    "John Smith",
+					Email:   "jsmith@example.com",
+					IsStaff: true,
 				}
 				userJohn := pool.User().Create(env, &userJohnData)
 				So(userJohn.Len(), ShouldEqual, 1)
@@ -369,21 +370,29 @@ func TestUpdateRecordSet(t *testing.T) {
 				john := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
 				johnValues := pool.UserData{
-					Email: "jsmith2@example.com",
-					Nums:  13,
+					Email:   "jsmith2@example.com",
+					Nums:    13,
+					IsStaff: false,
 				}
-				john.Write(&johnValues)
+				john.Write(&johnValues, pool.User().Email(), pool.User().IsStaff())
 				john.Load()
 				So(john.Name(), ShouldEqual, "John Smith")
 				So(john.Email(), ShouldEqual, "jsmith2@example.com")
 				So(john.Nums(), ShouldEqual, 13)
+				So(john.IsStaff(), ShouldBeFalse)
+				john.SetIsStaff(true)
+				So(john.IsStaff(), ShouldBeTrue)
+				john.SetIsStaff(false)
+				So(john.IsStaff(), ShouldBeFalse)
+				john.SetIsStaff(true)
+				So(john.IsStaff(), ShouldBeTrue)
 			})
 			Convey("Multiple updates at once on users", func() {
 				cond := pool.User().Name().Equals("Jane A. Smith").Or().Name().Equals("John Smith")
 				users := pool.User().Search(env, cond)
 				So(users.Len(), ShouldEqual, 2)
 				userRecs := users.Records()
-				So(userRecs[0].IsStaff(), ShouldBeFalse)
+				So(userRecs[0].IsStaff(), ShouldBeTrue)
 				So(userRecs[1].IsStaff(), ShouldBeFalse)
 				So(userRecs[0].IsActive(), ShouldBeFalse)
 				So(userRecs[1].IsActive(), ShouldBeFalse)

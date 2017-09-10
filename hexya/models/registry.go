@@ -25,6 +25,7 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
+	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 	"github.com/jmoiron/sqlx"
 )
@@ -240,7 +241,7 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 			val = valPtr.Elem()
 		default:
 			var err error
-			if _, ok := fMapValue.(RecordSet); ok {
+			if fi.isRelationField() {
 				val, err = getRelationFieldValue(fMapValue, fType)
 			} else {
 				val, err = getSimpleTypeValue(fMapValue, fType)
@@ -285,21 +286,36 @@ func getSimpleTypeValue(value interface{}, targetType reflect.Type) (reflect.Val
 // It returns an error if the value is not consistent with a relation field value
 // (i.e. is not of type RecordSet or int64 or []int64)
 func getRelationFieldValue(value interface{}, targetType reflect.Type) (reflect.Value, error) {
-	ids := value.(RecordSet).Ids()
 	var (
 		val reflect.Value
 		err error
 	)
-	if targetType == reflect.TypeOf(int64(0)) {
-		if len(ids) > 0 {
-			val = reflect.ValueOf(ids[0])
+	switch tValue := value.(type) {
+	case RecordSet:
+		ids := tValue.Ids()
+		if targetType == reflect.TypeOf(int64(0)) {
+			if len(ids) > 0 {
+				val = reflect.ValueOf(ids[0])
+			} else {
+				val = reflect.ValueOf((*interface{})(nil))
+			}
+		} else if targetType == reflect.TypeOf([]int64{}) {
+			val = reflect.ValueOf(ids)
 		} else {
-			val = reflect.ValueOf((*interface{})(nil))
+			err = errors.New("non consistent type")
 		}
-	} else if targetType == reflect.TypeOf([]int64{}) {
-		val = reflect.ValueOf(ids)
-	} else {
-		err = errors.New("Non consistent type")
+	case []interface{}:
+		if len(tValue) == 0 {
+			val = reflect.ValueOf((*interface{})(nil))
+			break
+		}
+		err = errors.New("non empty []interface{} given")
+	case []int64, *interface{}:
+		val = reflect.ValueOf(value)
+	default:
+		nbValue, nbErr := nbutils.CastToInteger(tValue)
+		val = reflect.ValueOf(nbValue)
+		err = nbErr
 	}
 	return val, err
 }

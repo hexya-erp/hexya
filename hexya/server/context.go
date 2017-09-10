@@ -5,11 +5,12 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/hexya-erp/hexya/hexya/tools"
 )
 
 // The Context allows to pass data across controller layers
@@ -80,8 +81,14 @@ func (c *Context) Super() {
 
 // HTTPGet makes an http GET request to this server with the context's session cookie
 func (c *Context) HTTPGet(uri string) (*http.Response, error) {
-	url := tools.AbsolutizeURL(c.Request, uri)
-	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	sanitizedURI, _ := url.ParseRequestURI(uri)
+	targetUrl := fmt.Sprintf("%s://%s%s", scheme, c.Request.Host, sanitizedURI.RequestURI())
+
+	req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
 	sessionCookie, _ := c.Cookie("hexya-session")
 	req.AddCookie(&http.Cookie{
 		Name:  "hexya-session",

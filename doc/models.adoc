@@ -636,7 +636,7 @@ apply on a Field instance.
 `*(f *Field) SetHelp(value string) *Field*`::
 `*(f *Field) SetGroupOperator(value string) *Field*`::
 `*(f *Field) SetRelated(value string) *Field*`::
-`*(f *Field) SetCompute(value string) *Field*`::
+`*(f *Field) SetCompute(value Methoder) *Field*`::
 `*(f *Field) SetDepends(value []string) *Field*`::
 `*(f *Field) SetStored(value bool) *Field*`::
 `*(f *Field) SetRequired(value bool) *Field*`::
@@ -645,9 +645,9 @@ apply on a Field instance.
 `*(f *Field) SetNoCopy(value bool) *Field*`::
 `*(f *Field) SetTranslate(value bool) *Field*`::
 `*(f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field*`::
-`*(f *Field) SetOnchange(value string) *Field*`::
-`*(f *Field) SetConstraint(value string) *Field*`::
-`*(f *Field) SetInverse(value string) *Field*`::
+`*(f *Field) SetOnchange(value Methoder) *Field*`::
+`*(f *Field) SetConstraint(value Methoder) *Field*`::
+`*(f *Field) SetInverse(value Methoder) *Field*`::
 
 [source,go]
 ----
@@ -803,7 +803,8 @@ func (RecordSetType) (*RecordType, []models.FieldNamer)
 
 `Inverse` Methoder::
 Declares an inverse method for a computed field. This method will be called when
-the field is set. The given method must have the following signature:
+the field is set and must write directly its changes to the database. The given
+method must have the following signature:
 
 [source,go]
 ----
