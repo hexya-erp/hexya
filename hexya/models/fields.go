@@ -40,13 +40,11 @@ const (
 	Cascade OnDeleteAction = "cascade"
 )
 
-/*
-computeData holds data to recompute another field.
-- Model is a pointer to the Model instance to recompute
-- compute is the name of the function to call on Model
-- path is the search string that will be used to find records to update
-(e.g. path = "Profile.BestPost").
-*/
+// computeData holds data to recompute another field.
+// - model is a pointer to the Model instance to recompute
+// - compute is the name of the method to call on model
+// - path is the search string that will be used to find records to update
+// (e.g. path = "Profile.BestPost").
 type computeData struct {
 	model   *Model
 	compute string
