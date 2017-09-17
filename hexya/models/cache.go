@@ -20,22 +20,29 @@ import (
 	"sync"
 )
 
+// A cacheRef is a key to find a record in a cache
+type cacheRef struct {
+	model *Model
+	id    int64
+}
+
 // A cache holds records field values for caching the database to
 // improve performance.
 type cache struct {
 	sync.RWMutex
-	data map[RecordRef]FieldMap
+	data map[cacheRef]FieldMap
 }
 
-// addEntry to the cache. fieldName must be a simple field name (no path)
-func (c *cache) addEntry(mi *Model, ID int64, fieldName string, value interface{}) {
-	ref := RecordRef{ModelName: mi.name, ID: ID}
+// updateEntry creates or updates an entry in the cache defined by its model, id and fieldName.
+// fieldName must be a simple field name (no path)
+func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interface{}) {
+	ref := cacheRef{model: mi, id: id}
 	jsonName := jsonizePath(mi, fieldName)
-	c.addEntryByRef(ref, jsonName, value)
+	c.updateEntryByRef(ref, jsonName, value)
 }
 
-// addEntryByRef adds an entry to the cache from a RecordRef and a field json name
-func (c *cache) addEntryByRef(ref RecordRef, jsonName string, value interface{}) {
+// updateEntryByRef creates or updates an entry to the cache from a RecordRef and a field json name
+func (c *cache) updateEntryByRef(ref cacheRef, jsonName string, value interface{}) {
 	c.Lock()
 	defer c.Unlock()
 	if _, ok := c.data[ref]; !ok {
@@ -61,30 +68,30 @@ func (c *cache) addRecord(mi *Model, ID int64, fMap FieldMap) {
 	for i := 0; i <= maxLen; i++ {
 		for _, path := range paths[i] {
 			ref, fName, _ := c.getRelatedRef(mi, ID, path)
-			c.addEntryByRef(ref, fName, fMap[path])
+			c.updateEntryByRef(ref, fName, fMap[path])
 		}
 	}
 }
 
 // invalidateRecord removes an entire record from the cache
-func (c *cache) invalidateRecord(mi *Model, ID int64) {
+func (c *cache) invalidateRecord(mi *Model, id int64) {
 	c.Lock()
 	defer c.Unlock()
-	delete(c.data, RecordRef{ModelName: mi.name, ID: ID})
+	delete(c.data, cacheRef{model: mi, id: id})
 }
 
 // get returns the cache value of the given fieldName
-// for the given modelName and ID. fieldName may be a path
+// for the given modelName and id. fieldName may be a path
 // relative to this Model (e.g. "User.Profile.Age").
-func (c *cache) get(mi *Model, ID int64, fieldName string) interface{} {
-	ref, fName, _ := c.getRelatedRef(mi, ID, fieldName)
+func (c *cache) get(mi *Model, id int64, fieldName string) interface{} {
+	ref, fName, _ := c.getRelatedRef(mi, id, fieldName)
 	return c.data[ref][fName]
 }
 
-// getRecord returns the whole record specified by modelName and ID
+// getRecord returns the whole record specified by modelName and id
 // as it is currently in cache.
-func (c *cache) getRecord(modelName string, ID int64) FieldMap {
-	ref := RecordRef{ModelName: modelName, ID: ID}
+func (c *cache) getRecord(model *Model, id int64) FieldMap {
+	ref := cacheRef{model: model, id: id}
 	return c.data[ref].Copy()
 }
 
@@ -107,23 +114,23 @@ func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string) bool
 
 // getRelatedRef returns the RecordRef and field name of the field that is
 // defined by path when walking from the given model with the given ID.
-func (c *cache) getRelatedRef(mi *Model, ID int64, path string) (RecordRef, string, error) {
+func (c *cache) getRelatedRef(mi *Model, id int64, path string) (cacheRef, string, error) {
 	exprs := jsonizeExpr(mi, strings.Split(path, ExprSep))
 	if len(exprs) > 1 {
 		relMI := mi.getRelatedModelInfo(exprs[0])
-		fk, ok := c.get(mi, ID, exprs[0]).(int64)
+		fk, ok := c.get(mi, id, exprs[0]).(int64)
 		if !ok {
-			return RecordRef{}, "", errors.New("Requested value not in cache")
+			return cacheRef{}, "", errors.New("requested value not in cache")
 		}
 		return c.getRelatedRef(relMI, fk, strings.Join(exprs[1:], "."))
 	}
-	return RecordRef{ModelName: mi.name, ID: ID}, exprs[0], nil
+	return cacheRef{model: mi, id: id}, exprs[0], nil
 }
 
 // newCache creates a pointer to a new cache instance.
 func newCache() *cache {
 	res := cache{
-		data: make(map[RecordRef]FieldMap),
+		data: make(map[cacheRef]FieldMap),
 	}
 	return &res
 }

@@ -240,7 +240,7 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 		if rc.env.context.GetBool("hexya_keep_cache") {
 			for _, rec := range rc.Records() {
 				for k, v := range fMap {
-					rc.env.cache.addEntry(rc.model, rec.Ids()[0], k, v)
+					rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v)
 				}
 			}
 			return
@@ -330,7 +330,7 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 		rSet = rSet.Load(toLoad...)
 	}
 	// Create an update map for each record to update
-	updateMap := make(map[RecordRef]FieldMap)
+	updateMap := make(map[cacheRef]FieldMap)
 	for _, rec := range rSet.Records() {
 		for field, subst := range toSubstitute {
 			ref, relField, _ := rec.env.cache.getRelatedRef(rec.model, rec.ids[0], subst)
@@ -343,7 +343,7 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 
 	// Make the update for each record
 	for ref, upMap := range updateMap {
-		rs := rc.env.Pool(ref.ModelName).withIds([]int64{ref.ID})
+		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})
 		rs.Call("Write", upMap)
 	}
 }
@@ -503,20 +503,20 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 			switch fi.fieldType {
 			case fieldtype.One2Many:
 				relRC := rc.env.Pool(fi.relatedModelName).Search(rc.Model().Field(fi.reverseFK).Equals(id)).Fetch()
-				rc.env.cache.addEntry(rc.model, id, fieldName, relRC.ids)
+				rc.env.cache.updateEntry(rc.model, id, fieldName, relRC.ids)
 			case fieldtype.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
 				var ids []int64
 				rc.env.cr.Select(&ids, query, id)
-				rc.env.cache.addEntry(rc.model, id, fieldName, ids)
+				rc.env.cache.updateEntry(rc.model, id, fieldName, ids)
 			case fieldtype.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName).Search(rc.Model().Field(fi.reverseFK).Equals(id)).Fetch()
 				var relID int64
 				if len(relRC.ids) > 0 {
 					relID = relRC.ids[0]
 				}
-				rc.env.cache.addEntry(rc.model, id, fieldName, relID)
+				rc.env.cache.updateEntry(rc.model, id, fieldName, relID)
 			default:
 				continue
 			}
@@ -610,7 +610,7 @@ func (rc RecordCollection) First(structPtr interface{}) {
 		fields[i] = typ.Field(i).Name
 	}
 	rSet.Load(fields...)
-	fMap := rSet.env.cache.getRecord(rSet.ModelName(), rSet.ids[0])
+	fMap := rSet.env.cache.getRecord(rSet.Model(), rSet.ids[0])
 	MapToStruct(rSet, structPtr, fMap)
 }
 
@@ -628,7 +628,7 @@ func (rc RecordCollection) All(structSlicePtr interface{}) {
 	val.Elem().Set(reflect.MakeSlice(sspType, rSet.Len(), rSet.Len()))
 	recs := rSet.Records()
 	for i := 0; i < rSet.Len(); i++ {
-		fMap := rSet.env.cache.getRecord(rSet.ModelName(), recs[i].ids[0])
+		fMap := rSet.env.cache.getRecord(rSet.Model(), recs[i].ids[0])
 		newStructPtr := reflect.New(structType).Interface()
 		MapToStruct(rSet, newStructPtr, fMap)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
@@ -828,7 +828,7 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 	rSet.filtered = false
 	if len(ids) > 0 {
 		for _, id := range rSet.ids {
-			rSet.env.cache.addEntry(rSet.model, id, "id", id)
+			rSet.env.cache.updateEntry(rSet.model, id, "id", id)
 		}
 		rSet.query.cond = rc.Model().Field("ID").In(ids)
 		rSet.query.limit = 0
