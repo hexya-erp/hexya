@@ -29,19 +29,21 @@ func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, R
 	// Create a keys map with our fields
 	keys := make(map[string]bool)
 	for _, field := range fields {
-		fi := rc.model.getRelatedFieldInfo(field)
-		if fi.isRelatedField() {
-			keys[fi.relatedPath] = true
-			var curPath string
-			for _, expr := range strings.Split(fi.relatedPath, ExprSep) {
-				curPath = strings.TrimLeft(fmt.Sprintf("%s.%s", curPath, expr), ".")
-				keys[curPath] = true
-			}
+		// Inflate our related fields
+		inflatedPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
+		keys[inflatedPath] = true
+		// Add intermediate records to our map
+		exprs := strings.Split(inflatedPath, ExprSep)
+		if len(exprs) == 1 {
 			continue
 		}
-		keys[jsonizePath(rc.model, field)] = true
+		var curPath string
+		for _, expr := range exprs {
+			curPath = strings.TrimLeft(fmt.Sprintf("%s.%s", curPath, expr), ".")
+			keys[curPath] = true
+		}
 	}
-	// extract keys from our map to res
+	// Extract keys from our map to res
 	res := make([]string, len(keys))
 	var i int
 	for key := range keys {
@@ -76,4 +78,14 @@ func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, R
 	rc.query.substituteConditionExprs(substs)
 
 	return res, rc
+}
+
+// substituteRelatedInPath recursively substitutes path for its related value.
+// If path is not a related field, it is returned as is.
+func (rc RecordCollection) substituteRelatedInPath(path string) string {
+	fi := rc.model.getRelatedFieldInfo(path)
+	if !fi.isRelatedField() {
+		return path
+	}
+	return rc.substituteRelatedInPath(fi.relatedPath)
 }

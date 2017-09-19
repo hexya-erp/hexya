@@ -52,7 +52,7 @@ func BootStrap() {
 }
 
 // createModelLinks create links with related Model
-// where applicable.
+// where applicable. Also populates jsonReverseFK field
 func createModelLinks() {
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.registryByName {
@@ -60,11 +60,15 @@ func createModelLinks() {
 				relatedMI *Model
 				ok        bool
 			)
-			if fi.fieldType.IsRelationType() {
-				relatedMI, ok = Registry.Get(fi.relatedModelName)
-				if !ok {
-					log.Panic("Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
-				}
+			if !fi.fieldType.IsRelationType() {
+				continue
+			}
+			relatedMI, ok = Registry.Get(fi.relatedModelName)
+			if !ok {
+				log.Panic("Unknown related model in field declaration", "model", mi.name, "field", fi.name, "relatedName", fi.relatedModelName)
+			}
+			if fi.fieldType.IsReverseRelationType() {
+				fi.jsonReverseFK = relatedMI.fields.MustGet(fi.reverseFK).json
 			}
 			fi.relatedModel = relatedMI
 		}

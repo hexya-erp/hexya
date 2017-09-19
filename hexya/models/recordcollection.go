@@ -237,17 +237,6 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
 		}
-		if rc.env.context.GetBool("hexya_keep_cache") {
-			for _, rec := range rc.Records() {
-				for k, v := range fMap {
-					rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v)
-				}
-			}
-			return
-		}
-		for _, id := range rc.Ids() {
-			rc.env.cache.invalidateRecord(rc.model, id)
-		}
 	}()
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	// update DB
@@ -256,6 +245,11 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 		res := rc.env.cr.Execute(sql, args...)
 		if num, _ := res.RowsAffected(); num == 0 {
 			log.Panic("Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
+		}
+	}
+	for _, rec := range rc.Records() {
+		for k, v := range fMap {
+			rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v)
 		}
 	}
 	rc.checkConstraints()
@@ -295,11 +289,13 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
 			rc.env.cr.Execute(delQuery, rSet.ids)
 			for _, id := range rSet.ids {
+				rc.env.cache.removeM2MLinks(fi, id)
 				query := fmt.Sprintf(`INSERT INTO %s (%s, %s) VALUES (?, ?)`, fi.m2mRelModel.tableName,
 					fi.m2mOurField.json, fi.m2mTheirField.json)
 				for _, relId := range value.([]int64) {
 					rc.env.cr.Execute(query, id, relId)
 				}
+				rc.env.cache.addM2MLink(fi, id, value.([]int64))
 			}
 		}
 	}
@@ -370,9 +366,13 @@ func (rc RecordCollection) substituteSQLErrorMessage(r interface{}) interface{} 
 func (rc RecordCollection) unlink() int64 {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Unlink"))
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Unlink)
+	ids := rSet.Ids()
 	sql, args := rSet.query.deleteQuery()
 	res := rSet.env.cr.Execute(sql, args...)
 	num, _ := res.RowsAffected()
+	for _, id := range ids {
+		rc.env.cache.invalidateRecord(rc.model, id)
+	}
 	return num
 }
 
