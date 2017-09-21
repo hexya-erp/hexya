@@ -98,4 +98,40 @@ func TestEnvironment(t *testing.T) {
 			})
 		})
 	})
+	Convey("Testing cache operation", t, func() {
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			users := env.Pool("User")
+			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+			Convey("Cache should be empty at startup", func() {
+				So(env.cache.data, ShouldBeEmpty)
+				So(env.cache.m2mLinks, ShouldBeEmpty)
+			})
+			Convey("Loading a RecordSet should populate the cache", func() {
+				userJane = userJane.Load()
+				So(env.cache.m2mLinks, ShouldBeEmpty)
+				So(env.cache.data, ShouldHaveLength, 1)
+				janeCacheRef := cacheRef{model: users.model, id: userJane.ids[0]}
+				So(env.cache.data, ShouldContainKey, janeCacheRef)
+				So(env.cache.data[janeCacheRef], ShouldContainKey, "id")
+				So(env.cache.data[janeCacheRef]["id"], ShouldEqual, userJane.ids[0])
+				So(env.cache.data[janeCacheRef], ShouldContainKey, "name")
+				So(env.cache.data[janeCacheRef]["name"], ShouldEqual, "Jane A. Smith")
+				So(env.cache.data[janeCacheRef], ShouldContainKey, "email")
+				So(env.cache.data[janeCacheRef]["email"], ShouldEqual, "jane.smith@example.com")
+				So(env.cache.checkIfInCache(users.model, userJane.ids, []string{"id", "name", "email"}), ShouldBeTrue)
+			})
+			Convey("Calling values already in cache should not call the DB", func() {
+				userJane = userJane.Load()
+				id, dbCalled := userJane.get("id", true)
+				So(dbCalled, ShouldBeFalse)
+				So(id, ShouldEqual, userJane.ids[0])
+				name, dbCalled := userJane.get("name", true)
+				So(dbCalled, ShouldBeFalse)
+				So(name, ShouldEqual, "Jane A. Smith")
+				email, dbCalled := userJane.get("email", true)
+				So(dbCalled, ShouldBeFalse)
+				So(email, ShouldEqual, "jane.smith@example.com")
+			})
+		})
+	})
 }

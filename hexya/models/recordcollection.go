@@ -417,8 +417,12 @@ func (rc RecordCollection) GroupBy(fields ...FieldNamer) RecordCollection {
 }
 
 // Fetch query the database with the current filter and returns a RecordSet
-// with the queries ids. Fetch is lazy and only return ids. Use Load() instead
+// with the queries ids.
+//
+// Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
+//
+// IMPORTANT: Fetch does NOT load the receiver which remains unloaded.
 func (rc RecordCollection) Fetch() RecordCollection {
 	if rc.fetched {
 		return rc
@@ -455,11 +459,14 @@ func (rc RecordCollection) SearchCount() int {
 }
 
 // Load query all data of the RecordCollection and store in cache.
-// fields are the fields to retrieve in the expression format,
+// fields are the fields to retrieve in the path format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
+//
 // If no fields are given, all DB columns of the RecordCollection's
 // model are retrieved. Non-DB fields must be explicitly given in
 // fields to be retrieved.
+//
+// IMPORTANT: Load does NOT populate the receiver which remains unloaded.
 func (rc RecordCollection) Load(fields ...string) RecordCollection {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	if rc.query.isEmpty() {
@@ -545,12 +552,12 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		rSet.computeFieldValues(&fMap, fi.json)
 		res = fMap[fi.json]
 	case fi.isRelatedField() && !fi.isStored():
-		res = rSet.get(fi.relatedPath, false)
+		res, _ = rSet.get(fi.relatedPath, false)
 	default:
 		// If value is not in cache we fetch the whole model to speed up later calls to Get,
 		// except for the case of non stored relation fields, where we only load the requested field.
 		all := !fi.fieldType.IsNonStoredRelationType()
-		res = rSet.get(fieldName, all)
+		res, _ = rSet.get(fieldName, all)
 	}
 
 	if res == nil {
@@ -579,16 +586,20 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 // get returns the value of field for this RecordSet.
 // It loads the cache if necessary before reading.
 // If all is true, all fields of the model are loaded, otherwise only field.
-func (rc RecordCollection) get(field string, all bool) interface{} {
+//
+// Second returned value is true if a call to the DB was necessary (i.e. not in cache)
+func (rc RecordCollection) get(field string, all bool) (interface{}, bool) {
 	rSet := rc.Fetch()
+	var dbCalled bool
 	if !rSet.env.cache.checkIfInCache(rSet.model, []int64{rSet.ids[0]}, []string{field}) {
 		if !all {
 			rSet.Load(field)
 		} else {
 			rSet.Load()
 		}
+		dbCalled = true
 	}
-	return rSet.env.cache.get(rSet.model, rSet.ids[0], field)
+	return rSet.env.cache.get(rSet.model, rSet.ids[0], field), dbCalled
 }
 
 // Set sets field given by fieldName to the given value. If the RecordSet has several
@@ -704,7 +715,10 @@ func (rc RecordCollection) fieldsGroupOperators(fields []string) map[string]stri
 // Records returns the slice of RecordCollection singletons that constitute this
 // RecordCollection.
 func (rc RecordCollection) Records() []RecordCollection {
-	rSet := rc.Load()
+	rSet := rc
+	if !rc.env.cache.checkIfInCache(rc.model, rc.Ids(), rc.model.fields.storedFieldNames()) {
+		rSet = rc.Load()
+	}
 	res := make([]RecordCollection, rSet.Len())
 	for i, id := range rSet.Ids() {
 		newRC := newRecordCollection(rSet.Env(), rSet.ModelName())
