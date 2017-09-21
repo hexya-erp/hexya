@@ -420,12 +420,18 @@ func (rc RecordCollection) GroupBy(fields ...FieldNamer) RecordCollection {
 // with the queries ids. Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
 func (rc RecordCollection) Fetch() RecordCollection {
-	if !rc.fetched && !rc.query.isEmpty() {
+	if rc.fetched {
+		return rc
+	}
+	if rc.query.isEmpty() {
 		// We do not load empty queries to keep empty record sets empty
 		// Call FetchAll instead to load all the records of the table
-		return rc.Load("id")
+		return rc
 	}
-	return rc
+	if ids, ok := rc.query.inferIds(); ok {
+		return rc.withIds(ids)
+	}
+	return rc.Load("id")
 }
 
 // FetchAll returns a RecordSet with all items of the table, regardless of the

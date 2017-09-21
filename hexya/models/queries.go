@@ -501,6 +501,47 @@ func (q *Query) isEmpty() bool {
 	return true
 }
 
+// inferIds tries to return the list of ids this query points to without calling the database.
+// If it can't, the second argument will be false.
+func (q *Query) inferIds() ([]int64, bool) {
+	if q.fetchAll {
+		return []int64{}, false
+	}
+	if q.limit != 0 {
+		return []int64{}, false
+	}
+	if q.offset != 0 {
+		return []int64{}, false
+	}
+	if len(q.groups) > 0 {
+		return []int64{}, false
+	}
+	if q.cond.IsEmpty() {
+		return []int64{}, false
+	}
+	predicate := q.cond.predicates[0]
+	if len(predicate.exprs) == 0 && !predicate.cond.IsEmpty() {
+		predicate = predicate.cond.predicates[0]
+	}
+	if len(predicate.exprs) != 1 {
+		return []int64{}, false
+	}
+	if predicate.exprs[0] != "id" && predicate.exprs[0] != "ID" {
+		return []int64{}, false
+	}
+
+	switch predicate.operator {
+	case operator.Equals:
+		res, ok := predicate.arg.(int64)
+		return []int64{res}, ok
+	case operator.In:
+		res, ok := predicate.arg.([]int64)
+		return res, ok
+	default:
+		return []int64{}, false
+	}
+}
+
 // substituteConditionExprs substitutes all occurrences of each substMap keys in
 // its conditions 1st exprs with the corresponding substMap value.
 func (q *Query) substituteConditionExprs(substMap map[string][]string) {
