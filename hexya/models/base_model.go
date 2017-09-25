@@ -524,7 +524,7 @@ type FieldInfo struct {
 
 // FieldsGetArgs is the args struct for the FieldsGet method
 type FieldsGetArgs struct {
-	// list of fields to document, all if empty or not provided
+	// Fields is a list of fields to document, all if empty or not provided
 	Fields []FieldName `json:"allfields"`
 }
 

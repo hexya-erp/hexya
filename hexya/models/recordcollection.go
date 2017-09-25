@@ -842,6 +842,11 @@ func (rc RecordCollection) Equals(other RecordSet) bool {
 // withIdMap returns a new RecordCollection pointing to the given ids.
 // It overrides the current query with ("ID", "in", ids).
 func (rc RecordCollection) withIds(ids []int64) RecordCollection {
+	for i, id := range ids {
+		if id == 0 {
+			ids = append(ids[:i], ids[i+1:]...)
+		}
+	}
 	rSet := rc
 	rSet.ids = ids
 	rSet.fetched = true
