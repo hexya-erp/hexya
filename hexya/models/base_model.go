@@ -377,8 +377,11 @@ func declareSearchMethods() {
 
 	commonMixin.AddMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
-		with the queries ids. Fetch is lazy and only return ids. Use Load() instead
-		if you want to fetch all fields.`,
+		with the queries ids.
+
+		Fetch is lazy and only return ids. Use Load() instead if you want to fetch all fields.
+
+		IMPORTANT: Fetch does NOT load the receiver which remains unloaded.`,
 		func(rc RecordCollection) RecordCollection {
 			return rc.Fetch()
 		}).AllowGroup(security.GroupEveryone)

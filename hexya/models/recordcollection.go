@@ -432,8 +432,9 @@ func (rc RecordCollection) Fetch() RecordCollection {
 		// Call FetchAll instead to load all the records of the table
 		return rc
 	}
-	if ids, ok := rc.query.inferIds(); ok {
-		return rc.withIds(ids)
+	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
+	if ids, ok := rSet.query.inferIds(); ok {
+		return rSet.withIds(ids)
 	}
 	return rc.Load("id")
 }
@@ -863,6 +864,7 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 			rSet.env.cache.updateEntry(rSet.model, id, "id", id)
 		}
 		rSet.query.cond = rc.Model().Field("ID").In(ids)
+		rSet.query.fetchAll = false
 		rSet.query.limit = 0
 		rSet.query.offset = 0
 	}

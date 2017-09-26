@@ -519,9 +519,15 @@ func (q *Query) inferIds() ([]int64, bool) {
 	if q.cond.IsEmpty() {
 		return []int64{}, false
 	}
+	if len(q.cond.predicates) != 1 {
+		return []int64{}, false
+	}
 	predicate := q.cond.predicates[0]
 	if len(predicate.exprs) == 0 && !predicate.cond.IsEmpty() {
 		predicate = predicate.cond.predicates[0]
+	}
+	if !predicate.cond.IsEmpty() {
+		return []int64{}, false
 	}
 	if len(predicate.exprs) != 1 {
 		return []int64{}, false
