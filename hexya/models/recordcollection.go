@@ -611,6 +611,13 @@ func (rc RecordCollection) Set(fieldName string, value interface{}) {
 	rc.Call("Write", fMap)
 }
 
+// InvalidateCache clears the cache for this RecordSet data, forcing DB query on next search.
+func (rc RecordCollection) InvalidateCache() {
+	for _, rec := range rc.Records() {
+		rc.env.cache.invalidateRecord(rc.model, rec.ids[0])
+	}
+}
+
 // First populates structPtr with a copy of the first Record of the RecordCollection.
 // structPtr must a pointer to a struct.
 func (rc RecordCollection) First(structPtr interface{}) {

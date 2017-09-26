@@ -56,13 +56,16 @@ func (c *cache) updateEntryByRef(ref cacheRef, jsonName string, value interface{
 		for _, id := range ids {
 			c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id)
 		}
+		c.data[ref][jsonName] = true
 	case fieldtype.Rev2One:
 		id := value.(int64)
 		c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id)
+		c.data[ref][jsonName] = true
 	case fieldtype.Many2Many:
 		ids := value.([]int64)
 		c.removeM2MLinks(fi, ref.id)
 		c.addM2MLink(fi, ref.id, ids)
+		c.data[ref][jsonName] = true
 	default:
 		c.data[ref][jsonName] = value
 	}
@@ -142,6 +145,12 @@ func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap) {
 // invalidateRecord removes an entire record from the cache
 func (c *cache) invalidateRecord(mi *Model, id int64) {
 	delete(c.data, cacheRef{model: mi, id: id})
+	for _, fi := range mi.fields.registryByJSON {
+		if fi.fieldType != fieldtype.Many2Many {
+			continue
+		}
+		c.removeM2MLinks(fi, id)
+	}
 }
 
 // get returns the cache value of the given fieldName
