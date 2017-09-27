@@ -333,12 +333,6 @@ func declareRecordSetSpecificMethods() {
 					}
 					env.cache.invalidateRecord(rs.model, rsID)
 					env.cache.addRecord(rs.model, rsID, values)
-					// Unlike create/write, onchange may receive values from readonly fields.
-					// We pass the context key hexya_allow_without_inverse not to panic. Those values will be simply ignored.
-					rs.WithContext("hexya_allow_without_inverse", true).
-						WithContext("hexya_keep_cache", true).
-						WithContext("hexya_no_recompute_stored_fields", true).
-						processInverseMethods(values)
 					res := rs.CallMulti(fi.onChange)
 					fields = res[1].([]FieldNamer)
 					resMap := res[0].(FieldMapper).FieldMap(fields...)

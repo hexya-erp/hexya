@@ -36,6 +36,7 @@ func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 		}
 		if rc.env.cache.checkIfInCache(rc.model, rc.Ids(), []string{fInfo.name}) {
 			(*params)[fInfo.json] = rc.env.cache.get(rc.model, rc.Ids()[0], fInfo.name)
+			continue
 		}
 		newParams := rc.Call(fInfo.compute).(FieldMapper).FieldMap()
 		for k, v := range newParams {
