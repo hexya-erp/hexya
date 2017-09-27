@@ -143,6 +143,10 @@ func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap) {
 }
 
 // invalidateRecord removes an entire record from the cache
+//
+// WARNING: Reload the record as soon as possible after calling
+// this method, since this will bring discrepancies in the other
+// records references (One2Many and Many2Many fields).
 func (c *cache) invalidateRecord(mi *Model, id int64) {
 	delete(c.data, cacheRef{model: mi, id: id})
 	for _, fi := range mi.fields.registryByJSON {

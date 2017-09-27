@@ -176,6 +176,8 @@ func declareCRUDMethods() {
 			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64))
 			fMap.RemovePK()
 			fMap.MergeWith(overrides.FieldMap(fieldsToUnset...), rc.model)
+			// Reload original record to prevent cache discrepancies
+			rc.Load()
 			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", fMap).(RecordSet).Collection()
 			return newRs
 		})

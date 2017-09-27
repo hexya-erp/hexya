@@ -612,11 +612,12 @@ func (rc RecordCollection) Set(fieldName string, value interface{}) {
 	rc.Call("Write", fMap)
 }
 
-// InvalidateCache clears the cache for this RecordSet data, forcing DB query on next search.
+// InvalidateCache clears the cache for this RecordSet data, and immediately reloads the data from the DB.
 func (rc RecordCollection) InvalidateCache() {
 	for _, rec := range rc.Records() {
 		rc.env.cache.invalidateRecord(rc.model, rec.ids[0])
 	}
+	rc.Load()
 }
 
 // First populates structPtr with a copy of the first Record of the RecordCollection.
