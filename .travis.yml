@@ -2,7 +2,9 @@ language: go
 go:
  - 1.7
  - 1.8
- - tip
+ - 1.9
+# Errors in tip on 2017-09-27
+# - tip
 
 addons:
   postgresql: "9.4"

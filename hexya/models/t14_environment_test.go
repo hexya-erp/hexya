@@ -132,6 +132,22 @@ func TestEnvironment(t *testing.T) {
 				So(dbCalled, ShouldBeFalse)
 				So(email, ShouldEqual, "jane.smith@example.com")
 			})
+			Convey("Testing O2M fields in cache", func() {
+				userJane = userJane.Load("Posts")
+				postModel := env.Pool("Post").Model()
+				post1 := env.Pool("Post").Search(postModel.Field("Title").Equals("1st Post"))
+				post3 := env.Pool("Post").Search(postModel.Field("Title").Equals("3rd Post"))
+				posts := post1.Union(post3)
+				janeCacheRef := cacheRef{model: users.model, id: userJane.ids[0]}
+				So(env.cache.data, ShouldContainKey, janeCacheRef)
+				So(env.cache.data[janeCacheRef], ShouldContainKey, "posts_ids")
+				So(env.cache.data[janeCacheRef]["posts_ids"], ShouldEqual, true)
+				So(env.cache.get(userJane.model, userJane.ids[0], "posts_ids"), ShouldHaveLength, posts.Len())
+				for _, id := range posts.ids {
+					So(env.cache.get(userJane.model, userJane.ids[0], "posts_ids"), ShouldContain, id)
+				}
+				So(userJane.Get("Posts").(RecordCollection).Len(), ShouldEqual, 2)
+			})
 			Convey("Reading M2M fields should work both ways", func() {
 				postModel := env.Pool("Post").Model()
 				tagModel := env.Pool("Tag").Model()
@@ -164,6 +180,17 @@ func TestEnvironment(t *testing.T) {
 				So(tags.Records()[0].Get("Posts").(RecordSet).Collection().Ids(), ShouldContain, post2.ids[0])
 				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldHaveLength, 1)
 				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldContain, post2.ids[0])
+			})
+			Convey("Check that computed fields are stored and read in cache", func() {
+				userJane = userJane.Load()
+				janeCacheRef := cacheRef{model: users.model, id: userJane.ids[0]}
+				So(env.cache.data, ShouldContainKey, janeCacheRef)
+				So(env.cache.data[janeCacheRef], ShouldContainKey, "id")
+				So(env.cache.data[janeCacheRef], ShouldContainKey, "name")
+				So(env.cache.data[janeCacheRef], ShouldNotContainKey, "decorated_name")
+				decoratedName := userJane.Get("DecoratedName")
+				So(env.cache.data[janeCacheRef], ShouldContainKey, "decorated_name")
+				So(env.cache.data[janeCacheRef]["decorated_name"], ShouldEqual, decoratedName)
 			})
 		})
 	})
