@@ -150,9 +150,20 @@ func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap) {
 func (c *cache) invalidateRecord(mi *Model, id int64) {
 	delete(c.data, cacheRef{model: mi, id: id})
 	for _, fi := range mi.fields.registryByJSON {
-		if fi.fieldType != fieldtype.Many2Many {
-			continue
+		if fi.fieldType == fieldtype.Many2Many {
+			c.removeM2MLinks(fi, id)
 		}
+	}
+}
+
+// removeEntry removes the given entry from cache
+func (c *cache) removeEntry(mi *Model, id int64, fieldName string) {
+	if !c.checkIfInCache(mi, []int64{id}, []string{fieldName}) {
+		return
+	}
+	delete(c.data[cacheRef{model: mi, id: id}], fieldName)
+	fi := mi.fields.MustGet(fieldName)
+	if fi.fieldType == fieldtype.Many2Many {
 		c.removeM2MLinks(fi, id)
 	}
 }

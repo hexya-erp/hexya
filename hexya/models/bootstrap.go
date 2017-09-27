@@ -571,6 +571,9 @@ func checkFieldMethodsExist() {
 			}
 			if field.compute != "" {
 				model.methods.MustGet(field.compute)
+				if len(field.depends) == 0 {
+					log.Warn("Computed fields should have a 'Depends' parameter set", "model", model.name, "field", field.name)
+				}
 			}
 			if field.inverse != "" {
 				if _, ok := model.methods.get(field.compute); !ok {

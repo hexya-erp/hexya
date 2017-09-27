@@ -631,8 +631,9 @@ func (s {{ .Name }}Set) All() []{{ .Name }}Data {
 // Records returns a slice with all the records of this RecordSet, as singleton
 // RecordSets
 func (s {{ .Name }}Set) Records() []{{ .Name }}Set {
-	res := make([]{{ .Name }}Set, len(s.RecordCollection.Records()))
-	for i, rec := range s.RecordCollection.Records() {
+	recs := s.RecordCollection.Records()
+	res := make([]{{ .Name }}Set, len(recs))
+	for i, rec := range recs {
 		res[i] = {{ .Name }}Set{
 			RecordCollection: rec,
 		}

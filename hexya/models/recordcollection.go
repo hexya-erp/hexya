@@ -96,7 +96,7 @@ func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 	rSet.updateRelationFields(fMap)
 	// compute stored fields
 	rSet.processInverseMethods(fMap)
-	rSet.updateStoredFields(fMap)
+	rSet.processTriggers(fMap)
 	rSet.checkConstraints()
 	return rSet
 }
@@ -215,7 +215,7 @@ func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer)
 	rSet.updateRelatedFields(fMap)
 	// compute stored fields
 	rSet.processInverseMethods(fMap)
-	rSet.updateStoredFields(fMap)
+	rSet.processTriggers(fMap)
 	return true
 }
 
@@ -851,20 +851,22 @@ func (rc RecordCollection) Equals(other RecordSet) bool {
 // withIdMap returns a new RecordCollection pointing to the given ids.
 // It overrides the current query with ("ID", "in", ids).
 func (rc RecordCollection) withIds(ids []int64) RecordCollection {
-	for i, id := range ids {
+	var newIds []int64
+	for _, id := range ids {
 		if id == 0 {
-			ids = append(ids[:i], ids[i+1:]...)
+			continue
 		}
+		newIds = append(newIds, id)
 	}
 	rSet := rc
-	rSet.ids = ids
+	rSet.ids = newIds
 	rSet.fetched = true
 	rSet.filtered = false
-	if len(ids) > 0 {
+	if len(newIds) > 0 {
 		for _, id := range rSet.ids {
 			rSet.env.cache.updateEntry(rSet.model, id, "id", id)
 		}
-		rSet.query.cond = rc.Model().Field("ID").In(ids)
+		rSet.query.cond = rc.Model().Field("ID").In(newIds)
 		rSet.query.fetchAll = false
 		rSet.query.limit = 0
 		rSet.query.offset = 0

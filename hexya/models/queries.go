@@ -483,6 +483,12 @@ func (q *Query) isEmpty() bool {
 	if !q.cond.IsEmpty() {
 		return false
 	}
+	return q.sideDataIsEmpty()
+}
+
+// sideDataIsEmpty returns true if all side data of the query is empty.
+// By side data, we mean everything but the condition itself.
+func (q *Query) sideDataIsEmpty() bool {
 	if q.fetchAll {
 		return false
 	}
@@ -504,16 +510,7 @@ func (q *Query) isEmpty() bool {
 // inferIds tries to return the list of ids this query points to without calling the database.
 // If it can't, the second argument will be false.
 func (q *Query) inferIds() ([]int64, bool) {
-	if q.fetchAll {
-		return []int64{}, false
-	}
-	if q.limit != 0 {
-		return []int64{}, false
-	}
-	if q.offset != 0 {
-		return []int64{}, false
-	}
-	if len(q.groups) > 0 {
+	if !q.sideDataIsEmpty() {
 		return []int64{}, false
 	}
 	if q.cond.IsEmpty() {

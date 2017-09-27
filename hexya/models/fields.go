@@ -45,10 +45,14 @@ const (
 // - compute is the name of the method to call on model
 // - path is the search string that will be used to find records to update
 // (e.g. path = "Profile.BestPost").
+// - stored is true if the computed field is stored
+// - fieldName is this fieldName if the field is not stored, empty otherwise.
 type computeData struct {
-	model   *Model
-	compute string
-	path    string
+	model     *Model
+	stored    bool
+	fieldName string
+	compute   string
+	path      string
 }
 
 // FieldsCollection is a collection of Field instances in a model.
@@ -358,19 +362,26 @@ func processDepends() {
 		for _, fInfo := range mi.fields.registryByJSON {
 			var refName string
 			for _, depString := range fInfo.depends {
-				if depString != "" {
-					tokens := jsonizeExpr(mi, strings.Split(depString, ExprSep))
-					refName = tokens[len(tokens)-1]
-					path := strings.Join(tokens[:len(tokens)-1], ExprSep)
-					targetComputeData := computeData{
-						model:   mi,
-						compute: fInfo.compute,
-						path:    path,
-					}
-					refModelInfo := mi.getRelatedModelInfo(path)
-					refField := refModelInfo.fields.MustGet(refName)
-					refField.dependencies = append(refField.dependencies, targetComputeData)
+				if depString == "" {
+					continue
 				}
+				tokens := jsonizeExpr(mi, strings.Split(depString, ExprSep))
+				refName = tokens[len(tokens)-1]
+				path := strings.Join(tokens[:len(tokens)-1], ExprSep)
+				var fieldName string
+				if !fInfo.stored {
+					fieldName = fInfo.name
+				}
+				targetComputeData := computeData{
+					model:     mi,
+					stored:    fInfo.stored,
+					fieldName: fieldName,
+					compute:   fInfo.compute,
+					path:      path,
+				}
+				refModelInfo := mi.getRelatedModelInfo(path)
+				refField := refModelInfo.fields.MustGet(refName)
+				refField.dependencies = append(refField.dependencies, targetComputeData)
 			}
 		}
 	}

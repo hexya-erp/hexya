@@ -46,9 +46,10 @@ func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 	}
 }
 
-// updateStoredFields populates the toRecompute map of the current environment with the
-// informations about the fields to recompute. Actual recomputation is done by Environment.RecomputeStoreFields().
-func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
+// processTriggers execute computed fields recomputation (for stored fields) or
+// invalidation (for non stored fields) based on the data of each fields 'Depends'
+// attribute.
+func (rc RecordCollection) processTriggers(fMap FieldMap) {
 	if rc.Env().Context().GetBool("hexya_no_recompute_stored_fields") {
 		return
 	}
@@ -72,6 +73,11 @@ func (rc RecordCollection) updateStoredFields(fMap FieldMap) {
 			recs = rc.Env().Pool(cData.model.name).Search(rSet.Model().Field(cData.path).In(rSet.Ids()))
 		}
 		for _, rec := range recs.Records() {
+			if !cData.stored {
+				// Field is not store, just invalidating cache
+				rc.env.cache.removeEntry(rec.model, rec.Ids()[0], cData.fieldName)
+				continue
+			}
 			retVal := rec.CallMulti(cData.compute)
 			toUnset := retVal[1].([]FieldNamer)
 			vals := retVal[0].(FieldMapper).FieldMap(toUnset...)
