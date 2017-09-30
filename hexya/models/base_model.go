@@ -84,7 +84,7 @@ func declareBaseComputeMethods() {
 
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
-		func(rc RecordCollection) (FieldMap, []FieldNamer) {
+		func(rc *RecordCollection) (FieldMap, []FieldNamer) {
 			if !rc.Get("WriteDate").(dates.DateTime).IsZero() {
 				return FieldMap{"LastUpdate": rc.Get("WriteDate").(dates.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
 			}
@@ -96,7 +96,7 @@ func declareBaseComputeMethods() {
 
 	model.AddMethod("ComputeDisplayName",
 		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
-		func(rc RecordCollection) (FieldMap, []FieldNamer) {
+		func(rc *RecordCollection) (FieldMap, []FieldNamer) {
 			return FieldMap{"DisplayName": rc.Call("NameGet")}, []FieldNamer{FieldName("DisplayName")}
 		}).AllowGroup(security.GroupEveryone)
 
@@ -109,13 +109,13 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
-		func(rc RecordCollection, data FieldMapper) RecordCollection {
+		func(rc *RecordCollection, data FieldMapper) *RecordCollection {
 			return rc.create(data)
 		})
 
 	commonMixin.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
-		func(rc RecordCollection, fields []string) []FieldMap {
+		func(rc *RecordCollection, fields []string) []FieldMap {
 			var res []FieldMap
 			// Check if we have id in fields, and add it otherwise
 			fields = addIDIfNotPresent(fields)
@@ -136,7 +136,7 @@ func declareCRUDMethods() {
 		i.e. "User.Profile.Age" or "user_id.profile_id.age".
 		If no fields are given, all DB columns of the RecordCollection's
 		model are retrieved.`,
-		func(rc RecordCollection, fields ...string) RecordCollection {
+		func(rc *RecordCollection, fields ...string) *RecordCollection {
 			return rc.Load(fields...)
 		})
 
@@ -144,20 +144,20 @@ func declareCRUDMethods() {
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
-		func(rc RecordCollection, data FieldMapper, fieldsToUnset ...FieldNamer) bool {
+		func(rc *RecordCollection, data FieldMapper, fieldsToUnset ...FieldNamer) bool {
 			return rc.update(data, fieldsToUnset...)
 		})
 
 	commonMixin.AddMethod("Unlink",
 		`Unlink deletes the given records in the database.`,
-		func(rc RecordCollection) int64 {
+		func(rc *RecordCollection) int64 {
 			return rc.unlink()
 		})
 
 	commonMixin.AddMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
-		func(rc RecordCollection, overrides FieldMapper, fieldsToUnset ...FieldNamer) RecordCollection {
+		func(rc *RecordCollection, overrides FieldMapper, fieldsToUnset ...FieldNamer) *RecordCollection {
 			rc.EnsureOne()
 
 			var fields []string
@@ -190,7 +190,7 @@ func declareRecordSetMethods() {
 
 	commonMixin.AddMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
-		func(rc RecordCollection) string {
+		func(rc *RecordCollection) string {
 			if _, nameExists := rc.model.fields.get("Name"); nameExists {
 				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}) {
 					rc.Load("Name")
@@ -213,7 +213,7 @@ func declareRecordSetMethods() {
 		The string, help, and selection (if present) attributes are translated.
 
 		The result map is indexed by the fields JSON names.`,
-		func(rc RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
+		func(rc *RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
 			lang := rc.Env().Context().GetString("lang")
 			res := make(map[string]*FieldInfo)
 			fields := args.Fields
@@ -254,7 +254,7 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("FieldGet",
 		`FieldGet returns the definition of the given field.
 		The string, help, and selection (if present) attributes are translated.`,
-		func(rc RecordCollection, field FieldNamer) *FieldInfo {
+		func(rc *RecordCollection, field FieldNamer) *FieldInfo {
 			args := FieldsGetArgs{
 				Fields: []FieldName{field.FieldName()},
 			}
@@ -264,7 +264,7 @@ func declareRecordSetMethods() {
 
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
-		func(rc RecordCollection) FieldMap {
+		func(rc *RecordCollection) FieldMap {
 			res := make(FieldMap)
 			rc.applyDefaults(&res)
 			rc.model.convertValuesToFieldType(&res)
@@ -281,7 +281,7 @@ func declareRecordSetSpecificMethods() {
         until a top-level record is found.
 
         It returns true if no loop was found, false otherwise`,
-		func(rc RecordCollection) bool {
+		func(rc *RecordCollection) bool {
 			if _, exists := rc.model.fields.get("Parent"); !exists {
 				// No Parent field in model, so no loop
 				return true
@@ -309,7 +309,7 @@ func declareRecordSetSpecificMethods() {
 	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified according to each field's Onchange
 		method in the pseudo-record given as params.Values`,
-		func(rc RecordCollection, params OnchangeParams) OnchangeResult {
+		func(rc *RecordCollection, params OnchangeParams) OnchangeResult {
 			var fields []FieldNamer
 			values := params.Values
 			rc.model.convertValuesToFieldType(&values)
@@ -354,20 +354,20 @@ func declareSearchMethods() {
 	commonMixin.AddMethod("Search",
 		`Search returns a new RecordSet filtering on the current one with the
 		additional given Condition`,
-		func(rc RecordCollection, cond *Condition) RecordCollection {
+		func(rc *RecordCollection, cond *Condition) *RecordCollection {
 			return rc.Search(cond)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Browse",
 		`Browse returns a new RecordSet with only the records with the given ids.
 		Note that this function is just a shorcut for Search on a list of ids.`,
-		func(rc RecordCollection, ids []int64) RecordCollection {
+		func(rc *RecordCollection, ids []int64) *RecordCollection {
 			return rc.Call("Search", rc.Model().Field("ID").In(ids)).(RecordSet).Collection()
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("SearchCount",
 		`SearchCount fetch from the database the number of records that match the RecordSet conditions`,
-		func(rc RecordCollection) int {
+		func(rc *RecordCollection) int {
 			return rc.SearchCount()
 		}).AllowGroup(security.GroupEveryone)
 
@@ -375,41 +375,39 @@ func declareSearchMethods() {
 		`Fetch query the database with the current filter and returns a RecordSet
 		with the queries ids.
 
-		Fetch is lazy and only return ids. Use Load() instead if you want to fetch all fields.
-
-		IMPORTANT: Fetch does NOT load the receiver which remains unloaded.`,
-		func(rc RecordCollection) RecordCollection {
+		Fetch is lazy and only return ids. Use Load() instead if you want to fetch all fields.`,
+		func(rc *RecordCollection) *RecordCollection {
 			return rc.Fetch()
 		}).AllowGroup(security.GroupEveryone)
 
-	commonMixin.AddMethod("FetchAll",
-		`FetchAll returns a RecordSet with all items of the table, regardless of the
+	commonMixin.AddMethod("SearchAll",
+		`SearchAll returns a RecordSet with all items of the table, regardless of the
 		current RecordSet query. It is mainly meant to be used on an empty RecordSet`,
-		func(rc RecordCollection) RecordCollection {
-			return rc.FetchAll()
+		func(rc *RecordCollection) *RecordCollection {
+			return rc.SearchAll()
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
-		func(rc RecordCollection, exprs ...FieldNamer) RecordCollection {
+		func(rc *RecordCollection, exprs ...FieldNamer) *RecordCollection {
 			return rc.GroupBy(exprs...)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Aggregates",
 		`Aggregates returns the result of this RecordSet query, which must by a grouped query.`,
-		func(rc RecordCollection, exprs ...FieldNamer) []GroupAggregateRow {
+		func(rc *RecordCollection, exprs ...FieldNamer) []GroupAggregateRow {
 			return rc.Aggregates(exprs...)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Limit",
 		`Limit returns a new RecordSet with only the first 'limit' records.`,
-		func(rc RecordCollection, limit int) RecordCollection {
+		func(rc *RecordCollection, limit int) *RecordCollection {
 			return rc.Limit(limit)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Offset",
 		`Offset returns a new RecordSet with only the records starting at offset`,
-		func(rc RecordCollection, offset int) RecordCollection {
+		func(rc *RecordCollection, offset int) *RecordCollection {
 			return rc.Offset(offset)
 		}).AllowGroup(security.GroupEveryone)
 
@@ -418,14 +416,14 @@ func declareSearchMethods() {
 		Each expression contains a field name and optionally one of "asc" or "desc", such as:
 
 		rs.OrderBy("Company", "Name desc")`,
-		func(rc RecordCollection, exprs ...string) RecordCollection {
+		func(rc *RecordCollection, exprs ...string) *RecordCollection {
 			return rc.OrderBy(exprs...)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
-		func(rc RecordCollection, other RecordSet) RecordCollection {
+		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Union(other)
 		}).AllowGroup(security.GroupEveryone)
 
@@ -433,14 +431,14 @@ func declareSearchMethods() {
 		`Subtract returns a RecordSet with the Records that are in this
 		RecordCollection but not in the given 'other' one.
 		The result is guaranteed to be a set of unique records.`,
-		func(rc RecordCollection, other RecordSet) RecordCollection {
+		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Subtract(other)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Equals",
 		`Equals returns true if this RecordSet is the same as other
 		i.e. they are of the same model and have the same ids`,
-		func(rc RecordCollection, other RecordSet) bool {
+		func(rc *RecordCollection, other RecordSet) bool {
 			return rc.Equals(other)
 		}).AllowGroup(security.GroupEveryone)
 }
@@ -450,14 +448,14 @@ func declareEnvironmentMethods() {
 
 	commonMixin.AddMethod("WithEnv",
 		`WithEnv returns a copy of the current RecordSet with the given Environment.`,
-		func(rc RecordCollection, env Environment) RecordCollection {
+		func(rc *RecordCollection, env Environment) *RecordCollection {
 			return rc.WithEnv(env)
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("WithContext",
 		`WithContext returns a copy of the current RecordSet with
 		its context extended by the given key and value.`,
-		func(rc RecordCollection, key string, value interface{}) RecordCollection {
+		func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			rc.env.callStack = rc.env.callStack[1:]
@@ -467,7 +465,7 @@ func declareEnvironmentMethods() {
 	commonMixin.AddMethod("WithNewContext",
 		`WithNewContext returns a copy of the current RecordSet with its context
 	 	replaced by the given one.`,
-		func(rc RecordCollection, context *types.Context) RecordCollection {
+		func(rc *RecordCollection, context *types.Context) *RecordCollection {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			rc.env.callStack = rc.env.callStack[1:]
@@ -477,7 +475,7 @@ func declareEnvironmentMethods() {
 	commonMixin.AddMethod("Sudo",
 		`Sudo returns a new RecordSet with the given userID
 	 	or the superuser ID if not specified`,
-		func(rc RecordCollection, userID ...int64) RecordCollection {
+		func(rc *RecordCollection, userID ...int64) *RecordCollection {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			rc.env.callStack = rc.env.callStack[1:]

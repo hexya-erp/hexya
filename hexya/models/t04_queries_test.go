@@ -42,7 +42,7 @@ func TestConditions(t *testing.T) {
 					So(args, ShouldContain, "foo")
 				})
 				Convey("Simple query with args inflation", func() {
-					getUserID := func(rc RecordCollection) int64 {
+					getUserID := func(rc *RecordCollection) int64 {
 						return rc.Env().Uid()
 					}
 					rs2 := env.Pool("User").Search(rs.Model().Field("Nums").Equals(getUserID))
@@ -85,19 +85,19 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"   ORDER BY id `)
 				})
 				Convey("Testing query with LIMIT clause", func() {
-					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordCollection).Load()
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordSet).Collection().Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 `)
 				})
 				Convey("Testing query with LIMIT and OFFSET clauses", func() {
-					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordCollection).Call("Offset", 2).(RecordCollection).Load()
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordSet).Collection().Call("Offset", 2).(RecordSet).Collection().Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 OFFSET 2`)
 				})
 				Convey("Testing query with ORDER BY clauses", func() {
-					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("OrderBy", []string{"Email", "ID"}).(RecordCollection).Load()
+					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("OrderBy", []string{"Email", "ID"}).(RecordSet).Collection().Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".email AS email, "user".id AS id FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY "user".email , "user".id  `)

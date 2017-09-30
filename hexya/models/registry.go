@@ -398,18 +398,18 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 }
 
 // Create creates a new record in this model with the given data.
-func (m *Model) Create(env Environment, data interface{}) RecordCollection {
+func (m *Model) Create(env Environment, data interface{}) *RecordCollection {
 	return env.Pool(m.name).Call("Create", data).(RecordSet).Collection()
 }
 
 // Search searches the database and returns records matching the given condition.
-func (m *Model) Search(env Environment, cond *Condition) RecordCollection {
+func (m *Model) Search(env Environment, cond *Condition) *RecordCollection {
 	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
 // Browse returns a new RecordSet with the records with the given ids.
 // Note that this function is just a shorcut for Search on a list of ids.
-func (m *Model) Browse(env Environment, ids []int64) RecordCollection {
+func (m *Model) Browse(env Environment, ids []int64) *RecordCollection {
 	return env.Pool(m.name).Call("Browse", ids).(RecordSet).Collection()
 }
 

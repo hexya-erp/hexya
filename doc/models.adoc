@@ -328,7 +328,7 @@ valid field name and optionally a direction.
 
 [source,go]
 ----
-users := pool.Users().NewSet(env).FetchAll().OrderBy("Name ASC", "Email DESC", "ID")
+users := pool.Users().NewSet(env).SearchAll().OrderBy("Name ASC", "Email DESC", "ID")
 ----
 
 ==== RecordSet Operations

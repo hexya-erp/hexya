@@ -34,7 +34,7 @@ func TestModelDeclaration(t *testing.T) {
 		viewModel := NewManualModel("UserView")
 
 		user.AddMethod("PrefixedUser", "",
-			func(rc RecordCollection, prefix string) []string {
+			func(rc *RecordCollection, prefix string) []string {
 				var res []string
 				for _, u := range rc.Records() {
 					res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("Name")))
@@ -43,7 +43,7 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.Methods().MustGet("PrefixedUser").Extend("",
-			func(rc RecordCollection, prefix string) []string {
+			func(rc *RecordCollection, prefix string) []string {
 				res := rc.Super().Call("PrefixedUser", prefix).([]string)
 				for i, u := range rc.Records() {
 					email := u.Get("Email").(string)
@@ -53,7 +53,7 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("DecorateEmail", "",
-			func(rc RecordCollection, email string) string {
+			func(rc *RecordCollection, email string) string {
 				if rc.Env().Context().HasKey("use_square_brackets") {
 					return fmt.Sprintf("[%s]", email)
 				}
@@ -61,93 +61,92 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.Methods().MustGet("DecorateEmail").Extend("",
-			func(rc RecordCollection, email string) string {
-				rSet := rc
+			func(rc *RecordCollection, email string) string {
 				if rc.Env().Context().HasKey("use_double_square") {
-					rSet = rSet.
-						Call("WithContext", "use_square_brackets", true).(RecordCollection).
+					rc = rc.
+						Call("WithContext", "use_square_brackets", true).(*RecordCollection).
 						WithContext("fake_key", true)
 				}
-				res := rSet.Super().Call("DecorateEmail", email).(string)
+				res := rc.Super().Call("DecorateEmail", email).(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 
 		user.AddMethod("ComputeDecoratedName", "",
-			func(rc RecordCollection) (FieldMap, []FieldNamer) {
+			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 				return res, []FieldNamer{FieldName("DecoratedName")}
 			})
 
 		user.AddMethod("ComputeAge", "",
-			func(rc RecordCollection) (FieldMap, []FieldNamer) {
+			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
-				res["Age"] = rc.Get("Profile").(RecordCollection).Get("Age").(int16)
+				res["Age"] = rc.Get("Profile").(*RecordCollection).Get("Age").(int16)
 				return res, []FieldNamer{}
 			})
 
 		user.AddMethod("InverseSetAge", "",
-			func(rc RecordCollection, vals FieldMapper) {
+			func(rc *RecordCollection, vals FieldMapper) {
 				value, ok := vals.FieldMap(FieldName("Age"))["Age"]
 				if !ok {
 					return
 				}
-				rc.Get("Profile").(RecordCollection).Set("Age", value)
+				rc.Get("Profile").(*RecordCollection).Set("Age", value)
 			})
 
 		user.AddMethod("UpdateCity", "",
-			func(rc RecordCollection, value string) {
-				rc.Get("Profile").(RecordCollection).Set("City", value)
+			func(rc *RecordCollection, value string) {
+				rc.Get("Profile").(*RecordCollection).Set("City", value)
 			})
 
 		activeMI.AddMethod("IsActivated", "",
-			func(rc RecordCollection) bool {
+			func(rc *RecordCollection) bool {
 				return rc.Get("Active").(bool)
 			})
 
 		addressMI.AddMethod("SayHello", "",
-			func(rc RecordCollection) string {
+			func(rc *RecordCollection) string {
 				return "Hello !"
 			})
 
 		printAddress := addressMI.AddEmptyMethod("PrintAddress")
 		printAddress.DeclareMethod("",
-			func(rc RecordCollection) string {
+			func(rc *RecordCollection) string {
 				return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
 			})
 
 		profile.AddMethod("PrintAddress", "",
-			func(rc RecordCollection) string {
+			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
 			})
 
 		addressMI.Methods().MustGet("PrintAddress").Extend("",
-			func(rc RecordCollection) string {
+			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("<%s>", res)
 			})
 
 		profile.Methods().MustGet("PrintAddress").Extend("",
-			func(rc RecordCollection) string {
+			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 
 		post.Methods().MustGet("Create").Extend("",
-			func(rc RecordCollection, data FieldMapper) RecordCollection {
+			func(rc *RecordCollection, data FieldMapper) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
 
 		post.Methods().MustGet("WithContext").Extend("",
-			func(rc RecordCollection, key string, value interface{}) RecordCollection {
-				return rc.Super().Call("WithContext", key, value).(RecordCollection)
+			func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
+				return rc.Super().Call("WithContext", key, value).(*RecordCollection)
 			})
 
 		tag.AddMethod("CheckRate",
 			`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
-			func(rc RecordCollection) {
+			func(rc *RecordCollection) {
 				if rc.Get("Rate").(float32) < 0 || rc.Get("Rate").(float32) > 10 {
 					log.Panic("Tag rate must be between 0 and 10")
 				}
@@ -155,7 +154,7 @@ func TestModelDeclaration(t *testing.T) {
 
 		tag.AddMethod("CheckNameDescription",
 			`CheckNameDescription checks that the description of a tag is not equal to its name`,
-			func(rc RecordCollection) {
+			func(rc *RecordCollection) {
 				if rc.Get("Name").(string) == rc.Get("Description").(string) {
 					log.Panic("Tag name and description must be different")
 				}

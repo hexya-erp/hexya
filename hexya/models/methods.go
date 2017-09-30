@@ -196,18 +196,19 @@ func copyMethod(m *Model, method *Method) *Method {
 // func(RecordCollection, args...) function Value suitable for use in a
 // methodLayer.
 func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
-	wrapperType := reflect.TypeOf(func(RecordCollection, ...interface{}) []interface{} { return nil })
+	wrapperType := reflect.TypeOf(func(*RecordCollection, ...interface{}) []interface{} { return nil })
 	if fnctVal.Type() == wrapperType {
 		// fnctVal is already wrapped, we just return it
 		return fnctVal
 	}
-	methodLayerFunction := func(rc RecordCollection, args ...interface{}) []interface{} {
+	methodLayerFunction := func(rc *RecordCollection, args ...interface{}) []interface{} {
 		argZeroType := fnctVal.Type().In(0)
 		argsVals := make([]reflect.Value, len(args)+1)
 		argsVals[0] = reflect.New(argZeroType).Elem()
-		if argZeroType == reflect.TypeOf(RecordCollection{}) {
+		switch argZeroType {
+		case reflect.TypeOf(new(RecordCollection)):
 			argsVals[0].Set(reflect.ValueOf(rc))
-		} else {
+		default:
 			argsVals[0].Field(0).Set(reflect.ValueOf(rc))
 		}
 		for i, arg := range args {
@@ -320,17 +321,17 @@ func (m *Method) Extend(doc string, fnct interface{}) *Method {
 // Two types match if :
 // - both types are the same
 // - type2 implements type1
-// - if one type is RecordCollection and the second one implements the
-// RecordSet interface.
+// - if one type is a pointer to a RecordCollection and the second
+// one implements the RecordSet interface.
 // - if one type is a FieldMap and the other implements FieldMapper
 func checkTypesMatch(type1, type2 reflect.Type) bool {
 	if type1 == type2 {
 		return true
 	}
-	if type1 == reflect.TypeOf(RecordCollection{}) && type2.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+	if type1 == reflect.TypeOf(new(RecordCollection)) && type2.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
 		return true
 	}
-	if type2 == reflect.TypeOf(RecordCollection{}) && type1.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+	if type2 == reflect.TypeOf(new(RecordCollection)) && type1.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
 		return true
 	}
 	if type1 == reflect.TypeOf(FieldMap{}) && type2.Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()) {

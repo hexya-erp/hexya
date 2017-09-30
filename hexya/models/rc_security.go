@@ -18,7 +18,7 @@ import "github.com/hexya-erp/hexya/hexya/models/security"
 
 // addRecordRuleConditions adds the RecordRule conditions on the query of this
 // RecordSet for the user with the given uid and for the given perm Permission.
-func (rc RecordCollection) addRecordRuleConditions(uid int64, perm security.Permission) RecordCollection {
+func (rc *RecordCollection) addRecordRuleConditions(uid int64, perm security.Permission) *RecordCollection {
 	if rc.filtered {
 		return rc
 	}
@@ -43,5 +43,6 @@ func (rc RecordCollection) addRecordRuleConditions(uid int64, perm security.Perm
 		rSet = rSet.Search(groupCondition)
 	}
 	rSet.filtered = true
-	return rSet
+	*rc = *rSet
+	return rc
 }

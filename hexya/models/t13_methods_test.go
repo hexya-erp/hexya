@@ -49,7 +49,7 @@ func TestComputedNonStoredFields(t *testing.T) {
 				So(users.Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
 			Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
-				users := env.Pool("User").OrderBy("Name").Call("Fetch").(RecordCollection)
+				users := env.Pool("User").OrderBy("Name").Call("Fetch").(RecordSet).Collection()
 				So(users.Len(), ShouldEqual, 3)
 				userRecs := users.Records()
 				So(userRecs[0].Get("DecoratedName"), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
@@ -80,11 +80,11 @@ func TestComputedStoredFields(t *testing.T) {
 			Convey("It's Jane's birthday, change her age, commit and check", func() {
 				jane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 				So(jane.Get("Name"), ShouldEqual, "Jane A. Smith")
-				So(jane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 12345)
-				jane.Get("Profile").(RecordCollection).Set("Age", 24)
+				So(jane.Get("Profile").(RecordSet).Collection().Get("Money"), ShouldEqual, 12345)
+				jane.Get("Profile").(RecordSet).Collection().Set("Age", 24)
 
 				jane.Load()
-				jane.Get("Profile").(RecordCollection).Load()
+				jane.Get("Profile").(RecordSet).Collection().Load()
 				So(jane.Get("Age"), ShouldEqual, 24)
 			})
 			Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
@@ -134,22 +134,22 @@ func TestRelatedNonStoredFields(t *testing.T) {
 			Convey("Checking that PMoney is correct after update of Profile", func() {
 				userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 				So(userJane.Get("PMoney"), ShouldEqual, 12345)
-				userJane.Get("Profile").(RecordCollection).Set("Money", 54321)
+				userJane.Get("Profile").(RecordSet).Collection().Set("Money", 54321)
 				So(userJane.Get("PMoney"), ShouldEqual, 54321)
 			})
 			Convey("Checking that we can update PMoney directly", func() {
 				userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 				So(userJane.Get("PMoney"), ShouldEqual, 12345)
 				userJane.Set("PMoney", 67890)
-				So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 67890)
+				So(userJane.Get("Profile").(RecordSet).Collection().Get("Money"), ShouldEqual, 67890)
 				So(userJane.Get("PMoney"), ShouldEqual, 67890)
 				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
 				So(userWill.Get("PMoney"), ShouldEqual, 5100)
 
 				userJane.Union(userWill).Set("PMoney", 100)
-				So(userJane.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 100)
+				So(userJane.Get("Profile").(RecordSet).Collection().Get("Money"), ShouldEqual, 100)
 				So(userJane.Get("PMoney"), ShouldEqual, 100)
-				So(userWill.Get("Profile").(RecordCollection).Get("Money"), ShouldEqual, 100)
+				So(userWill.Get("Profile").(RecordSet).Collection().Get("Money"), ShouldEqual, 100)
 				So(userWill.Get("PMoney"), ShouldEqual, 100)
 			})
 			Convey("Checking that we can search PMoney directly", func() {
@@ -175,15 +175,15 @@ func TestEmbeddedModels(t *testing.T) {
 				postRs := env.Pool("Post").Call("Create", FieldMap{
 					"Title":   "This is my title",
 					"Content": "Here we have some content",
-				}).(RecordCollection)
+				}).(RecordSet).Collection()
 				users.Search(users.Model().Field("Email").Equals("jane.smith@example.com")).Set("LastPost", postRs)
 			})
 			Convey("Checking that we can access jane's post directly", func() {
 				userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 				So(userJane.Get("Title"), ShouldEqual, "This is my title")
 				So(userJane.Get("Content"), ShouldEqual, "Here we have some content")
-				So(userJane.Get("LastPost").(RecordCollection).Get("Title"), ShouldEqual, "This is my title")
-				So(userJane.Get("LastPost").(RecordCollection).Get("Content"), ShouldEqual, "Here we have some content")
+				So(userJane.Get("LastPost").(RecordSet).Collection().Get("Title"), ShouldEqual, "This is my title")
+				So(userJane.Get("LastPost").(RecordSet).Collection().Get("Content"), ShouldEqual, "Here we have some content")
 			})
 		})
 	})
@@ -194,7 +194,7 @@ func TestMixedInModels(t *testing.T) {
 		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			Convey("Checking that mixed in functions are correctly inherited", func() {
-				janeProfile := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com")).Get("Profile").(RecordCollection)
+				janeProfile := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com")).Get("Profile").(RecordSet).Collection()
 				So(janeProfile.Call("PrintAddress"), ShouldEqual, "[<165 5th Avenue, 0305 New York>, USA]")
 				So(janeProfile.Call("SayHello"), ShouldEqual, "Hello !")
 			})
@@ -203,7 +203,7 @@ func TestMixedInModels(t *testing.T) {
 				userJane.Set("Active", true)
 				So(userJane.Get("Active").(bool), ShouldEqual, true)
 				So(userJane.Call("IsActivated").(bool), ShouldEqual, true)
-				janeProfile := userJane.Get("Profile").(RecordCollection)
+				janeProfile := userJane.Get("Profile").(RecordSet).Collection()
 				janeProfile.Set("Active", true)
 				So(janeProfile.Get("Active").(bool), ShouldEqual, true)
 				So(janeProfile.Call("IsActivated").(bool), ShouldEqual, true)

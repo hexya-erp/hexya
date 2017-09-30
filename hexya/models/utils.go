@@ -161,7 +161,7 @@ func jsonizePath(mi *Model, path string) string {
 }
 
 // MapToStruct populates the given structPtr with the values in fMap.
-func MapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
+func MapToStruct(rc *RecordCollection, structPtr interface{}, fMap FieldMap) {
 	fMap = fMap.JSONized(rc.model)
 	fMap = nestMap(fMap)
 	rc.model.convertValuesToFieldType(&fMap)
@@ -182,7 +182,7 @@ func MapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 		mValue, mValExists := fMap[fi.json]
 		var convertedValue reflect.Value
 		if isRecordSet {
-			var relRC RecordCollection
+			var relRC *RecordCollection
 			switch r := mValue.(type) {
 			case nil, *interface{}:
 				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name)
@@ -191,7 +191,7 @@ func MapToStruct(rc RecordCollection, structPtr interface{}, fMap FieldMap) {
 			case []int64:
 				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
 			}
-			if sf.Type == reflect.TypeOf(RecordCollection{}) {
+			if sf.Type == reflect.TypeOf(new(RecordCollection)) {
 				convertedValue = reflect.ValueOf(relRC)
 			} else {
 				// We have a generated RecordSet Type

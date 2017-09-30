@@ -22,7 +22,7 @@ import "github.com/hexya-erp/hexya/hexya/models/security"
 //
 // This method reads result from cache if available. If not, the computation is carried
 // out and the result is stored in cache.
-func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
+func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
 	rc.EnsureOne()
 	for _, fInfo := range rc.model.fields.getComputedFields(fields...) {
 		if !checkFieldPermission(fInfo, rc.env.uid, security.Read) {
@@ -50,7 +50,7 @@ func (rc RecordCollection) computeFieldValues(params *FieldMap, fields ...string
 // processTriggers execute computed fields recomputation (for stored fields) or
 // invalidation (for non stored fields) based on the data of each fields 'Depends'
 // attribute.
-func (rc RecordCollection) processTriggers(fMap FieldMap) {
+func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 	if rc.Env().Context().GetBool("hexya_no_recompute_stored_fields") {
 		return
 	}
@@ -67,11 +67,11 @@ func (rc RecordCollection) processTriggers(fMap FieldMap) {
 	}
 
 	// Compute all that must be computed and store the values
-	rSet := rc.Fetch()
+	rc.Fetch()
 	for cData := range toUpdate {
-		recs := rSet
+		recs := rc
 		if cData.path != "" {
-			recs = rc.Env().Pool(cData.model.name).Search(rSet.Model().Field(cData.path).In(rSet.Ids()))
+			recs = rc.Env().Pool(cData.model.name).Search(rc.Model().Field(cData.path).In(rc.Ids()))
 		}
 		for _, rec := range recs.Records() {
 			if !cData.stored {
@@ -110,7 +110,7 @@ func (rc RecordCollection) processTriggers(fMap FieldMap) {
 // processInverseMethods executes inverse methods of fields in the given
 // FieldMap if it exists. It returns a new FieldMap to be used by Create/Write
 // instead of the original one.
-func (rc RecordCollection) processInverseMethods(fMap FieldMap) {
+func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
 	for fieldName := range fMap {
 		fi := rc.model.getRelatedFieldInfo(fieldName)
 		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {

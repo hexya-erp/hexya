@@ -339,7 +339,7 @@ func (c *Condition) substituteExprs(mi *Model, substs map[string][]string) {
 
 // substituteChildOfOperator recursively replaces in the condition the
 // predicates with ChildOf operator by the predicates to actually execute.
-func (c *Condition) substituteChildOfOperator(rc RecordCollection) {
+func (c *Condition) substituteChildOfOperator(rc *RecordCollection) {
 	for i, p := range c.predicates {
 		if p.cond != nil {
 			p.cond.substituteChildOfOperator(rc)
@@ -362,7 +362,7 @@ func (c *Condition) substituteChildOfOperator(rc RecordCollection) {
 
 // evaluateArgFunctions recursively evaluates all args in the queries that are
 // functions and substitute it with the result.
-func (c *Condition) evaluateArgFunctions(rc RecordCollection) {
+func (c *Condition) evaluateArgFunctions(rc *RecordCollection) {
 	for i, p := range c.predicates {
 		if p.cond != nil {
 			p.cond.evaluateArgFunctions(rc)

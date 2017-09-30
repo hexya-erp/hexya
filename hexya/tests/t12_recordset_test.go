@@ -231,7 +231,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 
 			Convey("Testing search on manual model", func() {
-				userViews := pool.UserView().NewSet(env).FetchAll()
+				userViews := pool.UserView().NewSet(env).SearchAll()
 				So(userViews.Len(), ShouldEqual, 3)
 				userViews = pool.UserView().NewSet(env).OrderBy("Name")
 				So(userViews.Len(), ShouldEqual, 3)
@@ -279,7 +279,7 @@ func TestSearchRecordSet(t *testing.T) {
 				pool.User().Fields().Age().GrantAccess(security.GroupEveryone, security.Read)
 			})
 			Convey("Checking record rules", func() {
-				users := pool.User().NewSet(env).FetchAll()
+				users := pool.User().NewSet(env).SearchAll()
 				So(users.Len(), ShouldEqual, 3)
 
 				rule := models.RecordRule{
@@ -298,7 +298,7 @@ func TestSearchRecordSet(t *testing.T) {
 				}
 				pool.User().AddRecordRule(&notUsedRule)
 
-				users = pool.User().NewSet(env).FetchAll()
+				users = pool.User().NewSet(env).SearchAll()
 				So(users.Len(), ShouldEqual, 2)
 				So(users.Records()[0].Name(), ShouldBeIn, []string{"Jane Smith", "John Smith"})
 				pool.User().RemoveRecordRule("jOnly")
@@ -523,7 +523,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				pool.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Write)
 			})
 			Convey("Checking record rules", func() {
-				userJane := pool.User().NewSet(env).FetchAll()
+				userJane := pool.User().NewSet(env).SearchAll()
 				So(userJane.Len(), ShouldEqual, 3)
 
 				rule := models.RecordRule{

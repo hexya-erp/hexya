@@ -142,6 +142,6 @@ func SimulateInNewEnvironment(uid int64, fnct func(Environment)) (rError error) 
 }
 
 // Pool returns an empty RecordCollection for the given modelName
-func (env Environment) Pool(modelName string) RecordCollection {
+func (env Environment) Pool(modelName string) *RecordCollection {
 	return newRecordCollection(env, modelName)
 }

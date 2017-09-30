@@ -25,7 +25,7 @@ import (
 // - a new RecordCollection with substitution of related fields in the query.
 //
 // This function removes duplicates and change all field names to their json names.
-func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, RecordCollection) {
+func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, *RecordCollection) {
 	// Create a keys map with our fields
 	keys := make(map[string]bool)
 	for _, field := range fields {
@@ -82,7 +82,7 @@ func (rc RecordCollection) substituteRelatedFields(fields []string) ([]string, R
 
 // substituteRelatedInPath recursively substitutes path for its related value.
 // If path is not a related field, it is returned as is.
-func (rc RecordCollection) substituteRelatedInPath(path string) string {
+func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 	fi := rc.model.getRelatedFieldInfo(path)
 	if !fi.isRelatedField() {
 		return path

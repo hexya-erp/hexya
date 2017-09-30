@@ -22,7 +22,7 @@ import (
 
 // Call calls the given method name methName on the given RecordCollection
 // with the given arguments and returns (only) the first result as interface{}.
-func (rc RecordCollection) Call(methName string, args ...interface{}) interface{} {
+func (rc *RecordCollection) Call(methName string, args ...interface{}) interface{} {
 	res := rc.CallMulti(methName, args...)
 	if len(res) == 0 {
 		return nil
@@ -32,12 +32,11 @@ func (rc RecordCollection) Call(methName string, args ...interface{}) interface{
 
 // CallMulti calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as []interface{}.
-func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
+func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
 	methInfo, ok := rc.model.methods.get(methName)
 	if !ok {
 		log.Panic("Unknown method in model", "method", methName, "model", rc.model.name)
 	}
-	rSet := rc
 
 	methLayer := methInfo.topLayer
 	if rc.env.super != nil {
@@ -46,11 +45,11 @@ func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []int
 		}
 		methLayer = rc.env.super
 	}
-	rc.env.super = nil
 	newEnv := rc.Env()
 	newEnv.callStack = append([]*methodLayer{methLayer}, newEnv.callStack...)
+	newEnv.super = nil
 
-	rSet = rSet.WithEnv(newEnv)
+	rSet := rc.WithEnv(newEnv)
 	return rSet.callMulti(methLayer, args...)
 }
 
@@ -69,7 +68,7 @@ func (rc RecordCollection) CallMulti(methName string, args ...interface{}) []int
 // Calls to a different method than the current method will call its next layer only
 // if the current method has been called from a layer of the other method. Otherwise,
 // it will be the same as calling the other method directly.
-func (rc RecordCollection) Super() RecordCollection {
+func (rc *RecordCollection) Super() *RecordCollection {
 	if len(rc.env.callStack) == 0 {
 		log.Panic("Empty call stack", "model", rc.model.name)
 	}
@@ -80,12 +79,13 @@ func (rc RecordCollection) Super() RecordCollection {
 		// No parent
 		log.Panic("Called Super() on a base method", "model", rc.model.name, "method", methInfo.name)
 	}
-	rc.env.super = methLayer
-	return rc
+	newEnv := rc.Env()
+	newEnv.super = methLayer
+	return rc.WithEnv(newEnv)
 }
 
 // MethodType returns the type of the method given by methName
-func (rc RecordCollection) MethodType(methName string) reflect.Type {
+func (rc *RecordCollection) MethodType(methName string) reflect.Type {
 	methInfo, ok := rc.model.methods.get(methName)
 	if !ok {
 		log.Panic("Unknown method in model", "model", rc.model.name, "method", methName)
@@ -94,7 +94,7 @@ func (rc RecordCollection) MethodType(methName string) reflect.Type {
 }
 
 // callMulti is a wrapper around reflect.Value.Call() to use with interface{} type.
-func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
+func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
 	rc.CheckExecutionPermission(methLayer.method)
 	inVals := make([]reflect.Value, len(args)+1)
 	inVals[0] = reflect.ValueOf(rc)
@@ -116,7 +116,7 @@ func (rc RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}
 //
 // If dontPanic is false, this function will panic, otherwise it returns true
 // if the user has the execution permission and false otherwise.
-func (rc RecordCollection) CheckExecutionPermission(method *Method, dontPanic ...bool) bool {
+func (rc *RecordCollection) CheckExecutionPermission(method *Method, dontPanic ...bool) bool {
 	var caller *Method
 	if len(rc.env.callStack) > 1 {
 		caller = rc.env.callStack[1].method

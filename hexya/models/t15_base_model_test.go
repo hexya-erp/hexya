@@ -32,7 +32,7 @@ func TestBaseModelMethods(t *testing.T) {
 				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {
-				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordCollection)
+				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordSet).Collection()
 				res := userJane.Call("Read", []string{"Name", "Age", "Posts", "Profile"})
 				So(res, ShouldHaveLength, 1)
 				fMap := res.([]FieldMap)[0]
@@ -42,22 +42,22 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fMap, ShouldContainKey, "Age")
 				So(fMap["Age"], ShouldEqual, 24)
 				So(fMap, ShouldContainKey, "Posts")
-				So(fMap["Posts"].(RecordCollection).Ids(), ShouldHaveLength, 2)
+				So(fMap["Posts"].(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
 				So(fMap, ShouldContainKey, "Profile")
-				So(fMap["Profile"].(RecordCollection).Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordCollection).Get("ID"))
+				So(fMap["Profile"].(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
 				So(fMap, ShouldContainKey, "id")
 				So(fMap["id"], ShouldEqual, userJane.Ids()[0])
 			})
 			Convey("Copy", func() {
 				userJane.Call("Write", FieldMap{"Password": "Jane's Password"})
-				userJaneCopy := userJane.Call("Copy", FieldMap{"Name": "Jane's Copy", "Email2": "js@example.com"}).(RecordCollection)
+				userJaneCopy := userJane.Call("Copy", FieldMap{"Name": "Jane's Copy", "Email2": "js@example.com"}).(RecordSet).Collection()
 				So(userJaneCopy.Get("Name"), ShouldEqual, "Jane's Copy")
 				So(userJaneCopy.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				So(userJaneCopy.Get("Email2"), ShouldEqual, "js@example.com")
 				So(userJaneCopy.Get("Password"), ShouldBeBlank)
 				So(userJaneCopy.Get("Age"), ShouldEqual, 24)
 				So(userJaneCopy.Get("Nums"), ShouldEqual, 2)
-				So(userJaneCopy.Get("Posts").(RecordCollection).Len(), ShouldEqual, 0)
+				So(userJaneCopy.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 0)
 			})
 			Convey("FieldGet and FieldsGet", func() {
 				fInfo := userJane.Call("FieldGet", FieldName("Name")).(*FieldInfo)
@@ -69,7 +69,7 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("NameGet", func() {
 				So(userJane.Get("DisplayName"), ShouldEqual, "Jane A. Smith")
-				profile := userJane.Get("Profile").(RecordCollection)
+				profile := userJane.Get("Profile").(RecordSet).Collection()
 				So(profile.Get("DisplayName"), ShouldEqual, fmt.Sprintf("Profile(%d)", profile.Get("ID")))
 			})
 			Convey("DefaultGet", func() {
@@ -94,17 +94,17 @@ func TestBaseModelMethods(t *testing.T) {
 				So(userJane.Call("CheckRecursion").(bool), ShouldBeTrue)
 				tag1 := env.Pool("Tag").Call("Create", FieldMap{
 					"Name": "Tag1",
-				}).(RecordCollection)
+				}).(RecordSet).Collection()
 				So(tag1.Call("CheckRecursion").(bool), ShouldBeTrue)
 				tag2 := env.Pool("Tag").Call("Create", FieldMap{
 					"Name":   "Tag2",
 					"Parent": tag1,
-				}).(RecordCollection)
+				}).(RecordSet).Collection()
 				So(tag2.Call("CheckRecursion").(bool), ShouldBeTrue)
 				tag3 := env.Pool("Tag").Call("Create", FieldMap{
 					"Name":   "Tag1",
 					"Parent": tag2,
-				}).(RecordCollection)
+				}).(RecordSet).Collection()
 				So(tag3.Call("CheckRecursion").(bool), ShouldBeTrue)
 				tag1.Set("Parent", tag3)
 				So(tag1.Call("CheckRecursion").(bool), ShouldBeFalse)
@@ -112,25 +112,25 @@ func TestBaseModelMethods(t *testing.T) {
 				So(tag3.Call("CheckRecursion").(bool), ShouldBeFalse)
 			})
 			Convey("Browse", func() {
-				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordCollection)
+				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordSet).Collection()
 				So(browsedUser.Ids(), ShouldHaveLength, 1)
 				So(browsedUser.Ids(), ShouldContain, userJane.Ids()[0])
 			})
 			Convey("Equals", func() {
-				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordCollection)
+				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordSet).Collection()
 				So(browsedUser.Call("Equals", userJane), ShouldBeTrue)
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
-					Field("Name").Equals("John Smith")).(RecordCollection)
+					Field("Name").Equals("John Smith")).(RecordSet).Collection()
 				So(userJohn.Call("Equals", userJane), ShouldBeFalse)
 				johnAndJane := userJohn.Union(userJane)
 				usersJ := env.Pool("User").Call("Search", env.Pool("User").Model().
-					Field("Name").Like("J% Smith")).(RecordCollection)
+					Field("Name").Like("J% Smith")).(RecordSet).Collection()
 				So(usersJ.Records(), ShouldHaveLength, 2)
 				So(usersJ.Equals(johnAndJane), ShouldBeTrue)
 			})
 			Convey("Subtract", func() {
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
-					Field("Name").Equals("John Smith")).(RecordCollection)
+					Field("Name").Equals("John Smith")).(RecordSet).Collection()
 				johnAndJane := userJohn.Union(userJane)
 				So(johnAndJane.Subtract(userJane).Equals(userJohn), ShouldBeTrue)
 				So(johnAndJane.Subtract(userJohn).Equals(userJane), ShouldBeTrue)

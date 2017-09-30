@@ -20,14 +20,15 @@ import (
 )
 
 // WithEnv returns a copy of the current RecordCollection with the given Environment.
-func (rc RecordCollection) WithEnv(env Environment) RecordCollection {
-	rc.env = &env
-	return rc
+func (rc *RecordCollection) WithEnv(env Environment) *RecordCollection {
+	rSet := *rc
+	rSet.env = &env
+	return &rSet
 }
 
 // WithContext returns a copy of the current RecordCollection with
 // its context extended by the given key and value.
-func (rc RecordCollection) WithContext(key string, value interface{}) RecordCollection {
+func (rc *RecordCollection) WithContext(key string, value interface{}) *RecordCollection {
 	newCtx := rc.env.context.Copy().WithKey(key, value)
 	newEnv := *rc.env
 	newEnv.context = newCtx
@@ -36,7 +37,7 @@ func (rc RecordCollection) WithContext(key string, value interface{}) RecordColl
 
 // WithNewContext returns a copy of the current RecordCollection with its context
 // replaced by the given one.
-func (rc RecordCollection) WithNewContext(context *types.Context) RecordCollection {
+func (rc *RecordCollection) WithNewContext(context *types.Context) *RecordCollection {
 	newEnv := *rc.env
 	newEnv.context = context
 	return rc.WithEnv(newEnv)
@@ -44,7 +45,7 @@ func (rc RecordCollection) WithNewContext(context *types.Context) RecordCollecti
 
 // Sudo returns a new RecordCollection with the given userId
 // or the superuser id if not specified
-func (rc RecordCollection) Sudo(userId ...int64) RecordCollection {
+func (rc *RecordCollection) Sudo(userId ...int64) *RecordCollection {
 	uid := security.SuperUserID
 	if len(userId) > 0 {
 		uid = userId[0]

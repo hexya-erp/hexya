@@ -30,7 +30,7 @@ func TestEnvironment(t *testing.T) {
 			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 			Convey("Checking WithEnv", func() {
 				env2 := newEnvironment(2)
-				userJane1 := userJane.Call("WithEnv", env2).(RecordCollection)
+				userJane1 := userJane.Call("WithEnv", env2).(RecordSet).Collection()
 				So(userJane1.Env().Uid(), ShouldEqual, 2)
 				So(userJane.Env().Uid(), ShouldEqual, 1)
 				So(userJane.Env().Context().HasKey("key"), ShouldBeTrue)
@@ -40,7 +40,7 @@ func TestEnvironment(t *testing.T) {
 				env2.rollback()
 			})
 			Convey("Checking WithContext", func() {
-				userJane1 := userJane.Call("WithContext", "newKey", "This is a different key").(RecordCollection)
+				userJane1 := userJane.Call("WithContext", "newKey", "This is a different key").(RecordSet).Collection()
 				So(userJane1.Env().Context().HasKey("key"), ShouldBeTrue)
 				So(userJane1.Env().Context().HasKey("newKey"), ShouldBeTrue)
 				So(userJane1.Env().Context().Get("key"), ShouldEqual, "context value")
@@ -55,7 +55,7 @@ func TestEnvironment(t *testing.T) {
 			})
 			Convey("Checking WithNewContext", func() {
 				newCtx := types.NewContext().WithKey("newKey", "This is a different key")
-				userJane1 := userJane.Call("WithNewContext", newCtx).(RecordCollection)
+				userJane1 := userJane.Call("WithNewContext", newCtx).(RecordSet).Collection()
 				So(userJane1.Env().Context().HasKey("key"), ShouldBeFalse)
 				So(userJane1.Env().Context().HasKey("newKey"), ShouldBeTrue)
 				So(userJane1.Env().Context().Get("newKey"), ShouldEqual, "This is a different key")
@@ -69,7 +69,7 @@ func TestEnvironment(t *testing.T) {
 			})
 			Convey("Checking Sudo", func() {
 				userJane1 := userJane.Sudo(2)
-				userJane2 := userJane1.Call("Sudo").(RecordCollection)
+				userJane2 := userJane1.Call("Sudo").(RecordSet).Collection()
 				So(userJane1.Env().Uid(), ShouldEqual, 2)
 				So(userJane1.Env().callStack, ShouldBeEmpty)
 				So(userJane.Env().Uid(), ShouldEqual, security.SuperUserID)
@@ -88,7 +88,7 @@ func TestEnvironment(t *testing.T) {
 				So(userJane2.Env().Uid(), ShouldEqual, security.SuperUserID)
 			})
 			Convey("Checking overridden WithContext", func() {
-				posts := env.Pool("Post").FetchAll()
+				posts := env.Pool("Post").SearchAll()
 				posts1 := posts.WithContext("foo", "bar")
 				So(posts1.Env().Context().HasKey("foo"), ShouldBeTrue)
 				So(posts1.Env().Context().GetString("foo"), ShouldEqual, "bar")
@@ -107,7 +107,7 @@ func TestEnvironment(t *testing.T) {
 				So(env.cache.m2mLinks, ShouldBeEmpty)
 			})
 			Convey("Loading a RecordSet should populate the cache", func() {
-				userJane = userJane.Load()
+				userJane.Load()
 				So(env.cache.m2mLinks, ShouldBeEmpty)
 				So(env.cache.data, ShouldHaveLength, 1)
 				janeCacheRef := cacheRef{model: users.model, id: userJane.ids[0]}
@@ -121,7 +121,7 @@ func TestEnvironment(t *testing.T) {
 				So(env.cache.checkIfInCache(users.model, userJane.ids, []string{"id", "name", "email"}), ShouldBeTrue)
 			})
 			Convey("Calling values already in cache should not call the DB", func() {
-				userJane = userJane.Load()
+				userJane.Load()
 				id, dbCalled := userJane.get("id", true)
 				So(dbCalled, ShouldBeFalse)
 				So(id, ShouldEqual, userJane.ids[0])
@@ -133,7 +133,7 @@ func TestEnvironment(t *testing.T) {
 				So(email, ShouldEqual, "jane.smith@example.com")
 			})
 			Convey("Testing O2M fields in cache", func() {
-				userJane = userJane.Load("Posts")
+				userJane.Load("Posts")
 				postModel := env.Pool("Post").Model()
 				post1 := env.Pool("Post").Search(postModel.Field("Title").Equals("1st Post"))
 				post3 := env.Pool("Post").Search(postModel.Field("Title").Equals("3rd Post"))
@@ -146,20 +146,20 @@ func TestEnvironment(t *testing.T) {
 				for _, id := range posts.ids {
 					So(env.cache.get(userJane.model, userJane.ids[0], "posts_ids"), ShouldContain, id)
 				}
-				So(userJane.Get("Posts").(RecordCollection).Len(), ShouldEqual, 2)
+				So(userJane.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 2)
 			})
 			Convey("Reading M2M fields should work both ways", func() {
 				postModel := env.Pool("Post").Model()
 				tagModel := env.Pool("Tag").Model()
 				post2 := env.Pool("Post").Search(postModel.Field("Title").Equals("2nd Post"))
-				post2 = post2.Load()
+				post2.Load()
 				So(post2.Len(), ShouldEqual, 1)
 				So(env.cache.m2mLinks, ShouldBeEmpty)
 				So(env.cache.data, ShouldHaveLength, 1)
 				tags := env.Pool("Tag").Search(tagModel.Field("Name").In([]string{"Books", "Jane's"}))
-				tags = tags.Fetch()
+				tags.Fetch()
 				So(tags.Len(), ShouldEqual, 2)
-				post2 = post2.Load("Tags")
+				post2.Load("Tags")
 				So(env.cache.m2mLinks, ShouldHaveLength, 1)
 				linkModel := env.Pool("PostTagRel").Model()
 				So(env.cache.m2mLinks, ShouldContainKey, linkModel)
@@ -182,7 +182,7 @@ func TestEnvironment(t *testing.T) {
 				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldContain, post2.ids[0])
 			})
 			Convey("Check that computed fields are stored and read in cache", func() {
-				userJane = userJane.Load()
+				userJane.Load()
 				janeCacheRef := cacheRef{model: users.model, id: userJane.ids[0]}
 				So(env.cache.data, ShouldContainKey, janeCacheRef)
 				So(env.cache.data[janeCacheRef], ShouldContainKey, "id")

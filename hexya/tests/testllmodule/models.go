@@ -30,9 +30,9 @@ func declareModels() {
 
 	user.AddMethod("ComputeAge",
 		`ComputeAge is a sample method layer for testing`,
-		func(rc models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+		func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
 			res := models.FieldMap{
-				"Age": rc.Get("Profile").(models.RecordCollection).Get("Age"),
+				"Age": rc.Get("Profile").(*models.RecordCollection).Get("Age"),
 			}
 			return res, []models.FieldNamer{models.FieldName("Age")}
 		})
@@ -69,8 +69,8 @@ func declareModels() {
 	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: models.Registry.MustGet("Tag")})
 
 	post.Methods().MustGet("Create").Extend("",
-		func(rc models.RecordCollection, data models.FieldMapper) models.RecordCollection {
-			res := rc.Super().Call("Create", data).(models.RecordCollection)
+		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+			res := rc.Super().Call("Create", data).(*models.RecordCollection)
 			return res
 		})
 

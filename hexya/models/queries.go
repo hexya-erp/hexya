@@ -40,7 +40,7 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 // A Query defines the common part an SQL Query, i.e. all that come
 // after the FROM keyword.
 type Query struct {
-	recordSet RecordCollection
+	recordSet *RecordCollection
 	cond      *Condition
 	fetchAll  bool
 	limit     int
@@ -507,44 +507,6 @@ func (q *Query) sideDataIsEmpty() bool {
 	return true
 }
 
-// inferIds tries to return the list of ids this query points to without calling the database.
-// If it can't, the second argument will be false.
-func (q *Query) inferIds() ([]int64, bool) {
-	if !q.sideDataIsEmpty() {
-		return []int64{}, false
-	}
-	if q.cond.IsEmpty() {
-		return []int64{}, false
-	}
-	if len(q.cond.predicates) != 1 {
-		return []int64{}, false
-	}
-	predicate := q.cond.predicates[0]
-	if len(predicate.exprs) == 0 && !predicate.cond.IsEmpty() {
-		predicate = predicate.cond.predicates[0]
-	}
-	if !predicate.cond.IsEmpty() {
-		return []int64{}, false
-	}
-	if len(predicate.exprs) != 1 {
-		return []int64{}, false
-	}
-	if predicate.exprs[0] != "id" && predicate.exprs[0] != "ID" {
-		return []int64{}, false
-	}
-
-	switch predicate.operator {
-	case operator.Equals:
-		res, ok := predicate.arg.(int64)
-		return []int64{res}, ok
-	case operator.In:
-		res, ok := predicate.arg.([]int64)
-		return res, ok
-	default:
-		return []int64{}, false
-	}
-}
-
 // substituteConditionExprs substitutes all occurrences of each substMap keys in
 // its conditions 1st exprs with the corresponding substMap value.
 func (q *Query) substituteConditionExprs(substMap map[string][]string) {
@@ -559,8 +521,8 @@ func (q *Query) evaluateConditionArgFunctions() {
 
 // newQuery returns a new empty query
 // If rs is given, bind this query to the given RecordSet.
-func newQuery(rs ...RecordCollection) *Query {
-	var rset RecordCollection
+func newQuery(rs ...*RecordCollection) *Query {
+	var rset *RecordCollection
 	if len(rs) > 0 {
 		rset = rs[0]
 	}

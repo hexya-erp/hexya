@@ -23,10 +23,10 @@ func TestIllegalMethods(t *testing.T) {
 
 		So(func() { userModel.AddMethod("WrongType", "Test with int instead of func literal", 12) }, ShouldPanic)
 		So(func() {
-			userModel.AddMethod("ComputeAge", "Trying to add existing method", func(rc RecordCollection) {})
+			userModel.AddMethod("ComputeAge", "Trying to add existing method", func(rc *RecordCollection) {})
 		}, ShouldPanic)
 		So(func() {
-			userModel.AddMethod("Create", "Trying to add existing method", func(rc RecordCollection) {})
+			userModel.AddMethod("Create", "Trying to add existing method", func(rc *RecordCollection) {})
 		}, ShouldPanic)
 		So(func() { userModel.AddEmptyMethod("ComputeAge") }, ShouldPanic)
 		So(func() { userModel.methods.MustGet("ComputeAge").Extend("Test with int instead of func literal", 12) }, ShouldPanic)
@@ -34,29 +34,29 @@ func TestIllegalMethods(t *testing.T) {
 			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc string) (int, bool) { return 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc RecordCollection, x string) (int, bool) { return 0, true })
+			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection, x string) (int, bool) { return 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc RecordCollection) (int, int, bool) { return 0, 0, true })
+			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection) (int, int, bool) { return 0, 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc RecordCollection) (int, bool) { return 0, true })
+			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection) (int, bool) { return 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("DecorateEmail").Extend("Test with wrong signature", func(rc RecordCollection, email []byte) string { return "" })
+			userModel.methods.MustGet("DecorateEmail").Extend("Test with wrong signature", func(rc *RecordCollection, email []byte) string { return "" })
 		}, ShouldPanic)
 	})
 	Convey("Test checkTypesMatch", t, func() {
 		type TestRecordSet struct {
-			RecordCollection
+			*RecordCollection
 		}
 
 		var _ FieldMapper = TestFieldMap{}
 
 		So(checkTypesMatch(reflect.TypeOf("bar"), reflect.TypeOf("bar")), ShouldBeTrue)
 		So(checkTypesMatch(reflect.TypeOf(0), reflect.TypeOf("bar")), ShouldBeFalse)
-		So(checkTypesMatch(reflect.TypeOf(RecordCollection{}), reflect.TypeOf(TestRecordSet{})), ShouldBeTrue)
-		So(checkTypesMatch(reflect.TypeOf(TestRecordSet{}), reflect.TypeOf(RecordCollection{})), ShouldBeTrue)
+		So(checkTypesMatch(reflect.TypeOf(new(RecordCollection)), reflect.TypeOf(TestRecordSet{})), ShouldBeTrue)
+		So(checkTypesMatch(reflect.TypeOf(TestRecordSet{}), reflect.TypeOf(new(RecordCollection))), ShouldBeTrue)
 		So(checkTypesMatch(reflect.TypeOf(TestFieldMap{}), reflect.TypeOf(FieldMap{})), ShouldBeTrue)
 		So(checkTypesMatch(reflect.TypeOf(FieldMap{}), reflect.TypeOf(TestFieldMap{})), ShouldBeTrue)
 	})
@@ -79,7 +79,7 @@ func TestBootStrap(t *testing.T) {
 		})
 		Convey("Creating methods after bootstrap should panic", func() {
 			So(func() {
-				Registry.MustGet("User").AddMethod("NewMethod", "Method after boostrap", func(rc RecordCollection) {})
+				Registry.MustGet("User").AddMethod("NewMethod", "Method after boostrap", func(rc *RecordCollection) {})
 			}, ShouldPanic)
 		})
 		Convey("Creating SQL view should run fine", func() {

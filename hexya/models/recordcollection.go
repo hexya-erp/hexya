@@ -39,7 +39,7 @@ type RecordCollection struct {
 }
 
 // String returns the string representation of a RecordSet
-func (rc RecordCollection) String() string {
+func (rc *RecordCollection) String() string {
 	idsStr := make([]string, len(rc.ids))
 	for i, id := range rc.ids {
 		idsStr[i] = strconv.Itoa(int(id))
@@ -50,27 +50,27 @@ func (rc RecordCollection) String() string {
 }
 
 // Env returns the RecordSet's Environment
-func (rc RecordCollection) Env() Environment {
+func (rc *RecordCollection) Env() Environment {
 	res := *rc.env
 	return res
 }
 
 // ModelName returns the model name of the RecordSet
-func (rc RecordCollection) ModelName() string {
+func (rc *RecordCollection) ModelName() string {
 	return rc.model.name
 }
 
 // Ids returns the ids of the RecordSet, fetching from db if necessary.
-func (rc RecordCollection) Ids() []int64 {
-	rSet := rc.Fetch()
-	return rSet.ids
+func (rc *RecordCollection) Ids() []int64 {
+	rc.Fetch()
+	return rc.ids
 }
 
 // create inserts a new record in the database with the given data.
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Create")
-func (rc RecordCollection) create(data FieldMapper) RecordCollection {
+func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	defer func() {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
@@ -104,7 +104,7 @@ func (rc RecordCollection) create(data FieldMapper) RecordCollection {
 // createEmbeddedRecords creates the records that are embedded in this
 // one if they don't already exist. It returns the given fMap with the
 // ids inserted for the embedded records.
-func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
+func (rc *RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 	type modelAndValues struct {
 		model  string
 		values FieldMap
@@ -152,7 +152,7 @@ func (rc RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 
 // applyDefaults adds the default value to the given fMap values which
 // are equal to their Go type zero value
-func (rc RecordCollection) applyDefaults(fMap *FieldMap) {
+func (rc *RecordCollection) applyDefaults(fMap *FieldMap) {
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
 		if fi.defaultFunc == nil {
 			continue
@@ -168,7 +168,7 @@ func (rc RecordCollection) applyDefaults(fMap *FieldMap) {
 // in the given fMap with the corresponding value.
 // Each method is only executed once, even if it is called by several fields.
 // It panics as soon as one constraint fails.
-func (rc RecordCollection) checkConstraints() {
+func (rc *RecordCollection) checkConstraints() {
 	methods := make(map[string]bool)
 	for _, fi := range rc.model.fields.registryByJSON {
 		if fi.constraint != "" {
@@ -187,7 +187,7 @@ func (rc RecordCollection) checkConstraints() {
 
 // addAccessFieldsCreateData adds appropriate CreateDate and CreateUID fields to
 // the given FieldMap.
-func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
+func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
 		(*fMap)["CreateDate"] = dates.Now()
 		(*fMap)["CreateUID"] = rc.env.uid
@@ -198,7 +198,7 @@ func (rc RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
-func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer) bool {
+func (rc *RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer) bool {
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
 	fMap := data.FieldMap(fieldsToUnset...)
 	rSet.addAccessFieldsUpdateData(&fMap)
@@ -208,7 +208,7 @@ func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer)
 	storedFieldMap := filterMapOnStoredFields(rSet.model, fMap)
 	rSet.doUpdate(storedFieldMap)
 	// Let's fetch once for all
-	rSet = rSet.Fetch()
+	rSet.Fetch()
 	// write reverse relation fields
 	rSet.updateRelationFields(fMap)
 	// write related fields
@@ -221,7 +221,7 @@ func (rc RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer)
 
 // addAccessFieldsUpdateData adds appropriate WriteDate and WriteUID fields to
 // the given FieldMap.
-func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
+func (rc *RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
 		(*fMap)["WriteDate"] = dates.Now()
 		(*fMap)["WriteUID"] = rc.env.uid
@@ -231,7 +231,7 @@ func (rc RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 // doUpdate just updates the database records pointed at by
 // this RecordCollection with the given fieldMap. It also
 // invalidates the cache for the record
-func (rc RecordCollection) doUpdate(fMap FieldMap) {
+func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Write"))
 	defer func() {
 		if r := recover(); r != nil {
@@ -257,8 +257,8 @@ func (rc RecordCollection) doUpdate(fMap FieldMap) {
 
 // updateRelationFields updates reverse relations fields of the
 // given fMap.
-func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
-	rSet := rc.Fetch()
+func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
+	rc.Fetch()
 	for field, value := range fMap {
 		fi := rc.model.getRelatedFieldInfo(field)
 		if !checkFieldPermission(fi, rc.env.uid, security.Write) {
@@ -268,10 +268,10 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 		case fieldtype.One2Many:
 			// We take only the first record since updating all records
 			// will override each other
-			if rSet.Len() > 1 {
+			if rc.Len() > 1 {
 				log.Warn("Updating one2many relation on multiple record at once", "model", rc.ModelName(), "field", field)
 			}
-			curRS := rc.env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("ID").In(rSet.Get(fi.name).(RecordCollection)))
+			curRS := rc.env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("ID").In(rc.Get(fi.name).(RecordSet).Collection()))
 			newRS := rc.env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("ID").In(value.([]int64)))
 			// Remove ReverseFK for Records that are no longer our children
 			toRemove := curRS.Subtract(newRS)
@@ -281,14 +281,14 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 			// Add new children records
 			toAdd := newRS.Subtract(curRS)
 			if toAdd.Len() > 0 {
-				toAdd.Set(fi.reverseFK, rSet.ids[0])
+				toAdd.Set(fi.reverseFK, rc.ids[0])
 			}
 
 		case fieldtype.Rev2One:
 		case fieldtype.Many2Many:
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
-			rc.env.cr.Execute(delQuery, rSet.ids)
-			for _, id := range rSet.ids {
+			rc.env.cr.Execute(delQuery, rc.ids)
+			for _, id := range rc.ids {
 				rc.env.cache.removeM2MLinks(fi, id)
 				query := fmt.Sprintf(`INSERT INTO %s (%s, %s) VALUES (?, ?)`, fi.m2mRelModel.tableName,
 					fi.m2mOurField.json, fi.m2mTheirField.json)
@@ -303,12 +303,12 @@ func (rc RecordCollection) updateRelationFields(fMap FieldMap) {
 
 // updateRelatedFields updates related non stored fields of the
 // given fMap.
-func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
-	rSet := rc.Fetch()
+func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
+	rc.Fetch()
 	var toLoad []string
 	toSubstitute := make(map[string]string)
 	for field := range fMap {
-		fi := rSet.model.fields.MustGet(field)
+		fi := rc.model.fields.MustGet(field)
 		if !fi.isRelatedField() {
 			continue
 		}
@@ -317,17 +317,17 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 		}
 
 		toSubstitute[field] = fi.relatedPath
-		if !rSet.env.cache.checkIfInCache(rSet.model, rSet.ids, []string{fi.relatedPath}) {
+		if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{fi.relatedPath}) {
 			toLoad = append(toLoad, field)
 		}
 	}
 	// Load related paths if not loaded already
 	if len(toLoad) > 0 {
-		rSet = rSet.Load(toLoad...)
+		rc.Load(toLoad...)
 	}
 	// Create an update map for each record to update
 	updateMap := make(map[cacheRef]FieldMap)
-	for _, rec := range rSet.Records() {
+	for _, rec := range rc.Records() {
 		for field, subst := range toSubstitute {
 			ref, relField, _ := rec.env.cache.getRelatedRef(rec.model, rec.ids[0], subst)
 			if _, exists := updateMap[ref]; !exists {
@@ -346,7 +346,7 @@ func (rc RecordCollection) updateRelatedFields(fMap FieldMap) {
 
 // substituteSQLErrorMessage changes the message from the given recover data
 // if it comes from the database with the message defined in this model
-func (rc RecordCollection) substituteSQLErrorMessage(r interface{}) interface{} {
+func (rc *RecordCollection) substituteSQLErrorMessage(r interface{}) interface{} {
 	err, ok := r.(error)
 	if !ok {
 		return r
@@ -363,7 +363,7 @@ func (rc RecordCollection) substituteSQLErrorMessage(r interface{}) interface{} 
 // unlink deletes the database record of this RecordSet and returns the number of deleted rows.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Unlink() or rs.Call("Unlink")
-func (rc RecordCollection) unlink() int64 {
+func (rc *RecordCollection) unlink() int64 {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Unlink"))
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Unlink)
 	ids := rSet.Ids()
@@ -378,42 +378,47 @@ func (rc RecordCollection) unlink() int64 {
 
 // Search returns a new RecordSet filtering on the current one with the
 // additional given Condition
-func (rc RecordCollection) Search(cond *Condition) RecordCollection {
-	rc.query = rc.query.clone()
-	rc.query.cond = rc.query.cond.AndCond(cond)
-	return rc
+func (rc *RecordCollection) Search(cond *Condition) *RecordCollection {
+	rSetVal := *rc
+	rSetVal.query = rc.query.clone()
+	rSetVal.query.cond = rSetVal.query.cond.AndCond(cond)
+	return &rSetVal
 }
 
 // Limit returns a new RecordSet with only the first 'limit' records.
-func (rc RecordCollection) Limit(limit int) RecordCollection {
-	rc.query = rc.query.clone()
-	rc.query.limit = limit
-	return rc
+func (rc *RecordCollection) Limit(limit int) *RecordCollection {
+	rSet := *rc
+	rSet.query = rSet.query.clone()
+	rSet.query.limit = limit
+	return &rSet
 }
 
 // Offset returns a new RecordSet with only the records starting at offset
-func (rc RecordCollection) Offset(offset int) RecordCollection {
-	rc.query = rc.query.clone()
-	rc.query.offset = offset
-	return rc
+func (rc *RecordCollection) Offset(offset int) *RecordCollection {
+	rSet := *rc
+	rSet.query = rSet.query.clone()
+	rSet.query.offset = offset
+	return &rSet
 }
 
 // OrderBy returns a new RecordSet ordered by the given ORDER BY expressions
-func (rc RecordCollection) OrderBy(exprs ...string) RecordCollection {
-	rc.query = rc.query.clone()
-	rc.query.orders = append(rc.query.orders, exprs...)
-	return rc
+func (rc *RecordCollection) OrderBy(exprs ...string) *RecordCollection {
+	rSet := *rc
+	rSet.query = rSet.query.clone()
+	rSet.query.orders = append(rSet.query.orders, exprs...)
+	return &rSet
 }
 
 // GroupBy returns a new RecordSet grouped with the given GROUP BY expressions
-func (rc RecordCollection) GroupBy(fields ...FieldNamer) RecordCollection {
-	rc.query = rc.query.clone()
+func (rc *RecordCollection) GroupBy(fields ...FieldNamer) *RecordCollection {
+	rSet := *rc
+	rSet.query = rSet.query.clone()
 	exprs := make([]string, len(fields))
 	for i, f := range fields {
 		exprs[i] = string(f.FieldName())
 	}
-	rc.query.groups = append(rc.query.groups, exprs...)
-	return rc
+	rSet.query.groups = append(rSet.query.groups, exprs...)
+	return &rSet
 }
 
 // Fetch query the database with the current filter and returns a RecordSet
@@ -421,27 +426,21 @@ func (rc RecordCollection) GroupBy(fields ...FieldNamer) RecordCollection {
 //
 // Fetch is lazy and only return ids. Use Load() instead
 // if you want to fetch all fields.
-//
-// IMPORTANT: Fetch does NOT load the receiver which remains unloaded.
-func (rc RecordCollection) Fetch() RecordCollection {
+func (rc *RecordCollection) Fetch() *RecordCollection {
 	if rc.fetched {
 		return rc
 	}
 	if rc.query.isEmpty() {
 		// We do not load empty queries to keep empty record sets empty
-		// Call FetchAll instead to load all the records of the table
+		// Call SearchAll instead to load all the records of the table
 		return rc
-	}
-	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
-	if ids, ok := rSet.query.inferIds(); ok {
-		return rSet.withIds(ids)
 	}
 	return rc.Load("id")
 }
 
-// FetchAll returns a RecordSet with all items of the table, regardless of the
+// SearchAll returns a new RecordSet with all items of the table, regardless of the
 // current RecordSet query. It is mainly meant to be used on an empty RecordSet
-func (rc RecordCollection) FetchAll() RecordCollection {
+func (rc *RecordCollection) SearchAll() *RecordCollection {
 	rSet := rc.env.Pool(rc.ModelName())
 	rSet.query.fetchAll = true
 	return rSet
@@ -449,7 +448,7 @@ func (rc RecordCollection) FetchAll() RecordCollection {
 
 // SearchCount fetch from the database the number of records that match the RecordSet conditions
 // It panics in case of error
-func (rc RecordCollection) SearchCount() int {
+func (rc *RecordCollection) SearchCount() int {
 	rSet := rc.Limit(0)
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
 	inflate2ManyConditions(rSet.model, rSet.query.cond)
@@ -466,9 +465,7 @@ func (rc RecordCollection) SearchCount() int {
 // If no fields are given, all DB columns of the RecordCollection's
 // model are retrieved. Non-DB fields must be explicitly given in
 // fields to be retrieved.
-//
-// IMPORTANT: Load does NOT populate the receiver which remains unloaded.
-func (rc RecordCollection) Load(fields ...string) RecordCollection {
+func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	if rc.query.isEmpty() {
 		// Never load RecordSets without query.
@@ -510,7 +507,7 @@ func (rc RecordCollection) Load(fields ...string) RecordCollection {
 // loadRelationFields loads one2many, many2many and rev2one fields from the given fields
 // names in this RecordCollection into the cache. fields of other types given in fields
 // are ignored.
-func (rc RecordCollection) loadRelationFields(fields []string) {
+func (rc *RecordCollection) loadRelationFields(fields []string) {
 	for _, id := range rc.ids {
 		for _, fieldName := range fields {
 			fi := rc.model.getRelatedFieldInfo(fieldName)
@@ -540,25 +537,25 @@ func (rc RecordCollection) loadRelationFields(fields []string) {
 
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
-func (rc RecordCollection) Get(fieldName string) interface{} {
-	rSet := rc.Fetch()
-	fi := rSet.model.fields.MustGet(fieldName)
+func (rc *RecordCollection) Get(fieldName string) interface{} {
+	rc.Fetch()
+	fi := rc.model.fields.MustGet(fieldName)
 	var res interface{}
 
 	switch {
-	case rSet.IsEmpty():
+	case rc.IsEmpty():
 		res = reflect.Zero(fi.structField.Type).Interface()
 	case fi.isComputedField() && !fi.isStored():
 		fMap := make(FieldMap)
-		rSet.computeFieldValues(&fMap, fi.json)
+		rc.computeFieldValues(&fMap, fi.json)
 		res = fMap[fi.json]
 	case fi.isRelatedField() && !fi.isStored():
-		res, _ = rSet.get(fi.relatedPath, false)
+		res, _ = rc.get(fi.relatedPath, false)
 	default:
 		// If value is not in cache we fetch the whole model to speed up later calls to Get,
 		// except for the case of non stored relation fields, where we only load the requested field.
 		all := !fi.fieldType.IsNonStoredRelationType()
-		res, _ = rSet.get(fieldName, all)
+		res, _ = rc.get(fieldName, all)
 	}
 
 	if res == nil {
@@ -571,14 +568,14 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 		switch r := res.(type) {
 		case *interface{}:
 			// *interface{} is returned when the field is null
-			res = newRecordCollection(rSet.Env(), fi.relatedModel.name)
+			res = newRecordCollection(rc.Env(), fi.relatedModel.name)
 		case int64:
-			res = newRecordCollection(rSet.Env(), fi.relatedModel.name)
+			res = newRecordCollection(rc.Env(), fi.relatedModel.name)
 			if r != 0 {
-				res = res.(RecordCollection).withIds([]int64{r})
+				res = res.(RecordSet).Collection().withIds([]int64{r})
 			}
 		case []int64:
-			res = newRecordCollection(rSet.Env(), fi.relatedModel.name).withIds(r)
+			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
 		}
 	}
 	return res
@@ -589,31 +586,31 @@ func (rc RecordCollection) Get(fieldName string) interface{} {
 // If all is true, all fields of the model are loaded, otherwise only field.
 //
 // Second returned value is true if a call to the DB was necessary (i.e. not in cache)
-func (rc RecordCollection) get(field string, all bool) (interface{}, bool) {
-	rSet := rc.Fetch()
+func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
+	rc.Fetch()
 	var dbCalled bool
-	if !rSet.env.cache.checkIfInCache(rSet.model, []int64{rSet.ids[0]}, []string{field}) {
+	if !rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}) {
 		if !all {
-			rSet.Load(field)
+			rc.Load(field)
 		} else {
-			rSet.Load()
+			rc.Load()
 		}
 		dbCalled = true
 	}
-	return rSet.env.cache.get(rSet.model, rSet.ids[0], field), dbCalled
+	return rc.env.cache.get(rc.model, rc.ids[0], field), dbCalled
 }
 
 // Set sets field given by fieldName to the given value. If the RecordSet has several
 // Records, all of them will be updated. Each call to Set makes an update query in the
 // database. It panics if it is called on an empty RecordSet.
-func (rc RecordCollection) Set(fieldName string, value interface{}) {
+func (rc *RecordCollection) Set(fieldName string, value interface{}) {
 	fMap := make(FieldMap)
 	fMap[fieldName] = value
 	rc.Call("Write", fMap)
 }
 
 // InvalidateCache clears the cache for this RecordSet data, and immediately reloads the data from the DB.
-func (rc RecordCollection) InvalidateCache() {
+func (rc *RecordCollection) InvalidateCache() {
 	for _, rec := range rc.Records() {
 		rc.env.cache.invalidateRecord(rc.model, rec.ids[0])
 	}
@@ -622,12 +619,12 @@ func (rc RecordCollection) InvalidateCache() {
 
 // First populates structPtr with a copy of the first Record of the RecordCollection.
 // structPtr must a pointer to a struct.
-func (rc RecordCollection) First(structPtr interface{}) {
-	rSet := rc.Fetch()
+func (rc *RecordCollection) First(structPtr interface{}) {
+	rc.Fetch()
 	if err := checkStructPtr(structPtr); err != nil {
-		log.Panic("Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structPtr)
+		log.Panic("Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structPtr)
 	}
-	if rSet.IsEmpty() {
+	if rc.IsEmpty() {
 		return
 	}
 	typ := reflect.TypeOf(structPtr).Elem()
@@ -635,34 +632,34 @@ func (rc RecordCollection) First(structPtr interface{}) {
 	for i := 0; i < typ.NumField(); i++ {
 		fields[i] = typ.Field(i).Name
 	}
-	rSet.Load(fields...)
-	fMap := rSet.env.cache.getRecord(rSet.Model(), rSet.ids[0])
-	MapToStruct(rSet, structPtr, fMap)
+	rc.Load(fields...)
+	fMap := rc.env.cache.getRecord(rc.Model(), rc.ids[0])
+	MapToStruct(rc, structPtr, fMap)
 }
 
 // All fetches a copy of all records of the RecordCollection and populates structSlicePtr.
-func (rc RecordCollection) All(structSlicePtr interface{}) {
-	rSet := rc.Fetch()
+func (rc *RecordCollection) All(structSlicePtr interface{}) {
+	rc.Fetch()
 	if err := checkStructSlicePtr(structSlicePtr); err != nil {
-		log.Panic("Invalid structPtr given", "error", err, "model", rSet.ModelName(), "received", structSlicePtr)
+		log.Panic("Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structSlicePtr)
 	}
 	val := reflect.ValueOf(structSlicePtr)
 	// sspType is []*struct
 	sspType := val.Type().Elem()
 	// structType is struct
 	structType := sspType.Elem().Elem()
-	val.Elem().Set(reflect.MakeSlice(sspType, rSet.Len(), rSet.Len()))
-	recs := rSet.Records()
-	for i := 0; i < rSet.Len(); i++ {
-		fMap := rSet.env.cache.getRecord(rSet.Model(), recs[i].ids[0])
+	val.Elem().Set(reflect.MakeSlice(sspType, rc.Len(), rc.Len()))
+	recs := rc.Records()
+	for i := 0; i < rc.Len(); i++ {
+		fMap := rc.env.cache.getRecord(rc.Model(), recs[i].ids[0])
 		newStructPtr := reflect.New(structType).Interface()
-		MapToStruct(rSet, newStructPtr, fMap)
+		MapToStruct(rc, newStructPtr, fMap)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
 	}
 }
 
 // Aggregates returns the result of this RecordCollection query, which must by a grouped query.
-func (rc RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregateRow {
+func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregateRow {
 	if len(rc.query.groups) == 0 {
 		log.Panic("Trying to get aggregates of a non-grouped query", "model", rc.model)
 	}
@@ -701,7 +698,7 @@ func (rc RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregate
 // fieldsGroupOperators returns a map of fields to retrieve in a group by query.
 // The returned map has a field as key, and sql aggregate function as value.
 // it also includes 'field_count' for grouped fields
-func (rc RecordCollection) fieldsGroupOperators(fields []string) map[string]string {
+func (rc *RecordCollection) fieldsGroupOperators(fields []string) map[string]string {
 	groups := make(map[string]bool)
 	for _, g := range rc.query.groups {
 		groups[rc.model.JSONizeFieldName(g)] = true
@@ -723,33 +720,35 @@ func (rc RecordCollection) fieldsGroupOperators(fields []string) map[string]stri
 
 // Records returns the slice of RecordCollection singletons that constitute this
 // RecordCollection.
-func (rc RecordCollection) Records() []RecordCollection {
-	rSet := rc
+func (rc *RecordCollection) Records() []*RecordCollection {
 	if !rc.env.cache.checkIfInCache(rc.model, rc.Ids(), rc.model.fields.storedFieldNames()) {
-		rSet = rc.Load()
+		rc.Load()
 	}
-	res := make([]RecordCollection, rSet.Len())
-	for i, id := range rSet.Ids() {
-		newRC := newRecordCollection(rSet.Env(), rSet.ModelName())
+	res := make([]*RecordCollection, rc.Len())
+	for i, id := range rc.Ids() {
+		newRC := newRecordCollection(rc.Env(), rc.ModelName())
 		res[i] = newRC.withIds([]int64{id})
 	}
 	return res
 }
 
 // EnsureOne panics if rc is not a singleton
-func (rc RecordCollection) EnsureOne() {
+func (rc *RecordCollection) EnsureOne() {
 	if rc.Len() != 1 {
 		log.Panic("Expected singleton", "model", rc.ModelName(), "received", rc)
 	}
 }
 
 // IsEmpty returns true if rc is an empty RecordCollection
-func (rc RecordCollection) IsEmpty() bool {
+func (rc *RecordCollection) IsEmpty() bool {
 	return !rc.IsValid() || rc.Len() == 0
 }
 
 // IsValid returns true if this RecordSet has been initialized.
-func (rc RecordCollection) IsValid() bool {
+func (rc *RecordCollection) IsValid() bool {
+	if rc == nil {
+		return false
+	}
 	if rc.model == nil {
 		return false
 	}
@@ -763,27 +762,27 @@ func (rc RecordCollection) IsValid() bool {
 }
 
 // Len returns the number of records in this RecordCollection
-func (rc RecordCollection) Len() int {
-	rSet := rc.Fetch()
-	return len(rSet.ids)
+func (rc *RecordCollection) Len() int {
+	rc.Fetch()
+	return len(rc.ids)
 }
 
 // Model returns the Model instance of this RecordCollection
-func (rc RecordCollection) Model() *Model {
+func (rc *RecordCollection) Model() *Model {
 	return rc.model
 }
 
 // Union returns a new RecordCollection that is the union of this RecordCollection
 // and the given `other` RecordCollection. The result is guaranteed to be a
 // set of unique records.
-func (rc RecordCollection) Union(other RecordSet) RecordCollection {
+func (rc *RecordCollection) Union(other RecordSet) *RecordCollection {
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to union RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
 	}
-	thisRC := rc.Fetch()
+	rc.Fetch()
 	idMap := make(map[int64]bool)
-	for _, id := range thisRC.ids {
+	for _, id := range rc.ids {
 		idMap[id] = true
 	}
 	for _, id := range other.Ids() {
@@ -801,14 +800,14 @@ func (rc RecordCollection) Union(other RecordSet) RecordCollection {
 // Subtract returns a RecordSet with the Records that are in this
 // RecordCollection but not in the given 'other' one.
 // The result is guaranteed to be a set of unique records.
-func (rc RecordCollection) Subtract(other RecordSet) RecordCollection {
+func (rc *RecordCollection) Subtract(other RecordSet) *RecordCollection {
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to subtract RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
 	}
-	thisRC := rc.Fetch()
+	rc.Fetch()
 	idMap := make(map[int64]bool)
-	for _, id := range thisRC.ids {
+	for _, id := range rc.ids {
 		idMap[id] = true
 	}
 	for _, id := range other.Ids() {
@@ -825,7 +824,7 @@ func (rc RecordCollection) Subtract(other RecordSet) RecordCollection {
 
 // Equals returns true if this RecordCollection is the same as other
 // i.e. they are of the same model and have the same ids
-func (rc RecordCollection) Equals(other RecordSet) bool {
+func (rc *RecordCollection) Equals(other RecordSet) bool {
 	if rc.ModelName() != other.ModelName() {
 		return false
 	}
@@ -848,9 +847,9 @@ func (rc RecordCollection) Equals(other RecordSet) bool {
 	return true
 }
 
-// withIdMap returns a new RecordCollection pointing to the given ids.
+// withIdMap adds the given ids to this RecordCollection and returns it too.
 // It overrides the current query with ("ID", "in", ids).
-func (rc RecordCollection) withIds(ids []int64) RecordCollection {
+func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 	var newIds []int64
 	for _, id := range ids {
 		if id == 0 {
@@ -858,20 +857,19 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 		}
 		newIds = append(newIds, id)
 	}
-	rSet := rc
-	rSet.ids = newIds
-	rSet.fetched = true
-	rSet.filtered = false
+	rc.ids = newIds
+	rc.fetched = true
+	rc.filtered = false
 	if len(newIds) > 0 {
-		for _, id := range rSet.ids {
-			rSet.env.cache.updateEntry(rSet.model, id, "id", id)
+		for _, id := range rc.ids {
+			rc.env.cache.updateEntry(rc.model, id, "id", id)
 		}
-		rSet.query.cond = rc.Model().Field("ID").In(newIds)
-		rSet.query.fetchAll = false
-		rSet.query.limit = 0
-		rSet.query.offset = 0
+		rc.query.cond = rc.Model().Field("ID").In(newIds)
+		rc.query.fetchAll = false
+		rc.query.limit = 0
+		rc.query.offset = 0
 	}
-	return rSet
+	return rc
 }
 
 // T translates the given string to the language specified by
@@ -882,7 +880,7 @@ func (rc RecordCollection) withIds(ids []int64) RecordCollection {
 //
 // The given src will be passed to fmt.Sprintf with the optional args
 // before being returned.
-func (rc RecordCollection) T(src string, args ...interface{}) string {
+func (rc *RecordCollection) T(src string, args ...interface{}) string {
 	lang := rc.Env().Context().GetString("lang")
 	transCode := i18n.TranslateCode(lang, "", src)
 	return fmt.Sprintf(transCode, args...)
@@ -890,15 +888,15 @@ func (rc RecordCollection) T(src string, args ...interface{}) string {
 
 // Collection returns the underlying RecordCollection instance
 // i.e. itself
-func (rc RecordCollection) Collection() RecordCollection {
+func (rc *RecordCollection) Collection() *RecordCollection {
 	return rc
 }
 
-var _ RecordSet = RecordCollection{}
+var _ RecordSet = new(RecordCollection)
 
 // newRecordCollection returns a new empty RecordCollection in the
 // given environment for the given modelName
-func newRecordCollection(env Environment, modelName string) RecordCollection {
+func newRecordCollection(env Environment, modelName string) *RecordCollection {
 	mi := Registry.MustGet(modelName)
 	rc := RecordCollection{
 		model: mi,
@@ -906,6 +904,6 @@ func newRecordCollection(env Environment, modelName string) RecordCollection {
 		env:   &env,
 		ids:   make([]int64, 0),
 	}
-	rc.query.recordSet = rc
-	return rc
+	rc.query.recordSet = &rc
+	return &rc
 }

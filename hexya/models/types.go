@@ -194,7 +194,7 @@ type RecordSet interface {
 	// IsEmpty returns true if this RecordSet has no records
 	IsEmpty() bool
 	// Collection returns the underlying RecordCollection instance
-	Collection() RecordCollection
+	Collection() *RecordCollection
 }
 
 // A FieldName is a type representing field names in models.
