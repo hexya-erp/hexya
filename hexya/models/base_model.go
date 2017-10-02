@@ -56,25 +56,30 @@ func declareCommonMixin() {
 func declareBaseMixin() {
 	baseMixin := NewMixinModel("BaseMixin")
 	declareBaseComputeMethods()
-	baseMixin.AddDateTimeField("CreateDate", SimpleFieldParams{NoCopy: true})
-	baseMixin.AddIntegerField("CreateUID", SimpleFieldParams{NoCopy: true})
-	baseMixin.AddDateTimeField("WriteDate", SimpleFieldParams{NoCopy: true})
-	baseMixin.AddIntegerField("WriteUID", SimpleFieldParams{NoCopy: true})
-	baseMixin.AddDateTimeField("LastUpdate", SimpleFieldParams{JSON: "__last_update", Compute: baseMixin.Methods().MustGet("ComputeLastUpdate")})
+	baseMixin.AddFields(map[string]FieldDefinition{
+		"CreateDate": DateTimeField{NoCopy: true},
+		"CreateUID":  IntegerField{NoCopy: true},
+		"WriteDate":  DateTimeField{NoCopy: true},
+		"WriteUID":   IntegerField{NoCopy: true},
+		"LastUpdate": DateTimeField{JSON: "__last_update", Compute: baseMixin.Methods().MustGet("ComputeLastUpdate"),
+			Depends: []string{"WriteDate", "CreateDate"}},
+		"DisplayName": CharField{Compute: baseMixin.Methods().MustGet("ComputeDisplayName"), Depends: []string{""}},
+	})
 	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
-	baseMixin.AddCharField("DisplayName", StringFieldParams{Compute: baseMixin.Methods().MustGet("ComputeDisplayName")})
 }
 
 func declareModelMixin() {
 	idSeq := NewSequence("HexyaExternalID")
 
 	modelMixin := NewMixinModel("ModelMixin")
-	modelMixin.AddCharField("HexyaExternalID", StringFieldParams{Unique: true, Index: true, NoCopy: true,
-		Default: func(env Environment, values FieldMap) interface{} {
-			return fmt.Sprintf("__hexya_external_id__%d", idSeq.NextValue())
+	modelMixin.AddFields(map[string]FieldDefinition{
+		"HexyaExternalID": CharField{Unique: true, Index: true, NoCopy: true,
+			Default: func(env Environment, values FieldMap) interface{} {
+				return fmt.Sprintf("__hexya_external_id__%d", idSeq.NextValue())
+			},
 		},
+		"HexyaVersion": IntegerField{GoType: new(int)},
 	})
-	modelMixin.AddIntegerField("HexyaVersion", SimpleFieldParams{GoType: new(int)})
 	modelMixin.InheritModel(Registry.MustGet("BaseMixin"))
 }
 

@@ -199,8 +199,8 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo, validate bool) map[strin
 						parseAddMethod(node, modInfo, &modelsData)
 					case fnctName == "InheritModel":
 						parseMixInModel(node, &modelsData)
-					case strutils.StartsAndEndsWith(fnctName, "Add", "Field"):
-						parseAddField(node, modInfo, &modelsData)
+					case fnctName == "AddFields":
+						parseAddFields(node, modInfo, &modelsData)
 					case strutils.StartsAndEndsWith(fnctName, "Declare", "Model"):
 						parseDeclareModel(node, &modelsData)
 					case strutils.StartsAndEndsWith(fnctName, "New", "Model"):
@@ -330,8 +330,8 @@ func ExtractFunctionName(node *ast.CallExpr) (string, error) {
 	return fName, nil
 }
 
-// parseAddField parses the given node which is an AddXXXXField function
-func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
+// parseAddFields parses the given node which is an AddFields function
+func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
 	fNode := node.Fun.(*ast.SelectorExpr)
 	modelName, err := extractModel(fNode.X)
 	if err != nil {
@@ -340,35 +340,47 @@ func parseAddField(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[stri
 	if _, exists := (*modelsData)[modelName]; !exists {
 		(*modelsData)[modelName] = newModelASTData(modelName)
 	}
+	fields := node.Args[0].(*ast.CompositeLit)
+	for _, f := range fields.Elts {
+		fDef := f.(*ast.KeyValueExpr)
+		fieldName := strings.Trim(fDef.Key.(*ast.BasicLit).Value, "\"`")
+		var typeStr string
 
-	fieldName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
-	typeStr := strings.TrimSuffix(strings.TrimPrefix(fNode.Sel.Name, "Add"), "Field")
-	var importPath string
-	if typeStr == "Date" || typeStr == "DateTime" {
-		importPath = DatesPath
-	}
-	fData := FieldASTData{
-		Name: fieldName,
-		Type: TypeData{
-			Type:       fieldtype.Type(strings.ToLower(typeStr)).DefaultGoType().String(),
-			ImportPath: importPath,
-		},
-	}
-	var fieldElems []ast.Expr
-	switch fd := node.Args[1].(type) {
-	case *ast.Ident:
-		fieldElems = fd.Obj.Decl.(*ast.CompositeLit).Elts
-	case *ast.CompositeLit:
-		fieldElems = fd.Elts
-	}
-	for _, elem := range fieldElems {
-		fElem := elem.(*ast.KeyValueExpr)
-		fData = parseFieldAttribute(fElem, fData, modInfo)
-		if fData.embed {
-			(*modelsData)[modelName].Embeds[fieldName] = true
+		switch ft := fDef.Value.(*ast.CompositeLit).Type.(type) {
+		case *ast.Ident:
+			typeStr = strings.TrimSuffix(ft.Name, "Field")
+		case *ast.SelectorExpr:
+			typeStr = strings.TrimSuffix(ft.Sel.Name, "Field")
 		}
+		var importPath string
+		if typeStr == "Date" || typeStr == "DateTime" {
+			importPath = DatesPath
+		}
+
+		var fieldParams []ast.Expr
+		switch fd := fDef.Value.(type) {
+		case *ast.Ident:
+			fieldParams = fd.Obj.Decl.(*ast.CompositeLit).Elts
+		case *ast.CompositeLit:
+			fieldParams = fd.Elts
+		}
+
+		fData := FieldASTData{
+			Name: fieldName,
+			Type: TypeData{
+				Type:       fieldtype.Type(strings.ToLower(typeStr)).DefaultGoType().String(),
+				ImportPath: importPath,
+			},
+		}
+		for _, elem := range fieldParams {
+			fElem := elem.(*ast.KeyValueExpr)
+			fData = parseFieldAttribute(fElem, fData, modInfo)
+			if fData.embed {
+				(*modelsData)[modelName].Embeds[fieldName] = true
+			}
+		}
+		(*modelsData)[modelName].Fields[fieldName] = fData
 	}
-	(*modelsData)[modelName].Fields[fieldName] = fData
 }
 
 // parseFieldAttribute parses the given KeyValueExpr of a field definition

@@ -47,23 +47,28 @@ func init() {
 			return &res, []models.FieldNamer{pool.User().Age()}
 		})
 
-	user.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "The user's username", Unique: true})
-	user.AddCharField("DecoratedName", models.StringFieldParams{Compute: pool.User().Methods().ComputeDecoratedName()})
-	user.AddCharField("Email", models.StringFieldParams{Help: "The user's email address", Size: 100, Index: true})
-	user.AddCharField("Password", models.StringFieldParams{NoCopy: true})
-	user.AddIntegerField("Status", models.SimpleFieldParams{JSON: "status_json", GoType: new(int16)})
-	user.AddBooleanField("IsStaff", models.SimpleFieldParams{})
-	user.AddBooleanField("IsActive", models.SimpleFieldParams{})
-	user.AddMany2OneField("Profile", models.ForeignKeyFieldParams{RelationModel: pool.Profile()})
-	user.AddIntegerField("Age", models.SimpleFieldParams{Compute: pool.User().Methods().ComputeAge(),
-		Inverse: pool.User().Methods().InverseSetAge(),
-		Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)})
-	user.AddOne2ManyField("Posts", models.ReverseFieldParams{RelationModel: pool.Post(), ReverseFK: "User"})
-	user.AddFloatField("PMoney", models.FloatFieldParams{Related: "Profile.Money"})
-	user.AddMany2OneField("LastPost", models.ForeignKeyFieldParams{RelationModel: pool.Post(), Embed: true})
-	user.AddCharField("Email2", models.StringFieldParams{})
-	user.AddBooleanField("IsPremium", models.SimpleFieldParams{})
-	user.AddIntegerField("Nums", models.SimpleFieldParams{GoType: new(int)})
+	user.AddFields(map[string]models.FieldDefinition{
+		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
+			NoCopy: true, OnChange: user.Methods().ComputeDecoratedName()},
+		"DecoratedName": models.CharField{Compute: user.Methods().ComputeDecoratedName()},
+		"Email":         models.CharField{Help: "The user's email address", Size: 100, Index: true},
+		"Password":      models.CharField{NoCopy: true},
+		"Status": models.IntegerField{JSON: "status_json", GoType: new(int16),
+			Default: models.DefaultValue(int16(12))},
+		"IsStaff":  models.BooleanField{},
+		"IsActive": models.BooleanField{},
+		"Profile":  models.Many2OneField{RelationModel: pool.Profile()},
+		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
+			Inverse: user.Methods().InverseSetAge(),
+			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
+		"Posts":     models.One2ManyField{RelationModel: pool.Post(), ReverseFK: "User"},
+		"PMoney":    models.FloatField{Related: "Profile.Money"},
+		"LastPost":  models.Many2OneField{RelationModel: pool.Post(), Embed: true},
+		"Email2":    models.CharField{},
+		"IsPremium": models.BooleanField{},
+		"Nums":      models.IntegerField{GoType: new(int)},
+		"Size":      models.FloatField{},
+	})
 
 	user.Methods().PrefixedUser().DeclareMethod(
 		`PrefixedUser is a sample method layer for testing`,
@@ -109,19 +114,27 @@ func init() {
 		})
 
 	profile := pool.Profile().DeclareModel()
-	profile.AddIntegerField("Age", models.SimpleFieldParams{GoType: new(int16)})
-	profile.AddSelectionField("Gender", models.SelectionFieldParams{Selection: types.Selection{"male": "Male", "female": "Female"}})
-	profile.AddFloatField("Money", models.FloatFieldParams{})
-	profile.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: pool.User()})
-	profile.AddOne2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: pool.Post()})
-	profile.AddCharField("City", models.StringFieldParams{})
-	profile.AddCharField("Country", models.StringFieldParams{})
+	profile.AddFields(map[string]models.FieldDefinition{
+		"Age":      models.IntegerField{GoType: new(int16)},
+		"Gender":   models.SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
+		"Money":    models.FloatField{},
+		"User":     models.Many2OneField{RelationModel: pool.User()},
+		"BestPost": models.One2OneField{RelationModel: pool.Post()},
+		"City":     models.CharField{},
+		"Country":  models.CharField{},
+	})
 
 	post := pool.Post().DeclareModel()
-	post.AddMany2OneField("User", models.ForeignKeyFieldParams{RelationModel: pool.User()})
-	post.AddCharField("Title", models.StringFieldParams{})
-	post.AddTextField("Content", models.StringFieldParams{})
-	post.AddMany2ManyField("Tags", models.Many2ManyFieldParams{RelationModel: pool.Tag()})
+	post.AddFields(map[string]models.FieldDefinition{
+		"User":            models.Many2OneField{RelationModel: pool.User()},
+		"Title":           models.CharField{},
+		"Content":         models.HTMLField{},
+		"Tags":            models.Many2ManyField{RelationModel: pool.Tag()},
+		"BestPostProfile": models.Rev2OneField{RelationModel: pool.Profile(), ReverseFK: "BestPost"},
+		"Abstract":        models.TextField{},
+		"Attachment":      models.BinaryField{},
+		"LastRead":        models.DateField{},
+	})
 
 	pool.Post().Methods().Create().Extend("",
 		func(rs pool.PostSet, data models.FieldMapper) pool.PostSet {
@@ -130,12 +143,14 @@ func init() {
 		})
 
 	tag := pool.Tag().DeclareModel()
-	tag.AddCharField("Name", models.StringFieldParams{Constraint: pool.Tag().Methods().CheckNameDescription()})
-	tag.AddMany2OneField("Parent", models.ForeignKeyFieldParams{RelationModel: pool.Tag()})
-	tag.AddMany2OneField("BestPost", models.ForeignKeyFieldParams{RelationModel: pool.Post()})
-	tag.AddMany2ManyField("Posts", models.Many2ManyFieldParams{RelationModel: pool.Post()})
-	tag.AddCharField("Description", models.StringFieldParams{Constraint: pool.Tag().Methods().CheckNameDescription()})
-	tag.AddFloatField("Rate", models.FloatFieldParams{Constraint: pool.Tag().Methods().CheckRate(), GoType: new(float32)})
+	tag.AddFields(map[string]models.FieldDefinition{
+		"Name":        models.CharField{Constraint: tag.Methods().CheckNameDescription()},
+		"BestPost":    models.Many2OneField{RelationModel: pool.Post()},
+		"Posts":       models.Many2ManyField{RelationModel: pool.Post()},
+		"Parent":      models.Many2OneField{RelationModel: pool.Tag()},
+		"Description": models.CharField{Constraint: tag.Methods().CheckNameDescription()},
+		"Rate":        models.FloatField{Constraint: tag.Methods().CheckRate(), GoType: new(float32)},
+	})
 
 	tag.Methods().CheckNameDescription().DeclareMethod(
 		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
@@ -154,9 +169,11 @@ func init() {
 		})
 
 	addressMI := pool.AddressMixIn().DeclareMixinModel()
-	addressMI.AddCharField("Street", models.StringFieldParams{})
-	addressMI.AddCharField("Zip", models.StringFieldParams{})
-	addressMI.AddCharField("City", models.StringFieldParams{})
+	addressMI.AddFields(map[string]models.FieldDefinition{
+		"Street": models.CharField{GoType: new(string)},
+		"Zip":    models.CharField{},
+		"City":   models.CharField{},
+	})
 	profile.InheritModel(addressMI)
 
 	pool.Profile().Methods().PrintAddress().DeclareMethod(
@@ -192,7 +209,9 @@ func init() {
 		})
 
 	activeMI := pool.ActiveMixIn().DeclareMixinModel()
-	activeMI.AddBooleanField("Active", models.SimpleFieldParams{})
+	activeMI.AddFields(map[string]models.FieldDefinition{
+		"Active": models.BooleanField{},
+	})
 	pool.ModelMixin().InheritModel(activeMI)
 
 	// Chained declaration
@@ -205,6 +224,8 @@ func init() {
 		})
 
 	viewModel := pool.UserView().DeclareManualModel()
-	viewModel.AddCharField("Name", models.StringFieldParams{})
-	viewModel.AddCharField("City", models.StringFieldParams{})
+	viewModel.AddFields(map[string]models.FieldDefinition{
+		"Name": models.CharField{},
+		"City": models.CharField{},
+	})
 }

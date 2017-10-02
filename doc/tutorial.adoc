@@ -209,8 +209,7 @@ database whenever there is a modification in a model definition, i.e.:
 === Model fields
 
 Fields are used to define what the model can store and where. Fields are
-defined by an `Add...Field` method of the model, where `...` is the type of
-field to add.
+defined by the `AddField` method of the model.
 
 Update the `OpenAcademyCourse` model to include a name and a description to our course.
 
@@ -226,8 +225,10 @@ import (
 
 func init() {
     pool.OpenAcademyCourse().DeclareModel()
-    pool.OpenAcademyCourse().AddCharField("Name", models.StringFieldParams{})
-    pool.OpenAcademyCourse().AddTextField("Description", models.StringFieldParams{})
+    pool.OpenAcademyCourse().AddFields(map[string]models.FieldDeclaration{
+        "Name":        models.CharField{},
+        "Description": models.TextField{},
+    })
 }
 ----
 <1> Note that we need to import the generated `pool` package to use it
@@ -239,7 +240,7 @@ struct:
 
 [source,go]
 ----
-pool.Course().AddCharField("Name", models.StringFieldParams{Required: true})
+"Name":  models.CharField{Required: true},
 ----
 
 Some attributes are available on all fields, here are the most common ones:
@@ -599,14 +600,15 @@ import (
 
 func init() { // <1>
     pool.OpenAcademySession().DeclareModel()
-    pool.OpenAcademySession().AddCharField("Name", models.StringFieldParams{Required: true})
-    pool.OpenAcademySession().AddDateField("StartDate", models.SimpleFieldParams{})
-    pool.OpenAcademySession().AddFloatField("Duration", models.FloatFieldParams{
-        Digits: types.Digits{Precision: 6, Scale: 2}, Help: "Duration in days"})
-    pool.OpenAcademySession().AddIntegerField("Seats", models.SimpleFieldParams{
-        String: "Number of seats"})
-    pool.OpenAcademySession().AddSelectionField("State", models.SelectionFieldParams{
-        Selection: types.Selection{"planned": "Planned", "in_progress":"In Progress", "done": "Finished"}}) //<2>
+    pool.OpenAcademySession().AddFields(map[string]models.FieldDeclaration{
+        "Name":      models.CharField{Required: true},
+        "StartDate": models.DateField{},
+        "Duration":  models.FloatField{Digits: types.Digits{Precision: 6, Scale: 2},
+            Help: "Duration in days"},
+        "Seats":     models.IntegerField{String: "Number of seats"},
+        "State":     models.SelectionField{
+            Selection: types.Selection{"planned": "Planned", "in_progress":"In Progress", "done": "Finished"}}, //<2>
+    })
 }
 ----
 <1> You can define as many `init()` functions in a Go package
@@ -671,8 +673,9 @@ A simple link to another object.
 
 [source,go]
 ----
-pool.SaleOrder().AddMany2OneField("Customer", models.ForeignKeyFieldParams{
-    RelationModel: pool.Partner()})
+pool.SaleOrder().AddFields(map[string]models.FieldDeclaration{
+    "Customer": models.Many2OneField{RelationModel: pool.Partner()},
+})
 
 fmt.Println(myOrder().Customer().Name())
 ----
@@ -684,8 +687,9 @@ records.
 
 [source,go]
 ----
-pool.SaleOrder().AddOne2ManyField("OrderLines",
-    models.ReverseFieldParams{RelationModel: pool.SaleOrderLine(), ReverseFK: "Order"})
+pool.SaleOrder().AddFields(map[string]models.FieldDeclaration{
+    "OrderLines": models.One2ManyField{RelationModel: pool.SaleOrderLine(), ReverseFK: "Order"},
+})
 
 for _, orderLine := range myOrder().OrderLines().Records() {
     fmt.Println(orderLine.AmountTotal())
@@ -703,8 +707,9 @@ accessing it also results in a possibly empty set of records.
 
 [source,go]
 ----
-pool.SaleOrder().AddMany2ManyField("Tags",
-    models.Many2ManyFieldParams{RelationModel: pool.Tag()})
+pool.SaleOrder().AddFields(map[string]models.FieldDeclaration{
+    "Tags": models.Many2ManyField{RelationModel: pool.Tag()},
+})
 
 for _, tag := range myOrder().Tags().Records() {
     fmt.Println(tag.Name())
@@ -725,12 +730,14 @@ import (
 
 func init() {
     pool.OpenAcademyCourse().DeclareModel()
-    pool.OpenAcademyCourse().AddCharField("Name", models.StringFieldParams{})
-    pool.OpenAcademyCourse().AddTextField("Description", models.StringFieldParams{})
-    pool.OpenAcademyCourse().AddMany2OneField("Responsible", models.ForeignKeyFieldParams{
-        RelationModel: pool.User(), OnDelete: models.SetNull, Index: true})
-    pool.OpenAcademyCourse().AddOne2ManyField("Sessions", models.ReverseFieldParams{
-        RelationModel: pool.OpenAcademySession(), ReverseFK: "Course"})
+    pool.OpenAcademyCourse().AddFields(map[string]models.FieldDeclaration{
+        "Name":        models.CharField{},
+        "Description": models.TextField{},
+        "Responsible": models.Many2OneField{
+            RelationModel: pool.User(), OnDelete: models.SetNull, Index: true},
+        "Sessions":    models.One2ManyField{
+            RelationModel: pool.OpenAcademySession(), ReverseFK: "Course"},
+    })
 }
 ----
 
@@ -747,20 +754,19 @@ import (
 
 func init() {
     pool.OpenAcademySession().DeclareModel()
-    pool.OpenAcademySession().AddCharField("Name", models.StringFieldParams{Required: true})
-    pool.OpenAcademySession().AddDateField("StartDate", models.SimpleFieldParams{})
-    pool.OpenAcademySession().AddFloatField("Duration", models.FloatFieldParams{
-        Digits: types.Digits{Precision: 6, Scale: 2}, Help: "Duration in days"})
-    pool.OpenAcademySession().AddIntegerField("Seats", models.SimpleFieldParams{
-        String: "Number of seats"})
-    pool.OpenAcademySession().AddSelectionField("State", models.SelectionFieldParams{
-        Selection: types.Selection{"planned": "Planned", "in_progress":"In Progress", "done": "Finished"}})
-    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
-        RelationModel: pool.Partner()})
-    pool.OpenAcademySession().AddMany2OneField("Course", models.ForeignKeyFieldParams{
-        RelationModel: pool.OpenAcademyCourse(), Required: true, OnDelete: models.Cascade})
-    pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        RelationModel: pool.Partner()})
+    pool.OpenAcademySession().AddFields(map[string]models.FieldDeclaration{
+        "Name":       models.CharField{Required: true},
+        "StartDate":  models.DateField{},
+        "Duration":   models.FloatField{Digits: types.Digits{Precision: 6, Scale: 2},
+            Help: "Duration in days"},
+        "Seats":      models.IntegerField{String: "Number of seats"},
+        "State":      models.SelectionField{
+            Selection: types.Selection{"planned": "Planned", "in_progress":"In Progress", "done": "Finished"}}, //<2>
+        "Instructor": models.Many2OneField{RelationModel: pool.Partner()},
+        "Course":     models.Many2OneField{RelationModel: pool.OpenAcademyCourse(),
+            Required: true, OnDelete: models.Cascade},
+        "Attendees":  models.Many2ManyField{RelationModel: pool.Partner()},
+    })
 }
 ----
 
@@ -980,9 +986,10 @@ import (
 )
 
 func init() {
-    pool.Partner().AddBooleanField("Instructor", models.SimpleFieldParams{})
-    pool.Partner().AddMany2ManyField("AttendedSessions", models.Many2ManyFieldParams{
-        RelationModel: pool.OpenAcademySession()})
+    pool.Partner().AddFields(map[string]models.FieldDeclaration{
+        "Instructor":       models.BooleanField{},
+        "AttendedSessions": models.Many2ManyField{RelationModel: pool.OpenAcademySession()}
+    })
 }
 ----
 
@@ -1112,9 +1119,11 @@ Let's add the percentage of taken seats to the *Session* model.
 ----
 func init() {
 (...)
-    pool.OpenAcademySession().AddFloatField("TakenSeats", models.FloatFieldParams{
+    "TakenSeats": models.FloatField{
         Compute: pool.OpenAcademySession().Methods().ComputeTakenSeats(),
-        Depends: []string{"Seats", "Attendees"}})
+        Depends: []string{"Seats", "Attendees"}},
+
+(...)
 
     pool.OpenAcademySession().Methods().ComputeTakenSeats().DeclareMethod(
         `ComputeTakenSeats returns the percentage of taken seats in this session`,
@@ -1194,14 +1203,13 @@ field that defaults to true.
 ----
 func init() {
 (...)
-    pool.OpenAcademySession().AddDateField("StartDate", models.SimpleFieldParams{
+    "StartDate": models.DateField{
         Default: func(env models.Environment, fMap models.FieldMap) interface{} {
                 return types.Today()
             },
-        })
+        },
 (...)
-    pool.OpenAcademySession().AddBooleanField("Active", models.SimpleFieldParams{
-        Default: models.DefaultValue(true)})
+    "Active": models.BooleanField{Default: models.DefaultValue(true)},
 (...)
 }
 ----
@@ -1229,13 +1237,13 @@ We now add an explicit onchange to prevent negative number of seats.
 ----
 func init() {
 (...)
-    pool.OpenAcademySession().AddIntegerField("Seats", models.SimpleFieldParams{
+    "Seats": models.IntegerField{
         String: "Number of seats",
-        OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats()})
+        OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats()},
 (...)
-    pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
+   "Attendees": models.Many2ManyField{
         RelationModel: pool.Partner(),
-        OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats()})
+        OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats()},
 (...)
 
     pool.OpenAcademySession().Methods().VerifyValidSeats().DeclareMethod(
@@ -1271,8 +1279,8 @@ We can add a domain to limit instructors to partners who are instructors:
 [source,go]
 ----
 (...)
-    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
-        RelationModel: pool.Partner(), Filter: pool.Partner().Instructor().Equals(true)})
+    "Instructor": models.Many2OneField{RelationModel: pool.Partner(),
+        Filter: pool.Partner().Instructor().Equals(true)},
 (...)
 ----
 
@@ -1294,7 +1302,7 @@ Let's add the following SQL constraints to our sessions:
 [source,go]
 ----
 (...)
-    pool.OpenAcademyCourse().AddCharField("Name", models.StringFieldParams{Unique: true})
+    "Name": models.CharField{Unique: true},
 (...)
     pool.OpenAcademyCourse().AddSQLConstraint("name_description_check",
          "CHECK(name != description)",
@@ -1318,14 +1326,15 @@ in the attendees of his/her own session.
 .openacademy/session.go
 [source,go]
 ----
-    pool.OpenAcademySession().AddMany2OneField("Instructor", models.ForeignKeyFieldParams{
-        RelationModel: pool.Partner(),
+(...)
+    "Instructor": models.Many2OneField{RelationModel: pool.Partner(),
         Filter: pool.Partner().Instructor().Equals(true),
-        Constraint: pool.OpenAcademySession().Methods().CheckInstructorNotInAttendees()})
-    pool.OpenAcademySession().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        RelationModel: pool.Partner(),
+        Constraint: pool.OpenAcademySession().Methods().CheckInstructorNotInAttendees()},
+    "Attendees": models.Many2ManyField{RelationModel: pool.Partner(),
         OnChange: pool.OpenAcademySession().Methods().VerifyValidSeats(),
-        Constraint: pool.OpenAcademySession().Methods().CheckInstructorNotInAttendees()})
+        Constraint: pool.OpenAcademySession().Methods().CheckInstructorNotInAttendees()},
+
+(...)
 
     pool.Methods().CheckInstructorNotInAttendees().DeclareMethod(
         `CheckInstructorNotInAttendees checks that the instructor is not present
@@ -1337,6 +1346,7 @@ in the attendees of his/her own session.
                 }
             }
         })
+(...)
 ----
 
 == Advanced Views
@@ -1713,10 +1723,11 @@ import (
 
 func init() {
     pool.OpenAcademyWizard().DeclareTransientModel()
-    pool.OpenAcademyWizard().AddMany2OneField("Session", models.ForeignKeyFieldParams{
-        RelationModel: pool.OpenAcademySession(), Required: true})
-    pool.OpenAcademyWizard().AddMany2ManyField("Attendees", models.Many2ManyFieldParams{
-        RelationModel: pool.Partner()})
+    pool.OpenAcademyWizard().AddFields(map[string]models.FieldDeclaration{
+        "Session": models.Many2OneField{RelationModel: pool.OpenAcademySession(),
+            Required: true},
+        "Attendees": models.Many2ManyField{RelationModel: pool.Partner()},
+    })
 }
 ----
 
@@ -1746,13 +1757,16 @@ Let's:
 ----
 func init() {
 (...)
-    pool.OpenAcademyWizard().AddMany2OneField("Session", models.ForeignKeyFieldParams{
-        RelationModel: pool.OpenAcademySession(), Required: true, Default:
-        func(env models.Environment, fMap models.FieldMap) interface{} {
-            activeID := env.Context().GetInteger("active_id")
-			return pool.OpenAcademySession().Search(env,
-			    pool.OpenAcademySession().ID().Equals(activeID))
-        }})
+    "Session": models.Many2OneField{RelationModel: pool.OpenAcademySession(),
+        Required: true, Default:
+            func(env models.Environment, fMap models.FieldMap) interface{} {
+                activeID := env.Context().GetInteger("active_id")
+                return pool.OpenAcademySession().Search(env,
+                    pool.OpenAcademySession().ID().Equals(activeID))
+            }
+        },
+
+(...)
 
     pool.OpenAcademyWizard().Methods().Subscribe().DeclareMethod(
         `Subscribe subscribes the users to the session`,

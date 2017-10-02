@@ -581,46 +581,47 @@ are mainly used for wizards.
 
 === Fields declaration
 
-Models fields are added by specific methods that apply to a model instance as
-in the example below:
+Models fields are added by the `AddField` method of a model as in the example below:
 
 [source,go]
 ----
 course := pool.Course().DeclareModel()
-course.AddCharField("Name", models.StringFieldParams{String: "Name", Help: "This is the name of the course", Required: true})
-course.AddDateField("Date", models.SimpleFieldParams{String: "Date of the Course"}
-course.AddMany2OneField("Teacher", models.ForeignKeyParams{RelationModel: "Partner", String: "Teacher"}
-course.AddDateTimeField("LimitDate", models.SimpleFieldParams{Required: true}
-course.AddMany2ManyField("Attendees", models.Many2manyFieldParams{RelationModel: "Partner", String: "Attendees"}
+course.AddFields(map[string]models.FieldDeclaration{
+    "Name":      models.CharField{String: "Name", Help: "This is the name of the course", Required: true},
+    "Date":      models.DateField{String: "Date of the Course"},
+    "Teacher":   models.Many2OneField{RelationModel: pool.Partner(), String: "Teacher"},
+    "LimitDate": models.DateTimeField{Required: true},
+    "Attendees": models.Many2manyField{RelationModel: pool.Partner(), String: "Attendees"},
+})
 ----
 
-Available model methods for creating fields are:
+Available fields types are:
 
-`*AddBinaryField(name string, params SimpleFieldParams)*`::
+`*BinaryField{}*`::
 A binary field holds arbitrary data that is meant to be delivered to the
 client as a file. Binary fields are mapped to `string` go type.
-`*AddBooleanField(name string, params SimpleFieldParams)*`::
-`*AddCharField(name string, params StringFieldParams)*`::
+`*BooleanField{}*`::
+`*CharField{}*`::
 A Char field is a string field that is meant to be displayed as a single line
 in the client. Char fields are mapped to go strings.
-`*AddDateField(name string, params SimpleFieldParams)*`::
+`*DateField{}*`::
 Date fields are mapped to models.Date structs.
-`*AddDateTimeField(name string, params SimpleFieldParams)*`::
+`*DateTimeField{}*`::
 DateTime fields are mapped to models.Date structs.
-`*AddFloatField(name string, params FloatFieldParams)*`::
-`*AddHTMLField(name string, params StringFieldParams)*`::
+`*FloatField{}*`::
+`*HTMLField{}*`::
 HTML fields are formatted with their HTML content by the client.
-`*AddIntegerField(name string, params SimpleFieldParams)*`::
-`*AddMany2ManyField(name string, params Many2ManyFieldParams)*`::
-`*AddMany2OneField(name string, params ForeignKeyFieldParams)*`::
-`*AddOne2ManyField(name string, params ReverseFieldParams)*`::
-`*AddOne2OneField(name string, params ForeignKeyFieldParams)*`::
-`*AddRev2OneField(name string, params ReverseFieldParams)*`::
+`*IntegerField{}*`::
+`*Many2ManyField{}*`::
+`*Many2OneField{}*`::
+`*One2ManyField{}*`::
+`*One2OneField{}*`::
+`*Rev2OneField{}*`::
 Rev2One fields are the reverse relation of one2one in the model that does not
 have an FK.
-`*AddSelectionField(name string, params SelectionFieldParams)*`::
+`*SelectionField{}*`::
 A selection field can have as values only a set of predefined strings.
-`*AddTextField(name string, params StringFieldParams)*`::
+`*TextField{}*`::
 A Text field is a string field that is meant to be displayed on multiple lines
 in the client. Text fields are mapped to go strings.
 
@@ -721,7 +722,9 @@ and `sql.Scanner` interfaces.
 [source,go]
 ----
 session := pool.Session().DeclareModel()
-session.AddIntegerField("Room No", models.SimpleFieldParams{GoType: new(int16)})
+session.AddFields(map[string]models.FieldDeclaration{
+    "Room No": models.IntegerField{GoType: new(int16)},
+})
 ----
 
 ===== Field's metadata parameters
