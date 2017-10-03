@@ -15,7 +15,11 @@
 package testllmodule
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
 )
 
@@ -28,14 +32,134 @@ func declareModels() {
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	viewModel := models.NewManualModel("UserView")
 
-	user.AddMethod("ComputeAge",
-		`ComputeAge is a sample method layer for testing`,
-		func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
-			res := models.FieldMap{
-				"Age": rc.Get("Profile").(*models.RecordCollection).Get("Age"),
+	user.AddMethod("PrefixedUser", "",
+		func(rc *models.RecordCollection, prefix string) []string {
+			var res []string
+			for _, u := range rc.Records() {
+				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("Name")))
 			}
-			return res, []models.FieldNamer{models.FieldName("Age")}
+			return res
 		})
+
+	user.Methods().MustGet("PrefixedUser").Extend("",
+		func(rc *models.RecordCollection, prefix string) []string {
+			res := rc.Super().Call("PrefixedUser", prefix).([]string)
+			for i, u := range rc.Records() {
+				email := u.Get("Email").(string)
+				res[i] = fmt.Sprintf("%s %s", res[i], rc.Call("DecorateEmail", email))
+			}
+			return res
+		})
+
+	user.AddMethod("DecorateEmail", "",
+		func(rc *models.RecordCollection, email string) string {
+			if rc.Env().Context().HasKey("use_square_brackets") {
+				return fmt.Sprintf("[%s]", email)
+			}
+			return fmt.Sprintf("<%s>", email)
+		})
+
+	user.Methods().MustGet("DecorateEmail").Extend("",
+		func(rc *models.RecordCollection, email string) string {
+			if rc.Env().Context().HasKey("use_double_square") {
+				rc = rc.
+					Call("WithContext", "use_square_brackets", true).(*models.RecordCollection).
+					WithContext("fake_key", true)
+			}
+			res := rc.Super().Call("DecorateEmail", email).(string)
+			return fmt.Sprintf("[%s]", res)
+		})
+
+	user.AddMethod("ComputeDecoratedName", "",
+		func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+			res := make(models.FieldMap)
+			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
+			return res, []models.FieldNamer{models.FieldName("DecoratedName")}
+		})
+
+	user.AddMethod("ComputeAge", "",
+		func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+			res := make(models.FieldMap)
+			res["Age"] = rc.Get("Profile").(*models.RecordCollection).Get("Age").(int16)
+			return res, []models.FieldNamer{}
+		})
+
+	user.AddMethod("InverseSetAge", "",
+		func(rc *models.RecordCollection, vals models.FieldMapper) {
+			value, ok := vals.FieldMap(models.FieldName("Age"))["Age"]
+			if !ok {
+				return
+			}
+			rc.Get("Profile").(*models.RecordCollection).Set("Age", value)
+		})
+
+	user.AddMethod("UpdateCity", "",
+		func(rc *models.RecordCollection, value string) {
+			rc.Get("Profile").(*models.RecordCollection).Set("City", value)
+		})
+
+	activeMI.AddMethod("IsActivated", "",
+		func(rc *models.RecordCollection) bool {
+			return rc.Get("Active").(bool)
+		})
+
+	addressMI.AddMethod("SayHello", "",
+		func(rc *models.RecordCollection) string {
+			return "Hello !"
+		})
+
+	printAddress := addressMI.AddEmptyMethod("PrintAddress")
+	printAddress.DeclareMethod("",
+		func(rc *models.RecordCollection) string {
+			return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
+		})
+
+	profile.AddMethod("PrintAddress", "",
+		func(rc *models.RecordCollection) string {
+			res := rc.Super().Call("PrintAddress").(string)
+			return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
+		})
+
+	addressMI.Methods().MustGet("PrintAddress").Extend("",
+		func(rc *models.RecordCollection) string {
+			res := rc.Super().Call("PrintAddress").(string)
+			return fmt.Sprintf("<%s>", res)
+		})
+
+	profile.Methods().MustGet("PrintAddress").Extend("",
+		func(rc *models.RecordCollection) string {
+			res := rc.Super().Call("PrintAddress").(string)
+			return fmt.Sprintf("[%s]", res)
+		})
+
+	post.Methods().MustGet("Create").Extend("",
+		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+			res := rc.Super().Call("Create", data).(models.RecordSet).Collection()
+			return res
+		})
+
+	post.Methods().MustGet("WithContext").Extend("",
+		func(rc *models.RecordCollection, key string, value interface{}) *models.RecordCollection {
+			return rc.Super().Call("WithContext", key, value).(*models.RecordCollection)
+		})
+
+	tag.AddMethod("CheckRate",
+		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
+		func(rc *models.RecordCollection) {
+			if rc.Get("Rate").(float32) < 0 || rc.Get("Rate").(float32) > 10 {
+				log.Panic("Tag rate must be between 0 and 10")
+			}
+		})
+
+	tag.AddMethod("CheckNameDescription",
+		`CheckNameDescription checks that the description of a tag is not equal to its name`,
+		func(rc *models.RecordCollection) {
+			if rc.Get("Name").(string) == rc.Get("Description").(string) {
+				log.Panic("Tag name and description must be different")
+			}
+		})
+
+	tag.Methods().AllowAllToGroup(security.GroupEveryone)
 
 	user.AddFields(map[string]models.FieldDefinition{
 		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,

@@ -73,12 +73,14 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 		if cData.path != "" {
 			recs = rc.Env().Pool(cData.model.name).Search(rc.Model().Field(cData.path).In(rc.Ids()))
 		}
-		for _, rec := range recs.Records() {
-			if !cData.stored {
-				// Field is not store, just invalidating cache
-				rc.env.cache.removeEntry(rec.model, rec.Ids()[0], cData.fieldName)
-				continue
+		if !cData.stored {
+			// Field is not stored, just invalidating cache
+			for _, id := range recs.Ids() {
+				rc.env.cache.removeEntry(recs.model, id, cData.fieldName)
 			}
+			continue
+		}
+		for _, rec := range recs.Records() {
 			retVal := rec.CallMulti(cData.compute)
 			toUnset := retVal[1].([]FieldNamer)
 			vals := retVal[0].(FieldMapper).FieldMap(toUnset...)
