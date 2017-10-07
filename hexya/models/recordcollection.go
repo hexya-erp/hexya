@@ -385,6 +385,15 @@ func (rc *RecordCollection) Search(cond *Condition) *RecordCollection {
 	return &rSetVal
 }
 
+// NoDistinct removes the DISTINCT keyword from this RecordSet query.
+// By default, all queries are distinct.
+func (rc *RecordCollection) NoDistinct() *RecordCollection {
+	rSet := *rc
+	rSet.query = rSet.query.clone()
+	rSet.query.noDistinct = true
+	return &rSet
+}
+
 // Limit returns a new RecordSet with only the first 'limit' records.
 func (rc *RecordCollection) Limit(limit int) *RecordCollection {
 	rSet := *rc
@@ -718,6 +727,11 @@ func (rc *RecordCollection) fieldsGroupOperators(fields []string) map[string]str
 	return res
 }
 
+// Condition returns the query condition associated with this RecordSet.
+func (rc *RecordCollection) Condition() *Condition {
+	return rc.query.cond
+}
+
 // Records returns the slice of RecordCollection singletons that constitute this
 // RecordCollection.
 func (rc *RecordCollection) Records() []*RecordCollection {
@@ -868,6 +882,7 @@ func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 		rc.query.fetchAll = false
 		rc.query.limit = 0
 		rc.query.offset = 0
+		rc.query.noDistinct = true
 	}
 	return rc
 }

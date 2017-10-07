@@ -359,8 +359,8 @@ func declareSearchMethods() {
 	commonMixin.AddMethod("Search",
 		`Search returns a new RecordSet filtering on the current one with the
 		additional given Condition`,
-		func(rc *RecordCollection, cond *Condition) *RecordCollection {
-			return rc.Search(cond)
+		func(rc *RecordCollection, cond Conditioner) *RecordCollection {
+			return rc.Search(cond.Underlying())
 		}).AllowGroup(security.GroupEveryone)
 
 	commonMixin.AddMethod("Browse",

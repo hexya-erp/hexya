@@ -212,7 +212,7 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 			argsVals[0].Field(0).Set(reflect.ValueOf(rc))
 		}
 		for i, arg := range args {
-			argsVals[i+1] = reflect.ValueOf(arg)
+			argsVals[i+1] = convertFunctionArg(fnctVal.Type().In(i+1), arg)
 		}
 
 		var retVal []reflect.Value
@@ -229,6 +229,31 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 		return res
 	}
 	return reflect.ValueOf(methodLayerFunction)
+}
+
+// convertFunctionArg converts the given argument to match that of fnctArgType.
+func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value {
+	var val reflect.Value
+	switch at := arg.(type) {
+	case Conditioner:
+		if fnctArgType.Kind() == reflect.Interface {
+			return reflect.ValueOf(at)
+		}
+		val = reflect.New(fnctArgType).Elem()
+		val.Field(0).Set(reflect.ValueOf(at.Underlying()))
+	case FieldMapper:
+		if fnctArgType.Kind() == reflect.Interface {
+			return reflect.ValueOf(at)
+		}
+		if fnctArgType.Kind() == reflect.Map {
+			return reflect.ValueOf(at.FieldMap())
+		}
+		val = reflect.New(fnctArgType).Elem()
+		val.Field(0).Set(reflect.ValueOf(at.FieldMap()))
+	default:
+		val = reflect.ValueOf(arg)
+	}
+	return val
 }
 
 // AddMethod creates a new method on given model name and adds the given fnct
@@ -320,10 +345,11 @@ func (m *Method) Extend(doc string, fnct interface{}) *Method {
 // checkTypesMatch returns true if both given types match
 // Two types match if :
 // - both types are the same
-// - type2 implements type1
+// - type2 implements type1 or vice-versa
 // - if one type is a pointer to a RecordCollection and the second
 // one implements the RecordSet interface.
 // - if one type is a FieldMap and the other implements FieldMapper
+// - if one type is a Condition and the other implements Conditioner
 func checkTypesMatch(type1, type2 reflect.Type) bool {
 	if type1 == type2 {
 		return true
@@ -340,6 +366,12 @@ func checkTypesMatch(type1, type2 reflect.Type) bool {
 	if type2 == reflect.TypeOf(FieldMap{}) && type1.Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()) {
 		return true
 	}
+	if type2.Kind() == reflect.Interface && type1.Implements(type2) {
+		return true
+	}
+	if type1.Kind() == reflect.Interface && type2.Implements(type1) {
+		return true
+	}
 	return false
 }
 
@@ -348,8 +380,7 @@ func checkTypesMatch(type1, type2 reflect.Type) bool {
 // it found one, false otherwise.
 func (m *Model) findMethodInMixin(methodName string) (*Method, bool) {
 	for _, mixin := range m.mixins {
-		method, ok := mixin.methods.get(methodName)
-		if ok {
+		if method, ok := mixin.methods.get(methodName); ok {
 			return method, true
 		}
 		if method, ok := mixin.findMethodInMixin(methodName); ok {

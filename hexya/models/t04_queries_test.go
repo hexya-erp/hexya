@@ -32,13 +32,13 @@ func TestConditions(t *testing.T) {
 				Convey("Simple query with database field names", func() {
 					rs = env.Pool("User").Search(rs.Model().FilteredOn("profile_id", env.Pool("Profile").Model().Field("best_post_id.title").Equals("foo")))
 					sql, args := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? )  ORDER BY id `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title, "user".id AS id FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? )  ORDER BY "user".id  `)
 					So(args, ShouldContain, "foo")
 				})
 				Convey("Simple query with struct field names", func() {
 					fields := []string{"Name", "Profile.BestPost.Title"}
 					sql, args := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? )  ORDER BY id `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title, "user".id AS id FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? )  ORDER BY "user".id  `)
 					So(args, ShouldContain, "foo")
 				})
 				Convey("Simple query with args inflation", func() {
@@ -48,7 +48,7 @@ func TestConditions(t *testing.T) {
 					rs2 := env.Pool("User").Search(rs.Model().Field("Nums").Equals(getUserID))
 					fields := []string{"Name"}
 					sql, args := rs2.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".nums = ? )  ORDER BY id `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".id AS id FROM "user" "user"  WHERE ("user".nums = ? )  ORDER BY "user".id  `)
 					So(len(args), ShouldEqual, 1)
 					So(args, ShouldContain, security.SuperUserID)
 				})
@@ -56,7 +56,7 @@ func TestConditions(t *testing.T) {
 					rs3 := env.Pool("User").Search(rs.Model().Field("IsStaff").Equals(true))
 					fields := []string{"Name"}
 					sql, args := rs3.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".is_staff = ? )  ORDER BY id `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".id AS id FROM "user" "user"  WHERE ("user".is_staff = ? )  ORDER BY "user".id  `)
 					So(len(args), ShouldEqual, 1)
 					So(args, ShouldContain, true)
 				})
@@ -76,25 +76,25 @@ func TestConditions(t *testing.T) {
 					So(args, ShouldContain, "%jane%")
 					So(args, ShouldContain, 1234.56)
 					sql, _ = rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) AND ("user__profile".age >= ? ) AND ("user".name LIKE ? OR "user__profile".money < ? )  ORDER BY id `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user__profile__post".title AS profile_id__best_post_id__title, "user".id AS id FROM "user" "user" LEFT JOIN "profile" "user__profile" ON "user".profile_id="user__profile".id LEFT JOIN "post" "user__profile__post" ON "user__profile".best_post_id="user__profile__post".id  WHERE ("user__profile__post".title = ? ) AND ("user__profile".age >= ? ) AND ("user".name LIKE ? OR "user__profile".money < ? )  ORDER BY "user".id  `)
 				})
 				Convey("Testing query without WHERE clause", func() {
 					rs = env.Pool("User").Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"   ORDER BY id `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".id AS id FROM "user" "user"   ORDER BY "user".id  `)
 				})
 				Convey("Testing query with LIMIT clause", func() {
 					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordSet).Collection().Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".id AS id FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY "user".id  LIMIT 1 `)
 				})
 				Convey("Testing query with LIMIT and OFFSET clauses", func() {
 					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("Limit", 1).(RecordSet).Collection().Call("Offset", 2).(RecordSet).Collection().Load()
 					fields := []string{"name"}
 					sql, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY id LIMIT 1 OFFSET 2`)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".id AS id FROM "user" "user"  WHERE ("user".email ILIKE ? )  ORDER BY "user".id  LIMIT 1 OFFSET 2`)
 				})
 				Convey("Testing query with ORDER BY clauses", func() {
 					rs = env.Pool("User").Search(rs.Model().Field("email").IContains("jane.smith@example.com")).Call("OrderBy", []string{"Email", "ID"}).(RecordSet).Collection().Load()
@@ -217,7 +217,7 @@ func TestConditions(t *testing.T) {
 				Convey("Child Of without parent field", func() {
 					rs = rs.Search(rs.Model().Field("ID").ChildOf(101))
 					sql, args := rs.query.selectQuery([]string{"Name"})
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".id = ? )  ORDER BY id `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "user".id AS id FROM "user" "user"  WHERE ("user".id = ? )  ORDER BY "user".id  `)
 					So(args, ShouldContain, 101)
 				})
 			})

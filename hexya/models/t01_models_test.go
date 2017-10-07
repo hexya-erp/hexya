@@ -139,6 +139,12 @@ func TestModelDeclaration(t *testing.T) {
 				return res
 			})
 
+		post.Methods().MustGet("Search").Extend("",
+			func(rc *RecordCollection, cond Conditioner) *RecordCollection {
+				res := rc.Super().Call("Search", cond).(RecordSet).Collection()
+				return res
+			})
+
 		post.Methods().MustGet("WithContext").Extend("",
 			func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
 				return rc.Super().Call("WithContext", key, value).(*RecordCollection)

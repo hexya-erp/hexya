@@ -115,6 +115,7 @@ type Model struct {
 	mixins         []*Model
 	sqlConstraints map[string]sqlConstraint
 	sqlErrors      map[string]string
+	defaultOrder   []string
 }
 
 // An sqlConstraint holds the data needed to create a table constraint in the database
@@ -368,6 +369,16 @@ func (m *Model) Methods() *MethodsCollection {
 	return m.methods
 }
 
+// SetDefaultOrder sets the default order used by this model
+// when no OrderBy() is specified in a query. When unspecified,
+// default order is 'id asc'.
+//
+// Give the order fields in separate strings, such as
+// model.SetDefaultOrder("Name desc", "date asc", "id")
+func (m *Model) SetDefaultOrder(orders ...string) {
+	m.defaultOrder = orders
+}
+
 // JSONizeFieldName returns the json name of the given fieldName
 // If fieldName is already the json name, returns it without modifying it.
 // fieldName may be a dot separated path from this model.
@@ -403,7 +414,7 @@ func (m *Model) Create(env Environment, data interface{}) *RecordCollection {
 }
 
 // Search searches the database and returns records matching the given condition.
-func (m *Model) Search(env Environment, cond *Condition) *RecordCollection {
+func (m *Model) Search(env Environment, cond Conditioner) *RecordCollection {
 	return env.Pool(m.name).Call("Search", cond).(RecordSet).Collection()
 }
 
@@ -491,6 +502,7 @@ func createModel(name string, options Option) *Model {
 		methods:        newMethodsCollection(),
 		sqlConstraints: make(map[string]sqlConstraint),
 		sqlErrors:      make(map[string]string),
+		defaultOrder:   []string{"id"},
 	}
 	pk := &Field{
 		name:      "ID",

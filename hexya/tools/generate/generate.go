@@ -73,12 +73,55 @@ type modelData struct {
 	Types          []fieldType
 }
 
-// specificMethods are generated according to specific templates and thus
-// must not be wrapped automatically.
-var specificMethods = map[string]bool{
-	"Search": true,
-	"First":  true,
-	"All":    true,
+// specificMethodsHandlers are functions that populate the given modelData
+// for specific methods.
+var specificMethodsHandlers = map[string]func(modelData *modelData){
+	"Search": searchMethodHandler,
+	"First":  firstMethodHandler,
+	"All":    allMethodHandler,
+}
+
+// searchMethodHandler returns the specific methodData for the Search method.
+func searchMethodHandler(modelData *modelData) {
+	name := "Search"
+	paramsWithType := fmt.Sprintf("condition %sCondition", modelData.Name)
+	params := "condition"
+	returnString := fmt.Sprintf("%sSet", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("%sCondition", modelData.Name),
+		ReturnString: returnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name:           name,
+		Doc:            fmt.Sprintf("// Search returns a new %sSet filtering on the current one with the additional given Condition", modelData.Name),
+		ToDeclare:      false,
+		Params:         params,
+		ParamsWithType: paramsWithType,
+		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
+		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
+		ReturnString:   returnString,
+		Call:           "Call",
+	})
+}
+
+// firstMethodHandler returns the specific methodData for the First method.
+func firstMethodHandler(modelData *modelData) {
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         "First",
+		ParamsTypes:  "",
+		ReturnString: fmt.Sprintf("%sData", modelData.Name),
+	})
+
+}
+
+// allMethodHandler returns the specific methodData for the All method.
+func allMethodHandler(modelData *modelData) {
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         "All",
+		ParamsTypes:  "",
+		ReturnString: fmt.Sprintf("[]%sData", modelData.Name),
+	})
 }
 
 // createTypeIdent creates a string from the given type that
@@ -130,6 +173,10 @@ func CreatePool(program *loader.Program, dir string) {
 func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *modelData, depsMap *map[string]bool) {
 	modelASTData := modelsASTData[modelData.Name]
 	for methodName, methodASTData := range modelASTData.Methods {
+		if handler, exists := specificMethodsHandlers[methodName]; exists {
+			handler(modelData)
+			continue
+		}
 		var params, paramsWithType, paramsType, call, returns, returnAsserts, returnString string
 		for _, astParam := range methodASTData.Params {
 			paramType := astParam.Type.Type
@@ -185,9 +232,6 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			ParamsTypes:  strings.TrimRight(paramsType, ","),
 			ReturnString: strings.TrimSuffix(returnString, ","),
 		})
-		if specificMethods[methodName] {
-			continue
-		}
 		modelData.Methods = append(modelData.Methods, methodData{
 			Name:           methodName,
 			Doc:            methodASTData.Doc,
@@ -329,7 +373,7 @@ func (m {{ .Name }}Model) Create(env models.Environment, data interface{}) {{ .N
 // with the records found.
 func (m {{ .Name }}Model) Search(env models.Environment, cond {{ .Name }}Condition) {{ .Name }}Set {
 	return {{ .Name }}Set{
-		RecordCollection: m.Model.Search(env, cond.Condition),
+		RecordCollection: m.Model.Search(env, cond),
 	}
 }
 
@@ -639,14 +683,6 @@ func (s {{ .Name }}Set) Records() []{{ .Name }}Set {
 		}
 	}
 	return res
-}
-
-// Search returns a new {{ $.Name }}Set filtering on the current one with the
-// additional given Condition
-func (s {{ $.Name }}Set) Search(condition {{ .Name }}Condition) {{ .Name }}Set {
-	return {{ .Name }}Set{
-		RecordCollection: s.RecordCollection.Search(condition.Condition),
-	}
 }
 
 // Model returns an instance of {{ .Name }}Model

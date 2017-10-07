@@ -110,6 +110,21 @@ func (c Condition) Serialize() []interface{} {
 	return serializePredicates(c.predicates)
 }
 
+// Fields returns the list of all fields that are used in this condition.
+// Fields are returned as paths. It includes fields of the nested conditions.
+func (c Condition) Fields() []string {
+	var res []string
+	for _, pred := range c.predicates {
+		if len(pred.exprs) > 0 {
+			res = append(res, strings.Join(pred.exprs, ExprSep))
+		}
+		if pred.cond != nil {
+			res = append(res, pred.cond.Fields()...)
+		}
+	}
+	return res
+}
+
 // Underlying returns the underlying Condition (i.e. itself)
 func (c Condition) Underlying() *Condition {
 	return &c

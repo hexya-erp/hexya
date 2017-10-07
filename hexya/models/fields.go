@@ -308,13 +308,14 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 	}
 
 	newMI := &Model{
-		name:      relModelName,
-		acl:       security.NewAccessControlList(),
-		tableName: strutils.SnakeCaseString(relModelName),
-		fields:    newFieldsCollection(),
-		methods:   newMethodsCollection(),
-		options:   Many2ManyLinkModel,
-		sqlErrors: make(map[string]string),
+		name:         relModelName,
+		acl:          security.NewAccessControlList(),
+		tableName:    strutils.SnakeCaseString(relModelName),
+		fields:       newFieldsCollection(),
+		methods:      newMethodsCollection(),
+		options:      Many2ManyLinkModel,
+		sqlErrors:    make(map[string]string),
+		defaultOrder: []string{"id"},
 	}
 	ourField := &Field{
 		name:             model1,

@@ -142,6 +142,12 @@ func init() {
 			return res
 		})
 
+	pool.Post().Methods().Search().Extend("",
+		func(rs pool.PostSet, cond pool.PostCondition) pool.PostSet {
+			res := rs.Super().Search(cond)
+			return res
+		})
+
 	tag := pool.Tag().DeclareModel()
 	tag.AddFields(map[string]models.FieldDefinition{
 		"Name":        models.CharField{Constraint: tag.Methods().CheckNameDescription()},

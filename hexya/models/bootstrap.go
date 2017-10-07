@@ -40,8 +40,8 @@ func BootStrap() {
 
 	Registry.bootstrapped = true
 
-	createModelLinks()
 	inflateMixIns()
+	createModelLinks()
 	inflateEmbeddings()
 	syncRelatedFieldInfo()
 	bootStrapMethods()

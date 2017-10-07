@@ -40,19 +40,21 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 // A Query defines the common part an SQL Query, i.e. all that come
 // after the FROM keyword.
 type Query struct {
-	recordSet *RecordCollection
-	cond      *Condition
-	fetchAll  bool
-	limit     int
-	offset    int
-	groups    []string
-	orders    []string
+	recordSet  *RecordCollection
+	cond       *Condition
+	fetchAll   bool
+	limit      int
+	offset     int
+	noDistinct bool
+	groups     []string
+	orders     []string
 }
 
 // clone returns a pointer to a deep copy of this Query
 func (q Query) clone() *Query {
 	newCond := *q.cond
 	q.cond = &newCond
+	q.noDistinct = false
 	return &q
 }
 
@@ -160,10 +162,6 @@ func (q *Query) sqlLimitOffsetClause() string {
 // sqlOrderByClause returns the sql string for the ORDER BY clause
 // of this Query
 func (q *Query) sqlOrderByClause() string {
-	if len(q.orders) == 0 {
-		return "ORDER BY id"
-	}
-
 	var fExprs [][]string
 	directions := make([]string, len(q.orders))
 	for i, order := range q.orders {
@@ -269,7 +267,11 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	whereSQL, args := q.sqlWhereClause()
 	orderSQL := q.sqlOrderByClause()
 	limitSQL := q.sqlLimitOffsetClause()
-	selQuery := fmt.Sprintf(`SELECT DISTINCT %s FROM %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, orderSQL, limitSQL)
+	var distinct string
+	if !q.noDistinct {
+		distinct = "DISTINCT"
+	}
+	selQuery := fmt.Sprintf(`SELECT %s %s FROM %s %s %s %s`, distinct, fieldsSQL, tablesSQL, whereSQL, orderSQL, limitSQL)
 	return selQuery, args
 }
 
@@ -313,6 +315,9 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 // - All expressions that also include expressions used in the where clause.
 func (q *Query) selectData(fields []string) ([][]string, [][]string) {
 	q.substituteChildOfPredicates()
+	if len(q.orders) == 0 {
+		q.orders = q.recordSet.model.defaultOrder
+	}
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {
