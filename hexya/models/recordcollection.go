@@ -216,6 +216,7 @@ func (rc *RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer
 	// compute stored fields
 	rSet.processInverseMethods(fMap)
 	rSet.processTriggers(fMap)
+	rSet.checkConstraints()
 	return true
 }
 
@@ -252,7 +253,6 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 			rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v)
 		}
 	}
-	rc.checkConstraints()
 }
 
 // updateRelationFields updates reverse relations fields of the
@@ -826,6 +826,32 @@ func (rc *RecordCollection) Subtract(other RecordSet) *RecordCollection {
 	}
 	for _, id := range other.Ids() {
 		delete(idMap, id)
+	}
+	ids := make([]int64, len(idMap))
+	i := 0
+	for id := range idMap {
+		ids[i] = id
+		i++
+	}
+	return newRecordCollection(rc.Env(), rc.ModelName()).withIds(ids)
+}
+
+// Intersect returns a new RecordCollection with only the records that are both
+// in this RecordCollection and in the other RecordSet.
+func (rc *RecordCollection) Intersect(other RecordSet) *RecordCollection {
+	if rc.ModelName() != other.ModelName() {
+		log.Panic("Unable to intersect RecordCollections of different models", "this", rc.ModelName(),
+			"other", other.ModelName())
+	}
+	rc.Fetch()
+	idMap := make(map[int64]bool)
+	for _, id := range rc.ids {
+		for _, ido := range other.Ids() {
+			if ido == id {
+				idMap[id] = true
+				break
+			}
+		}
 	}
 	ids := make([]int64, len(idMap))
 	i := 0

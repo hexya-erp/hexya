@@ -135,6 +135,13 @@ func TestBaseModelMethods(t *testing.T) {
 				So(johnAndJane.Subtract(userJane).Equals(userJohn), ShouldBeTrue)
 				So(johnAndJane.Subtract(userJohn).Equals(userJane), ShouldBeTrue)
 			})
+			Convey("Intersect", func() {
+				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
+					Field("Name").Equals("John Smith")).(RecordSet).Collection()
+				johnAndJane := userJohn.Union(userJane)
+				So(johnAndJane.Intersect(userJane).Equals(userJane), ShouldBeTrue)
+				So(johnAndJane.Call("Intersect", userJohn).(RecordSet).Collection().Equals(userJohn), ShouldBeTrue)
+			})
 			Convey("ConvertLimitToInt", func() {
 				So(ConvertLimitToInt(12), ShouldEqual, 12)
 				So(ConvertLimitToInt(false), ShouldEqual, -1)

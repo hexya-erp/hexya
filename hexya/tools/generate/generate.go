@@ -694,7 +694,7 @@ type {{ .Name }}Data struct {
 {{ end }}
 }
 
-// FieldMap returns this {{ .Name }}Data as a FieldMap.
+// FieldMap returns this {{ .Name }}Data as a FieldMap with JSON names as keys.
 // Only {{ .Name }}Data with non zero values will be set in the FieldMap.
 // To add fields with zero values to the map, give them as fields in parameters.
 func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
@@ -712,6 +712,32 @@ func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
 	}
 {{ end }}
 	return res
+}
+
+// Get returns the value of this {{ .Name }}Data for the given field.
+// If the field equals its go zero value, then it returns nil, except if the
+// field is given in fieldsToReset, in which case the zero value is returned.
+//
+// The second argument is true if the field has a non-zero go value or is in the fieldsToReset.
+func (d {{ .Name }}Data) Get(field models.FieldNamer, fieldsToReset ...models.FieldNamer) (interface{}, bool) {
+	val, exists := d.FieldMap(fieldsToReset...).Get(field.String(), {{ .Name }}().Model)
+	if exists {
+		return val, true
+	}
+	return nil, false
+}
+
+// Fields returns the list of fields set for update, taking into account the fieldsToReset.
+func (d {{ .Name }}Data) FieldsSet(fieldsToReset ...models.FieldNamer) []models.FieldNamer {
+	return d.FieldMap(fieldsToReset...).FieldNames()
+}
+
+// Remove returns a new {{ .Name }}Data and []FieldNamer with the given field set to its
+// zero value and removed from the returned FieldNamer slice.
+func (d {{ .Name }}Data) Remove(rs {{ .Name }}Set, field models.FieldNamer, fieldsToReset ...models.FieldNamer) (*{{ .Name }}Data, []models.FieldNamer) {
+	fMap := d.FieldMap(fieldsToReset...)
+	fMap.Delete(field.String(), {{ .Name }}().Model)
+	return rs.DataStruct(fMap)
 }
 
 var _ models.FieldMapper = {{ .Name }}Data{}

@@ -440,6 +440,13 @@ func declareSearchMethods() {
 			return rc.Subtract(other)
 		}).AllowGroup(security.GroupEveryone)
 
+	commonMixin.AddMethod("Intersect",
+		`Intersect returns a new RecordCollection with only the records that are both
+		in this RecordCollection and in the other RecordSet.`,
+		func(rc *RecordCollection, other RecordSet) *RecordCollection {
+			return rc.Intersect(other)
+		}).AllowGroup(security.GroupEveryone)
+
 	commonMixin.AddMethod("Equals",
 		`Equals returns true if this RecordSet is the same as other
 		i.e. they are of the same model and have the same ids`,
