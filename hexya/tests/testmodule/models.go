@@ -137,7 +137,7 @@ func init() {
 	})
 
 	pool.Post().Methods().Create().Extend("",
-		func(rs pool.PostSet, data models.FieldMapper) pool.PostSet {
+		func(rs pool.PostSet, data *pool.PostData) pool.PostSet {
 			res := rs.Super().Create(data)
 			return res
 		})

@@ -438,7 +438,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				posts := pool.Post().NewSet(env)
 				post1 := posts.Search(pool.Post().Title().Equals("1st Post"))
 				post2 := posts.Search(pool.Post().Title().Equals("2nd Post"))
-				post3 := posts.Create(pool.PostData{
+				post3 := posts.Create(&pool.PostData{
 					Title:   "3rd Post",
 					Content: "Content of third post",
 				})
@@ -456,7 +456,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				tag2 := pool.Tag().Search(env, pool.Tag().Name().Equals("Books"))
 				So(func() { tag2.SetRate(12) }, ShouldPanic)
 				So(func() {
-					tag2.Write(pool.TagData{
+					tag2.Write(&pool.TagData{
 						Description: "Books",
 						Rate:        -3,
 					}, pool.Tag().Description(), pool.Tag().Rate())

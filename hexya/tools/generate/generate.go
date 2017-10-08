@@ -79,13 +79,14 @@ var specificMethodsHandlers = map[string]func(modelData *modelData){
 	"Search": searchMethodHandler,
 	"First":  firstMethodHandler,
 	"All":    allMethodHandler,
+	"Create": createMethodHandler,
+	"Write":  writeMethodHandler,
+	"Copy":   copyMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
 func searchMethodHandler(modelData *modelData) {
 	name := "Search"
-	paramsWithType := fmt.Sprintf("condition %sCondition", modelData.Name)
-	params := "condition"
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
@@ -96,8 +97,8 @@ func searchMethodHandler(modelData *modelData) {
 		Name:           name,
 		Doc:            fmt.Sprintf("// Search returns a new %sSet filtering on the current one with the additional given Condition", modelData.Name),
 		ToDeclare:      false,
-		Params:         params,
-		ParamsWithType: paramsWithType,
+		Params:         "condition",
+		ParamsWithType: fmt.Sprintf("condition %sCondition", modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -124,6 +125,78 @@ func allMethodHandler(modelData *modelData) {
 	})
 }
 
+// createMethodHandler returns the specific methodData for the Create method.
+func createMethodHandler(modelData *modelData) {
+	name := "Create"
+	returnString := fmt.Sprintf("%sSet", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("*%sData", modelData.Name),
+		ReturnString: returnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name: name,
+		Doc: fmt.Sprintf(`// Create inserts a %s record in the database from the given data.
+// Returns the created %sSet.`, modelData.Name, modelData.Name),
+		ToDeclare:      false,
+		Params:         "data",
+		ParamsWithType: fmt.Sprintf("data *%sData", modelData.Name),
+		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
+		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
+		ReturnString:   returnString,
+		Call:           "Call",
+	})
+}
+
+// writeMethodHandler returns the specific methodData for the Write method.
+func writeMethodHandler(modelData *modelData) {
+	name := "Write"
+	returnString := "bool"
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("*%sData, ...models.FieldNamer", modelData.Name),
+		ReturnString: returnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name: name,
+		Doc: fmt.Sprintf(`// Write is the base implementation of the 'Write' method which updates
+// %s records in the database with the given data.
+//
+// Only fields with non zero values or fields passed in the 'fieldsToReset' arg are updated`, modelData.Name),
+		ToDeclare:      false,
+		Params:         "data, fieldsToReset",
+		ParamsWithType: fmt.Sprintf("data *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
+		ReturnAsserts:  "resTyped, _ := res.(bool)",
+		Returns:        "resTyped",
+		ReturnString:   returnString,
+		Call:           "Call",
+	})
+}
+
+// copyMethodHandler returns the specific methodData for the Copy method.
+func copyMethodHandler(modelData *modelData) {
+	name := "Copy"
+	returnString := fmt.Sprintf("%sSet", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("*%sData, ...models.FieldNamer", modelData.Name),
+		ReturnString: returnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name: name,
+		Doc: fmt.Sprintf(`// Copy duplicates the given %s record, overridding values with overrides.
+//
+// Only fields with non zero values of overrides or fields passed in the 'fieldsToReset' arg are updated`, modelData.Name),
+		ToDeclare:      false,
+		Params:         "overrides, fieldsToReset",
+		ParamsWithType: fmt.Sprintf("overrides *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
+		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
+		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
+		ReturnString:   returnString,
+		Call:           "Call",
+	})
+}
+
 // createTypeIdent creates a string from the given type that
 // can be used inside an identifier.
 func createTypeIdent(typStr string) string {
@@ -142,18 +215,18 @@ func CreatePool(program *loader.Program, dir string) {
 	modelsASTData := GetModelsASTData(program)
 	for modelName, modelASTData := range modelsASTData {
 		depsMap := map[string]bool{ModelsPath: true}
-		modelData := modelData{
+		mData := modelData{
 			Name:           modelName,
 			ModelType:      modelASTData.ModelType,
 			IsModelMixin:   modelASTData.IsModelMixin,
 			ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
 		}
 		// Add fields
-		addFieldsToModelData(modelASTData, &modelData, &depsMap)
+		addFieldsToModelData(modelASTData, &mData, &depsMap)
 		// Add field types
-		addFieldTypesToModelData(&modelData)
+		addFieldTypesToModelData(&mData)
 		// Add methods
-		addMethodsToModelData(modelsASTData, &modelData, &depsMap)
+		addMethodsToModelData(modelsASTData, &mData, &depsMap)
 		// Setting imports
 		var deps []string
 		for dep := range depsMap {
@@ -162,10 +235,10 @@ func CreatePool(program *loader.Program, dir string) {
 			}
 			deps = append(deps, dep)
 		}
-		modelData.Deps = deps
+		mData.Deps = deps
 		// Writing to file
 		fileName := fmt.Sprintf("%s.go", strings.ToLower(modelName))
-		CreateFileFromTemplate(path.Join(dir, fileName), poolModelTemplate, modelData)
+		CreateFileFromTemplate(path.Join(dir, fileName), poolModelTemplate, mData)
 	}
 }
 

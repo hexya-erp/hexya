@@ -211,8 +211,27 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 		default:
 			argsVals[0].Field(0).Set(reflect.ValueOf(rc))
 		}
-		for i, arg := range args {
-			argsVals[i+1] = convertFunctionArg(fnctVal.Type().In(i+1), arg)
+		var fns []FieldNamer
+		for i := 0; i < fnctVal.Type().NumIn()-1; i++ {
+			var arg interface{}
+			if len(args) < i+1 && fnctVal.Type().IsVariadic() && i == fnctVal.Type().NumIn()-2 {
+				// We handle here the case of a variadic function whose last argument is []FieldNamer
+				// and for which we did not have any values but we received some from previous arg conversion.
+				argType := fnctVal.Type().In(i + 1)
+				if argType.Elem().Name() != "FieldNamer" || fns == nil {
+					break
+				}
+				arg = []FieldNamer{}
+				argsVals = append(argsVals, reflect.Value{})
+			} else {
+				arg = args[i]
+			}
+			if argFn, ok := arg.([]FieldNamer); ok && fns != nil {
+				// Result of previous arg conversion gave fieldNames that we add to the list
+				// of this arg if it is actually a []FieldNamer.
+				arg = append(argFn, fns...)
+			}
+			argsVals[i+1], fns = convertFunctionArg(rc, fnctVal.Type().In(i+1), arg)
 		}
 
 		var retVal []reflect.Value
@@ -232,28 +251,39 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 }
 
 // convertFunctionArg converts the given argument to match that of fnctArgType.
-func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value {
+// Second argument is a list of field names to reset if the argument is a FieldMapper
+func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg interface{}) (reflect.Value, []FieldNamer) {
 	var val reflect.Value
 	switch at := arg.(type) {
 	case Conditioner:
 		if fnctArgType.Kind() == reflect.Interface {
-			return reflect.ValueOf(at)
+			return reflect.ValueOf(at), nil
 		}
 		val = reflect.New(fnctArgType).Elem()
 		val.Field(0).Set(reflect.ValueOf(at.Underlying()))
+		return val, nil
 	case FieldMapper:
 		if fnctArgType.Kind() == reflect.Interface {
-			return reflect.ValueOf(at)
+			// Target is a FieldMapper nothing to change
+			return reflect.ValueOf(at), nil
 		}
 		if fnctArgType.Kind() == reflect.Map {
-			return reflect.ValueOf(at.FieldMap())
+			// Target is a FieldMap, so we give the FieldMap of this FieldMapper
+			return reflect.ValueOf(at.FieldMap()), nil
 		}
-		val = reflect.New(fnctArgType).Elem()
-		val.Field(0).Set(reflect.ValueOf(at.FieldMap()))
+		// => Target is a struct pointer *pool.MyModelData
+		if fm, ok := at.(FieldMap); ok {
+			// Given arg is a FieldMap, so we map to our struct
+			val = reflect.New(fnctArgType.Elem())
+			MapToStruct(rc, val.Interface(), fm)
+			return val, fm.FieldNames()
+		} else {
+			// Given arg is already a struct pointer
+			return reflect.ValueOf(arg), nil
+		}
 	default:
-		val = reflect.ValueOf(arg)
+		return reflect.ValueOf(arg), nil
 	}
-	return val
 }
 
 // AddMethod creates a new method on given model name and adds the given fnct
