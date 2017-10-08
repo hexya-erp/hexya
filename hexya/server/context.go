@@ -5,12 +5,14 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/hexya-erp/hexya/hexya/tools/exceptions"
 )
 
 // The Context allows to pass data across controller layers
@@ -24,13 +26,18 @@ func (c *Context) RPC(code int, obj interface{}, err ...error) {
 	id, ok := c.Get("id")
 	if !ok {
 		var req RequestRPC
-		if err := c.BindJSON(&req); err != nil {
-			c.AbortWithError(http.StatusBadRequest, err)
+		if err2 := c.BindJSON(&req); err2 != nil {
+			c.AbortWithError(http.StatusBadRequest, err2)
 			return
 		}
 		id = req.ID
 	}
 	if len(err) > 0 && err[0] != nil {
+		userError, ok2 := err[0].(exceptions.UserError)
+		if !ok2 {
+			c.AbortWithError(http.StatusInternalServerError, errors.New("error is of unknown type"))
+			return
+		}
 		respErr := ResponseError{
 			JsonRPC: "2.0",
 			ID:      id.(int64),
@@ -38,8 +45,9 @@ func (c *Context) RPC(code int, obj interface{}, err ...error) {
 				Code:    code,
 				Message: "Hexya Server Error",
 				Data: JSONRPCErrorData{
-					Arguments: "Internal Server Error",
-					Debug:     err[0].Error(),
+					Arguments:     []string{userError.Message},
+					ExceptionType: "user_error",
+					Debug:         userError.Debug,
 				},
 			},
 		}

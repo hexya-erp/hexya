@@ -213,8 +213,12 @@ func (c *cache) get(mi *Model, id int64, fieldName string) interface{} {
 // getRecord returns the whole record specified by modelName and id
 // as it is currently in cache.
 func (c *cache) getRecord(model *Model, id int64) FieldMap {
+	res := make(FieldMap)
 	ref := cacheRef{model: model, id: id}
-	return c.data[ref].Copy()
+	for _, fName := range c.data[ref].Keys() {
+		res[fName] = c.get(model, id, fName)
+	}
+	return res
 }
 
 // checkIfInCache returns true if all fields given by fieldNames are available

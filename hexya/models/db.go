@@ -140,8 +140,8 @@ func DBClose() {
 func dbExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
-	res := cr.MustExec(query, args...)
-	logSQLResult(nil, t, query, args...)
+	res, err := cr.Exec(query, args...)
+	logSQLResult(err, t, query, args...)
 	return res
 }
 
@@ -149,8 +149,8 @@ func dbExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
 func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
-	res := db.MustExec(query, args...)
-	logSQLResult(nil, t, query, args...)
+	res, err := db.Exec(query, args...)
+	logSQLResult(err, t, query, args...)
 	return res
 }
 

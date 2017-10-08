@@ -63,8 +63,9 @@ type ResponseError struct {
 
 // JSONRPCErrorData is the format of the Data field of an Error Response
 type JSONRPCErrorData struct {
-	Arguments string `json:"arguments"`
-	Debug     string `json:"debug"`
+	Arguments     []string `json:"arguments"`
+	ExceptionType string   `json:"exception_type"`
+	Debug         string   `json:"debug"`
 }
 
 // JSONRPCError is the format of an Error in a ResponseError

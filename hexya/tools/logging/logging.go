@@ -16,7 +16,6 @@ package logging
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -24,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hexya-erp/hexya/hexya/tools/exceptions"
 	"github.com/inconshreveable/log15"
 	"github.com/spf13/viper"
 )
@@ -67,7 +67,10 @@ func (l *Logger) Panic(msg string, ctx ...interface{}) {
 	l.Error(msg, ctx...)
 
 	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctx)
-	panic(fullMsg)
+	panic(exceptions.UserError{
+		Message: msg,
+		Debug:   fullMsg,
+	})
 }
 
 // Initialize starts the base logger used by all Hexya components
@@ -119,7 +122,10 @@ func LogPanicData(panicData interface{}) error {
 	log.Error(fmt.Sprintf("Stack trace:\n%s", stackTrace))
 
 	fullMsg := fmt.Sprintf("%s\n\n%s", msg, stackTrace)
-	return errors.New(fullMsg)
+	return exceptions.UserError{
+		Message: msg,
+		Debug:   fullMsg,
+	}
 }
 
 // stack returns a nicely formated stack frame, skipping skip frames
