@@ -97,7 +97,7 @@ type Menu struct {
 	Children         *Collection
 	Sequence         uint8
 	ActionID         string
-	Action           *actions.BaseAction
+	Action           *actions.Action
 	HasChildren      bool
 	HasAction        bool
 	names            map[string]string

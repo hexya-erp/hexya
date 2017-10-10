@@ -35,6 +35,7 @@ type ActionType string
 const (
 	ActionActWindow ActionType = "ir.actions.act_window"
 	ActionServer    ActionType = "ir.actions.server"
+	ActionClient    ActionType = "ir.actions.client"
 )
 
 // ActionViewType defines the type of view of an action
@@ -113,22 +114,22 @@ var _ json.Marshaler = &ActionRef{}
 // An Collection is a collection of actions
 type Collection struct {
 	sync.RWMutex
-	actions map[string]*BaseAction
-	links   map[string][]*BaseAction
+	actions map[string]*Action
+	links   map[string][]*Action
 }
 
 // NewCollection returns a pointer to a new
 // Collection instance
 func NewCollection() *Collection {
 	res := Collection{
-		actions: make(map[string]*BaseAction),
-		links:   make(map[string][]*BaseAction),
+		actions: make(map[string]*Action),
+		links:   make(map[string][]*Action),
 	}
 	return &res
 }
 
 // Add adds the given action to our Collection
-func (ar *Collection) Add(a *BaseAction) {
+func (ar *Collection) Add(a *Action) {
 	ar.Lock()
 	defer ar.Unlock()
 	ar.actions[a.ID] = a
@@ -136,14 +137,14 @@ func (ar *Collection) Add(a *BaseAction) {
 }
 
 // GetById returns the Action with the given id
-func (ar *Collection) GetById(id string) *BaseAction {
+func (ar *Collection) GetById(id string) *Action {
 	return ar.actions[id]
 }
 
 // GetAll returns a list of all actions of this Collection.
 // Actions are returned in an arbitrary order
-func (ar *Collection) GetAll() []*BaseAction {
-	res := make([]*BaseAction, len(ar.actions))
+func (ar *Collection) GetAll() []*Action {
+	res := make([]*Action, len(ar.actions))
 	var i int
 	for _, action := range ar.actions {
 		res[i] = action
@@ -154,7 +155,7 @@ func (ar *Collection) GetAll() []*BaseAction {
 
 // MustGetById returns the Action with the given id
 // It panics if the id is not found in the action registry
-func (ar *Collection) MustGetById(id string) *BaseAction {
+func (ar *Collection) MustGetById(id string) *Action {
 	action, ok := ar.actions[id]
 	if !ok {
 		log.Panic("Action does not exist", "action_id", id)
@@ -164,7 +165,7 @@ func (ar *Collection) MustGetById(id string) *BaseAction {
 
 // GetActionLinksForModel returns the list of linked actions
 // for the model with the given name
-func (ar *Collection) GetActionLinksForModel(modelName string) []*BaseAction {
+func (ar *Collection) GetActionLinksForModel(modelName string) []*Action {
 	return ar.links[modelName]
 }
 
@@ -172,16 +173,16 @@ func (ar *Collection) GetActionLinksForModel(modelName string) []*BaseAction {
 // and adds it to the given Collection if it not already.
 func (ar *Collection) LoadFromEtree(element *etree.Element) {
 	xmlBytes := []byte(xmlutils.ElementToXML(element))
-	var action BaseAction
+	var action Action
 	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
 		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
 	ar.Add(&action)
 }
 
-// A BaseAction is the definition of an action. Actions define the
+// A Action is the definition of an action. Actions define the
 // behavior of the system in response to user requests.
-type BaseAction struct {
+type Action struct {
 	ID           string                 `json:"id" xml:"id,attr"`
 	Type         ActionType             `json:"type" xml:"type,attr"`
 	Name         string                 `json:"name" xml:"name,attr"`
@@ -207,12 +208,13 @@ type BaseAction struct {
 	Limit        int64                  `json:"limit" xml:"limit,attr"`
 	Context      *types.Context         `json:"context" xml:"context,attr"`
 	Flags        map[string]interface{} `json:"flags"`
+	Tag          string                 `json:"tag"`
 	names        map[string]string
 }
 
 // TranslatedName returns the translated name of this action
 // in the given language
-func (a BaseAction) TranslatedName(lang string) string {
+func (a Action) TranslatedName(lang string) string {
 	res, ok := a.names[lang]
 	if !ok {
 		res = a.Name

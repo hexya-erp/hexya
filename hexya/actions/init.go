@@ -36,7 +36,7 @@ func BootStrap() {
 // - Add a few default values
 // - Add View to Views if not already present
 // - Add all views that are not specified
-func bootStrapWindowAction(a *BaseAction) {
+func bootStrapWindowAction(a *Action) {
 	// Set a few default values
 	if a.Target == "" {
 		a.Target = "current"
@@ -96,7 +96,7 @@ modeLoop:
 //For OpenERP historical reasons, tree views are called 'list' when
 //in ActionViewType 'form' and 'tree' when in ActionViewType 'tree'.
 //fixViewModes makes the necessary changes to the given action.
-func fixViewModes(a *BaseAction) {
+func fixViewModes(a *Action) {
 	if a.ActViewType == ActionViewTypeForm {
 		for i, v := range a.Views {
 			if v.Type == views.VIEW_TYPE_TREE {
