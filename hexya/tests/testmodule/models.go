@@ -94,9 +94,8 @@ func init() {
 		})
 
 	user.Methods().InverseSetAge().DeclareMethod("",
-		func(rs pool.UserSet, vals models.FieldMapper) {
-			values, _ := rs.DataStruct(vals.FieldMap())
-			rs.Profile().SetAge(values.Age)
+		func(rs pool.UserSet, age int16) {
+			rs.Profile().SetAge(age)
 		})
 
 	pool.User().Methods().PrefixedUser().Extend("",

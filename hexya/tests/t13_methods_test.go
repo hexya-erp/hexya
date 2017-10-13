@@ -84,14 +84,27 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill.Load()
 				So(userWill.Name(), ShouldEqual, "Will Smith")
 				willProfileData := pool.ProfileData{
-					Age:   34,
+					Age:   36,
 					Money: 5100,
 				}
 				willProfile := pool.Profile().Create(env, &willProfileData)
 				userWill.SetProfile(willProfile)
 
 				userWill.Load()
+				So(userWill.Age(), ShouldEqual, 36)
+			})
+			Convey("Checking inverse method by changing will's age", func() {
+				userWill := pool.User().Search(env, pool.User().Email().Equals("will.smith@example.com"))
+				userWill.Load()
+				So(userWill.Age(), ShouldEqual, 36)
+				userWill.SetAge(34)
 				So(userWill.Age(), ShouldEqual, 34)
+				userWill.Load()
+				So(userWill.Age(), ShouldEqual, 34)
+			})
+			Convey("Checking that setting a computed field with no inverse panics", func() {
+				userWill := pool.User().Search(env, pool.User().Email().Equals("will.smith@example.com"))
+				So(func() { userWill.SetDecoratedName("FooBar") }, ShouldPanic)
 			})
 		})
 	})

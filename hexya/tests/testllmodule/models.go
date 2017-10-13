@@ -85,12 +85,8 @@ func declareModels() {
 		})
 
 	user.AddMethod("InverseSetAge", "",
-		func(rc *models.RecordCollection, vals models.FieldMapper) {
-			value, ok := vals.FieldMap(models.FieldName("Age"))["Age"]
-			if !ok {
-				return
-			}
-			rc.Get("Profile").(*models.RecordCollection).Set("Age", value)
+		func(rc *models.RecordCollection, age int16) {
+			rc.Get("Profile").(*models.RecordCollection).Set("Age", age)
 		})
 
 	user.AddMethod("UpdateCity", "",
@@ -174,7 +170,7 @@ func declareModels() {
 		"Profile":  models.Many2OneField{RelationModel: models.Registry.MustGet("Profile")},
 		"Age": models.IntegerField{Compute: user.Methods().MustGet("ComputeAge"),
 			Inverse: user.Methods().MustGet("InverseSetAge"),
-			Depends: []string{"Profile", "Profile.Age"}, Stored: true},
+			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
 		"Posts":     models.One2ManyField{RelationModel: models.Registry.MustGet("Post"), ReverseFK: "User"},
 		"PMoney":    models.FloatField{Related: "Profile.Money"},
 		"LastPost":  models.Many2OneField{RelationModel: models.Registry.MustGet("Post"), Embed: true},

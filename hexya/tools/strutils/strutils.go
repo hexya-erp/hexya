@@ -16,6 +16,7 @@ package strutils
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"unicode"
 
@@ -87,4 +88,15 @@ func MarshalToJSONString(data interface{}) string {
 		return string(domBytes)
 	}
 	return data.(string)
+}
+
+// HumanSize returns the given size (in bytes) in a human readable format
+func HumanSize(size int64) string {
+	units := []string{"bytes", "KB", "MB", "GB"}
+	s, i := float64(size), 0
+	for s >= 1024 && i < len(units)-1 {
+		s /= 1024
+		i++
+	}
+	return fmt.Sprintf("%.2f %s", s, units[i])
 }

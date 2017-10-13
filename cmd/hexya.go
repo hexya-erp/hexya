@@ -50,6 +50,9 @@ func init() {
 	HexyaCmd.PersistentFlags().Bool("debug", false, "Enable server debug mode for development")
 	viper.BindPFlag("Debug", HexyaCmd.PersistentFlags().Lookup("debug"))
 
+	HexyaCmd.PersistentFlags().String("data-dir", "", "Path to the directory where Hexya should store its data")
+	viper.BindPFlag("DataDir", HexyaCmd.PersistentFlags().Lookup("data-dir"))
+
 	HexyaCmd.PersistentFlags().String("db-driver", "postgres", "Database driver to use")
 	viper.BindPFlag("DB.Driver", HexyaCmd.PersistentFlags().Lookup("db-driver"))
 	HexyaCmd.PersistentFlags().String("db-host", "/var/run/postgresql",
@@ -75,7 +78,9 @@ func initConfig() {
 	if err != nil {
 		log.Panic("Unable to retrieve current user", "error", err)
 	}
-	viper.AddConfigPath(filepath.Join(osUser.HomeDir, ".hexya"))
+	defaultHexyaDir := filepath.Join(osUser.HomeDir, ".hexya")
+	viper.SetDefault("DataDir", defaultHexyaDir)
+	viper.AddConfigPath(defaultHexyaDir)
 	viper.AddConfigPath(".")
 
 	viper.SetConfigName("hexya")

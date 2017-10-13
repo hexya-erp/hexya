@@ -4,6 +4,8 @@
 // Package exceptions provides error types used throughout Hexya
 package exceptions
 
+import "fmt"
+
 // UserError is an error that must rollback the current transaction and
 // be displayed as a warning to the user.
 type UserError struct {
@@ -14,5 +16,5 @@ type UserError struct {
 // Error method for the UserError type.
 // Returns the message.
 func (u UserError) Error() string {
-	return u.Message
+	return fmt.Sprintf("%s\n----------------------------------\n%s", u.Message, u.Debug)
 }

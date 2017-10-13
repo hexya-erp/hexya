@@ -86,12 +86,8 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("InverseSetAge", "",
-			func(rc *RecordCollection, vals FieldMapper) {
-				value, ok := vals.FieldMap(FieldName("Age"))["Age"]
-				if !ok {
-					return
-				}
-				rc.Get("Profile").(*RecordCollection).Set("Age", value)
+			func(rc *RecordCollection, age int16) {
+				rc.Get("Profile").(*RecordCollection).Set("Age", age)
 			})
 
 		user.AddMethod("UpdateCity", "",
@@ -184,7 +180,7 @@ func TestModelDeclaration(t *testing.T) {
 				OnDelete: Restrict, Required: true},
 			"Age": IntegerField{Compute: user.Methods().MustGet("ComputeAge"),
 				Inverse: user.Methods().MustGet("InverseSetAge"),
-				Depends: []string{"Profile", "Profile.Age"}, Stored: true},
+				Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
 			"Posts":     One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User"},
 			"PMoney":    FloatField{Related: "Profile.Money"},
 			"LastPost":  Many2OneField{RelationModel: Registry.MustGet("Post"), Embed: true},

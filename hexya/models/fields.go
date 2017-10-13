@@ -414,11 +414,11 @@ func checkComputeMethodsSignature() {
 			}
 			method := mi.methods.MustGet(fi.inverse)
 			methType := method.methodType
-			switch {
-			case methType.NumIn() != 2:
+			if methType.NumIn() != 2 {
 				log.Panic("Inverse methods should have 2 arguments", "model", mi.name, "field", fi.name, "method", method.name)
-			case !methType.In(1).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
-				log.Panic("Inverse method second argument must be FieldMapper", "model", mi.name, "field", fi.name, "method", method.name)
+			}
+			if methType.NumOut() != 0 {
+				log.Panic("Inverse methods should not return any value", "model", mi.name, "field", fi.name, "method", method.name)
 			}
 		}
 	}

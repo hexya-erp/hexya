@@ -811,8 +811,10 @@ method must have the following signature:
 
 [source,go]
 ----
-func (RecordSetType, models.FieldMapper)
+func (RecordSetType, valueType)
 ----
+
+where `valueType` is the go type for the given field values.
 
 `Related` string::
 Declares this field as a related field, i.e. a field that is automatically

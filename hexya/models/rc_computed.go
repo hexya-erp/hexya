@@ -124,6 +124,8 @@ func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
 			}
 			log.Panic("Trying to write a computed field without inverse method", "model", rc.model.name, "field", fieldName)
 		}
-		rc.CallMulti(fi.inverse, fMap)
+		if val, exists := fMap.Get(fi.json, fi.model); exists {
+			rc.CallMulti(fi.inverse, val)
+		}
 	}
 }

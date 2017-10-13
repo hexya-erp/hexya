@@ -105,7 +105,7 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
 				userWill.Load()
 				So(userWill.Get("Age"), ShouldEqual, 36)
-				userWill.Set("Age", 34)
+				userWill.Set("Age", int16(34))
 				So(userWill.Get("Age"), ShouldEqual, 34)
 				userWill.Load()
 				So(userWill.Get("Age"), ShouldEqual, 34)

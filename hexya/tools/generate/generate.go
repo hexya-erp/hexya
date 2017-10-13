@@ -741,6 +741,7 @@ func (d {{ .Name }}Data) Remove(rs {{ .Name }}Set, field models.FieldNamer, fiel
 }
 
 var _ models.FieldMapper = {{ .Name }}Data{}
+var _ models.FieldMapper = new({{ .Name }}Data)
 
 // ------- RECORD SET ---------
 
