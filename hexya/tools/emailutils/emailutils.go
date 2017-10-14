@@ -5,6 +5,7 @@ package emailutils
 
 import "regexp"
 
+// SingleEmailRE is the regular expression for a single email address
 const SingleEmailRE string = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$`
 
 // IsValidAddress returns true if the given address is valid

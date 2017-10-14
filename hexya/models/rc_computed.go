@@ -80,31 +80,36 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 			}
 			continue
 		}
-		for _, rec := range recs.Records() {
-			retVal := rec.CallMulti(cData.compute)
-			toUnset := retVal[1].([]FieldNamer)
-			vals := retVal[0].(FieldMapper).FieldMap(toUnset...)
-			// Check if the values actually changed
-			var doUpdate bool
-			for f, v := range vals {
-				if f == "write_date" {
-					continue
-				}
-				if rs, isRS := rec.Get(f).(RecordSet); isRS {
-					if !rs.Collection().Equals(v.(RecordSet).Collection()) {
-						doUpdate = true
-						break
-					}
-					continue
-				}
-				if rec.Get(f) != v {
+		updateStoredFields(recs, cData.compute)
+	}
+}
+
+// updateStoredFields calls the given computeMethod on recs and stores the values.
+func updateStoredFields(recs *RecordCollection, computeMethod string) {
+	for _, rec := range recs.Records() {
+		retVal := rec.CallMulti(computeMethod)
+		toUnset := retVal[1].([]FieldNamer)
+		vals := retVal[0].(FieldMapper).FieldMap(toUnset...)
+		// Check if the values actually changed
+		var doUpdate bool
+		for f, v := range vals {
+			if f == "write_date" {
+				continue
+			}
+			if rs, isRS := rec.Get(f).(RecordSet); isRS {
+				if !rs.Collection().Equals(v.(RecordSet).Collection()) {
 					doUpdate = true
 					break
 				}
+				continue
 			}
-			if doUpdate {
-				rec.WithContext("hexya_force_compute_write", true).Call("Write", vals, toUnset)
+			if rec.Get(f) != v {
+				doUpdate = true
+				break
 			}
+		}
+		if doUpdate {
+			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals, toUnset)
 		}
 	}
 }

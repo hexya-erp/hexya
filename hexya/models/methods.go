@@ -277,10 +277,9 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 			val = reflect.New(fnctArgType.Elem())
 			MapToStruct(rc, val.Interface(), fm)
 			return val, fm.FieldNames()
-		} else {
-			// Given arg is already a struct pointer
-			return reflect.ValueOf(arg), nil
 		}
+		// Given arg is already a struct pointer
+		return reflect.ValueOf(arg), nil
 	default:
 		return reflect.ValueOf(arg), nil
 	}
