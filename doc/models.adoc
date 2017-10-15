@@ -289,28 +289,14 @@ This function is only a shortcut for `Search` on a list on ids.
 `*SearchCount() int*`::
 Return the number of records matching the search condition.
 
-`*NameSearch(params models.NameSearchParams) RecordSetType*`::
+`*SearchByName(name string, op operator.Operator, additionalCond Condition, limit int) RecordSetType*`::
 Search for records that have a display name matching the given
-`Name` pattern when compared with the given `Operator`, while also
-matching the optional search domain (`Args`).
+`name` pattern when compared with the given `op` operator, while also
+matching the optional `additionalCond` condition.
 +
 This is used for example to provide suggestions based on a partial
 value for a relational field. Sometimes be seen as the inverse
 function of `NameGet` but it is not guaranteed to be.
-
-====
-.NameSearchParams
-[source, go]
-----
-type NameSearchParams struct {
-	Args     Domain      `json:"args"`
-	Name     string      `json:"name"`
-	Operator string      `json:"operator"`
-	Limit    interface{} `json:"limit"`
-}
-
-----
-====
 
 `*FetchAll() RecordSetType*`::
 Returns a RecordSet with all the records in the database for the RecordSet's
@@ -814,7 +800,7 @@ method must have the following signature:
 func (RecordSetType, valueType)
 ----
 
-where `valueType` is the go type for the given field values.
+where `valueType` is the go type for the given field value.
 
 `Related` string::
 Declares this field as a related field, i.e. a field that is automatically
