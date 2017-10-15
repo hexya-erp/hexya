@@ -75,17 +75,18 @@ type modelData struct {
 
 // specificMethodsHandlers are functions that populate the given modelData
 // for specific methods.
-var specificMethodsHandlers = map[string]func(modelData *modelData){
-	"Search": searchMethodHandler,
-	"First":  firstMethodHandler,
-	"All":    allMethodHandler,
-	"Create": createMethodHandler,
-	"Write":  writeMethodHandler,
-	"Copy":   copyMethodHandler,
+var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map[string]bool){
+	"Search":       searchMethodHandler,
+	"SearchByName": searchByNameMethodHandler,
+	"First":        firstMethodHandler,
+	"All":          allMethodHandler,
+	"Create":       createMethodHandler,
+	"Write":        writeMethodHandler,
+	"Copy":         copyMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
-func searchMethodHandler(modelData *modelData) {
+func searchMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	name := "Search"
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
@@ -107,7 +108,7 @@ func searchMethodHandler(modelData *modelData) {
 }
 
 // firstMethodHandler returns the specific methodData for the First method.
-func firstMethodHandler(modelData *modelData) {
+func firstMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         "First",
 		ParamsTypes:  "",
@@ -117,7 +118,7 @@ func firstMethodHandler(modelData *modelData) {
 }
 
 // allMethodHandler returns the specific methodData for the All method.
-func allMethodHandler(modelData *modelData) {
+func allMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         "All",
 		ParamsTypes:  "",
@@ -126,7 +127,7 @@ func allMethodHandler(modelData *modelData) {
 }
 
 // createMethodHandler returns the specific methodData for the Create method.
-func createMethodHandler(modelData *modelData) {
+func createMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	name := "Create"
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
@@ -149,7 +150,7 @@ func createMethodHandler(modelData *modelData) {
 }
 
 // writeMethodHandler returns the specific methodData for the Write method.
-func writeMethodHandler(modelData *modelData) {
+func writeMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	name := "Write"
 	returnString := "bool"
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
@@ -174,7 +175,7 @@ func writeMethodHandler(modelData *modelData) {
 }
 
 // copyMethodHandler returns the specific methodData for the Copy method.
-func copyMethodHandler(modelData *modelData) {
+func copyMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	name := "Copy"
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
@@ -190,6 +191,35 @@ func copyMethodHandler(modelData *modelData) {
 		ToDeclare:      false,
 		Params:         "overrides, fieldsToReset",
 		ParamsWithType: fmt.Sprintf("overrides *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
+		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
+		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
+		ReturnString:   returnString,
+		Call:           "Call",
+	})
+}
+
+// searchByNameMethodHandler returns the specific methodData for the Search method.
+func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "SearchByName"
+	returnString := fmt.Sprintf("%sSet", modelData.Name)
+	(*depsMap)["github.com/hexya-erp/hexya/hexya/models/operator"] = true
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("string, operator.Operator, %sCondition, int", modelData.Name),
+		ReturnString: returnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name: name,
+		Doc: fmt.Sprintf(`// SearchByName searches for %s records that have a display name matching the given
+// "name" pattern when compared with the given "op" operator, while also
+// matching the optional search condition ("additionalCond").
+//
+// This is used for example to provide suggestions based on a partial
+// value for a relational field. Sometimes be seen as the inverse
+// function of NameGet but it is not guaranteed to be.`, modelData.Name),
+		ToDeclare:      false,
+		Params:         "name, op, additionalCond, limit",
+		ParamsWithType: fmt.Sprintf("name string, op operator.Operator, additionalCond %sCondition, limit int", modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -247,7 +277,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 	modelASTData := modelsASTData[modelData.Name]
 	for methodName, methodASTData := range modelASTData.Methods {
 		if handler, exists := specificMethodsHandlers[methodName]; exists {
-			handler(modelData)
+			handler(modelData, depsMap)
 			continue
 		}
 		var params, paramsWithType, paramsType, call, returns, returnAsserts, returnString string
@@ -681,6 +711,17 @@ func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) IsNull() {{ $.Name }}Condi
 func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) IsNotNull() {{ $.Name }}Condition {
 	return {{ $.Name }}Condition{
 		Condition: c.ConditionField.IsNotNull(),
+	}
+}
+
+// AddOperator adds a condition value to the condition with the given operator and data
+// If multi is true, a recordset will be converted into a slice of int64
+// otherwise, it will return an int64 and panic if the recordset is not a singleton.
+//
+// This method is low level and should be avoided. Use operator methods such as Equals() instead.
+func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) AddOperator(op operator.Operator, data interface{}) {{ $.Name }}Condition {
+	return {{ $.Name }}Condition{
+		Condition: c.ConditionField.AddOperator(op, data),
 	}
 }
 

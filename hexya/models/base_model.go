@@ -21,6 +21,7 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
+	"github.com/hexya-erp/hexya/hexya/models/operator"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/hexya/models/types/dates"
@@ -212,6 +213,26 @@ func declareRecordSetMethods() {
 			}
 			return rc.String()
 		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("SearchByName",
+		`SearchByName searches for records that have a display name matching the given
+		"name" pattern when compared with the given "op" operator, while also
+		matching the optional search condition ("additionalCond").
+
+		This is used for example to provide suggestions based on a partial
+		value for a relational field. Sometimes be seen as the inverse
+		function of NameGet but it is not guaranteed to be.`,
+		func(rc *RecordCollection, name string, op operator.Operator, additionalCond Conditioner, limit int) *RecordCollection {
+			if op == "" {
+				op = operator.IContains
+			}
+			cond := rc.Model().Field("Name").AddOperator(op, name)
+			if !additionalCond.Underlying().IsEmpty() {
+				cond = cond.AndCond(additionalCond.Underlying())
+			}
+			return rc.Model().Search(rc.Env(), cond).Limit(limit)
+
+		})
 
 	commonMixin.AddMethod("FieldsGet",
 		`FieldsGet returns the definition of each field.
