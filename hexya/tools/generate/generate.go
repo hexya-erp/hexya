@@ -267,7 +267,7 @@ func CreatePool(program *loader.Program, dir string) {
 		}
 		mData.Deps = deps
 		// Writing to file
-		fileName := fmt.Sprintf("%s.go", strings.ToLower(modelName))
+		fileName := fmt.Sprintf("%s.go", strutils.SnakeCaseString(modelName))
 		CreateFileFromTemplate(path.Join(dir, fileName), poolModelTemplate, mData)
 	}
 }

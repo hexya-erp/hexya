@@ -95,6 +95,11 @@ func TestModelDeclaration(t *testing.T) {
 				rc.Get("Profile").(*RecordCollection).Set("City", value)
 			})
 
+		user.AddMethod("ComputeNum", "Dummy method",
+			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
+				return FieldMap{}, []FieldNamer{}
+			})
+
 		activeMI.AddMethod("IsActivated", "",
 			func(rc *RecordCollection) bool {
 				return rc.Get("Active").(bool)
@@ -248,8 +253,8 @@ func TestFieldModification(t *testing.T) {
 		numsField := Registry.MustGet("User").Fields().MustGet("Nums")
 		So(numsField.SetString("Nums Reloaded").description, ShouldEqual, "Nums Reloaded")
 		So(numsField.SetHelp("Num's Help").help, ShouldEqual, "Num's Help")
-		So(numsField.SetCompute("ComputeNum").compute, ShouldEqual, "ComputeNum")
-		So(numsField.SetCompute("").compute, ShouldEqual, "")
+		So(numsField.SetCompute(Registry.MustGet("User").methods.MustGet("ComputeNum")).compute, ShouldEqual, "ComputeNum")
+		So(numsField.SetCompute(nil).compute, ShouldEqual, "")
 		So(numsField.SetDefault(DefaultValue("DV")).defaultFunc(Environment{}, FieldMap{}).(string), ShouldEqual, "DV")
 		numsField.SetDepends([]string{"Dep1", "Dep2"})
 		So(numsField.depends, ShouldHaveLength, 2)

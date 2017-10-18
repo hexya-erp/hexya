@@ -1105,8 +1105,12 @@ func (f *Field) SetRelated(value string) *Field {
 }
 
 // SetCompute overrides the value of the Compute parameter of this Field
-func (f *Field) SetCompute(value string) *Field {
-	f.compute = value
+func (f *Field) SetCompute(value Methoder) *Field {
+	var methName string
+	if value != nil {
+		methName = value.Underlying().name
+	}
+	f.compute = methName
 	return f
 }
 
@@ -1165,19 +1169,31 @@ func (f *Field) SetSelection(value types.Selection) *Field {
 }
 
 // SetOnchange overrides the value of the Onchange parameter of this Field
-func (f *Field) SetOnchange(value string) *Field {
-	f.onChange = value
+func (f *Field) SetOnchange(value Methoder) *Field {
+	var methName string
+	if value != nil {
+		methName = value.Underlying().name
+	}
+	f.onChange = methName
 	return f
 }
 
 // SetConstraint overrides the value of the Constraint parameter of this Field
-func (f *Field) SetConstraint(value string) *Field {
-	f.constraint = value
+func (f *Field) SetConstraint(value Methoder) *Field {
+	var methName string
+	if value != nil {
+		methName = value.Underlying().name
+	}
+	f.constraint = methName
 	return f
 }
 
 // SetInverse overrides the value of the Inverse parameter of this Field
-func (f *Field) SetInverse(value string) *Field {
-	f.inverse = value
+func (f *Field) SetInverse(value Methoder) *Field {
+	var methName string
+	if value != nil {
+		methName = value.Underlying().name
+	}
+	f.inverse = methName
 	return f
 }

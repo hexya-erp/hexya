@@ -45,6 +45,7 @@ func (c Context) Copy() *Context {
 }
 
 // Get returns the value of the given key in this Context
+// It returns nil if the key is not in this context
 func (c *Context) Get(key string) interface{} {
 	value := c.values[key]
 	return value

@@ -43,6 +43,13 @@ var allowedOperators = map[Operator]bool{
 	ChildOf:        true,
 }
 
+var negativeOperators = map[Operator]bool{
+	NotEquals:    true,
+	NotContains:  true,
+	NotIContains: true,
+	NotIn:        true,
+}
+
 var multiOperator = map[Operator]bool{
 	In:    true,
 	NotIn: true,
@@ -56,5 +63,11 @@ func (o Operator) IsMulti() bool {
 // IsValid returns true if o is a known operator.
 func (o Operator) IsValid() bool {
 	_, res := allowedOperators[o]
+	return res
+}
+
+// IsNegative returns true if this is a negative operator
+func (o Operator) IsNegative() bool {
+	_, res := negativeOperators[o]
 	return res
 }

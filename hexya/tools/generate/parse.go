@@ -273,7 +273,7 @@ func parseMixInModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 	(*modelsData)[modelName].Mixins[mixinModel] = true
 }
 
-// parseDeclareModel parses the given node which is aDeclareXXXModel function
+// parseDeclareModel parses the given node which is a DeclareXXXModel function
 func parseDeclareModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 	fName, _ := ExtractFunctionName(node)
 	modelName, err := extractModelNameFromFunc(node.Fun.(*ast.SelectorExpr).X.(*ast.CallExpr))
