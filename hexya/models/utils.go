@@ -378,3 +378,26 @@ func DefaultValue(value interface{}) func(env Environment, fMap FieldMap) interf
 		return value
 	}
 }
+
+// cartesianProductSlices returns the cartesian product of the given RecordCollection slices.
+//
+// This function panics if all records are not pf the same model
+func cartesianProductSlices(records ...[]*RecordCollection) []*RecordCollection {
+	switch len(records) {
+	case 0:
+		return []*RecordCollection{}
+	case 1:
+		return records[0]
+	case 2:
+		res := make([]*RecordCollection, 4)
+		for i, v1 := range records[0] {
+			for j, v2 := range records[1] {
+				res[i*2+j] = v1.Union(v2)
+			}
+		}
+		return res
+	default:
+		return cartesianProductSlices(records[0], cartesianProductSlices(records[1:]...))
+	}
+
+}

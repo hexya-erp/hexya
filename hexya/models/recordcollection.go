@@ -862,6 +862,18 @@ func (rc *RecordCollection) Intersect(other RecordSet) *RecordCollection {
 	return newRecordCollection(rc.Env(), rc.ModelName()).withIds(ids)
 }
 
+// CartesianProduct returns the cartesian product of this RecordCollection with others.
+//
+// This function panics if all records are not pf the same model
+func (rc *RecordCollection) CartesianProduct(records ...RecordSet) []*RecordCollection {
+	recSlices := make([][]*RecordCollection, len(records)+1)
+	recSlices[0] = rc.Records()
+	for i, rec := range records {
+		recSlices[i+1] = rec.Collection().Records()
+	}
+	return cartesianProductSlices(recSlices...)
+}
+
 // Equals returns true if this RecordCollection is the same as other
 // i.e. they are of the same model and have the same ids
 func (rc *RecordCollection) Equals(other RecordSet) bool {

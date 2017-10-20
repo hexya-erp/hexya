@@ -56,9 +56,14 @@ type Digits struct {
 	Scale     int8
 }
 
-// Round rounds the given val to the given precision.
+// Round rounds the given val to the given precision, which is a float such as :
+//
+// - 0.01 to round at the nearest 100th
+// - 10 to round at the nearest ten
+//
 // This function uses the future Go 1.10 implementation
-func Round(val float64, precision Digits) float64 {
+func Round(value float64, precision float64) float64 {
+	val := value / precision
 	const (
 		mask  = 0x7FF
 		shift = 64 - 11 - 1
@@ -85,12 +90,12 @@ func Round(val float64, precision Digits) float64 {
 		bits += halfMask >> e
 		bits &^= fracMask >> e
 	}
-	return math.Float64frombits(bits)
+	return math.Float64frombits(bits) * precision
 }
 
 // Round32 rounds the given val to the given precision.
 // This function is just a wrapper for Round() casted to float32
-func Round32(val float32, precision Digits) float32 {
+func Round32(val float32, precision float64) float32 {
 	return float32(Round(float64(val), precision))
 }
 
@@ -115,7 +120,7 @@ func Round32(val float32, precision Digits) float32 {
 // Compare(value1,value2) == _, true, as the former will round after
 // computing the difference, while the latter will round before, giving
 // different results for e.g. 0.006 and 0.002 at 2 digits precision.
-func Compare(value1, value2 float64, precision Digits) (greater, equal bool) {
+func Compare(value1, value2 float64, precision float64) (greater, equal bool) {
 	if Round(value1, precision) == Round(value2, precision) {
 		equal = true
 		return
@@ -129,7 +134,7 @@ func Compare(value1, value2 float64, precision Digits) (greater, equal bool) {
 
 // Compare32 'value1' and 'value2' after rounding them according to the
 // given precision. This function is just a wrapper for Compare() with float32 values
-func Compare32(value1, value2 float32, precision Digits) (greater, equal bool) {
+func Compare32(value1, value2 float32, precision float64) (greater, equal bool) {
 	greater, equal = Compare(float64(value1), float64(value2), precision)
 	return
 }
@@ -141,9 +146,8 @@ func Compare32(value1, value2 float32, precision Digits) (greater, equal bool) {
 // Compare(value1,value2) == _, true, as the former will round after
 // computing the difference, while the latter will round before, giving
 // different results for e.g. 0.006 and 0.002 at 2 digits precision.
-func IsZero(value float64, precision Digits) bool {
-	epsilon := float64(10 ^ (-precision.Scale))
-	if math.Abs(Round(value, precision)) < epsilon {
+func IsZero(value float64, precision float64) bool {
+	if math.Abs(Round(value, precision)) < precision {
 		return true
 	}
 	return false

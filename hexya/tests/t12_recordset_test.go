@@ -104,17 +104,17 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userWill.ID(), ShouldBeGreaterThan, 0)
 			})
 			Convey("Checking constraint methods enforcement", func() {
-				tag1Data := pool.TagData{
+				tag1Data := &pool.TagData{
 					Name:        "Tag1",
 					Description: "Tag1",
 				}
 				So(func() { pool.Tag().Create(env, tag1Data) }, ShouldPanic)
-				tag2Data := pool.TagData{
+				tag2Data := &pool.TagData{
 					Name: "Tag2",
 					Rate: 12,
 				}
 				So(func() { pool.Tag().Create(env, tag2Data) }, ShouldPanic)
-				tag3Data := pool.TagData{
+				tag3Data := &pool.TagData{
 					Name:        "Tag2",
 					Description: "Tag2",
 					Rate:        -3,

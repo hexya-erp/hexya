@@ -76,13 +76,14 @@ type modelData struct {
 // specificMethodsHandlers are functions that populate the given modelData
 // for specific methods.
 var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map[string]bool){
-	"Search":       searchMethodHandler,
-	"SearchByName": searchByNameMethodHandler,
-	"First":        firstMethodHandler,
-	"All":          allMethodHandler,
-	"Create":       createMethodHandler,
-	"Write":        writeMethodHandler,
-	"Copy":         copyMethodHandler,
+	"Search":           searchMethodHandler,
+	"SearchByName":     searchByNameMethodHandler,
+	"First":            firstMethodHandler,
+	"All":              allMethodHandler,
+	"Create":           createMethodHandler,
+	"Write":            writeMethodHandler,
+	"Copy":             copyMethodHandler,
+	"CartesianProduct": cartesianProductMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
@@ -227,6 +228,17 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	})
 }
 
+// cartesianProductMethodHandler returns the specific methodData for the CartesianProduct method.
+func cartesianProductMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "CartesianProduct"
+	returnString := fmt.Sprintf("[]%sSet", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("...%sSet", modelData.Name),
+		ReturnString: returnString,
+	})
+}
+
 // createTypeIdent creates a string from the given type that
 // can be used inside an identifier.
 func createTypeIdent(typStr string) string {
@@ -283,14 +295,14 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 		var params, paramsWithType, paramsType, call, returns, returnAsserts, returnString string
 		for _, astParam := range methodASTData.Params {
 			paramType := astParam.Type.Type
-			if astParam.Variadic {
-				paramType = fmt.Sprintf("...%s", paramType)
-			}
 			p := fmt.Sprintf("%s,", astParam.Name)
 			if isRS, isRC := isRecordSetType(astParam.Type.Type, modelsASTData); isRS {
 				if isRC {
 					paramType = fmt.Sprintf("%sSet", modelData.Name)
 				}
+			}
+			if astParam.Variadic {
+				paramType = fmt.Sprintf("...%s", paramType)
 			}
 			params += p
 			paramsWithType += fmt.Sprintf("%s %s,", astParam.Name, paramType)
@@ -466,7 +478,7 @@ func (m {{ .Name }}Model) NewSet(env models.Environment) {{ .Name }}Set {
 
 // Create creates a new {{ .Name }} record and returns the newly created
 // {{ .Name }}Set instance.
-func (m {{ .Name }}Model) Create(env models.Environment, data interface{}) {{ .Name }}Set {
+func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data) {{ .Name }}Set {
 	return {{ .Name }}Set{
 		RecordCollection: m.Model.Create(env, data),
 	}
@@ -817,6 +829,22 @@ func (s {{ .Name }}Set) All() []{{ .Name }}Data {
 // RecordSets
 func (s {{ .Name }}Set) Records() []{{ .Name }}Set {
 	recs := s.RecordCollection.Records()
+	res := make([]{{ .Name }}Set, len(recs))
+	for i, rec := range recs {
+		res[i] = {{ .Name }}Set{
+			RecordCollection: rec,
+		}
+	}
+	return res
+}
+
+// CartesianProduct returns the cartesian product of this {{ .Name }}Set with others.
+func (s {{ .Name }}Set) CartesianProduct(others ...{{ .Name }}Set) []{{ .Name }}Set {
+	otherSet := make([]models.RecordSet, len(others))
+	for i, o := range others {
+		otherSet[i] = o
+	}
+	recs := s.RecordCollection.CartesianProduct(otherSet...)
 	res := make([]{{ .Name }}Set, len(recs))
 	for i, rec := range recs {
 		res[i] = {{ .Name }}Set{

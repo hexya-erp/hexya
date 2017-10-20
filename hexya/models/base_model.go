@@ -480,6 +480,12 @@ func declareSearchMethods() {
 			return rc.Intersect(other)
 		}).AllowGroup(security.GroupEveryone)
 
+	commonMixin.AddMethod("CartesianProduct",
+		`CartesianProduct returns the cartesian product of this RecordCollection with others.`,
+		func(rc *RecordCollection, other ...RecordSet) []*RecordCollection {
+			return rc.CartesianProduct(other...)
+		}).AllowGroup(security.GroupEveryone)
+
 	commonMixin.AddMethod("Equals",
 		`Equals returns true if this RecordSet is the same as other
 		i.e. they are of the same model and have the same ids`,

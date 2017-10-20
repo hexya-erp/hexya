@@ -50,6 +50,14 @@ var negativeOperators = map[Operator]bool{
 	NotIn:        true,
 }
 
+var positiveOperators = map[Operator]bool{
+	Equals:    true,
+	IContains: true,
+	ILike:     true,
+	Contains:  true,
+	Like:      true,
+}
+
 var multiOperator = map[Operator]bool{
 	In:    true,
 	NotIn: true,
@@ -69,5 +77,11 @@ func (o Operator) IsValid() bool {
 // IsNegative returns true if this is a negative operator
 func (o Operator) IsNegative() bool {
 	_, res := negativeOperators[o]
+	return res
+}
+
+// IsPositive returns true if this is a positive operator
+func (o Operator) IsPositive() bool {
+	_, res := positiveOperators[o]
 	return res
 }

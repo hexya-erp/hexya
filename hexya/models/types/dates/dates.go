@@ -73,6 +73,26 @@ func (d Date) Equal(other Date) bool {
 	return d.String() == other.String()
 }
 
+// Greater returns true if d is strictly greater than other
+func (d Date) Greater(other Date) bool {
+	return d.Sub(other.Time) > 0
+}
+
+// GreaterEqual returns true if d is greater than or equal to other
+func (d Date) GreaterEqual(other Date) bool {
+	return d.Sub(other.Time) >= 0
+}
+
+// Lower returns true if d is strictly lower than other
+func (d Date) Lower(other Date) bool {
+	return d.Sub(other.Time) < 0
+}
+
+// LowerEqual returns true if d is lower than or equal to other
+func (d Date) LowerEqual(other Date) bool {
+	return d.Sub(other.Time) <= 0
+}
+
 // Today returns the current date
 func Today() Date {
 	return Date{time.Now()}
@@ -152,4 +172,24 @@ var _ sql.Scanner = new(DateTime)
 // Equal reports whether d and other represent the same time instant
 func (d DateTime) Equal(other DateTime) bool {
 	return d.Time.Equal(other.Time)
+}
+
+// Greater returns true if d is strictly greater than other
+func (d DateTime) Greater(other DateTime) bool {
+	return d.Sub(other.Time) > 0
+}
+
+// GreaterEqual returns true if d is greater than or equal to other
+func (d DateTime) GreaterEqual(other DateTime) bool {
+	return d.Sub(other.Time) >= 0
+}
+
+// Lower returns true if d is strictly lower than other
+func (d DateTime) Lower(other DateTime) bool {
+	return d.Sub(other.Time) < 0
+}
+
+// LowerEqual returns true if d is lower than or equal to other
+func (d DateTime) LowerEqual(other DateTime) bool {
+	return d.Sub(other.Time) <= 0
 }

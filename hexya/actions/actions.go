@@ -33,9 +33,10 @@ type ActionType string
 
 // Action types
 const (
-	ActionActWindow ActionType = "ir.actions.act_window"
-	ActionServer    ActionType = "ir.actions.server"
-	ActionClient    ActionType = "ir.actions.client"
+	ActionActWindow   ActionType = "ir.actions.act_window"
+	ActionServer      ActionType = "ir.actions.server"
+	ActionClient      ActionType = "ir.actions.client"
+	ActionCloseWindow ActionType = "ir.actions.act_window_close"
 )
 
 // ActionViewType defines the type of view of an action
