@@ -108,11 +108,15 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				log.Panic("Error while converting float", "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
 		case fi.fieldType.IsFKRelationType():
-			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").Equals(record[i]))
-			if relRC.Len() != 1 {
-				log.Panic("Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
+			if record[i] != "" {
+				relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").Equals(record[i]))
+				if relRC.Len() != 1 {
+					log.Panic("Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
+				}
+				val = relRC.Ids()[0]
+			} else {
+				val = nil
 			}
-			val = relRC.Ids()[0]
 		case fi.fieldType == fieldtype.Many2Many:
 			ids := strings.Split(record[i], "|")
 			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").In(ids))
