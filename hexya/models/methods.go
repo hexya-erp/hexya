@@ -257,6 +257,7 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 	switch at := arg.(type) {
 	case Conditioner:
 		if fnctArgType.Kind() == reflect.Interface {
+			// Target is a Conditioner nothing to change
 			return reflect.ValueOf(at), nil
 		}
 		val = reflect.New(fnctArgType).Elem()

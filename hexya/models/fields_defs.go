@@ -1168,6 +1168,15 @@ func (f *Field) SetSelection(value types.Selection) *Field {
 	return f
 }
 
+// UpdateSelection updates the value of the Selection parameter of this Field
+// with the given value. Existing keys are overridden.
+func (f *Field) UpdateSelection(value types.Selection) *Field {
+	for k, v := range value {
+		f.selection[k] = v
+	}
+	return f
+}
+
 // SetOnchange overrides the value of the Onchange parameter of this Field
 func (f *Field) SetOnchange(value Methoder) *Field {
 	var methName string
