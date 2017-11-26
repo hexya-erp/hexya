@@ -170,7 +170,7 @@ func loadXMLResourceFile(fileName string) {
 			case "menuitem":
 				menus.LoadFromEtree(object)
 			default:
-				log.Panic("Unknown XML tag", "tag", object.Tag)
+				log.Panic("Unknown XML tag", "filename", fileName, "tag", object.Tag)
 			}
 		}
 	}

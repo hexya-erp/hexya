@@ -589,7 +589,7 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) {
 	if m2mRelModName == "" {
 		m2mRelModName = fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1])
 	}
-	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, our, their)
+	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, fc.model.name, mf.RelationModel.Underlying().name, our, their)
 
 	json, str := getJSONAndString(name, fieldtype.Float, mf.JSON, mf.String)
 	compute, inverse, onchange, constraint := getFuncNames(mf.Compute, mf.Inverse, mf.OnChange, mf.Constraint)

@@ -294,13 +294,13 @@ func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
 // for the m2m relation defined between model1 and model2.
 // It returns the Model of the intermediate model, the Field of that model
 // pointing to our model, and the Field pointing to the other model.
-func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field, *Field) {
+func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string) (*Model, *Field, *Field) {
 	if relMI, exists := Registry.Get(relModelName); exists {
 		var m1, m2 *Field
 		for fName, fi := range relMI.fields.registryByName {
-			if fName == model1 {
+			if fName == field1 {
 				m1 = fi
-			} else if fName == model2 {
+			} else if fName == field2 {
 				m2 = fi
 			}
 		}
@@ -318,8 +318,8 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 		defaultOrder: []string{"id"},
 	}
 	ourField := &Field{
-		name:             model1,
-		json:             strutils.SnakeCaseString(model1) + "_id",
+		name:             field1,
+		json:             strutils.SnakeCaseString(field1) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
@@ -329,15 +329,15 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 		index:            true,
 		onDelete:         Cascade,
 		structField: reflect.StructField{
-			Name: model1,
+			Name: field1,
 			Type: reflect.TypeOf(int64(0)),
 		},
 	}
 	newMI.fields.add(ourField)
 
 	theirField := &Field{
-		name:             model2,
-		json:             strutils.SnakeCaseString(model2) + "_id",
+		name:             field2,
+		json:             strutils.SnakeCaseString(field2) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
@@ -347,7 +347,7 @@ func createM2MRelModelInfo(relModelName, model1, model2 string) (*Model, *Field,
 		index:            true,
 		onDelete:         Cascade,
 		structField: reflect.StructField{
-			Name: model2,
+			Name: field2,
 			Type: reflect.TypeOf(int64(0)),
 		},
 	}
