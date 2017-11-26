@@ -154,6 +154,17 @@ func TestRelatedNonStoredFields(t *testing.T) {
 				So(pUsers.Ids(), ShouldContain, userJane.Ids()[0])
 				So(pUsers.Ids(), ShouldContain, userWill.Ids()[0])
 			})
+			Convey("Checking that we can order by PMoney", func() {
+				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+				userWill := pool.User().Search(env, pool.User().Email().Equals("will.smith@example.com"))
+				userJane.SetPMoney(64)
+				pUsers := pool.User().NewSet(env).SearchAll().OrderBy("PMoney DESC")
+				So(pUsers.Len(), ShouldEqual, 3)
+				pUsersRecs := pUsers.Records()
+				// pUsersRecs[0] is userJohn because its pMoney is Null.
+				So(pUsersRecs[1].Equals(userWill), ShouldBeTrue)
+				So(pUsersRecs[2].Equals(userJane), ShouldBeTrue)
+			})
 		})
 	})
 }

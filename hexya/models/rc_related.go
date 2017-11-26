@@ -53,7 +53,7 @@ func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, 
 
 	// Substitute in RecordCollection query
 	substs := make(map[string][]string)
-	queryExprs := rc.query.cond.getAllExpressions(rc.model)
+	queryExprs := rc.query.getAllExpressions()
 	for _, exprs := range queryExprs {
 		if len(exprs) == 0 {
 			continue

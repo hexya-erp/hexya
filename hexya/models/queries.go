@@ -177,6 +177,9 @@ func (q *Query) sqlOrderByClause() string {
 		resSlice[i] = q.joinedFieldExpression(field)
 		resSlice[i] += fmt.Sprintf(" %s", directions[i])
 	}
+	if len(resSlice) == 0 {
+		return ""
+	}
 	return fmt.Sprintf("ORDER BY %s", strings.Join(resSlice, ", "))
 }
 
@@ -315,20 +318,13 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 // - All expressions that also include expressions used in the where clause.
 func (q *Query) selectData(fields []string) ([][]string, [][]string) {
 	q.substituteChildOfPredicates()
-	if len(q.orders) == 0 {
-		q.orders = q.recordSet.model.defaultOrder
-	}
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
 	for i, f := range fields {
 		fieldExprs[i] = jsonizeExpr(q.recordSet.model, strings.Split(f, ExprSep))
 	}
 	// Add 'order by' exprs
-	for _, order := range q.orders {
-		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
-		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
-		fieldExprs = append(fieldExprs, oExprs)
-	}
+	fieldExprs = append(fieldExprs, q.getOrderByExpressions()...)
 	// Then given by condition
 	allExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
 	return fieldExprs, allExprs
@@ -516,12 +512,39 @@ func (q *Query) sideDataIsEmpty() bool {
 // its conditions 1st exprs with the corresponding substMap value.
 func (q *Query) substituteConditionExprs(substMap map[string][]string) {
 	q.cond.substituteExprs(q.recordSet.model, substMap)
+	for i, order := range q.orders {
+		orderPath := strings.Split(strings.TrimSpace(order), " ")[0]
+		jsonPath := jsonizePath(q.recordSet.model, orderPath)
+		for k, v := range substMap {
+			if jsonPath == k {
+				q.orders[i] = strings.Replace(q.orders[i], orderPath, strings.Join(v, ExprSep), -1)
+				break
+			}
+		}
+	}
 }
 
 // evaluateConditionArgFunctions evaluates all args in the queries that are functions and
 // substitute it with the result.
 func (q *Query) evaluateConditionArgFunctions() {
 	q.cond.evaluateArgFunctions(q.recordSet)
+}
+
+// getAllExpressions returns all expressions used in this query,
+// both in the condition and the order by clause.
+func (q *Query) getAllExpressions() [][]string {
+	return append(q.getOrderByExpressions(), q.cond.getAllExpressions(q.recordSet.model)...)
+}
+
+// getOrderByExpressions returns all expressions used in order by clause of this query.
+func (q *Query) getOrderByExpressions() [][]string {
+	var exprs [][]string
+	for _, order := range q.orders {
+		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
+		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
+		exprs = append(exprs, oExprs)
+	}
+	return exprs
 }
 
 // newQuery returns a new empty query

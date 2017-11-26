@@ -40,8 +40,8 @@ type RecordCollection struct {
 
 // String returns the string representation of a RecordSet
 func (rc *RecordCollection) String() string {
-	idsStr := make([]string, len(rc.ids))
-	for i, id := range rc.ids {
+	idsStr := make([]string, len(rc.Ids()))
+	for i, id := range rc.Ids() {
 		idsStr[i] = strconv.Itoa(int(id))
 		i++
 	}
@@ -484,6 +484,9 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 		log.Panic("Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
 	}
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
+	if len(rSet.query.orders) == 0 {
+		rSet.query.orders = rSet.model.defaultOrder
+	}
 	var results []FieldMap
 	if len(fields) == 0 {
 		fields = rSet.model.fields.storedFieldNames()
