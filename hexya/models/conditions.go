@@ -57,7 +57,9 @@ func (c Condition) And() *ConditionStart {
 // AndCond completes the current condition with the given cond as an AND clause
 // between brackets : c.And(cond) => c AND (cond)
 func (c Condition) AndCond(cond *Condition) *Condition {
-	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true})
+	if !cond.IsEmpty() {
+		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true})
+	}
 	return &c
 }
 
@@ -86,7 +88,9 @@ func (c Condition) Or() *ConditionStart {
 // OrCond completes the current condition both with an OR clause between
 // brackets : c.Or(cond) => c OR (cond)
 func (c Condition) OrCond(cond *Condition) *Condition {
-	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true})
+	if !cond.IsEmpty() {
+		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true})
+	}
 	return &c
 }
 

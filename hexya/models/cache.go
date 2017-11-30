@@ -35,11 +35,14 @@ type cache struct {
 }
 
 // updateEntry creates or updates an entry in the cache defined by its model, id and fieldName.
-// fieldName must be a simple field name (no path)
-func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interface{}) {
-	ref := cacheRef{model: mi, id: id}
-	jsonName := jsonizePath(mi, fieldName)
-	c.updateEntryByRef(ref, jsonName, value)
+// fieldName can be a path
+func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interface{}) error {
+	ref, fName, err := c.getRelatedRef(mi, id, fieldName)
+	if err != nil {
+		return err
+	}
+	c.updateEntryByRef(ref, fName, value)
+	return nil
 }
 
 // updateEntryByRef creates or updates an entry to the cache from a cacheRef
@@ -133,11 +136,7 @@ func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap) {
 	// We add entries into the cache, starting from the smallest paths
 	for i := 0; i <= maxLen; i++ {
 		for _, path := range paths[i] {
-			ref, fName, err := c.getRelatedRef(mi, id, path)
-			if err != nil {
-				continue
-			}
-			c.updateEntryByRef(ref, fName, fMap[path])
+			c.updateEntry(mi, id, path, fMap[path])
 		}
 	}
 }

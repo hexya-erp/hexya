@@ -264,6 +264,8 @@ func getSimpleTypeValue(value interface{}, targetType reflect.Type) (reflect.Val
 		switch {
 		case typ.ConvertibleTo(targetType):
 			val = val.Convert(targetType)
+		case targetType.Kind() == reflect.Bool:
+			val = reflect.ValueOf(!reflect.DeepEqual(val.Interface(), reflect.Zero(val.Type()).Interface()))
 		case typ == reflect.TypeOf([]byte{}) && targetType.Kind() == reflect.Float32:
 			// backend may return floats as []byte when stored as numeric
 			fval, err := strconv.ParseFloat(string(value.([]byte)), 32)
