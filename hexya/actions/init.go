@@ -45,6 +45,7 @@ func bootStrapWindowAction(a *Action) {
 	if a.ActViewType == "" {
 		a.ActViewType = ActionViewTypeForm
 	}
+	a.Help = a.HelpXML.Content
 
 	// Add View to Views if not already present
 	var present bool

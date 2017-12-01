@@ -31,6 +31,10 @@ var actionDef1 string = `
 
 var actionDef2 string = `
 <action id="my_action_2" name="My Second Action" model="Partner" type="ir.actions.act_window" view_mode="tree,form">
+	<help>
+		This is the help message.
+		<strong>And this is important!</strong>
+	</help>
 	<view id="base_view_partner_tree" type="tree"/>
 	<view id="base_view_partner_form" type="form"/>
 </action>
@@ -73,6 +77,7 @@ func TestActions(t *testing.T) {
 		So(action.Views, ShouldHaveLength, 2)
 		So(action.Views, ShouldContain, views.ViewTuple{ID: "base_view_partner_tree", Type: "tree"})
 		So(action.Views, ShouldContain, views.ViewTuple{ID: "base_view_partner_form", Type: "form"})
+		So(action.HelpXML.Content, ShouldEqual, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
 	})
 	Convey("Testing Boostrap and Get functions", t, func() {
 		BootStrap()
@@ -84,6 +89,8 @@ func TestActions(t *testing.T) {
 		So(userLinkedActions, ShouldHaveLength, 1)
 		tName := userLinkedActions[0].TranslatedName("fr")
 		So(tName, ShouldEqual, "My Action")
+		action2 := Registry.MustGetById("my_action_2")
+		So(action2.Help, ShouldEqual, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
 	})
 	Convey("Testing ActionRef objects", t, func() {
 		actionRef := MakeActionRef("my_action")

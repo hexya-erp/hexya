@@ -181,6 +181,12 @@ func (ar *Collection) LoadFromEtree(element *etree.Element) {
 	ar.Add(&action)
 }
 
+// actionHelp is a placeholder struct to recover
+// help XML from action definition
+type actionHelp struct {
+	Content string `xml:",innerxml"`
+}
+
 // A Action is the definition of an action. Actions define the
 // behavior of the system in response to user requests.
 type Action struct {
@@ -192,7 +198,8 @@ type Action struct {
 	Method       string                 `json:"method" xml:"method,attr"`
 	Groups       []string               `json:"groups_id" xml:"groups,attr"`
 	Domain       string                 `json:"domain" xml:"domain,attr"`
-	Help         string                 `json:"help" xml:"help"`
+	HelpXML      actionHelp             `json:"-" xml:"help"`
+	Help         string                 `json:"help" xml:"-"`
 	SearchView   views.ViewRef          `json:"search_view_id" xml:"search_view_id,attr"`
 	SrcModel     string                 `json:"src_model" xml:"src_model,attr"`
 	Usage        string                 `json:"usage" xml:"usage,attr"`
