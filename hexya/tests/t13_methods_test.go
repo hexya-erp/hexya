@@ -172,19 +172,19 @@ func TestRelatedNonStoredFields(t *testing.T) {
 func TestEmbeddedModels(t *testing.T) {
 	Convey("Testing embedded models", t, func() {
 		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
-			Convey("Adding a last post to Jane", func() {
-				postRs := pool.Post().Create(env, &pool.PostData{
-					Title:   "This is my title",
-					Content: "Here we have some content",
-				})
-				pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com")).SetLastPost(postRs)
+			userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+			Convey("Checking that Jane's resume exists", func() {
+				So(userJane.Resume().IsEmpty(), ShouldBeFalse)
 			})
-			Convey("Checking that we can access jane's post directly", func() {
-				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
-				So(userJane.Title(), ShouldEqual, "This is my title")
-				So(userJane.Content(), ShouldEqual, "Here we have some content")
-				So(userJane.LastPost().Title(), ShouldEqual, "This is my title")
-				So(userJane.LastPost().Content(), ShouldEqual, "Here we have some content")
+			Convey("Adding a proper resume to Jane", func() {
+				userJane.Resume().SetExperience("Hexya developer for 10 years")
+				userJane.Resume().SetLeisure("Music, Sports")
+			})
+			Convey("Checking that we can access jane's resume directly", func() {
+				So(userJane.Experience(), ShouldEqual, "Hexya developer for 10 years")
+				So(userJane.Leisure(), ShouldEqual, "Music, Sports")
+				So(userJane.Resume().Experience(), ShouldEqual, "Hexya developer for 10 years")
+				So(userJane.Resume().Leisure(), ShouldEqual, "Music, Sports")
 			})
 		})
 	})

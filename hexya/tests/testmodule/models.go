@@ -63,7 +63,8 @@ func init() {
 			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
 		"Posts":     models.One2ManyField{RelationModel: pool.Post(), ReverseFK: "User"},
 		"PMoney":    models.FloatField{Related: "Profile.Money"},
-		"LastPost":  models.Many2OneField{RelationModel: pool.Post(), Embed: true},
+		"Resume":    models.Many2OneField{RelationModel: pool.Resume(), Embed: true},
+		"LastPost":  models.Many2OneField{RelationModel: pool.Post()},
 		"Email2":    models.CharField{},
 		"IsPremium": models.BooleanField{},
 		"Nums":      models.IntegerField{GoType: new(int)},
@@ -126,7 +127,7 @@ func init() {
 	post := pool.Post().DeclareModel()
 	post.AddFields(map[string]models.FieldDefinition{
 		"User":            models.Many2OneField{RelationModel: pool.User()},
-		"Title":           models.CharField{},
+		"Title":           models.CharField{Required: true},
 		"Content":         models.HTMLField{},
 		"Tags":            models.Many2ManyField{RelationModel: pool.Tag()},
 		"BestPostProfile": models.Rev2OneField{RelationModel: pool.Profile(), ReverseFK: "BestPost"},
@@ -172,6 +173,13 @@ func init() {
 				log.Panic("Tag name and description must be different")
 			}
 		})
+
+	cv := pool.Resume().DeclareModel()
+	cv.AddFields(map[string]models.FieldDefinition{
+		"Education":  models.TextField{},
+		"Experience": models.TextField{},
+		"Leisure":    models.TextField{},
+	})
 
 	addressMI := pool.AddressMixIn().DeclareMixinModel()
 	addressMI.AddFields(map[string]models.FieldDefinition{

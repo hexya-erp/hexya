@@ -28,6 +28,7 @@ func declareModels() {
 	profile := models.NewModel("Profile")
 	post := models.NewModel("Post")
 	tag := models.NewModel("Tag")
+	cv := models.NewModel("Resume")
 	addressMI := models.NewMixinModel("AddressMixIn")
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	viewModel := models.NewManualModel("UserView")
@@ -214,6 +215,12 @@ func declareModels() {
 		"Parent":      models.Many2OneField{RelationModel: models.Registry.MustGet("Tag")},
 		"Description": models.CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
 		"Rate":        models.FloatField{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
+	})
+
+	cv.AddFields(map[string]models.FieldDefinition{
+		"Education":  models.TextField{},
+		"Experience": models.TextField{},
+		"Leisure":    models.TextField{},
 	})
 
 	addressMI.AddFields(map[string]models.FieldDefinition{

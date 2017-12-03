@@ -60,6 +60,7 @@ func TestCreateRecordSet(t *testing.T) {
 				post2 := pool.Post().Create(env, &post2Data)
 				So(post2.Len(), ShouldEqual, 1)
 				posts := post1.Union(post2)
+				profile.SetBestPost(post1)
 				userJaneData := pool.UserData{
 					Name:    "Jane Smith",
 					Email:   "jane.smith@example.com",
@@ -136,7 +137,7 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
 				pool.User().Methods().Create().AllowGroup(group1)
-				pool.Post().Methods().Create().AllowGroup(group1, pool.User().Methods().Write())
+				pool.Resume().Methods().Create().AllowGroup(group1, pool.User().Methods().Write())
 				userTomData := pool.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",
@@ -144,7 +145,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { pool.User().Create(env, &userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for posts and it works", func() {
-				pool.Post().Methods().Create().AllowGroup(group1, pool.User().Methods().Create())
+				pool.Resume().Methods().Create().AllowGroup(group1, pool.User().Methods().Create())
 				userTomData := pool.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",
@@ -336,6 +337,11 @@ func TestAdvancedQueries(t *testing.T) {
 				users := pool.User().Search(env, pool.User().Profile().In(pool.Profile().NewSet(env)))
 				So(users.Len(), ShouldEqual, 0)
 			})
+			Convey("M2O chain", func() {
+				users := pool.User().Search(env, pool.User().ProfileFilteredOn(pool.Profile().BestPostFilteredOn(pool.Post().Title().Equals("1st Post"))))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.ID(), ShouldEqual, jane.ID())
+			})
 		})
 	})
 	Convey("Testing advanced queries on O2M relations", t, func() {
@@ -351,6 +357,48 @@ func TestAdvancedQueries(t *testing.T) {
 				users := pool.User().Search(env, pool.User().Posts().In(jane.Posts()))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("Conditions on o2m relation with null", func() {
+				users := pool.User().Search(env, pool.User().Posts().IsNull())
+				So(users.Len(), ShouldEqual, 2)
+				userRecs := users.Records()
+				So(userRecs[0].Name(), ShouldEqual, "John Smith")
+				So(userRecs[1].Name(), ShouldEqual, "Will Smith")
+			})
+			Convey("O2M Chain", func() {
+				users := pool.User().Search(env, pool.User().PostsFilteredOn(pool.Post().Title().Equals("1st Post")))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.ID(), ShouldEqual, jane.ID())
+			})
+		})
+	})
+	Convey("Testing advanced queries on M2M relations", t, func() {
+		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+			post1 := pool.Post().Search(env, pool.Post().Title().Equals("1st Post"))
+			So(post1.Len(), ShouldEqual, 1)
+			post2 := pool.Post().Search(env, pool.Post().Title().Equals("2nd Post"))
+			So(post2.Len(), ShouldEqual, 1)
+			tag1 := pool.Tag().Search(env, pool.Tag().Name().Equals("Trending"))
+			tag2 := pool.Tag().Search(env, pool.Tag().Name().Equals("Books"))
+			So(tag1.Len(), ShouldEqual, 1)
+			Convey("Condition on m2m relation", func() {
+				posts := pool.Post().Search(env, pool.Post().Tags().Equals(tag1))
+				So(posts.Len(), ShouldEqual, 1)
+				So(posts.ID(), ShouldEqual, post1.ID())
+			})
+			Convey("Condition on m2m relation with null", func() {
+				posts := pool.Post().Search(env, pool.Post().Tags().IsNull())
+				So(posts.Len(), ShouldEqual, 0)
+			})
+			Convey("Condition on m2m relation with IN operator", func() {
+				tags := tag1.Union(tag2)
+				posts := pool.Post().Search(env, pool.Post().Tags().In(tags))
+				So(posts.Len(), ShouldEqual, 2)
+			})
+			Convey("M2M Chain", func() {
+				posts := pool.Post().Search(env, pool.Post().TagsFilteredOn(pool.Tag().Name().Equals("Trending")))
+				So(posts.Len(), ShouldEqual, 1)
+				So(posts.ID(), ShouldEqual, post1.ID())
 			})
 		})
 	})
