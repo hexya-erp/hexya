@@ -182,19 +182,19 @@ func TestEmbeddedModels(t *testing.T) {
 	Convey("Testing embedded models", t, func() {
 		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
-			Convey("Adding a last post to Jane", func() {
-				postRs := env.Pool("Post").Call("Create", FieldMap{
-					"Title":   "This is my title",
-					"Content": "Here we have some content",
-				}).(RecordSet).Collection()
-				users.Search(users.Model().Field("Email").Equals("jane.smith@example.com")).Set("LastPost", postRs)
+			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+			Convey("Checking that Jane's resume exists", func() {
+				So(userJane.Get("Resume").(RecordSet).IsEmpty(), ShouldBeFalse)
 			})
-			Convey("Checking that we can access jane's post directly", func() {
-				userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
-				So(userJane.Get("Title"), ShouldEqual, "This is my title")
-				So(userJane.Get("Content"), ShouldEqual, "Here we have some content")
-				So(userJane.Get("LastPost").(RecordSet).Collection().Get("Title"), ShouldEqual, "This is my title")
-				So(userJane.Get("LastPost").(RecordSet).Collection().Get("Content"), ShouldEqual, "Here we have some content")
+			Convey("Adding a proper resume to Jane", func() {
+				userJane.Get("Resume").(RecordSet).Collection().Set("Experience", "Hexya developer for 10 years")
+				userJane.Get("Resume").(RecordSet).Collection().Set("Leisure", "Music, Sports")
+			})
+			Convey("Checking that we can access jane's resume directly", func() {
+				So(userJane.Get("Experience"), ShouldEqual, "Hexya developer for 10 years")
+				So(userJane.Get("Leisure"), ShouldEqual, "Music, Sports")
+				So(userJane.Get("Resume").(RecordSet).Collection().Get("Experience"), ShouldEqual, "Hexya developer for 10 years")
+				So(userJane.Get("Resume").(RecordSet).Collection().Get("Leisure"), ShouldEqual, "Music, Sports")
 			})
 		})
 	})

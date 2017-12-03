@@ -18,8 +18,6 @@ import (
 	"errors"
 	"reflect"
 	"strings"
-
-	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 )
 
 var (
@@ -39,14 +37,14 @@ func checkStructPtr(data interface{}) error {
 	ind := reflect.Indirect(val)
 	indType := ind.Type()
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		return errors.New("Argument must be a struct pointer")
+		return errors.New("argument must be a struct pointer")
 	}
 
 	if _, ok := indType.FieldByName("ID"); !ok {
-		return errors.New("Struct must have an ID field")
+		return errors.New("struct must have an ID field")
 	}
 	if f, _ := indType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
-		return errors.New("Struct ID field must be of type `int64`")
+		return errors.New("struct ID field must be of type `int64`")
 	}
 	return nil
 }
@@ -66,15 +64,15 @@ func checkStructSlicePtr(data interface{}) error {
 		indType.Elem().Kind() != reflect.Ptr ||
 		indType.Elem().Elem().Kind() != reflect.Struct {
 
-		return errors.New("Argument must be a pointer to a slice of struct pointers")
+		return errors.New("argument must be a pointer to a slice of struct pointers")
 	}
 	structType := indType.Elem().Elem()
 
 	if _, ok := structType.FieldByName("ID"); !ok {
-		return errors.New("Struct must have an ID field")
+		return errors.New("struct must have an ID field")
 	}
 	if f, _ := structType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
-		return errors.New("Struct ID field must be of type `int64`")
+		return errors.New("struct ID field must be of type `int64`")
 	}
 	return nil
 }
@@ -99,25 +97,6 @@ func jsonizeExpr(mi *Model, exprs []string) []string {
 	return res
 }
 
-// inflate2ManyConditions modifies the query to handle searches on
-// one2many and many2many fields.
-func inflate2ManyConditions(mi *Model, cond *Condition) {
-	for i, cv := range cond.predicates {
-		if cv.cond != nil {
-			inflate2ManyConditions(mi, cv.cond)
-			continue
-		}
-		path := strings.Join(cv.exprs, ExprSep)
-		fi := mi.getRelatedFieldInfo(path)
-		switch fi.fieldType {
-		case fieldtype.One2Many:
-			cond.predicates[i].exprs = append(cv.exprs, "id")
-		case fieldtype.Many2Many:
-		case fieldtype.Rev2One:
-		}
-	}
-}
-
 // addNameSearchesToCondition recursively modifies the given condition to search
 // on the name of the related records if they point to a relation field.
 func addNameSearchesToCondition(mi *Model, cond *Condition) {
@@ -136,14 +115,14 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 		case bool:
 			cond.predicates[i].arg = int64(0)
 		case string:
-			cond.predicates[i].exprs = addNameSearchToExprs(mi, fi, p.exprs)
+			cond.predicates[i].exprs = addNameSearchToExprs(fi, p.exprs)
 		}
 	}
 }
 
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
-func addNameSearchToExprs(mi *Model, fi *Field, exprs []string) []string {
+func addNameSearchToExprs(fi *Field, exprs []string) []string {
 	_, exists := fi.relatedModel.fields.get("name")
 	if exists {
 		exprs = append(exprs, "name")

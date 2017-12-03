@@ -460,7 +460,6 @@ func (rc *RecordCollection) SearchAll() *RecordCollection {
 func (rc *RecordCollection) SearchCount() int {
 	rSet := rc.Limit(0)
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
-	inflate2ManyConditions(rSet.model, rSet.query.cond)
 	sql, args := rSet.query.countQuery()
 	var res int
 	rSet.env.cr.Get(&res, sql, args...)
@@ -493,7 +492,6 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 	}
 	fields = filterOnAuthorizedFields(rSet.model, rSet.env.uid, fields, security.Read)
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
-	inflate2ManyConditions(rSet.model, rSet.query.cond)
 	subFields, rSet := rSet.substituteRelatedFields(fields)
 	dbFields := filterOnDBFields(rSet.model, subFields)
 	sql, args := rSet.query.selectQuery(dbFields)

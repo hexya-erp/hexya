@@ -98,7 +98,7 @@ func (q *Query) predicateSQLClause(p predicate, first ...bool) (string, SQLParam
 		sql     string
 		args    SQLParams
 		isFirst bool
-		adapter dbAdapter = adapters[db.DriverName()]
+		adapter = adapters[db.DriverName()]
 	)
 	if len(first) > 0 {
 		isFirst = first[0]
@@ -383,8 +383,8 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]string, fields map[string]string) 
 	for i, exprs := range fieldExprs {
 		aggFnct := fields[strings.Join(exprs, ExprSep)]
 		joins := q.generateTableJoins(exprs)
-		num := len(joins)
-		fStr[i] = fmt.Sprintf("%s(%s.%s) AS %s", aggFnct, joins[num-1].alias, exprs[num-1], strings.Join(exprs, sqlSep))
+		lastJoin := joins[len(joins)-1]
+		fStr[i] = fmt.Sprintf("%s(%s.%s) AS %s", aggFnct, lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
 	}
 	fStr[len(fieldExprs)] = "count(1) AS __count"
 	return strings.Join(fStr, ", ")
@@ -396,11 +396,11 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]string, fields map[string]string) 
 // If withAlias is true, then returns fields with its alias
 func (q *Query) joinedFieldExpression(exprs []string, withAlias ...bool) string {
 	joins := q.generateTableJoins(exprs)
-	num := len(joins)
+	lastJoin := joins[len(joins)-1]
 	if len(withAlias) > 0 && withAlias[0] {
-		return fmt.Sprintf("%s.%s AS %s", joins[num-1].alias, exprs[num-1], strings.Join(exprs, sqlSep))
+		return fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
 	}
-	return fmt.Sprintf("%s.%s", joins[num-1].alias, exprs[num-1])
+	return fmt.Sprintf("%s.%s", lastJoin.alias, lastJoin.expr)
 }
 
 // generateTableJoins transforms a list of fields expression into a list of tableJoins
@@ -411,10 +411,15 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	curMI := q.recordSet.model
 	// Create the tableJoin for the current table
 	currentTableName := adapter.quoteTableName(curMI.tableName)
+	var curExpr string
+	if len(fieldExprs) > 0 {
+		curExpr = fieldExprs[0]
+	}
 	curTJ := &tableJoin{
 		tableName: currentTableName,
 		joined:    false,
 		alias:     currentTableName,
+		expr:      curExpr,
 	}
 	joins = append(joins, *curTJ)
 	alias := curMI.tableName
@@ -424,7 +429,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 		if !ok {
 			log.Panic("Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
 		}
-		if fi.relatedModel == nil || i == exprsLen-1 {
+		if fi.relatedModel == nil || (i == exprsLen-1 && fi.fieldType.IsFKRelationType()) {
 			// Don't create an extra join if our field is not a relation field
 			// or if it is the last field of our expressions
 			break
@@ -433,17 +438,45 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 		if fi.required {
 			innerJoin = true
 		}
-		linkedTableName := adapter.quoteTableName(fi.relatedModel.tableName)
-		alias = fmt.Sprintf("%s%s%s", alias, sqlSep, fi.relatedModel.tableName)
 
 		var field, otherField string
+		var tjExpr string
+		if i < exprsLen-1 {
+			tjExpr = fieldExprs[i+1]
+		}
 		switch fi.fieldType {
 		case fieldtype.Many2One, fieldtype.One2One:
 			field, otherField = "id", expr
 		case fieldtype.One2Many, fieldtype.Rev2One:
 			field, otherField = jsonizePath(fi.relatedModel, fi.reverseFK), "id"
+			if tjExpr == "" {
+				tjExpr = "id"
+			}
+		case fieldtype.Many2Many:
+			// Add relation table join
+			relationTableName := adapter.quoteTableName(fi.m2mRelModel.tableName)
+			alias = fmt.Sprintf("%s%s%s", alias, sqlSep, fi.m2mRelModel.tableName)
+			tj := tableJoin{
+				tableName:  relationTableName,
+				joined:     true,
+				innerJoin:  false,
+				field:      jsonizePath(fi.m2mRelModel, fi.m2mOurField.name),
+				otherTable: curTJ,
+				otherField: "id",
+				alias:      adapter.quoteTableName(alias),
+				expr:       jsonizePath(fi.m2mRelModel, fi.m2mTheirField.name),
+			}
+			joins = append(joins, tj)
+			curTJ = &tj
+			// Add relation to other table
+			field, otherField = "id", jsonizePath(fi.m2mRelModel, fi.m2mTheirField.name)
+			if tjExpr == "" {
+				tjExpr = "id"
+			}
 		}
 
+		linkedTableName := adapter.quoteTableName(fi.relatedModel.tableName)
+		alias = fmt.Sprintf("%s%s%s", alias, sqlSep, fi.relatedModel.tableName)
 		nextTJ := tableJoin{
 			tableName:  linkedTableName,
 			joined:     true,
@@ -452,6 +485,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 			otherTable: curTJ,
 			otherField: otherField,
 			alias:      adapter.quoteTableName(alias),
+			expr:       tjExpr,
 		}
 		joins = append(joins, nextTJ)
 		curMI = fi.relatedModel

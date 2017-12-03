@@ -61,6 +61,7 @@ func TestCreateRecordSet(t *testing.T) {
 				post2 := env.Pool("Post").Call("Create", post2Data).(RecordSet).Collection()
 				So(post2.Len(), ShouldEqual, 1)
 				posts := post1.Union(post2)
+				profile.Set("BestPost", post1)
 				userJaneData := FieldMap{
 					"Name":    "Jane Smith",
 					"Email":   "jane.smith@example.com",
@@ -141,7 +142,7 @@ func TestCreateRecordSet(t *testing.T) {
 		SimulateInNewEnvironment(2, func(env Environment) {
 			security.Registry.AddMembership(2, group1)
 			userModel := Registry.MustGet("User")
-			postModel := Registry.MustGet("Post")
+			resumeModel := Registry.MustGet("Resume")
 
 			Convey("Checking that user 2 cannot create records", func() {
 				userTomData := FieldMap{
@@ -152,15 +153,15 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
 				userModel.methods.MustGet("Create").AllowGroup(group1)
-				postModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Write"))
+				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Write"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
 				}
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
-			Convey("Adding model access rights to user 2 for posts and it works", func() {
-				postModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
+			Convey("Adding model access rights to user 2 for resume and it works", func() {
+				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
@@ -169,7 +170,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { userTom.Get("Name") }, ShouldPanic)
 			})
 			Convey("Revoking model access rights to user 2 for posts and it doesn't works", func() {
-				postModel.methods.MustGet("Create").RevokeGroup(group1)
+				resumeModel.methods.MustGet("Create").RevokeGroup(group1)
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
@@ -177,7 +178,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Regranting model access rights to user 2 for posts and it works", func() {
-				postModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
+				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
@@ -410,6 +411,11 @@ func TestAdvancedQueries(t *testing.T) {
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profile))
 				So(users.Len(), ShouldEqual, 0)
 			})
+			Convey("M2O chain", func() {
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("profile_id.best_post_id.title").Equals("1st Post"))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
 		})
 	})
 	Convey("Testing advanced queries on O2M relations", t, func() {
@@ -428,6 +434,13 @@ func TestAdvancedQueries(t *testing.T) {
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
+			Convey("Conditions on o2m relation with null", func() {
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").IsNull())
+				So(users.Len(), ShouldEqual, 2)
+				userRecs := users.Records()
+				So(userRecs[0].Get("Name"), ShouldEqual, "John Smith")
+				So(userRecs[1].Get("Name"), ShouldEqual, "Will Smith")
+			})
 			Convey("Condition on o2m relation with IN operator and slice of ids", func() {
 				postIds := jane.Get("Posts").(RecordSet).Collection().Ids()
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").In(postIds))
@@ -439,6 +452,51 @@ func TestAdvancedQueries(t *testing.T) {
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts").In(posts))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+			Convey("O2M Chain", func() {
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Posts.Title").Equals("1st Post"))
+				So(users.Len(), ShouldEqual, 1)
+				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+			})
+		})
+	})
+	Convey("Testing advanced queries on M2M relations", t, func() {
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			post1 := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Equals("1st Post"))
+			So(post1.Len(), ShouldEqual, 1)
+			post2 := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Equals("2nd Post"))
+			So(post2.Len(), ShouldEqual, 1)
+			tag1 := env.Pool("Tag").Search(env.Pool("Tag").Model().Field("Name").Equals("Trending"))
+			tag2 := env.Pool("Tag").Search(env.Pool("Tag").Model().Field("Name").Equals("Books"))
+			So(tag1.Len(), ShouldEqual, 1)
+			Convey("Condition on m2m relation with slice of ids", func() {
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").Equals(tag1.Get("ID")))
+				So(posts.Len(), ShouldEqual, 1)
+				So(posts.Get("ID").(int64), ShouldEqual, post1.Get("ID").(int64))
+			})
+			Convey("Condition on m2m relation with recordset", func() {
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").Equals(tag1))
+				So(posts.Len(), ShouldEqual, 1)
+				So(posts.Get("ID").(int64), ShouldEqual, post1.Get("ID").(int64))
+			})
+			Convey("Condition on m2m relation with null", func() {
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").IsNull())
+				So(posts.Len(), ShouldEqual, 0)
+			})
+			Convey("Condition on m2m relation with IN operator and ids", func() {
+				tags := tag1.Union(tag2)
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").In(tags.Ids()))
+				So(posts.Len(), ShouldEqual, 2)
+			})
+			Convey("Condition on m2m relation with IN operator and recordset", func() {
+				tags := tag1.Union(tag2)
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").In(tags))
+				So(posts.Len(), ShouldEqual, 2)
+			})
+			Convey("M2M Chain", func() {
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags.Name").Equals("Trending"))
+				So(posts.Len(), ShouldEqual, 1)
+				So(posts.Get("ID").(int64), ShouldEqual, post1.Get("ID").(int64))
 			})
 		})
 	})

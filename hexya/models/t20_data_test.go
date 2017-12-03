@@ -12,7 +12,7 @@ import (
 
 func TestDataLoading(t *testing.T) {
 	Convey("Testing CSV data loading into database", t, func() {
-		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userObj := env.Pool("User")
 			Convey("Simple import of users - no update", func() {
 				LoadCSVDataFile("testdata/User.csv")

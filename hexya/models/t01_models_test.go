@@ -29,6 +29,7 @@ func TestModelDeclaration(t *testing.T) {
 		profile := NewModel("Profile")
 		post := NewModel("Post")
 		tag := NewModel("Tag")
+		cv := NewModel("Resume")
 		addressMI := NewMixinModel("AddressMixIn")
 		activeMI := NewMixinModel("ActiveMixIn")
 		viewModel := NewManualModel("UserView")
@@ -188,7 +189,8 @@ func TestModelDeclaration(t *testing.T) {
 				Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
 			"Posts":     One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User"},
 			"PMoney":    FloatField{Related: "Profile.Money"},
-			"LastPost":  Many2OneField{RelationModel: Registry.MustGet("Post"), Embed: true},
+			"LastPost":  Many2OneField{RelationModel: Registry.MustGet("Post")},
+			"Resume":    Many2OneField{RelationModel: Registry.MustGet("Resume"), Embed: true},
 			"Email2":    CharField{},
 			"IsPremium": BooleanField{},
 			"Nums":      IntegerField{GoType: new(int)},
@@ -209,7 +211,7 @@ func TestModelDeclaration(t *testing.T) {
 
 		post.AddFields(map[string]FieldDefinition{
 			"User":            Many2OneField{RelationModel: Registry.MustGet("User")},
-			"Title":           CharField{},
+			"Title":           CharField{Required: true},
 			"Content":         HTMLField{},
 			"Tags":            Many2ManyField{RelationModel: Registry.MustGet("Tag")},
 			"BestPostProfile": Rev2OneField{RelationModel: Registry.MustGet("Profile"), ReverseFK: "BestPost"},
@@ -225,6 +227,12 @@ func TestModelDeclaration(t *testing.T) {
 			"Parent":      Many2OneField{RelationModel: Registry.MustGet("Tag")},
 			"Description": CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
 			"Rate":        FloatField{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
+		})
+
+		cv.AddFields(map[string]FieldDefinition{
+			"Education":  TextField{},
+			"Experience": TextField{},
+			"Leisure":    TextField{},
 		})
 
 		addressMI.AddFields(map[string]FieldDefinition{

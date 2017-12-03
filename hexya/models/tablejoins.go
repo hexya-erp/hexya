@@ -26,6 +26,7 @@ type tableJoin struct {
 	otherTable *tableJoin
 	otherField string
 	alias      string
+	expr       string
 }
 
 // sqlString returns the sql string for the tableJoin Clause
