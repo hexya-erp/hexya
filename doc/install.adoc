@@ -21,6 +21,22 @@ described here: https://golang.org/doc/code.html#Workspaces
 NOTE: It is assumed in the document that you added `$GOPATH/bin` to your
 `$PATH`.
 
+=== Install lessc
+
+Hexya needs the less compiler `lessc` to be installed.
+
+If you have `npm`, you can use:
+
+```
+$ npm install -g less
+```
+
+On Debian/Ubuntu you can alternately run:
+
+```
+$ sudo apt-get install node-less
+```
+
 == Download
 
 === Download Hexya
@@ -232,3 +248,8 @@ Global Flags:
 ----
 
 You can now access the Hexya server at http://localhost:8080
+
+Default credentials are :
+
+- Login: `admin`
+- Password: `admin`

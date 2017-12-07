@@ -572,7 +572,7 @@ Models fields are added by the `AddField` method of a model as in the example be
 [source,go]
 ----
 course := pool.Course().DeclareModel()
-course.AddFields(map[string]models.FieldDeclaration{
+course.AddFields(map[string]models.FieldDefinition{
     "Name":      models.CharField{String: "Name", Help: "This is the name of the course", Required: true},
     "Date":      models.DateField{String: "Date of the Course"},
     "Teacher":   models.Many2OneField{RelationModel: pool.Partner(), String: "Teacher"},
@@ -708,7 +708,7 @@ and `sql.Scanner` interfaces.
 [source,go]
 ----
 session := pool.Session().DeclareModel()
-session.AddFields(map[string]models.FieldDeclaration{
+session.AddFields(map[string]models.FieldDefinition{
     "Room No": models.IntegerField{GoType: new(int16)},
 })
 ----
