@@ -93,6 +93,13 @@ func (d Date) LowerEqual(other Date) bool {
 	return d.Sub(other.Time) <= 0
 }
 
+// AddDate adds the given year, month or days to the current date
+func (d Date) AddDate(year, month, day int) Date {
+	return Date{
+		Time: d.Time.AddDate(year, month, day),
+	}
+}
+
 // Today returns the current date
 func Today() Date {
 	return Date{time.Now()}
@@ -192,4 +199,18 @@ func (d DateTime) Lower(other DateTime) bool {
 // LowerEqual returns true if d is lower than or equal to other
 func (d DateTime) LowerEqual(other DateTime) bool {
 	return d.Sub(other.Time) <= 0
+}
+
+// Add adds the given duration to this DateTime
+func (d DateTime) Add(duration time.Duration) DateTime {
+	return DateTime{
+		Time: d.Time.Add(duration),
+	}
+}
+
+// AddDate adds the given year, month or days to the current DateTime
+func (d DateTime) AddDate(year, month, day int) DateTime {
+	return DateTime{
+		Time: d.Time.AddDate(year, month, day),
+	}
 }

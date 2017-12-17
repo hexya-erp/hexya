@@ -218,6 +218,15 @@ func syncRelatedFieldInfo() {
 	}
 }
 
+// runInit runs the Init function of the given model if it exists
+func runInit(model *Model) {
+	if _, exists := model.methods.get("Init"); exists {
+		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			env.Pool(model.name).Call("Init")
+		})
+	}
+}
+
 // SyncDatabase creates or updates database tables with the data in the model registry
 func SyncDatabase() {
 	adapter := adapters[db.DriverName()]
@@ -229,7 +238,8 @@ func SyncDatabase() {
 			continue
 		}
 		if model.isManual() {
-			// Don't create table for manual models
+			// Don't create table for manual models, but run Init instead
+			runInit(model)
 			continue
 		}
 		if _, ok := dbTables[tableName]; !ok {
@@ -237,10 +247,14 @@ func SyncDatabase() {
 		}
 		updateDBColumns(model)
 		updateDBIndexes(model)
+		runInit(model)
 	}
 	// Setup constraints
 	for _, model := range Registry.registryByTableName {
 		if model.isMixin() {
+			continue
+		}
+		if model.isManual() {
 			continue
 		}
 		buildSQLErrorSubstitutionMap(model)

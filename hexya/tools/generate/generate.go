@@ -866,7 +866,7 @@ func (s {{ .Name }}Set) Model() {{ .Name }}Model {
 // record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
 func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
 {{ if .IsRS }}	return {{ .Type }}{
-		RecordCollection: s.RecordCollection.Get("{{ .Name }}").(*models.RecordCollection),
+		RecordCollection: s.RecordCollection.Get("{{ .Name }}").(models.RecordSet).Collection(),
 	}{{ else -}}
 	res, _ := s.RecordCollection.Get("{{ .Name }}").({{ .Type }})
 	return res {{ end }}

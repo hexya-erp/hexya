@@ -52,7 +52,7 @@ var pgTypes = map[fieldtype.Type]string{
 	fieldtype.Float:     "numeric",
 	fieldtype.HTML:      "text",
 	fieldtype.Binary:    "bytea",
-	fieldtype.Selection: "varchar",
+	fieldtype.Selection: "character varying",
 	fieldtype.Many2One:  "integer",
 	fieldtype.One2One:   "integer",
 }

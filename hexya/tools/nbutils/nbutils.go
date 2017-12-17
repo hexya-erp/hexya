@@ -56,6 +56,13 @@ type Digits struct {
 	Scale     int8
 }
 
+// ToPrecision returns the given digits as a precision float:
+//
+// Digits{Scale: 6, Precision: 2} => 0.01
+func (d Digits) ToPrecision() float64 {
+	return float64(10 ^ (-d.Precision))
+}
+
 // Round rounds the given val to the given precision, which is a float such as :
 //
 // - 0.01 to round at the nearest 100th
@@ -100,11 +107,16 @@ func Round32(val float32, precision float64) float32 {
 }
 
 // Compare 'value1' and 'value2' after rounding them according to the
-// given precision. The returned values are per the following table:
+// given precision, which is a float such as :
 //
-//    value1 > value2 : true, false
-//    value1 == value2: false, true
-//    value1 < value2 : false, false
+// - 0.01 to round at the nearest 100th
+// - 10 to round at the nearest ten
+//
+// The returned values are per the following table:
+//
+//    value1 > value2 : 1
+//    value1 == value2: 0
+//    value1 < value2 : -1
 //
 // A value is considered lower/greater than another value
 // if their rounded value is different. This is not the same as having a
@@ -120,27 +132,27 @@ func Round32(val float32, precision float64) float32 {
 // Compare(value1,value2) == _, true, as the former will round after
 // computing the difference, while the latter will round before, giving
 // different results for e.g. 0.006 and 0.002 at 2 digits precision.
-func Compare(value1, value2 float64, precision float64) (greater, equal bool) {
+func Compare(value1, value2 float64, precision float64) int8 {
 	if Round(value1, precision) == Round(value2, precision) {
-		equal = true
-		return
+		return 0
 	}
 	if Round(value1, precision) > Round(value2, precision) {
-		greater = true
-		return
+		return 1
 	}
-	return
+	return -1
 }
 
 // Compare32 'value1' and 'value2' after rounding them according to the
 // given precision. This function is just a wrapper for Compare() with float32 values
-func Compare32(value1, value2 float32, precision float64) (greater, equal bool) {
-	greater, equal = Compare(float64(value1), float64(value2), precision)
-	return
+func Compare32(value1, value2 float32, precision float64) int8 {
+	return Compare(float64(value1), float64(value2), precision)
 }
 
 // IsZero returns true if 'value' is small enough to be treated as
-// zero at the given precision .
+// zero at the given precision , which is a float such as :
+//
+// - 0.01 to round at the nearest 100th
+// - 10 to round at the nearest ten
 //
 // Warning: IsZero(value1-value2) is not equivalent to
 // Compare(value1,value2) == _, true, as the former will round after

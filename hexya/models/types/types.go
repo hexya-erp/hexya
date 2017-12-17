@@ -192,12 +192,14 @@ func (c *Context) GetFloatSlice(key string) []float64 {
 // GetBool returns the value of the given key in
 // this Context as a bool.
 // It returns false if there is no such key in the context.
-// It panics if the value is not of type bool
+// It panics if the value cannot be casted to bool
 func (c *Context) GetBool(key string) bool {
 	if !c.HasKey(key) {
 		return false
 	}
-	return c.Get(key).(bool)
+	val := c.Get(key)
+	res, _ := nbutils.CastToFloat(val)
+	return res == 1
 }
 
 // HasKey returns true if this Context has the given key
