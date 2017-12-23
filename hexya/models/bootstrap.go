@@ -171,7 +171,7 @@ func inflateEmbeddings() {
 				continue
 			}
 			for relName, relFI := range fi.relatedModel.fields.registryByName {
-				if _, ok := mi.fields.get(relName); ok {
+				if _, ok := mi.fields.Get(relName); ok {
 					// Don't add the field if we have a field with the same name
 					// in our model (shadowing).
 					continue

@@ -180,7 +180,7 @@ func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 	}
 
 	// Step 1: We create a []interface{} which is in fact a []*interface{}
-	// and we scan our DB row into it. This enables us to get null values
+	// and we scan our DB row into it. This enables us to Get null values
 	// without panic, since null values will map to nil.
 	dbValues := make([]interface{}, len(columns))
 	for i := range dbValues {
@@ -357,7 +357,7 @@ func (m *Model) isM2MLink() bool {
 
 // hasParentField returns true if this model is recursive and has a Parent field.
 func (m *Model) hasParentField() bool {
-	_, parentExists := m.fields.get("Parent")
+	_, parentExists := m.fields.Get("Parent")
 	return parentExists
 }
 

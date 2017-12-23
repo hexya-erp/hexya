@@ -67,9 +67,9 @@ type FieldsCollection struct {
 	bootstrapped         bool
 }
 
-// get returns the Field of the field with the given name.
+// Get returns the Field of the field with the given name.
 // name can be either the name of the field or its JSON name.
-func (fc *FieldsCollection) get(name string) (fi *Field, ok bool) {
+func (fc *FieldsCollection) Get(name string) (fi *Field, ok bool) {
 	fi, ok = fc.registryByName[name]
 	if !ok {
 		fi, ok = fc.registryByJSON[name]
@@ -80,7 +80,7 @@ func (fc *FieldsCollection) get(name string) (fi *Field, ok bool) {
 // MustGet returns the Field of the field with the given name or panics
 // name can be either the name of the field or its JSON name.
 func (fc *FieldsCollection) MustGet(name string) *Field {
-	fi, ok := fc.get(name)
+	fi, ok := fc.Get(name)
 	if !ok {
 		log.Panic("Unknown field in model", "model", fc.model.name, "field", name)
 	}

@@ -123,7 +123,7 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
 func addNameSearchToExprs(fi *Field, exprs []string) []string {
-	_, exists := fi.relatedModel.fields.get("name")
+	_, exists := fi.relatedModel.fields.Get("name")
 	if exists {
 		exprs = append(exprs, "name")
 	}
@@ -152,7 +152,7 @@ func MapToStruct(rc *RecordCollection, structPtr interface{}, fMap FieldMap) {
 	for i := 0; i < ind.NumField(); i++ {
 		fVal := ind.Field(i)
 		sf := ind.Type().Field(i)
-		fi, ok := rc.model.fields.get(sf.Name)
+		fi, ok := rc.model.fields.Get(sf.Name)
 		if !ok {
 			log.Panic("Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
 		}

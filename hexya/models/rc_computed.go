@@ -40,7 +40,7 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 		}
 		newParams := rc.Call(fInfo.compute).(FieldMapper).FieldMap()
 		for k, v := range newParams {
-			key, _ := rc.model.fields.get(k)
+			key, _ := rc.model.fields.Get(k)
 			(*params)[key.json] = v
 			rc.env.cache.updateEntry(rc.model, rc.Ids()[0], fInfo.name, v)
 		}
@@ -57,7 +57,7 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 	fieldNames := fMap.Keys()
 	toUpdate := make(map[computeData]bool)
 	for _, fieldName := range fieldNames {
-		refFieldInfo, ok := rc.model.fields.get(fieldName)
+		refFieldInfo, ok := rc.model.fields.Get(fieldName)
 		if !ok {
 			continue
 		}

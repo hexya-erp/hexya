@@ -780,7 +780,7 @@ func (d {{ .Name }}Data) Get(field models.FieldNamer, fieldsToReset ...models.Fi
 	return nil, false
 }
 
-// Fields returns the list of fields set for update, taking into account the fieldsToReset.
+// FieldsSet returns the list of fields set for update, taking into account the fieldsToReset.
 func (d {{ .Name }}Data) FieldsSet(fieldsToReset ...models.FieldNamer) []models.FieldNamer {
 	return d.FieldMap(fieldsToReset...).FieldNames()
 }

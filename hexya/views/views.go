@@ -82,7 +82,7 @@ func (vr ViewRef) MarshalJSON() ([]byte, error) {
 func (vr *ViewRef) UnmarshalJSON(data []byte) error {
 	var dst interface{}
 	if err := json.Unmarshal(data, &dst); err == nil && dst == nil {
-		vr = &ViewRef{"", ""}
+		*vr = ViewRef{"", ""}
 		return nil
 	}
 	var dstArray [2]string
@@ -115,7 +115,7 @@ func (vr *ViewRef) Scan(src interface{}) error {
 	case []byte:
 		source = string(s)
 	default:
-		return fmt.Errorf("Invalid type for ViewRef: %T", src)
+		return fmt.Errorf("invalid type for ViewRef: %T", src)
 	}
 	*vr = MakeViewRef(source)
 	return nil
@@ -169,7 +169,7 @@ func (vt *ViewTuple) UnmarshalJSON(data []byte) error {
 		vt.ID = vID
 		vt.Type = ViewType(s[1].(string))
 	default:
-		return errors.New("Unexpected type in ViewTuple Unmarshal")
+		return errors.New("unexpected type in ViewTuple Unmarshal")
 	}
 	return nil
 }
@@ -180,8 +180,9 @@ var _ json.Unmarshaler = &ViewTuple{}
 // A Collection is a view collection
 type Collection struct {
 	sync.RWMutex
-	views        map[string]*View
-	orderedViews map[string][]*View
+	views             map[string]*View
+	orderedViews      map[string][]*View
+	rawInheritedViews []ViewXML
 }
 
 // NewCollection returns a pointer to a new
@@ -239,11 +240,7 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 			return view
 		}
 	}
-	defaultView := vc.defaultViewForModel(model, viewType)
-	if defaultView == nil {
-		log.Panic("No view of this type in model", "type", viewType, "model", model)
-	}
-	return defaultView
+	return vc.defaultViewForModel(model, viewType)
 }
 
 // defaultViewForModel returns a default view for the given model and type
@@ -251,9 +248,13 @@ func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View
 	view := View{
 		Model:  model,
 		Type:   viewType,
-		Fields: []models.FieldName{models.FieldName("Name")},
-		arch:   fmt.Sprintf(`<%s><field name="Name"/></%s>`, viewType, viewType),
+		Fields: []models.FieldName{},
+		arch:   fmt.Sprintf(`<%s></%s>`, viewType, viewType),
 		arches: make(map[string]string),
+	}
+	if _, ok := models.Registry.MustGet(model).Fields().Get("Name"); ok {
+		view.Fields = []models.FieldName{models.FieldName("Name")}
+		view.arch = fmt.Sprintf(`<%s><field name="Name"/></%s>`, viewType, viewType)
 	}
 	view.translateArch()
 	return &view
@@ -279,16 +280,17 @@ func (vc *Collection) LoadFromEtree(element *etree.Element) {
 		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
 	if viewXML.InheritID != "" {
-		// Update an existing view
-		vc.updateExistingViewFromXML(viewXML)
-	} else {
-		// Create a new view
-		vc.createNewViewFromXML(viewXML)
+		// Update an existing view.
+		// Put in raw inherited view for now, as the base view may not exist yet.
+		vc.rawInheritedViews = append(vc.rawInheritedViews, viewXML)
+		return
 	}
+	// Create a new view
+	vc.createNewViewFromXML(&viewXML)
 }
 
 // createNewViewFromXML creates and register a new view with the given XML
-func (vc *Collection) createNewViewFromXML(viewXML ViewXML) {
+func (vc *Collection) createNewViewFromXML(viewXML *ViewXML) {
 	priority := uint8(16)
 	if viewXML.Priority != 0 {
 		priority = viewXML.Priority
@@ -310,49 +312,6 @@ func (vc *Collection) createNewViewFromXML(viewXML ViewXML) {
 		arches:      make(map[string]string),
 	}
 	vc.Add(&view)
-}
-
-// updateExistingViewFromXML updates an existing view with the given XML
-// viewXML must have an InheritID
-func (vc *Collection) updateExistingViewFromXML(viewXML ViewXML) {
-	baseView := vc.GetByID(viewXML.InheritID)
-	baseElem := xmlutils.XMLToElement(baseView.arch)
-	specDoc := etree.NewDocument()
-	if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
-		log.Panic("Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
-	}
-	for _, spec := range specDoc.ChildElements() {
-		xpath := getInheritXPathFromSpec(spec)
-		nodeToModify := baseElem.FindElement(xpath)
-		nextNode := xmlutils.FindNextSibling(nodeToModify)
-		modifyAction := spec.SelectAttr("position")
-		switch modifyAction.Value {
-		case "before":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nodeToModify, node)
-			}
-		case "after":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nextNode, node)
-			}
-		case "replace":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nodeToModify, node)
-			}
-			nodeToModify.Parent().RemoveChild(nodeToModify)
-		case "inside":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.AddChild(node)
-			}
-		case "attributes":
-			for _, node := range spec.FindElements("./attribute") {
-				attrName := node.SelectAttr("name").Value
-				nodeToModify.RemoveAttr(attrName)
-				nodeToModify.CreateAttr(attrName, node.Text())
-			}
-		}
-	}
-	baseView.arch = xmlutils.ElementToXML(baseElem)
 }
 
 // View is the internal definition of a view in the application
@@ -458,6 +417,54 @@ func (v *View) translateArch() {
 		}
 		v.arches[lang] = xmlutils.ElementToXML(tArchElt)
 	}
+}
+
+// updateViewFromXML updates this view with the given XML
+// viewXML must have an InheritID
+func (v *View) updateViewFromXML(viewXML *ViewXML) {
+	baseElem := xmlutils.XMLToElement(v.arch)
+	specDoc := etree.NewDocument()
+	if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
+		log.Panic("Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
+	}
+	for _, spec := range specDoc.ChildElements() {
+		xpath := getInheritXPathFromSpec(spec)
+		nodeToModify := baseElem.Parent().FindElement(xpath)
+		if nodeToModify == nil {
+			log.Panic("Node not found in parent view", "xpath", xpath, "spec", xmlutils.ElementToXML(spec), "view", v.ID)
+		}
+		nextNode := xmlutils.FindNextSibling(nodeToModify)
+		modifyAction := spec.SelectAttr("position")
+		if modifyAction == nil {
+			log.Panic("Spec should include 'position' attribute", "xpath", xpath, "spec", xmlutils.ElementToXML(spec), "view", v.ID)
+		}
+		switch modifyAction.Value {
+		case "before":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.Parent().InsertChild(nodeToModify, node)
+			}
+		case "after":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.Parent().InsertChild(nextNode, node)
+			}
+		case "replace":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.Parent().InsertChild(nodeToModify, node)
+			}
+			nodeToModify.Parent().RemoveChild(nodeToModify)
+		case "inside":
+			for _, node := range spec.ChildElements() {
+				nodeToModify.AddChild(node)
+			}
+		case "attributes":
+			for _, node := range spec.FindElements("./attribute") {
+				attrName := node.SelectAttr("name").Value
+				nodeToModify.RemoveAttr(attrName)
+				nodeToModify.CreateAttr(attrName, node.Text())
+			}
+		}
+	}
+	v.arch = xmlutils.ElementToXML(baseElem)
 }
 
 // A TranslatableAttribute is a reference to an attribute in a

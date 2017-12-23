@@ -20,11 +20,12 @@ import (
 	"encoding/xml"
 	"testing"
 
+	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var viewDef1 string = `
+var viewDef1 = `
 <view id="my_id" name="My View" model="User">
 	<form>
 		<group>
@@ -35,7 +36,7 @@ var viewDef1 string = `
 </view>
 `
 
-var viewDef2 string = `
+var viewDef2 = `
 <view id="my_other_id" model="Partner" priority="12">
 	<form>
 		<h1><field name="Name"/></h1>
@@ -49,18 +50,18 @@ var viewDef2 string = `
 </view>
 `
 
-var viewDef3 string = `
+var viewDef3 = `
 <view inherit_id="my_other_id">
 	<group name="position_info" position="inside">
 		<field name="CompanyName"/>
 	</group>
 	<xpath expr="//field[@name='Email']" position="after">
 		<field name="Phone"/>
-	</group>
+	</xpath>
 </view>
 `
 
-var viewDef4 string = `
+var viewDef4 = `
 <view inherit_id="my_other_id">
 	<group name="contact_data" position="before">
 		<group>
@@ -70,11 +71,11 @@ var viewDef4 string = `
 	</group>
 	<h1 position="replace">
 		<h2><field name="Name"/></h2>
-	</group>
+	</h1>
 </view>
 `
 
-var viewDef5 string = `
+var viewDef5 = `
 <view inherit_id="my_other_id">
 	<xpath expr="//field[@name='Address']/.." position="attributes">
 		<attribute name="name">address</attribute>
@@ -83,7 +84,7 @@ var viewDef5 string = `
 </view>
 `
 
-var viewDef6 string = `
+var viewDef6 = `
 <view id="my_tree_id" model="User">
 	<tree>
 		<field name="UserName"/>
@@ -92,7 +93,7 @@ var viewDef6 string = `
 </view>
 `
 
-var viewDef7 string = `
+var viewDef7 = `
 <view id="embedded_form" model="User">
 	<form>
 		<field name="Name"/>
@@ -117,6 +118,22 @@ var viewDef7 string = `
 			</tree>
 		</field>
 	</form>
+</view>
+`
+
+var viewDef8 = `
+<view inherit_id="my_other_id" id="new_base_view">
+	<xpath expr="//field[@name='Email']" position="after">
+		<field name="Fax"/>
+	</xpath>
+</view>
+`
+
+var viewDef9 = `
+<view inherit_id="new_base_view">
+	<xpath expr="//field[@name='Fax']" position="attributes">
+		<attribute name="widget">phone</attribute>
+	</xpath>
 </view>
 `
 
@@ -164,6 +181,7 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Inheriting View 2", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
+		BootStrap()
 		So(len(Registry.views), ShouldEqual, 2)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
@@ -195,6 +213,7 @@ func TestViews(t *testing.T) {
 	})
 	Convey("More inheritance on View 2", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
+		BootStrap()
 		So(len(Registry.views), ShouldEqual, 2)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
@@ -221,6 +240,7 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Modifying inherited modifications on View 2", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
+		BootStrap()
 		So(len(Registry.views), ShouldEqual, 2)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
@@ -316,10 +336,108 @@ func TestViews(t *testing.T) {
 		So(userFirstView.ID, ShouldEqual, "my_id")
 	})
 	Convey("Testing default views", t, func() {
+		soModel := models.NewModel("SaleOrder")
+		soModel.AddFields(map[string]models.FieldDefinition{
+			"Name": models.CharField{},
+		})
 		soSearch := Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_SEARCH)
 		So(soSearch.arch, ShouldEqual, `<search><field name="Name"/></search>`)
 		soTree := Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_TREE)
 		So(soTree.arch, ShouldEqual, `<tree><field name="Name"/></tree>`)
+	})
+	Convey("Create new base view from inheritance", t, func() {
+		LoadFromEtree(xmlutils.XMLToElement(viewDef8))
+		BootStrap()
+		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
+		view2 := Registry.GetByID("my_other_id")
+		newView := Registry.GetByID("new_base_view")
+		So(view2.Arch(""), ShouldEqual,
+			`<form>
+	<h2>
+		<field name="Name"/>
+	</h2>
+	<group name="position_info">
+		<field name="Function"/>
+		<field name="CompanyName"/>
+	</group>
+	<group name="address" string="Address">
+		<field name="Address"/>
+	</group>
+	<hr/>
+	<group name="contact_data">
+		<field name="Email"/>
+		<field name="Phone"/>
+	</group>
+</form>
+`)
+		So(newView.Arch(""), ShouldEqual,
+			`<form>
+	<h2>
+		<field name="Name"/>
+	</h2>
+	<group name="position_info">
+		<field name="Function"/>
+		<field name="CompanyName"/>
+	</group>
+	<group name="address" string="Address">
+		<field name="Address"/>
+	</group>
+	<hr/>
+	<group name="contact_data">
+		<field name="Email"/>
+		<field name="Fax"/>
+		<field name="Phone"/>
+	</group>
+</form>
+`)
+	})
+	Convey("Inheriting new base view from inheritance", t, func() {
+		LoadFromEtree(xmlutils.XMLToElement(viewDef9))
+		BootStrap()
+		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
+		view2 := Registry.GetByID("my_other_id")
+		newView := Registry.GetByID("new_base_view")
+		So(view2.Arch(""), ShouldEqual,
+			`<form>
+	<h2>
+		<field name="Name"/>
+	</h2>
+	<group name="position_info">
+		<field name="Function"/>
+		<field name="CompanyName"/>
+	</group>
+	<group name="address" string="Address">
+		<field name="Address"/>
+	</group>
+	<hr/>
+	<group name="contact_data">
+		<field name="Email"/>
+		<field name="Phone"/>
+	</group>
+</form>
+`)
+		So(newView.Arch(""), ShouldEqual,
+			`<form>
+	<h2>
+		<field name="Name"/>
+	</h2>
+	<group name="position_info">
+		<field name="Function"/>
+		<field name="CompanyName"/>
+	</group>
+	<group name="address" string="Address">
+		<field name="Address"/>
+	</group>
+	<hr/>
+	<group name="contact_data">
+		<field name="Email"/>
+		<field name="Fax" widget="phone"/>
+		<field name="Phone"/>
+	</group>
+</form>
+`)
 	})
 
 	Convey("Testing ViewRef objects", t, func() {

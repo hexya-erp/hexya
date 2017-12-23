@@ -198,7 +198,7 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("NameGet",
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc *RecordCollection) string {
-			if _, nameExists := rc.model.fields.get("Name"); nameExists {
+			if _, nameExists := rc.model.fields.Get("Name"); nameExists {
 				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}) {
 					rc.Load("Name")
 				}
@@ -300,7 +300,7 @@ func declareRecordSetMethods() {
 					continue
 				}
 				fJSON := strings.TrimPrefix(ctxKey, "default_")
-				if _, exists := rc.model.fields.get(fJSON); !exists {
+				if _, exists := rc.model.fields.Get(fJSON); !exists {
 					log.Warn("Called DefaultGet with unknown field", "model", rc.ModelName(), "field", fJSON)
 					continue
 				}
@@ -320,7 +320,7 @@ func declareRecordSetSpecificMethods() {
 
         It returns true if no loop was found, false otherwise`,
 		func(rc *RecordCollection) bool {
-			if _, exists := rc.model.fields.get("Parent"); !exists {
+			if _, exists := rc.model.fields.Get("Parent"); !exists {
 				// No Parent field in model, so no loop
 				return true
 			}

@@ -425,7 +425,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	alias := curMI.tableName
 	exprsLen := len(fieldExprs)
 	for i, expr := range fieldExprs {
-		fi, ok := curMI.fields.get(expr)
+		fi, ok := curMI.fields.Get(expr)
 		if !ok {
 			log.Panic("Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
 		}
