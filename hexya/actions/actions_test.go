@@ -19,17 +19,18 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 	"github.com/hexya-erp/hexya/hexya/views"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var actionDef1 string = `
+var actionDef1 = `
 <action id="my_action" name="My Action" type="ir.actions.act_window" model="Partner" view_mode="tree,form"
         src_model="User" view_id="my_id"/>
 `
 
-var actionDef2 string = `
+var actionDef2 = `
 <action id="my_action_2" name="My Second Action" model="Partner" type="ir.actions.act_window" view_mode="tree,form">
 	<help>
 		This is the help message.
@@ -40,7 +41,7 @@ var actionDef2 string = `
 </action>
 `
 
-var viewDef1 string = `
+var viewDef1 = `
 <view id="my_id" name="My View" model="User">
 	<form>
 		<group>
@@ -80,6 +81,10 @@ func TestActions(t *testing.T) {
 		So(action.HelpXML.Content, ShouldEqual, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
 	})
 	Convey("Testing Boostrap and Get functions", t, func() {
+		partnerModel := models.NewModel("Partner")
+		partnerModel.AddFields(map[string]models.FieldDefinition{
+			"Name": models.CharField{},
+		})
 		BootStrap()
 		allActions := Registry.GetAll()
 		So(allActions, ShouldHaveLength, 2)
