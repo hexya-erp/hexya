@@ -579,7 +579,7 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) {
 		their = mf.RelationModel.Underlying().name
 	}
 	if our == their {
-		log.Panic("Many2many relation must have different 'm2m_ours' and 'm2m_theirs'",
+		log.Panic("Many2many relation must have different 'M2MOurField' and 'M2MTheirField'",
 			"model", fc.model.name, "field", name, "ours", our, "theirs", their)
 	}
 
@@ -589,7 +589,7 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) {
 	if m2mRelModName == "" {
 		m2mRelModName = fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1])
 	}
-	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, fc.model.name, mf.RelationModel.Underlying().name, our, their)
+	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, fc.model.name, mf.RelationModel.Underlying().name, our, their, fc.model.isMixin())
 
 	json, str := getJSONAndString(name, fieldtype.Float, mf.JSON, mf.String)
 	compute, inverse, onchange, constraint := getFuncNames(mf.Compute, mf.Inverse, mf.OnChange, mf.Constraint)

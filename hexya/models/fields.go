@@ -294,7 +294,9 @@ func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
 // for the m2m relation defined between model1 and model2.
 // It returns the Model of the intermediate model, the Field of that model
 // pointing to our model, and the Field pointing to the other model.
-func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string) (*Model, *Field, *Field) {
+//
+// If mixin is true, the created M2M model is created as a mixin model.
+func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, mixin bool) (*Model, *Field, *Field) {
 	if relMI, exists := Registry.Get(relModelName); exists {
 		var m1, m2 *Field
 		for fName, fi := range relMI.fields.registryByName {
@@ -316,6 +318,9 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string) 
 		options:      Many2ManyLinkModel,
 		sqlErrors:    make(map[string]string),
 		defaultOrder: []string{"id"},
+	}
+	if mixin {
+		newMI.options |= MixinModel
 	}
 	ourField := &Field{
 		name:             field1,

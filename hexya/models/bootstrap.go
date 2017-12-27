@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 
+	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 )
 
@@ -98,27 +99,18 @@ func injectMixInModel(mixInMI, mi *Model) {
 		return
 	}
 	// Add mixIn fields
-	for fName, fi := range mixInMI.fields.registryByName {
-		if _, exists := mi.fields.registryByName[fName]; exists {
-			// We do not add fields that already exist in the targetModel
-			// since the target model should always override mixins.
-			continue
-		}
-		newFI := *fi
-		newFI.model = mi
-		newFI.acl = security.NewAccessControlList()
-		// TODO handle M2M fields
-		mi.fields.add(&newFI)
-		// We add the permissions of the mixin to the target model
-		for group, perm := range fi.acl.Permissions() {
-			newFI.acl.AddPermission(group, perm)
-		}
-	}
+	addMixinFields(mixInMI, mi)
 	// Add mixIn methods
-	for methName, methInfo := range mixInMI.methods.registry {
+	addMixinMethods(mixInMI, mi)
+	mixed[modelCouple{model: mi, mixIn: mixInMI}] = true
+}
+
+// addMixinMethods adds the methodss of mixinModel to model
+func addMixinMethods(mixinModel, model *Model) {
+	for methName, methInfo := range mixinModel.methods.registry {
 		// Extract all method layers functions by inverse order
 		layersInv := methInfo.invertedLayers()
-		if emi, exists := mi.methods.registry[methName]; exists {
+		if emi, exists := model.methods.registry[methName]; exists {
 			// The method already exists in our target model
 			// We insert our new method layers above previous mixins layers
 			// but below the target model implementations.
@@ -149,18 +141,43 @@ func injectMixInModel(mixInMI, mi *Model) {
 			}
 		} else {
 			// The method does not exist
-			newMethInfo := copyMethod(mi, methInfo)
+			newMethInfo := copyMethod(model, methInfo)
 			for i := 0; i < len(layersInv); i++ {
 				newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
 			}
-			mi.methods.set(methName, newMethInfo)
+			model.methods.set(methName, newMethInfo)
 		}
 		// Copy groups to our methods in the target model
 		for group := range methInfo.groups {
-			mi.methods.MustGet(methName).groups[group] = true
+			model.methods.MustGet(methName).groups[group] = true
 		}
 	}
-	mixed[modelCouple{model: mi, mixIn: mixInMI}] = true
+}
+
+// addMixinFields adds the fields of mixinModel into model
+func addMixinFields(mixinModel, model *Model) {
+	for fName, fi := range mixinModel.fields.registryByName {
+		if _, exists := model.fields.registryByName[fName]; exists {
+			// We do not add fields that already exist in the targetModel
+			// since the target model should always override mixins.
+			continue
+		}
+		newFI := *fi
+		newFI.model = model
+		newFI.acl = security.NewAccessControlList()
+		if newFI.fieldType == fieldtype.Many2Many {
+			m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(newFI.m2mRelModel.name, model.name,
+				newFI.relatedModelName, newFI.m2mOurField.name, newFI.m2mTheirField.name, false)
+			newFI.m2mRelModel = m2mRelModel
+			newFI.m2mOurField = m2mOurField
+			newFI.m2mTheirField = m2mTheirField
+		}
+		model.fields.add(&newFI)
+		// We add the permissions of the mixin to the target model
+		for group, perm := range fi.acl.Permissions() {
+			newFI.acl.AddPermission(group, perm)
+		}
+	}
 }
 
 // inflateEmbeddings creates related fields for all fields of embedded models.
@@ -231,6 +248,8 @@ func runInit(model *Model) {
 func SyncDatabase() {
 	adapter := adapters[db.DriverName()]
 	dbTables := adapter.tables()
+	// Create or update sequences
+	updateDBSequences()
 	// Create or update existing tables
 	for tableName, model := range Registry.registryByTableName {
 		if model.isMixin() {
@@ -279,7 +298,6 @@ func SyncDatabase() {
 			dropDBTable(dbTable)
 		}
 	}
-	updateDBSequences()
 }
 
 // buildSQLErrorSubstitutionMap populates the sqlErrors map of the

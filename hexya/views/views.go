@@ -182,7 +182,7 @@ type Collection struct {
 	sync.RWMutex
 	views             map[string]*View
 	orderedViews      map[string][]*View
-	rawInheritedViews []ViewXML
+	rawInheritedViews []*ViewXML
 }
 
 // NewCollection returns a pointer to a new
@@ -282,7 +282,7 @@ func (vc *Collection) LoadFromEtree(element *etree.Element) {
 	if viewXML.InheritID != "" {
 		// Update an existing view.
 		// Put in raw inherited view for now, as the base view may not exist yet.
-		vc.rawInheritedViews = append(vc.rawInheritedViews, viewXML)
+		vc.rawInheritedViews = append(vc.rawInheritedViews, &viewXML)
 		return
 	}
 	// Create a new view
@@ -431,7 +431,7 @@ func (v *View) updateViewFromXML(viewXML *ViewXML) {
 		xpath := getInheritXPathFromSpec(spec)
 		nodeToModify := baseElem.Parent().FindElement(xpath)
 		if nodeToModify == nil {
-			log.Panic("Node not found in parent view", "xpath", xpath, "spec", xmlutils.ElementToXML(spec), "view", v.ID)
+			log.Panic("Node not found in parent view", "xpath", xpath, "spec", xmlutils.ElementToXML(spec), "view", v.ID, "arch", v.arch)
 		}
 		nextNode := xmlutils.FindNextSibling(nodeToModify)
 		modifyAction := spec.SelectAttr("position")

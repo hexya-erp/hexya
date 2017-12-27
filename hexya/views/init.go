@@ -14,17 +14,13 @@ var log *logging.Logger
 //- extracts embedded views
 //- populates the fields map from the views arch.
 func BootStrap() {
-	// Remove the i-th element from the collection without leaking memory
-	safeDelete := func(collection *[]ViewXML, i int) {
-		copy((*collection)[i:], (*collection)[i+1:])
-		(*collection)[len(*collection)-1] = ViewXML{}
-		*collection = (*collection)[:len(*collection)-1]
-	}
-
 	// Inherit/Extend views
 	for loop := 0; loop < maxInheritanceDepth; loop++ {
 		// First step: we extend all we can with pure extension views (no ID)
 		for i, xmlView := range Registry.rawInheritedViews {
+			if xmlView == nil {
+				continue
+			}
 			if xmlView.ID != "" {
 				continue
 			}
@@ -32,12 +28,14 @@ func BootStrap() {
 			if baseView == nil {
 				continue
 			}
-			baseView.updateViewFromXML(&xmlView)
-			// Safely remove xmlView from rawInheritedViews
-			safeDelete(&Registry.rawInheritedViews, i)
+			baseView.updateViewFromXML(xmlView)
+			Registry.rawInheritedViews[i] = nil
 		}
 		// Second step: we create all named extensions we can
 		for i, xmlView := range Registry.rawInheritedViews {
+			if xmlView == nil {
+				continue
+			}
 			if xmlView.ID == "" {
 				continue
 			}
@@ -64,10 +62,9 @@ func BootStrap() {
 				arches:      make(map[string]string),
 				FieldParent: baseView.FieldParent,
 			}
-			newView.updateViewFromXML(&xmlView)
+			newView.updateViewFromXML(xmlView)
 			Registry.Add(&newView)
-			// Safely remove xmlView from rawInheritedViews
-			safeDelete(&Registry.rawInheritedViews, i)
+			Registry.rawInheritedViews[i] = nil
 		}
 	}
 	// Post-process all views
