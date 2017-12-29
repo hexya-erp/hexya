@@ -347,6 +347,69 @@ func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) {
 	fc.add(fInfo)
 }
 
+// A JSONField is a field for storing jsonb.
+
+type JSONField struct {
+	JSON          string
+	String        string
+	Help          string
+	Stored        bool
+	Required      bool
+	Unique        bool
+	Index         bool
+	Compute       Methoder
+	Depends       []string
+	Related       string
+	GroupOperator string
+	NoCopy        bool
+	GoType        interface{}
+	Translate     bool
+	OnChange      Methoder
+	Constraint    Methoder
+	Inverse       Methoder
+	Default       func(Environment, FieldMap) interface{}
+}
+
+// DeclareField adds this text field to the given FieldsCollection with the given name.
+func (jsonb JSONField) DeclareField(fc *FieldsCollection, name string) {
+	typ := reflect.TypeOf(*new(types.JSONText))
+	if jsonb.GoType != nil {
+		typ = reflect.TypeOf(jsonb.GoType).Elem()
+	}
+	structField := reflect.StructField{
+		Name: name,
+		Type: typ,
+	}
+	fieldType := fieldtype.JSON
+	json, str := getJSONAndString(name, fieldType, jsonb.JSON, jsonb.String)
+	compute, inverse, onchange, constraint := getFuncNames(jsonb.Compute, jsonb.Inverse, jsonb.OnChange, jsonb.Constraint)
+	fInfo := &Field{
+		model:         fc.model,
+		acl:           security.NewAccessControlList(),
+		name:          name,
+		json:          json,
+		description:   str,
+		help:          jsonb.Help,
+		stored:        jsonb.Stored,
+		required:      jsonb.Required,
+		unique:        jsonb.Unique,
+		index:         jsonb.Index,
+		compute:       compute,
+		inverse:       inverse,
+		depends:       jsonb.Depends,
+		relatedPath:   jsonb.Related,
+		groupOperator: strutils.GetDefaultString(jsonb.GroupOperator, "sum"),
+		noCopy:        jsonb.NoCopy,
+		structField:   structField,
+		fieldType:     fieldType,
+		defaultFunc:   jsonb.Default,
+		translate:     jsonb.Translate,
+		onChange:      onchange,
+		constraint:    constraint,
+	}
+	fc.add(fInfo)
+}
+
 // A FloatField is a field for storing decimal numbers.
 type FloatField struct {
 	JSON          string

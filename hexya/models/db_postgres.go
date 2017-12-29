@@ -55,6 +55,7 @@ var pgTypes = map[fieldtype.Type]string{
 	fieldtype.Selection: "character varying",
 	fieldtype.Many2One:  "integer",
 	fieldtype.One2One:   "integer",
+	fieldtype.JSON:      "jsonb",
 }
 
 var pgDefaultValues = map[fieldtype.Type]string{
@@ -68,6 +69,7 @@ var pgDefaultValues = map[fieldtype.Type]string{
 	fieldtype.HTML:      "''",
 	fieldtype.Binary:    "''",
 	fieldtype.Selection: "''",
+	fieldtype.JSON:      "'{}'",
 }
 
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
@@ -128,6 +130,10 @@ func (d *postgresAdapter) fieldIsNotNull(fi *Field) bool {
 		if fi.required {
 			return true
 		}
+		return false
+	}
+	switch fi.fieldType {
+	case fieldtype.JSON:
 		return false
 	}
 	return true
