@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -79,7 +80,7 @@ func initConfig() {
 
 	osUser, err := user.Current()
 	if err != nil {
-		log.Panic("Unable to retrieve current user", "error", err)
+		panic(fmt.Errorf("unable to retrieve current user. Error: %s", err))
 	}
 	defaultHexyaDir := filepath.Join(osUser.HomeDir, ".hexya")
 	viper.SetDefault("DataDir", defaultHexyaDir)
@@ -94,6 +95,6 @@ func initConfig() {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		log.Warn("Error while loading configuration file", "error", err)
+		fmt.Println(err)
 	}
 }

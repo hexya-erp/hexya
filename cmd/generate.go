@@ -16,8 +16,10 @@ package cmd
 
 import (
 	"fmt"
+	"go/build"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	// We need to import models because of generated code
@@ -30,9 +32,9 @@ import (
 
 const (
 	// PoolDirRel is the name of the generated pool directory (relative to the hexya root)
-	PoolDirRel string = "pool"
+	PoolDirRel = "pool"
 	// TempEmpty is the name of the temporary go file in the pool directory for startup
-	TempEmpty string = "temp.go"
+	TempEmpty = "temp.go"
 )
 
 var generateCmd = &cobra.Command{
@@ -75,13 +77,18 @@ func runGenerate() {
 ------------`)
 	fmt.Printf("Detected Hexya root directory at %s.\n", generate.HexyaDir)
 
-	targetDirs := viper.GetStringSlice("Modules")
+	targetPaths := viper.GetStringSlice("Modules")
 	if testedModule != "" {
-		targetDir, _ := filepath.Abs(testedModule)
-		targetDirs = []string{targetDir}
+		testDir, _ := filepath.Abs(testedModule)
+		importPack, err := build.ImportDir(testDir, 0)
+		if err != nil {
+			panic(err)
+		}
+		targetPaths = []string{importPack.ImportPath}
 	}
-	fmt.Println("target dirs", targetDirs)
-	for _, ip := range targetDirs {
+	fmt.Println("Modules paths:")
+	fmt.Println(" -", strings.Join(targetPaths, "\n - "))
+	for _, ip := range targetPaths {
 		conf.Import(ip)
 	}
 
