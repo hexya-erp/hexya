@@ -257,8 +257,7 @@ func SyncDatabase() {
 			continue
 		}
 		if model.isManual() {
-			// Don't create table for manual models, but run Init instead
-			runInit(model)
+			// Don't create table for manual models
 			continue
 		}
 		if _, ok := dbTables[tableName]; !ok {
@@ -274,6 +273,8 @@ func SyncDatabase() {
 			continue
 		}
 		if model.isManual() {
+			// Now that all other models are created, we run init on manual models
+			runInit(model)
 			continue
 		}
 		buildSQLErrorSubstitutionMap(model)

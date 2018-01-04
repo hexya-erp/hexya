@@ -21,6 +21,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/operator"
 	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
+	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
 // An SQLParams is a list of parameters that are passed to the
@@ -265,7 +266,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	// Fields
 	fieldsSQL := q.fieldsSQL(fieldExprs)
 	// Tables
-	tablesSQL := q.tablesSQL(allExprs)
+	tablesSQL, joinsMap := q.tablesSQL(allExprs)
 	// Where clause and args
 	whereSQL, args := q.sqlWhereClause()
 	orderSQL := q.sqlOrderByClause()
@@ -275,6 +276,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 		distinct = "DISTINCT"
 	}
 	selQuery := fmt.Sprintf(`SELECT %s %s FROM %s %s %s %s`, distinct, fieldsSQL, tablesSQL, whereSQL, orderSQL, limitSQL)
+	selQuery = strutils.Substitute(selQuery, joinsMap)
 	return selQuery, args
 }
 
@@ -302,7 +304,7 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 	// Fields
 	fieldsSQL := q.fieldsGroupSQL(fieldExprs, fields)
 	// Tables
-	tablesSQL := q.tablesSQL(allExprs)
+	tablesSQL, joinsMap := q.tablesSQL(allExprs)
 	// Where clause and args
 	whereSQL, args := q.sqlWhereClause()
 	// Group by clause
@@ -310,6 +312,7 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 	orderSQL := q.sqlOrderByClause()
 	limitSQL := q.sqlLimitOffsetClause()
 	selQuery := fmt.Sprintf(`SELECT DISTINCT %s FROM %s %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
+	selQuery = strutils.Substitute(selQuery, joinsMap)
 	return selQuery, args
 }
 
@@ -496,20 +499,32 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 
 // tablesSQL returns the SQL string for the FROM clause of our SQL query
 // including all joins if any for the given expressions.
-func (q *Query) tablesSQL(fExprs [][]string) string {
-	var res string
-	joinsMap := make(map[string]bool)
+//
+// Returned FROM clause uses table alias such as "Tn" and second argument is the
+// mapping between aliases in tableJoin objects and the new "Tn" aliases. This
+// mapping is necessary to keep table alias < 63 chars which is postgres limit.
+func (q *Query) tablesSQL(fExprs [][]string) (string, map[string]string) {
+	adapter := adapters[db.DriverName()]
+	var (
+		res        string
+		aliasIndex int
+	)
+	joinsMap := make(map[string]string)
 	// Get a list of unique table joins (by alias)
 	for _, f := range fExprs {
 		tJoins := q.generateTableJoins(f)
 		for _, j := range tJoins {
 			if _, exists := joinsMap[j.alias]; !exists {
-				joinsMap[j.alias] = true
+				joinsMap[j.alias] = adapter.quoteTableName(fmt.Sprintf("T%d", aliasIndex))
+				if aliasIndex == 0 {
+					joinsMap[j.alias] = j.alias
+				}
+				aliasIndex++
 				res += j.sqlString()
 			}
 		}
 	}
-	return res
+	return res, joinsMap
 }
 
 // isEmpty returns true if this query is empty

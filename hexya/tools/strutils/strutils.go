@@ -100,3 +100,12 @@ func HumanSize(size int64) string {
 	}
 	return fmt.Sprintf("%.2f %s", s, units[i])
 }
+
+// Substitute substitutes each occurrence of each key of mapping in str by the
+// corresponding mapping value and returns the substituted string.
+func Substitute(str string, mapping map[string]string) string {
+	for key, val := range mapping {
+		str = strings.Replace(str, key, val, -1)
+	}
+	return str
+}
