@@ -272,6 +272,7 @@ func declareRecordSetMethods() {
 					Selection:  i18n.Registry.TranslateFieldSelection(lang, fInfo.model.name, fInfo.name, fInfo.selection),
 					Domain:     filter,
 					ReadOnly:   fInfo.isReadOnly(),
+					ReverseFK:  fInfo.jsonReverseFK,
 					OnChange:   fInfo.onChange != "",
 				}
 			}
@@ -568,6 +569,7 @@ type FieldInfo struct {
 	Selection        types.Selection        `json:"selection"`
 	Domain           interface{}            `json:"domain"`
 	OnChange         bool                   `json:"-"`
+	ReverseFK        string                 `json:"-"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method

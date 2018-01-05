@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -40,6 +41,9 @@ func init() {
 
 	HexyaCmd.PersistentFlags().StringP("config", "c", "", "Alternate configuration file to read. Defaults to $HOME/.hexya/")
 	viper.BindPFlag("ConfigFileName", HexyaCmd.PersistentFlags().Lookup("config"))
+
+	HexyaCmd.PersistentFlags().StringSliceP("modules", "m", []string{"github.com/hexya-erp/hexya-base/web"}, "List of module paths to load. Defaults to ['github.com/hexya-erp/hexya-base/web']")
+	viper.BindPFlag("Modules", HexyaCmd.PersistentFlags().Lookup("modules"))
 
 	HexyaCmd.PersistentFlags().StringP("log-level", "L", "info", "Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit'")
 	viper.BindPFlag("LogLevel", HexyaCmd.PersistentFlags().Lookup("log-level"))
@@ -78,7 +82,7 @@ func initConfig() {
 
 	osUser, err := user.Current()
 	if err != nil {
-		log.Panic("Unable to retrieve current user", "error", err)
+		panic(fmt.Errorf("unable to retrieve current user. Error: %s", err))
 	}
 	defaultHexyaDir := filepath.Join(osUser.HomeDir, ".hexya")
 	viper.SetDefault("DataDir", defaultHexyaDir)
@@ -93,6 +97,6 @@ func initConfig() {
 
 	err = viper.ReadInConfig()
 	if err != nil {
-		log.Warn("Error while loading configuration file", "error", err)
+		fmt.Println(err)
 	}
 }

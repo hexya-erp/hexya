@@ -6,9 +6,17 @@ package typesutils
 import (
 	"testing"
 
-	"github.com/hexya-erp/hexya/hexya/models"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+type dummyRecordSet struct{}
+
+func (d *dummyRecordSet) ModelName() string { return "" }
+func (d *dummyRecordSet) Ids() []int64      { return []int64{} }
+func (d *dummyRecordSet) Len() int          { return 0 }
+func (d *dummyRecordSet) IsEmpty() bool {
+	return true
+}
 
 func TestIsZero(t *testing.T) {
 	Convey("Testing IsZero function", t, func() {
@@ -36,7 +44,7 @@ func TestIsZero(t *testing.T) {
 			So(IsZero(&notNilString), ShouldBeFalse)
 		})
 		Convey("RecordSets", func() {
-			So(IsZero(models.RecordCollection{}), ShouldBeTrue)
+			So(IsZero(dummyRecordSet{}), ShouldBeTrue)
 		})
 	})
 }

@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,17 +53,18 @@ If projectDir is omitted, defaults to the current directory.`,
 
 // generateAndRunFile creates the startup file of the project and runs it.
 func generateAndRunFile(projectDir, fileName string, tmpl *template.Template) {
-	projectPack, err := build.ImportDir(filepath.Join(projectDir, "config"), 0)
-	if err != nil {
-		panic(fmt.Errorf("Error while importing project path: %s", err))
-	}
+	fmt.Println("Please wait, Hexya is starting ...")
+	conf := viper.AllSettings()
+	delete(conf, "modules")
+
+	modules := viper.GetStringSlice("Modules")
 
 	tmplData := struct {
 		Imports []string
 		Config  string
 	}{
-		Imports: projectPack.Imports,
-		Config:  fmt.Sprintf("%#v", viper.AllSettings()),
+		Imports: modules,
+		Config:  fmt.Sprintf("%#v", conf),
 	}
 	startFileName := filepath.Join(projectDir, fileName)
 	generate.CreateFileFromTemplate(startFileName, tmpl, tmplData)

@@ -14,17 +14,14 @@
 
 package models
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // substituteRelatedFields returns :
 // - a copy of the given fields slice with related fields substituted by their related
 // field path. It also adds the fk and pk fields of all records in the related paths.
 // - a new RecordCollection with substitution of related fields in the query.
 //
-// This function removes duplicates and change all field names to their json names.
+// This method removes duplicates and change all field names to their json names.
 func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, *RecordCollection) {
 	// Create a keys map with our fields
 	keys := make(map[string]bool)
@@ -39,7 +36,7 @@ func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, 
 		}
 		var curPath string
 		for _, expr := range exprs {
-			curPath = strings.TrimLeft(fmt.Sprintf("%s.%s", curPath, expr), ".")
+			curPath = strings.TrimLeft(curPath+ExprSep+expr, ExprSep)
 			keys[curPath] = true
 		}
 	}
@@ -87,5 +84,8 @@ func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 	if !fi.isRelatedField() {
 		return path
 	}
-	return rc.substituteRelatedInPath(fi.relatedPath)
+	exprs := strings.Split(path, ExprSep)
+	newPath := strings.Join(exprs[:len(exprs)-1], ExprSep) + ExprSep + fi.relatedPath
+	newPath = strings.TrimLeft(newPath, ExprSep)
+	return rc.substituteRelatedInPath(newPath)
 }

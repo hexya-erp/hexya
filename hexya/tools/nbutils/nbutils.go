@@ -60,7 +60,7 @@ type Digits struct {
 //
 // Digits{Scale: 6, Precision: 2} => 0.01
 func (d Digits) ToPrecision() float64 {
-	return float64(10 ^ (-d.Precision))
+	return math.Pow10(int(-d.Precision))
 }
 
 // Round rounds the given val to the given precision, which is a float such as :

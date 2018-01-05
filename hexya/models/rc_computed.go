@@ -14,7 +14,10 @@
 
 package models
 
-import "github.com/hexya-erp/hexya/hexya/models/security"
+import (
+	"github.com/hexya-erp/hexya/hexya/models/security"
+	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
+)
 
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
@@ -123,14 +126,19 @@ func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
 		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {
 			continue
 		}
+		val, exists := fMap.Get(fi.json, fi.model)
+		if !exists {
+			continue
+		}
 		if fi.inverse == "" {
 			if rc.Env().Context().GetBool("hexya_allow_without_inverse") {
 				continue
 			}
+			if typesutils.IsZero(val) {
+				continue
+			}
 			log.Panic("Trying to write a computed field without inverse method", "model", rc.model.name, "field", fieldName)
 		}
-		if val, exists := fMap.Get(fi.json, fi.model); exists {
-			rc.CallMulti(fi.inverse, val)
-		}
+		rc.CallMulti(fi.inverse, val)
 	}
 }

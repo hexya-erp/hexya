@@ -19,20 +19,22 @@ import (
 	"go/build"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	// We need to import models because of generated code
 	_ "github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"golang.org/x/tools/go/loader"
 )
 
 const (
 	// PoolDirRel is the name of the generated pool directory (relative to the hexya root)
-	PoolDirRel string = "pool"
+	PoolDirRel = "pool"
 	// TempEmpty is the name of the temporary go file in the pool directory for startup
-	TempEmpty string = "temp.go"
+	TempEmpty = "temp.go"
 )
 
 var generateCmd = &cobra.Command{
@@ -45,18 +47,13 @@ This command must be rerun after each source code modification, including module
   projectDir: the directory in which to find the go package that imports all the modules we want.
               If not set, projectDir defaults to the current directory`,
 	Run: func(cmd *cobra.Command, args []string) {
-		projectDir := "."
-		if len(args) > 0 {
-			projectDir = args[0]
-		}
-		runGenerate(projectDir)
+		runGenerate()
 	},
 }
 
 var (
 	generateEmptyPool bool
 	testedModule      string
-	importedPaths     []string
 )
 
 func init() {
@@ -65,7 +62,7 @@ func init() {
 	generateCmd.Flags().BoolVar(&generateEmptyPool, "empty", false, "Generate an empty pool package. When set projectDir is ignored.")
 }
 
-func runGenerate(projectDir string) {
+func runGenerate() {
 	poolDir := filepath.Join(generate.HexyaDir, PoolDirRel)
 	cleanPoolDir(poolDir)
 	if generateEmptyPool {
@@ -80,22 +77,18 @@ func runGenerate(projectDir string) {
 ------------`)
 	fmt.Printf("Detected Hexya root directory at %s.\n", generate.HexyaDir)
 
-	targetDir := filepath.Join(projectDir, "config")
+	targetPaths := viper.GetStringSlice("Modules")
 	if testedModule != "" {
-		targetDir, _ = filepath.Abs(testedModule)
+		testDir, _ := filepath.Abs(testedModule)
+		importPack, err := build.ImportDir(testDir, 0)
+		if err != nil {
+			panic(err)
+		}
+		targetPaths = []string{importPack.ImportPath}
 	}
-	fmt.Println("target dir", targetDir)
-	importPack, err := build.ImportDir(targetDir, 0)
-	if err != nil {
-		panic(fmt.Errorf("Error while importing project: %s", err))
-	}
-	fmt.Printf("Project package found: %s.\n", importPack.Name)
-
-	importedPaths = importPack.Imports
-	if testedModule != "" {
-		importedPaths = []string{importPack.ImportPath}
-	}
-	for _, ip := range importedPaths {
+	fmt.Println("Modules paths:")
+	fmt.Println(" -", strings.Join(targetPaths, "\n - "))
+	for _, ip := range targetPaths {
 		conf.Import(ip)
 	}
 
@@ -111,7 +104,7 @@ Warnings may appear here, just ignore them if hexya-generate doesn't crash.`)
 
 	fmt.Print("Checking the generated code...")
 	conf.AllowErrors = false
-	_, err = conf.Load()
+	_, err := conf.Load()
 	if err != nil {
 		fmt.Println("FAIL", err)
 		os.Exit(1)
