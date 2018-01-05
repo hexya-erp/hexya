@@ -109,7 +109,7 @@ func setupConfig(config map[string]interface{}) {
 
 // connectToDB creates the connection to the database
 func connectToDB() {
-	connectString := fmt.Sprintf("dbname=%s sslmode=disable", viper.GetString("DB.Name"))
+	connectString := fmt.Sprintf("dbname=%s sslmode=%s", viper.GetString("DB.Name"), viper.GetString("DB.SSLMode"))
 	if viper.GetString("DB.User") != "" {
 		connectString += fmt.Sprintf(" user=%s", viper.GetString("DB.User"))
 	}
