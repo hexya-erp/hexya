@@ -265,7 +265,6 @@ func SyncDatabase() {
 		}
 		updateDBColumns(model)
 		updateDBIndexes(model)
-		runInit(model)
 	}
 	// Setup constraints
 	for _, model := range Registry.registryByTableName {
@@ -273,14 +272,20 @@ func SyncDatabase() {
 			continue
 		}
 		if model.isManual() {
-			// Now that all other models are created, we run init on manual models
-			runInit(model)
 			continue
 		}
 		buildSQLErrorSubstitutionMap(model)
 		updateDBForeignKeyConstraints(model)
 		updateDBConstraints(model)
 	}
+	// Run init method on each model
+	for _, model := range Registry.registryByTableName {
+		if model.isMixin() {
+			continue
+		}
+		runInit(model)
+	}
+
 	// Drop DB tables that are not in the models
 	for dbTable := range adapter.tables() {
 		var modelExists bool

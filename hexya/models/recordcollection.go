@@ -202,6 +202,8 @@ func (rc *RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
 	fMap := data.FieldMap(fieldsToUnset...)
 	rSet.addAccessFieldsUpdateData(&fMap)
+	// We process inverse method before we convert RecordSets to ids
+	rSet.processInverseMethods(fMap)
 	rSet.model.convertValuesToFieldType(&fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
@@ -214,7 +216,6 @@ func (rc *RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer
 	// write related fields
 	rSet.updateRelatedFields(fMap)
 	// compute stored fields
-	rSet.processInverseMethods(fMap)
 	rSet.processTriggers(fMap)
 	rSet.checkConstraints()
 	return true
