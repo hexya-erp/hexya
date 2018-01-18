@@ -70,8 +70,7 @@ func GetModulePackages(program *loader.Program) []*ModuleInfo {
 	// and we check for 'hexya/models' package
 	for _, pack := range program.AllPackages {
 		obj := pack.Pkg.Scope().Lookup("MODULE_NAME")
-		_, ok := obj.(*types.Const)
-		if ok {
+		if obj != nil {
 			modules[pack.Pkg.Path()] = NewModuleInfo(pack, Base)
 			continue
 		}
@@ -83,9 +82,8 @@ func GetModulePackages(program *loader.Program) []*ModuleInfo {
 	// Now we add packages that live inside another module
 	for _, pack := range program.AllPackages {
 		for _, module := range modules {
-			if strings.HasPrefix(pack.Pkg.Path(), module.Pkg.Path()) {
-				typ := Subs
-				modules[pack.Pkg.Path()] = NewModuleInfo(pack, typ)
+			if strings.HasPrefix(pack.Pkg.Path(), module.Pkg.Path()) && pack.Pkg.Path() != module.Pkg.Path() {
+				modules[pack.Pkg.Path()] = NewModuleInfo(pack, Subs)
 			}
 		}
 	}

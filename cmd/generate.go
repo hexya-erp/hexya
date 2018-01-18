@@ -51,6 +51,8 @@ This command must be rerun after each source code modification, including module
 	},
 }
 
+var symlinkDirs = []string{"static", "templates", "data", "resources", "i18n"}
+
 var (
 	generateEmptyPool bool
 	testedModule      string
@@ -98,6 +100,21 @@ Warnings may appear here, just ignore them if hexya-generate doesn't crash.`)
 	program, _ := conf.Load()
 	fmt.Println("Ok")
 
+	fmt.Print("Generating symlinks...")
+	modules := generate.GetModulePackages(program)
+	cleanModuleSymlinks()
+	for _, m := range modules {
+		if m.ModType != generate.Base {
+			continue
+		}
+		pkg, err := build.Import(m.Pkg.Path(), "", 0)
+		if err != nil {
+			panic(err)
+		}
+		createModuleSymlinks(pkg)
+	}
+	fmt.Println("Ok")
+
 	fmt.Print("Generating pool...")
 	generate.CreatePool(program, poolDir)
 	fmt.Println("Ok")
@@ -120,6 +137,32 @@ func cleanPoolDir(dirName string) {
 	os.RemoveAll(dirName)
 	os.MkdirAll(dirName, 0755)
 	generate.CreateFileFromTemplate(filepath.Join(dirName, TempEmpty), emptyPoolTemplate, nil)
+}
+
+// createModuleSymlinks create the symlinks of the given module in the
+// server directory.
+func createModuleSymlinks(mod *build.Package) {
+	for _, dir := range symlinkDirs {
+		srcPath := filepath.Join(mod.Dir, dir)
+		dstPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
+		if _, err := os.Stat(srcPath); err != nil {
+			// Subdir doesn't exist, so we don't symlink
+			continue
+		}
+		if err := os.Symlink(srcPath, dstPath); err != nil {
+			panic(err)
+		}
+	}
+}
+
+// cleanModuleSymlinks removes all symlinks in the server symlink directories.
+// Note that this function actually removes and recreates the symlink directories.
+func cleanModuleSymlinks() {
+	for _, dir := range symlinkDirs {
+		dirPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir)
+		os.RemoveAll(dirPath)
+		os.Mkdir(dirPath, 0775)
+	}
 }
 
 var emptyPoolTemplate = template.Must(template.New("").Parse(`

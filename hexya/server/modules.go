@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 
 	"github.com/beevik/etree"
@@ -29,8 +28,6 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/views"
 )
-
-var symlinkDirs = []string{"static", "templates", "data", "resources", "i18n"}
 
 // A Module is a go package that implements business features.
 // This struct is used to register modules.
@@ -58,34 +55,7 @@ var Modules ModulesList
 // This function should be called in the init() function of
 // all Hexya Addons.
 func RegisterModule(mod *Module) {
-	createModuleSymlinks(mod)
 	Modules = append(Modules, mod)
-}
-
-// createModuleSymlinks create the symlinks of the given module in the
-// server directory.
-func createModuleSymlinks(mod *Module) {
-	_, fileName, _, ok := runtime.Caller(2)
-	if !ok {
-		log.Panic("Unable to find caller", "module", mod.Name)
-	}
-	for _, dir := range symlinkDirs {
-		srcPath := filepath.Join(filepath.Dir(fileName), dir)
-		dstPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
-		if _, err := os.Stat(srcPath); err == nil {
-			os.Symlink(srcPath, dstPath)
-		}
-	}
-}
-
-// cleanModuleSymlinks removes all symlinks in the server symlink directories.
-// Note that this function actually removes and recreates the symlink directories.
-func cleanModuleSymlinks() {
-	for _, dir := range symlinkDirs {
-		dirPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir)
-		os.RemoveAll(dirPath)
-		os.Mkdir(dirPath, 0775)
-	}
 }
 
 // LoadInternalResources loads all data in the 'resources' directory, that are

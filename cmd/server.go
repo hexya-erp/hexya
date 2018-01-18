@@ -100,8 +100,8 @@ func setupConfig(config map[string]interface{}) {
 	for key, value := range config {
 		viper.Set(key, value)
 	}
-	if !viper.GetBool("Debug") {
-		gin.SetMode(gin.ReleaseMode)
+	if viper.GetBool("Debug") {
+		gin.SetMode(gin.DebugMode)
 	}
 	logging.Initialize()
 	log = logging.GetLogger("init")

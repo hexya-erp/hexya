@@ -93,7 +93,6 @@ func init() {
 	hexyaServer.Use(gin.Recovery())
 	hexyaServer.Use(sessions.Sessions("hexya-session", store))
 	hexyaServer.Use(logging.LogForGin(log))
-	cleanModuleSymlinks()
 }
 
 // PostInit runs all actions that need to be done after all modules have been loaded.
