@@ -103,6 +103,16 @@ LogStdout = true
 #Port = 8080
 ----
 
+[NOTE]
+====
+Alternatively, Hexya can read its configuration from environment variables starting with `HEXYA_` followed by an upper cased config setting.
+
+For example:
+
+- `HEXYA_MODULES` -> `Modules`
+- `HEXYA_DB_HOST` -> `DB.Host`
+====
+
 === Generate Hexya
 
 This step will generate some source code that depends on the modules you
@@ -147,6 +157,8 @@ Global Flags:
   -L, --log-level string     Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit' (default "info")
   -o, --log-stdout           Enable stdout logging. Use for development or debugging.
 ----
+
+IMPORTANT: Under Windows, `hexya generate` must be run as admin.
 
 == Synchronise database
 

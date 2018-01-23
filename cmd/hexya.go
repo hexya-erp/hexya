@@ -19,6 +19,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/spf13/cobra"
@@ -74,6 +75,7 @@ func init() {
 
 func initConfig() {
 	viper.SetEnvPrefix("hexya")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 	cfgFile := viper.GetString("ConfigFileName")
 	if runtime.GOOS != "windows" {
