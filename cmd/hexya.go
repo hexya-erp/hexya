@@ -73,6 +73,8 @@ func init() {
 }
 
 func initConfig() {
+	viper.SetEnvPrefix("hexya")
+	viper.AutomaticEnv()
 	cfgFile := viper.GetString("ConfigFileName")
 	if runtime.GOOS != "windows" {
 		viper.AddConfigPath("/etc/hexya")
