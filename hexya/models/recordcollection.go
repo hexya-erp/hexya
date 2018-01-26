@@ -79,7 +79,6 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
 	fMap := data.FieldMap()
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
-	rc.applyDefaults(&fMap)
 	rc.addAccessFieldsCreateData(&fMap)
 	rc.model.convertValuesToFieldType(&fMap)
 	fMap = rc.createEmbeddedRecords(fMap)
