@@ -159,7 +159,7 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap) {
 		}
 		val := reflect.ValueOf((*fMap)[fName])
 		if !fi.isReadOnly() && (!val.IsValid() || val == reflect.Zero(val.Type())) {
-			(*fMap)[fName] = fi.defaultFunc(rc.Env(), FieldMap{})
+			(*fMap)[fName] = fi.defaultFunc(rc.Env())
 		}
 	}
 }

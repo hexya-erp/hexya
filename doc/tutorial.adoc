@@ -1172,12 +1172,7 @@ Any field can be given a default value. In the field definition, add the option
 [source,go]
 func (models.Environment, models.FieldMap) interface{}
 
-The default function is called twice by the framework:
-
-- When providing an empty form in the user interface{} during record creation.
-- When calling the `Create` method, if the field has not been set. In this
-case, the second argument is filled with the values passed to the `Create`
-method.
+The default function is called when providing an empty form in the user interface during record creation.
 
 [NOTE]
 ====
@@ -1204,7 +1199,7 @@ field that defaults to true.
 func init() {
 (...)
     "StartDate": models.DateField{
-        Default: func(env models.Environment, fMap models.FieldMap) interface{} {
+        Default: func(env models.Environment) interface{} {
                 return dates.Today()
             },
         },

@@ -263,7 +263,7 @@ func TestFieldModification(t *testing.T) {
 		So(numsField.SetHelp("Num's Help").help, ShouldEqual, "Num's Help")
 		So(numsField.SetCompute(Registry.MustGet("User").methods.MustGet("ComputeNum")).compute, ShouldEqual, "ComputeNum")
 		So(numsField.SetCompute(nil).compute, ShouldEqual, "")
-		So(numsField.SetDefault(DefaultValue("DV")).defaultFunc(Environment{}, FieldMap{}).(string), ShouldEqual, "DV")
+		So(numsField.SetDefault(DefaultValue("DV")).defaultFunc(Environment{}).(string), ShouldEqual, "DV")
 		numsField.SetDepends([]string{"Dep1", "Dep2"})
 		So(numsField.depends, ShouldHaveLength, 2)
 		So(numsField.depends, ShouldContain, "Dep1")

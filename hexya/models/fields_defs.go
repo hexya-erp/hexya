@@ -45,7 +45,7 @@ type BinaryField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
-	Default    func(Environment, FieldMap) interface{}
+	Default    func(Environment) interface{}
 }
 
 // DeclareField adds this binary field to the given FieldsCollection with the given name.
@@ -109,7 +109,7 @@ type BooleanField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this boolean field to the given FieldsCollection with the given name.
@@ -175,7 +175,7 @@ type CharField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this char field to the given FieldsCollection with the given name.
@@ -240,7 +240,7 @@ type DateField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this date field to the given FieldsCollection with the given name.
@@ -304,7 +304,7 @@ type DateTimeField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this datetime field to the given FieldsCollection with the given name.
@@ -367,7 +367,7 @@ type FloatField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this datetime field to the given FieldsCollection with the given name.
@@ -432,7 +432,7 @@ type HTMLField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this html field to the given FieldsCollection with the given name.
@@ -495,7 +495,7 @@ type IntegerField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this datetime field to the given FieldsCollection with the given name.
@@ -561,7 +561,7 @@ type Many2ManyField struct {
 	Constraint       Methoder
 	Filter           Conditioner
 	Inverse          Methoder
-	Default          func(Environment, FieldMap) interface{}
+	Default          func(Environment) interface{}
 }
 
 // DeclareField adds this many2many field to the given FieldsCollection with the given name.
@@ -650,7 +650,7 @@ type Many2OneField struct {
 	Constraint    Methoder
 	Filter        Conditioner
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this many2one field to the given FieldsCollection with the given name.
@@ -727,7 +727,7 @@ type One2ManyField struct {
 	Constraint    Methoder
 	Filter        Conditioner
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this one2many field to the given FieldsCollection with the given name.
@@ -794,7 +794,7 @@ type One2OneField struct {
 	Constraint    Methoder
 	Filter        Conditioner
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this one2one field to the given FieldsCollection with the given name.
@@ -872,7 +872,7 @@ type Rev2OneField struct {
 	Constraint    Methoder
 	Filter        Conditioner
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this rev2one field to the given FieldsCollection with the given name.
@@ -936,7 +936,7 @@ type SelectionField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
-	Default    func(Environment, FieldMap) interface{}
+	Default    func(Environment) interface{}
 }
 
 // DeclareField adds this selection field to the given FieldsCollection with the given name.
@@ -997,7 +997,7 @@ type TextField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
-	Default       func(Environment, FieldMap) interface{}
+	Default       func(Environment) interface{}
 }
 
 // DeclareField adds this text field to the given FieldsCollection with the given name.
@@ -1157,7 +1157,7 @@ func (f *Field) SetTranslate(value bool) *Field {
 }
 
 // SetDefault overrides the value of the Default parameter of this Field
-func (f *Field) SetDefault(value func(Environment, FieldMap) interface{}) *Field {
+func (f *Field) SetDefault(value func(Environment) interface{}) *Field {
 	f.defaultFunc = value
 	return f
 }

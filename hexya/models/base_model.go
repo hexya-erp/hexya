@@ -76,7 +76,7 @@ func declareModelMixin() {
 	modelMixin := NewMixinModel("ModelMixin")
 	modelMixin.AddFields(map[string]FieldDefinition{
 		"HexyaExternalID": CharField{Unique: true, Index: true, NoCopy: true,
-			Default: func(env Environment, values FieldMap) interface{} {
+			Default: func(env Environment) interface{} {
 				return fmt.Sprintf("__hexya_external_id__%d", idSeq.NextValue())
 			},
 		},

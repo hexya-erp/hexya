@@ -200,7 +200,7 @@ type Field struct {
 	dependencies     []computeData
 	embed            bool
 	noCopy           bool
-	defaultFunc      func(Environment, FieldMap) interface{}
+	defaultFunc      func(Environment) interface{}
 	onDelete         OnDeleteAction
 	onChange         string
 	constraint       string
