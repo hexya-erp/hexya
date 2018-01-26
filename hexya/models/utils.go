@@ -368,10 +368,10 @@ func cartesianProductSlices(records ...[]*RecordCollection) []*RecordCollection 
 	case 1:
 		return records[0]
 	case 2:
-		res := make([]*RecordCollection, 4)
+		res := make([]*RecordCollection, len(records[0])*len(records[1]))
 		for i, v1 := range records[0] {
 			for j, v2 := range records[1] {
-				res[i*2+j] = v1.Union(v2)
+				res[i*len(records[1])+j] = v1.Union(v2)
 			}
 		}
 		return res

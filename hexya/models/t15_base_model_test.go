@@ -148,6 +148,65 @@ func TestBaseModelMethods(t *testing.T) {
 				So(ConvertLimitToInt(0), ShouldEqual, 0)
 				So(ConvertLimitToInt(nil), ShouldEqual, 80)
 			})
+			Convey("CartesianProduct", func() {
+				tagA := env.Pool("Tag").Call("Create", FieldMap{"Name": "A"}).(RecordSet).Collection()
+				tagB := env.Pool("Tag").Call("Create", FieldMap{"Name": "B"}).(RecordSet).Collection()
+				tagC := env.Pool("Tag").Call("Create", FieldMap{"Name": "C"}).(RecordSet).Collection()
+				tagD := env.Pool("Tag").Call("Create", FieldMap{"Name": "D"}).(RecordSet).Collection()
+				tagE := env.Pool("Tag").Call("Create", FieldMap{"Name": "E"}).(RecordSet).Collection()
+				tagF := env.Pool("Tag").Call("Create", FieldMap{"Name": "F"}).(RecordSet).Collection()
+				tagG := env.Pool("Tag").Call("Create", FieldMap{"Name": "G"}).(RecordSet).Collection()
+				tagsAB := tagA.Union(tagB)
+				tagsCD := tagC.Union(tagD)
+				tagsEFG := tagE.Union(tagF).Union(tagG)
+
+				contains := func(product []*RecordCollection, collections ...*RecordCollection) bool {
+				productLoop:
+					for _, p := range product {
+						for _, c := range collections {
+							if c.Equals(p) {
+								break productLoop
+							}
+						}
+						return false
+					}
+					return true
+				}
+
+				product1 := tagsAB.CartesianProduct(tagsCD)
+				So(product1, ShouldHaveLength, 4)
+				So(contains(product1,
+					tagA.Union(tagC),
+					tagA.Union(tagD),
+					tagB.Union(tagC),
+					tagB.Union(tagD)), ShouldBeTrue)
+
+				product2 := tagsAB.CartesianProduct(tagsEFG)
+				So(product2, ShouldHaveLength, 6)
+				So(contains(product2,
+					tagA.Union(tagE),
+					tagA.Union(tagF),
+					tagA.Union(tagG),
+					tagB.Union(tagE),
+					tagB.Union(tagF),
+					tagB.Union(tagG)), ShouldBeTrue)
+
+				product3 := tagsAB.CartesianProduct(tagsCD, tagsEFG)
+				So(product3, ShouldHaveLength, 12)
+				So(contains(product3,
+					tagA.Union(tagC).Union(tagE),
+					tagA.Union(tagC).Union(tagF),
+					tagA.Union(tagC).Union(tagG),
+					tagA.Union(tagD).Union(tagE),
+					tagA.Union(tagD).Union(tagF),
+					tagA.Union(tagD).Union(tagG),
+					tagB.Union(tagC).Union(tagE),
+					tagB.Union(tagC).Union(tagF),
+					tagB.Union(tagC).Union(tagG),
+					tagB.Union(tagD).Union(tagE),
+					tagB.Union(tagD).Union(tagF),
+					tagB.Union(tagD).Union(tagG)), ShouldBeTrue)
+			})
 		})
 	})
 }
