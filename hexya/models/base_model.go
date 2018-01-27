@@ -75,7 +75,7 @@ func declareModelMixin() {
 
 	modelMixin := NewMixinModel("ModelMixin")
 	modelMixin.AddFields(map[string]FieldDefinition{
-		"HexyaExternalID": CharField{Unique: true, Index: true, NoCopy: true,
+		"HexyaExternalID": CharField{Unique: true, Index: true, NoCopy: true, Required: true,
 			Default: func(env Environment) interface{} {
 				return fmt.Sprintf("__hexya_external_id__%d", idSeq.NextValue())
 			},
@@ -294,7 +294,7 @@ func declareRecordSetMethods() {
 		`DefaultGet returns a Params map with the default values for the model.`,
 		func(rc *RecordCollection) FieldMap {
 			res := make(FieldMap)
-			rc.applyDefaults(&res)
+			rc.applyDefaults(&res, false)
 			rc.model.convertValuesToFieldType(&res)
 			for ctxKey, ctxValue := range rc.env.context.ToMap() {
 				if !strings.HasPrefix(ctxKey, "default_") {

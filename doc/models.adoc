@@ -737,6 +737,8 @@ Fields marked with this tag will not be copied when a record is duplicated.
 `Default` func(Environment, FieldMap) interface{}::
 Function that will be called by clients to set a default value in the user
 interface before calling Create.
++
+The default value will also be set when calling Create only if this is a required field and not value is set.
 
 `OnChange` Methoder::
 The method to call when this field is changed in the interface.

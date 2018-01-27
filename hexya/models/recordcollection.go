@@ -79,6 +79,7 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
 	fMap := data.FieldMap()
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
+	rc.applyDefaults(&fMap, true)
 	rc.addAccessFieldsCreateData(&fMap)
 	rc.model.convertValuesToFieldType(&fMap)
 	fMap = rc.createEmbeddedRecords(fMap)
@@ -150,15 +151,18 @@ func (rc *RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
 }
 
 // applyDefaults adds the default value to the given fMap values which
-// are equal to their Go type zero value
-func (rc *RecordCollection) applyDefaults(fMap *FieldMap) {
+// are equal to their Go type zero value. If requiredOnly is true, default
+// value is set only if the field is required (and equal to zero value).
+func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
 		if fi.defaultFunc == nil {
 			continue
 		}
 		val := reflect.ValueOf((*fMap)[fName])
 		if !fi.isReadOnly() && (!val.IsValid() || val == reflect.Zero(val.Type())) {
-			(*fMap)[fName] = fi.defaultFunc(rc.Env())
+			if fi.required || !requiredOnly {
+				(*fMap)[fName] = fi.defaultFunc(rc.Env())
+			}
 		}
 	}
 }
