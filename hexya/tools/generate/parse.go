@@ -553,7 +553,7 @@ func extractModelNameFromFunc(ce *ast.CallExpr) (string, error) {
 	case *ast.SelectorExpr:
 		switch ftt := ft.X.(type) {
 		case *ast.Ident:
-			if ftt.Name != "pool" && ftt.Name != "Registry" {
+			if ftt.Name != PoolModelPackage && ftt.Name != "Registry" {
 				return extractModel(ftt)
 			}
 			return ft.Sel.Name, nil
@@ -597,11 +597,11 @@ func getTypeData(typ ast.Expr, modInfo *ModuleInfo) TypeData {
 		// Maybe this is a pool type that is not yet defined
 		byts := bytes.Buffer{}
 		printer.Fprint(&byts, currentFileSet, typ)
-		typStr = strings.Replace(byts.String(), "pool.", "", 1)
+		typStr = strings.Replace(byts.String(), PoolModelPackage+".", "", 1)
 	}
 	importPath := computeExportPath(modInfo.TypeOf(typ))
 	if strings.Contains(importPath, PoolPath) {
-		typStr = strings.Replace(typStr, "pool.", "", 1)
+		typStr = strings.Replace(typStr, PoolModelPackage+".", "", 1)
 		importPath = ""
 	}
 

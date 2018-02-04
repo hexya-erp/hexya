@@ -6,14 +6,16 @@ package generate
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"io/ioutil"
-	"path"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/imports"
 )
 
 // A fieldData describes a field in a RecordSet
@@ -62,15 +64,38 @@ type fieldType struct {
 
 // A modelData describes a RecordSet model
 type modelData struct {
-	Name           string
-	ModelType      string
-	IsModelMixin   bool
-	Deps           []string
-	Fields         []fieldData
-	Methods        []methodData
-	AllMethods     []methodData
-	ConditionFuncs []string
-	Types          []fieldType
+	Name              string
+	SnakeName         string
+	ModelsPackageName string
+	QueryPackageName  string
+	ModelType         string
+	IsModelMixin      bool
+	Deps              []string
+	RelModels         []string
+	Fields            []fieldData
+	Methods           []methodData
+	AllMethods        []methodData
+	ConditionFuncs    []string
+	Types             []fieldType
+}
+
+// sort sorts all slices fields of this modelData so that the generated code is always the same.
+func (m *modelData) sort() {
+	sort.Strings(m.Deps)
+	sort.Slice(m.Fields, func(i, j int) bool {
+		return m.Fields[i].Name < m.Fields[j].Name
+	})
+	sort.Slice(m.Methods, func(i, j int) bool {
+		return m.Methods[i].Name < m.Methods[j].Name
+	})
+	sort.Slice(m.AllMethods, func(i, j int) bool {
+		return m.AllMethods[i].Name < m.AllMethods[j].Name
+	})
+	sort.Strings(m.Deps)
+	sort.Strings(m.RelModels)
+	sort.Slice(m.Types, func(i, j int) bool {
+		return m.Types[i].Type < m.Types[j].Type
+	})
 }
 
 // specificMethodsHandlers are functions that populate the given modelData
@@ -92,7 +117,7 @@ func searchMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
-		ParamsTypes:  fmt.Sprintf("%sCondition", modelData.Name),
+		ParamsTypes:  fmt.Sprintf("%s.%sCondition", PoolQueryPackage, modelData.Name),
 		ReturnString: returnString,
 	})
 	modelData.Methods = append(modelData.Methods, methodData{
@@ -100,7 +125,7 @@ func searchMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 		Doc:            fmt.Sprintf("// Search returns a new %sSet filtering on the current one with the additional given Condition", modelData.Name),
 		ToDeclare:      false,
 		Params:         "condition",
-		ParamsWithType: fmt.Sprintf("condition %sCondition", modelData.Name),
+		ParamsWithType: fmt.Sprintf("condition %s.%sCondition", PoolQueryPackage, modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -206,7 +231,7 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	(*depsMap)["github.com/hexya-erp/hexya/hexya/models/operator"] = true
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
-		ParamsTypes:  fmt.Sprintf("string, operator.Operator, %sCondition, int", modelData.Name),
+		ParamsTypes:  fmt.Sprintf("string, operator.Operator, %s.%sCondition, int", PoolQueryPackage, modelData.Name),
 		ReturnString: returnString,
 	})
 	modelData.Methods = append(modelData.Methods, methodData{
@@ -220,7 +245,7 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 // function of NameGet but it is not guaranteed to be.`, modelData.Name),
 		ToDeclare:      false,
 		Params:         "name, op, additionalCond, limit",
-		ParamsWithType: fmt.Sprintf("name string, op operator.Operator, additionalCond %sCondition, limit int", modelData.Name),
+		ParamsWithType: fmt.Sprintf("name string, op operator.Operator, additionalCond %s.%sCondition, limit int", PoolQueryPackage, modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -258,10 +283,13 @@ func CreatePool(program *loader.Program, dir string) {
 	for modelName, modelASTData := range modelsASTData {
 		depsMap := map[string]bool{ModelsPath: true}
 		mData := modelData{
-			Name:           modelName,
-			ModelType:      modelASTData.ModelType,
-			IsModelMixin:   modelASTData.IsModelMixin,
-			ConditionFuncs: []string{"And", "AndNot", "Or", "OrNot"},
+			Name:              modelName,
+			SnakeName:         strutils.SnakeCaseString(modelName),
+			ModelsPackageName: PoolModelPackage,
+			QueryPackageName:  PoolQueryPackage,
+			ModelType:         modelASTData.ModelType,
+			IsModelMixin:      modelASTData.IsModelMixin,
+			ConditionFuncs:    []string{"And", "AndNot", "Or", "OrNot"},
 		}
 		// Add fields
 		addFieldsToModelData(modelASTData, &mData, &depsMap)
@@ -279,8 +307,7 @@ func CreatePool(program *loader.Program, dir string) {
 		}
 		mData.Deps = deps
 		// Writing to file
-		fileName := fmt.Sprintf("%s.go", strutils.SnakeCaseString(modelName))
-		CreateFileFromTemplate(path.Join(dir, fileName), poolModelTemplate, mData)
+		createPoolFiles(dir, &mData)
 	}
 }
 
@@ -363,9 +390,11 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 
 // addFieldsToModelData extracts data from modelASTData to populate fields in modelData
 func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsMap *map[string]bool) {
+	relModels := make(map[string]bool)
 	for fieldName, fieldASTData := range modelASTData.Fields {
 		typStr := fieldASTData.Type.Type
 		if fieldASTData.RelModel != "" {
+			relModels[fieldASTData.RelModel] = true
 			typStr = fmt.Sprintf("%sSet", fieldASTData.RelModel)
 		}
 		jsonName := strutils.GetDefaultString(fieldASTData.JSON, strutils.SnakeCaseString(fieldName))
@@ -378,6 +407,9 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 			SanType:  createTypeIdent(typStr),
 		})
 		(*depsMap)[fieldASTData.Type.ImportPath] = true
+	}
+	for rm := range relModels {
+		modelData.RelModels = append(modelData.RelModels, rm)
 	}
 }
 
@@ -404,6 +436,27 @@ func addFieldTypesToModelData(mData *modelData) {
 	}
 }
 
+// createPoolFiles creates all pool files for the given model data
+func createPoolFiles(dir string, mData *modelData) {
+	mData.sort()
+	// create the model's file in models directory
+	fileName := filepath.Join(dir, PoolModelPackage, fmt.Sprintf("%s.go", mData.SnakeName))
+	CreateFileFromTemplate(fileName, poolModelsTemplate, mData)
+
+	// create the model's query directory
+	if _, err := os.Stat(filepath.Join(dir, PoolQueryPackage, mData.SnakeName)); err != nil {
+		if err = os.MkdirAll(filepath.Join(dir, PoolQueryPackage, mData.SnakeName), 0755); err != nil {
+			panic(err)
+		}
+	}
+	// create the model's query file in query dir
+	fileName = filepath.Join(dir, PoolQueryPackage, fmt.Sprintf("%s.go", mData.SnakeName))
+	CreateFileFromTemplate(fileName, poolQueryTemplate, mData)
+	// create the model's query file in model's query dir
+	fileName = filepath.Join(dir, PoolQueryPackage, mData.SnakeName, fmt.Sprintf("%s.go", mData.SnakeName))
+	CreateFileFromTemplate(fileName, poolModelsQueryTemplate, mData)
+}
+
 // isRecordSetType returns true if the given typ is a RecordSet according
 // to the AST data stored in models.
 // The second returned value is true if typ is models.RecordCollection or models.RecordSet
@@ -425,7 +478,7 @@ func isRecordSetType(typ string, models map[string]ModelASTData) (bool, bool) {
 func CreateFileFromTemplate(fileName string, template *template.Template, data interface{}) {
 	var srcBuffer bytes.Buffer
 	template.Execute(&srcBuffer, data)
-	srcData, err := format.Source(srcBuffer.Bytes())
+	srcData, err := imports.Process(fileName, srcBuffer.Bytes(), nil)
 	if err != nil {
 		log.Panic("Error while formatting generated source file", "error", err, "fileName",
 			fileName, "mData", fmt.Sprintf("%#v", data), "src", srcBuffer.String())
@@ -437,14 +490,15 @@ func CreateFileFromTemplate(fileName string, template *template.Template, data i
 	}
 }
 
-var poolModelTemplate = template.Must(template.New("").Parse(`
+var poolModelsTemplate = template.Must(template.New("").Parse(`
 // This file is autogenerated by hexya-generate
 // DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
 
-package pool
+package {{ .ModelsPackageName }}
 
 import (
 	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
+    "github.com/hexya-erp/hexya/pool/{{ .QueryPackageName }}"
 {{ range .Deps }} 	"{{ . }}"
 {{ end }}
 )
@@ -486,7 +540,7 @@ func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data) 
 
 // Search searches the database and returns a new {{ .Name }}Set instance
 // with the records found.
-func (m {{ .Name }}Model) Search(env models.Environment, cond {{ .Name }}Condition) {{ .Name }}Set {
+func (m {{ .Name }}Model) Search(env models.Environment, cond {{ $.QueryPackageName }}.{{ .Name }}Condition) {{ .Name }}Set {
 	return {{ .Name }}Set{
 		RecordCollection: m.Model.Search(env, cond),
 	}
@@ -528,26 +582,6 @@ func (m {{ .Name }}Model) Declare{{ .ModelType }}Model() {{ .Name }}Model {
 	return m
 }
 
-{{ range .Fields }}
-{{ if .IsRS }}
-// {{ .Name }}FilteredOn adds a condition with a table join on the given field and
-// filters the result with the given condition
-func (m {{ $.Name }}Model) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: m.FilteredOn("{{ .Name }}", cond.Condition),
-	}
-}
-{{ end }}
-
-// {{ .Name }} adds the "{{ .Name }}" field to the Condition
-func (m {{ $.Name }}Model) {{ .Name }}() {{ $.Name }}{{ .SanType }}ConditionField {
-	return {{ $.Name }}{{ .SanType }}ConditionField{
-		ConditionField: m.Field("{{ .Name }}"),
-	}
-}
-
-{{ end }}
-
 // {{ .Name }} returns the unique instance of the {{ .Name }}Model type
 // which is used to extend the {{ .Name }} model or to get a {{ .Name }}Set through
 // its NewSet() function.
@@ -556,6 +590,13 @@ func {{ .Name }}() {{ .Name }}Model {
 		Model: models.Registry.MustGet("{{ .Name }}"),
 	}
 }
+
+{{ range .Fields }}
+// {{ .Name }} returns a FieldNamer for the "{{ .Name }}" field
+func (m {{ $.Name }}Model) {{ .Name }}() models.FieldName {
+	return models.FieldName("{{ .Name }}")
+}
+{{ end }}
 
 // ------- FIELD COLLECTION ----------
 
@@ -613,130 +654,6 @@ func (c {{ $.Name }}MethodsCollection) {{ .Name }}() {{ $.Name }}_{{ .Name }} {
 		Method: c.MustGet("{{ .Name }}"),
 	}
 }
-{{ end }}
-
-// ------- CONDITION ---------
-
-// A {{ .Name }}Condition is a type safe WHERE clause in an SQL query
-type {{ .Name }}Condition struct {
-	*models.Condition
-}
-
-{{ range .ConditionFuncs }}
-// {{ . }} completes the current condition with a simple {{ . }} clause : c.{{ . }}().nextCond => c {{ . }} nextCond
-func (c {{ $.Name }}Condition) {{ . }}() {{ $.Name }}ConditionStart {
-	return {{ $.Name }}ConditionStart{
-		ConditionStart: c.Condition.{{ . }}(),
-	}
-}
-
-// {{ . }}Cond completes the current condition with the given cond as an {{ . }} clause
-// between brackets : c.{{ . }}(cond) => c {{ . }} (cond)
-func (c {{ $.Name }}Condition) {{ . }}Cond(cond {{ $.Name }}Condition) {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: c.Condition.{{ . }}Cond(cond.Condition),
-	}
-}
-{{ end }}
-
-// Underlying returns the underlying models.Condition instance
-func (c {{ $.Name }}Condition) Underlying() *models.Condition {
-	return c.Condition
-}
-
-var _ models.Conditioner = {{ $.Name }}Condition{}
-
-// ------- CONDITION START ---------
-
-// A {{ .Name }}ConditionStart is an object representing a Condition when
-// we just added a logical operator (AND, OR, ...) and we are
-// about to add a predicate.
-type {{ .Name }}ConditionStart struct {
-	*models.ConditionStart
-}
-
-{{ range .Fields }}
-// {{ .Name }} adds the "{{ .Name }}" field to the Condition
-func (cs {{ $.Name }}ConditionStart) {{ .Name }}() {{ $.Name }}{{ .SanType }}ConditionField {
-	return {{ $.Name }}{{ .SanType }}ConditionField{
-		ConditionField: cs.Field("{{ .Name }}"),
-	}
-}
-
-{{ if .IsRS }}
-// {{ .Name }}FilteredOn adds a condition with a table join on the given field and
-// filters the result with the given condition
-func (cs {{ $.Name }}ConditionStart) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: cs.FilteredOn("{{ .Name }}", cond.Condition),
-	}
-}
-{{ end }}
-{{ end }}
-
-// ------- CONDITION FIELDS ----------
-
-{{ range $typ := .Types }}
-// A {{ $.Name }}{{ $typ.SanType }}ConditionField is a partial {{ $.Name }}Condition when
-// we have selected a field of type {{ $typ.Type }} and expecting an operator.
-type {{ $.Name }}{{ $typ.SanType }}ConditionField struct {
-	*models.ConditionField
-}
-
-{{ range $typ.Operators }}
-// {{ .Name }} adds a condition value to the ConditionPath
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.{{ .Name }}(arg),
-	}
-}
-
-// {{ .Name }}Func adds a function value to the ConditionPath.
-// The function will be evaluated when the query is performed and
-// it will be given the RecordSet on which the query is made as parameter
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.RecordSet) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.{{ .Name }}(arg),
-	}
-}
-
-// {{ .Name }}Eval adds an expression value to the ConditionPath.
-// The expression value will be evaluated by the client with the
-// corresponding execution context. The resulting Condition cannot
-// be used server-side.
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) {{ .Name }}Eval(expression string) {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.{{ .Name }}(models.ClientEvaluatedString(expression)),
-	}
-}
-
-{{ end }}
-
-// IsNull checks if the current condition field is null
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) IsNull() {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.IsNull(),
-	}
-}
-
-// IsNotNull checks if the current condition field is not null
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) IsNotNull() {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.IsNotNull(),
-	}
-}
-
-// AddOperator adds a condition value to the condition with the given operator and data
-// If multi is true, a recordset will be converted into a slice of int64
-// otherwise, it will return an int64 and panic if the recordset is not a singleton.
-//
-// This method is low level and should be avoided. Use operator methods such as Equals() instead.
-func (c {{ $.Name }}{{ $typ.SanType }}ConditionField) AddOperator(op operator.Operator, data interface{}) {{ $.Name }}Condition {
-	return {{ $.Name }}Condition{
-		Condition: c.ConditionField.AddOperator(op, data),
-	}
-}
-
 {{ end }}
 
 // ------- DATA STRUCT ---------
@@ -804,6 +721,9 @@ type {{ .Name }}Set struct {
 }
 
 var _ models.RecordSet = {{ .Name }}Set{}
+
+// {{ .Name }}SetHexyaFunc is a dummy function to uniquely match interfaces.
+func (s {{ .Name }}Set) {{ .Name }}SetHexyaFunc() {}
 
 // First returns a copy of the first Record of this RecordSet.
 // It returns an empty {{ .Name }} if the RecordSet is empty.
@@ -935,4 +855,179 @@ func init() {
 {{ end -}}
 {{- end }}
 }
+`))
+
+var poolQueryTemplate = template.Must(template.New("").Parse(`
+package {{ .QueryPackageName }}
+
+import (
+	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
+	"github.com/hexya-erp/hexya/pool/{{ .QueryPackageName }}/{{ .SnakeName }}"
+{{ range .Deps }} 	"{{ . }}"
+{{ end }}
+)
+
+type {{ .Name }}Condition = {{ .SnakeName }}.Condition
+
+// {{ .Name }} returns a {{ .SnakeName }}.ConditionStart for {{ .Name }}Model
+func {{ .Name }}() {{ .SnakeName }}.ConditionStart {
+	return {{ .SnakeName }}.ConditionStart{
+		ConditionStart: &models.ConditionStart{},
+	}
+}
+`))
+
+var poolModelsQueryTemplate = template.Must(template.New("").Parse(`
+// This file is autogenerated by hexya-generate
+// DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
+
+package {{ .SnakeName }}
+
+import (
+	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
+{{ range .Deps }} 	"{{ . }}"
+{{ end }}
+)
+
+// ------- INTERFACES --------
+
+{{ range .RelModels }}
+type {{ . }}Condition interface {
+	models.Conditioner
+	{{ . }}ConditionHexyaFunc()
+}
+
+type {{ . }}Set interface {
+	models.RecordSet
+	{{ . }}SetHexyaFunc()
+}
+{{ end }}
+
+// ------- CONDITION ---------
+
+// A Condition is a type safe WHERE clause in an SQL query
+type Condition struct {
+	*models.Condition
+}
+
+{{ range .ConditionFuncs }}
+// {{ . }} completes the current condition with a simple {{ . }} clause : c.{{ . }}().nextCond => c {{ . }} nextCond
+func (c Condition) {{ . }}() ConditionStart {
+	return ConditionStart{
+		ConditionStart: c.Condition.{{ . }}(),
+	}
+}
+
+// {{ . }}Cond completes the current condition with the given cond as an {{ . }} clause
+// between brackets : c.{{ . }}(cond) => c {{ . }} (cond)
+func (c Condition) {{ . }}Cond(cond Condition) Condition {
+	return Condition{
+		Condition: c.Condition.{{ . }}Cond(cond.Condition),
+	}
+}
+{{ end }}
+
+// Underlying returns the underlying models.Condition instance
+func (c Condition) Underlying() *models.Condition {
+	return c.Condition
+}
+
+// {{ $.Name }}ConditionHexyaFunc is a dummy function to uniquely match interfaces.
+func (c Condition) {{ $.Name }}ConditionHexyaFunc() {}
+
+var _ models.Conditioner = Condition{}
+
+// ------- CONDITION START ---------
+
+// A ConditionStart is an object representing a Condition when
+// we just added a logical operator (AND, OR, ...) and we are
+// about to add a predicate.
+type ConditionStart struct {
+	*models.ConditionStart
+}
+
+{{ range .Fields }}
+// {{ .Name }} adds the "{{ .Name }}" field to the Condition
+func (cs ConditionStart) {{ .Name }}() {{ .SanType }}ConditionField {
+	return {{ .SanType }}ConditionField{
+		ConditionField: cs.Field("{{ .Name }}"),
+	}
+}
+
+{{ if .IsRS }}
+// {{ .Name }}FilteredOn adds a condition with a table join on the given field and
+// filters the result with the given condition
+func (cs ConditionStart) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) Condition {
+	return Condition{
+		Condition: cs.FilteredOn("{{ .Name }}", cond.Underlying()),
+	}
+}
+{{ end }}
+{{ end }}
+
+// ------- CONDITION FIELDS ----------
+
+{{ range $typ := .Types }}
+// A {{ $typ.SanType }}ConditionField is a partial Condition when
+// we have selected a field of type {{ $typ.Type }} and expecting an operator.
+type {{ $typ.SanType }}ConditionField struct {
+	*models.ConditionField
+}
+
+{{ range $typ.Operators }}
+// {{ .Name }} adds a condition value to the ConditionPath
+func (c {{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) Condition {
+	return Condition{
+		Condition: c.ConditionField.{{ .Name }}(arg),
+	}
+}
+
+// {{ .Name }}Func adds a function value to the ConditionPath.
+// The function will be evaluated when the query is performed and
+// it will be given the RecordSet on which the query is made as parameter
+func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.RecordSet) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) Condition {
+	return Condition{
+		Condition: c.ConditionField.{{ .Name }}(arg),
+	}
+}
+
+// {{ .Name }}Eval adds an expression value to the ConditionPath.
+// The expression value will be evaluated by the client with the
+// corresponding execution context. The resulting Condition cannot
+// be used server-side.
+func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Eval(expression string) Condition {
+	return Condition{
+		Condition: c.ConditionField.{{ .Name }}(models.ClientEvaluatedString(expression)),
+	}
+}
+
+{{ end }}
+
+// IsNull checks if the current condition field is null
+func (c {{ $typ.SanType }}ConditionField) IsNull() Condition {
+	return Condition{
+		Condition: c.ConditionField.IsNull(),
+	}
+}
+
+// IsNotNull checks if the current condition field is not null
+func (c {{ $typ.SanType }}ConditionField) IsNotNull() Condition {
+	return Condition{
+		Condition: c.ConditionField.IsNotNull(),
+	}
+}
+
+// AddOperator adds a condition value to the condition with the given operator and data
+// If multi is true, a recordset will be converted into a slice of int64
+// otherwise, it will return an int64 and panic if the recordset is not a singleton.
+//
+// This method is low level and should be avoided. Use operator methods such as Equals() instead.
+func (c {{ $typ.SanType }}ConditionField) AddOperator(op operator.Operator, data interface{}) Condition {
+	return Condition{
+		Condition: c.ConditionField.AddOperator(op, data),
+	}
+}
+
+{{ end }}
+
 `))
