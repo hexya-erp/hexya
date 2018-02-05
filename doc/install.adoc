@@ -15,6 +15,8 @@ downloading the source code, setting up your configuration and compile Hexya.
 First of all, you need to install the Go SDK. Follow the instructions on the
 Go website to install on your platform: https://golang.org/dl/ .
 
+**Hexya requires Go version 1.9 at least, but Go 1.10 is highly recommended**
+
 Then setup your Go workspace and define your `$GOPATH` environment variable as
 described here: https://golang.org/doc/code.html#Workspaces
 
