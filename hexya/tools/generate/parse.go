@@ -543,7 +543,7 @@ func extractModel(ident ast.Expr) (string, error) {
 	return "", errors.New("unmanaged situation")
 }
 
-// extractModelNameFromFunc extracts the model name from a pool.ModelName()
+// extractModelNameFromFunc extracts the model name from a h.ModelName()
 // expression or an error if this is not a pool function.
 func extractModelNameFromFunc(ce *ast.CallExpr) (string, error) {
 	switch ft := ce.Fun.(type) {

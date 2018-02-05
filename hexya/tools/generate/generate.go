@@ -808,7 +808,7 @@ func (s {{ $.Name }}Set) Set{{ .Name }}(value {{ .Type }}) {
 // This method is meant to be used inside a method layer function to call its parent,
 // such as:
 //
-//    func (rs pool.MyRecordSet) MyMethod() string {
+//    func (rs h.MyRecordSet) MyMethod() string {
 //        res := rs.Super().MyMethod()
 //        res += " ok!"
 //        return res
@@ -985,7 +985,7 @@ func (c {{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and .Multi (not 
 // {{ .Name }}Func adds a function value to the ConditionPath.
 // The function will be evaluated when the query is performed and
 // it will be given the RecordSet on which the query is made as parameter
-func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.RecordSet) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) Condition {
+func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.RecordSet) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ if $typ.IsRS }}models.RecordSet{{ else }}{{ $typ.Type }}{{ end }}) Condition {
 	return Condition{
 		Condition: c.ConditionField.{{ .Name }}(arg),
 	}
