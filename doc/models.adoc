@@ -24,7 +24,7 @@ references so that most mistakes can be spotted at compile time.
 === Records and RecordSets types
 
 Each model has a definition instance that can be retrieved by using the
-`__Model__()` function of the pool package. This model instance will be used
+`__Model__()` function of the `h` package. This model instance will be used
 to extend/modify the model definition.
 
 Interaction with models and records is performed through RecordSets, a sorted
@@ -45,10 +45,7 @@ with all the fields of the model whether they are stored into the database or
 computed on the fly. Record types are used to read and write values to
 RecordSets.
 
-All Record and RecordSet types live in the `pool` package.
-
-A constant for the field name of each model of type `models.FieldName` exists
-in the `pool` package in the form `pool.__ModelName_FieldName__`.
+All Record and RecordSet types live in the `h` package.
 
 === Using RecordSets
 
@@ -115,7 +112,7 @@ value.
 
 [source,go]
 ----
-customer := pool.Partner().Create(env, pool.PartnerData{
+customer := h.Partner().Create(env, q.PartnerData{
     Name: "Jane Smith",
     Email: "jsmith@example.com",
     Position: "Sale's Manager",
@@ -130,7 +127,7 @@ the actual values of the RecordSet are silently ignored.
 
 [source,go]
 ----
-customer := pool.Partner().NewSet(env).Create(pool.PartnerData{
+customer := h.Partner().NewSet(env).Create(h.PartnerData{
     Name: "Jane Smith",
     Email: "jsmith@example.com",
     Position: "Sale's Manager",
@@ -148,8 +145,8 @@ value, then all non-zero values of data are updated.
 
 [source,go]
 ----
-partner := pool.Partner().Search(env, pool.Partner().Where().Company().Name().Equals("NDP Systèmes"))
-partner.Write(pool.Partner{
+partner := h.Partner().Search(env, q.Partner().Where().Company().Name().Equals("NDP Systèmes"))
+partner.Write(h.Partner{
     Lang: "fr_FR",
 })
 ----
@@ -180,8 +177,8 @@ calls to a getter will not call `Read()` again if the value is already loaded.
 
 [source,go]
 ----
-partners := pool.Partner().NewSet(env)
-partners.Search(pool.Partner().Where().Name().ILike("John")).Read(pool.Partner().Name, pool.Partner().Birthday)
+partners := h.Partner().NewSet(env)
+partners.Search(q.Partner().Where().Name().ILike("John")).Read(h.Partner().Name, h.Partner().Birthday)
 
 // The following lines will not load from the database, but use
 // the values cached in the RecordSet.
@@ -205,8 +202,8 @@ A new Condition instance can be created from a model instance.
 
 [source,go]
 ----
-cond := pool.Users().Email().ILike("example.com").Or().Email().ILike("example.net")
-users := pool.Users().Search(env, cond)
+cond := q.Users().Email().ILike("example.com").Or().Email().ILike("example.net")
+users := h.Users().Search(env, cond)
 ----
 
 `*(RecordSet) Search(condition ConditionType) RecordSetType*`::
@@ -260,22 +257,22 @@ Searches can also be performed on joined model fields with the
 
 [source,go]
 ----
-cond := pool.Users().PartnerFilteredOn(pool.Partner().Function().ILike("manager"))
-users := pool.Users().Search(env, cond)
+cond := q.Users().PartnerFilteredOn(q.Partner().Function().ILike("manager"))
+users := h.Users().Search(env, cond)
 ----
 
 Conditions with `__FK__FilteredOn()` can be nested:
 
 [source,go]
 ----
-cond := pool.Users().PartnerFilteredOn(pool.Partner().CountryFilteredOn(pool.ResCountry().Code.Equals("F")))
+cond := q.Users().PartnerFilteredOn(q.Partner().CountryFilteredOn(q.Country().Code.Equals("F")))
 ----
 
 They can also be mixed with simple conditions:
 
 [source,go]
 ----
-cond := pool.Users().PartnerFilteredOn(pool.Partner().Function().ILike("manager")).And().Login().ILike("John")
+cond := q.Users().PartnerFilteredOn(q.Partner().Function().ILike("manager")).And().Login().ILike("John")
 ----
 ====
 
@@ -314,7 +311,7 @@ valid field name and optionally a direction.
 
 [source,go]
 ----
-users := pool.Users().NewSet(env).SearchAll().OrderBy("Name ASC", "Email DESC", "ID")
+users := h.Users().NewSet(env).SearchAll().OrderBy("Name ASC", "Email DESC", "ID")
 ----
 
 ==== RecordSet Operations
@@ -461,8 +458,8 @@ instead.
 
 [source,go]
 ----
-noReplyUser := pool.Users().Search(env, pool.Users().Email().Equals("no-reply@ndp-systemes.fr")).Limit(1)
-partners := pool.Partner().Search(env, pool.Partner().Name().ILike("John"))
+noReplyUser := h.Users().Search(env, q.Users().Email().Equals("no-reply@ndp-systemes.fr")).Limit(1)
+partners := h.Partner().Search(env, q.Partner().Name().ILike("John"))
 
 partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
 ----
@@ -520,8 +517,8 @@ extend in place existing models created by other modules.
 
 [source,go]
 ----
-resPartnerModel := pool.Partner()
-resUsersModel := pool.Users()
+resPartnerModel := h.Partner()
+resUsersModel := h.Users()
 ----
 
 All models, fields and methods definitions MUST be made in the `init()` of
@@ -530,7 +527,7 @@ the main package or of a package called by the module's main package.
 [IMPORTANT]
 ====
 After creating or modifying a model, you must run `hexya generate` to
-generate the types in the `pool` package before starting the Hexya server.
+generate the types in the `h` and `q` packages before starting the Hexya server.
 
 Running `hexya generate` will also allow you to obtain code completion and
 inspections on the newly created types.
@@ -546,7 +543,7 @@ generation will make the actual Model creation.
 [source,go]
 ----
 // Create a new model called 'User'
-pool.User().DeclareModel()
+h.User().DeclareModel()
 ----
 
 The created model will have a single `ID` field which is the model's primary
@@ -571,13 +568,13 @@ Models fields are added by the `AddField` method of a model as in the example be
 
 [source,go]
 ----
-course := pool.Course().DeclareModel()
+course := h.Course().DeclareModel()
 course.AddFields(map[string]models.FieldDefinition{
     "Name":      models.CharField{String: "Name", Help: "This is the name of the course", Required: true},
     "Date":      models.DateField{String: "Date of the Course"},
-    "Teacher":   models.Many2OneField{RelationModel: pool.Partner(), String: "Teacher"},
+    "Teacher":   models.Many2OneField{RelationModel: h.Partner(), String: "Teacher"},
     "LimitDate": models.DateTimeField{Required: true},
-    "Attendees": models.Many2manyField{RelationModel: pool.Partner(), String: "Attendees"},
+    "Attendees": models.Many2manyField{RelationModel: h.Partner(), String: "Attendees"},
 })
 ----
 
@@ -638,7 +635,7 @@ apply on a Field instance.
 
 [source,go]
 ----
-course := pool.Course().Fields().Name().SetString("MyNewName").SetHelp("This is the new name of the course")
+course := h.Course().Fields().Name().SetString("MyNewName").SetHelp("This is the new name of the course")
 ----
 
 ==== Field parameters
@@ -707,7 +704,7 @@ and `sql.Scanner` interfaces.
 
 [source,go]
 ----
-session := pool.Session().DeclareModel()
+session := h.Session().DeclareModel()
 session.AddFields(map[string]models.FieldDefinition{
     "Room No": models.IntegerField{GoType: new(int16)},
 })
@@ -898,7 +895,7 @@ the actual Method creation.
 [source,go]
 ----
 // Create a new method called 'UpdateBirthday' on the 'Partner' model
-pool.Partner().Methods().UpdateBirthday().DeclareMethod(
+h.Partner().Methods().UpdateBirthday().DeclareMethod(
     `PartnerUpdateBirthday updates this partner birthday.`,
     func (rs PartnerSet, birthday time.Time) {
         rs.SetBirthday(Date(birthDay))
@@ -915,7 +912,7 @@ call the previous layer.
 
 [source,go]
 ----
-pool.Partner().Methods().UpdateBirthday().Extend(
+h.Partner().Methods().UpdateBirthday().Extend(
     `Extended in myModule to compute age at the same time.`,
     func(rs PartnerSet, birthday time.Time) {
         rs.Super().UpdateBirthday(birthday)

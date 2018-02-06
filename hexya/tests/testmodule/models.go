@@ -22,29 +22,30 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
-	"github.com/hexya-erp/hexya/pool"
+	"github.com/hexya-erp/hexya/pool/h"
+	"github.com/hexya-erp/hexya/pool/q"
 )
 
 func init() {
-	user := pool.User().DeclareModel()
+	user := h.User().DeclareModel()
 
 	// Methods directly declared with AddMethod must be defined before being referenced in the field declaration
 
 	user.AddMethod("ComputeDecoratedName", "",
-		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
-			res := pool.UserData{
+		func(rs h.UserSet) (*h.UserData, []models.FieldNamer) {
+			res := h.UserData{
 				DecoratedName: rs.PrefixedUser("User")[0],
 			}
-			return &res, []models.FieldNamer{pool.User().DecoratedName()}
+			return &res, []models.FieldNamer{h.User().DecoratedName()}
 		})
 
 	user.AddMethod("ComputeAge",
 		`ComputeAge is a sample method layer for testing`,
-		func(rs pool.UserSet) (*pool.UserData, []models.FieldNamer) {
-			res := pool.UserData{
+		func(rs h.UserSet) (*h.UserData, []models.FieldNamer) {
+			res := h.UserData{
 				Age: rs.Profile().Age(),
 			}
-			return &res, []models.FieldNamer{pool.User().Age()}
+			return &res, []models.FieldNamer{h.User().Age()}
 		})
 
 	user.AddFields(map[string]models.FieldDefinition{
@@ -57,14 +58,14 @@ func init() {
 			Default: models.DefaultValue(int16(12))},
 		"IsStaff":  models.BooleanField{},
 		"IsActive": models.BooleanField{},
-		"Profile":  models.Many2OneField{RelationModel: pool.Profile()},
+		"Profile":  models.Many2OneField{RelationModel: h.Profile()},
 		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
 			Inverse: user.Methods().InverseSetAge(),
 			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-		"Posts":     models.One2ManyField{RelationModel: pool.Post(), ReverseFK: "User"},
+		"Posts":     models.One2ManyField{RelationModel: h.Post(), ReverseFK: "User"},
 		"PMoney":    models.FloatField{Related: "Profile.Money"},
-		"Resume":    models.Many2OneField{RelationModel: pool.Resume(), Embed: true},
-		"LastPost":  models.Many2OneField{RelationModel: pool.Post()},
+		"Resume":    models.Many2OneField{RelationModel: h.Resume(), Embed: true},
+		"LastPost":  models.Many2OneField{RelationModel: h.Post()},
 		"Email2":    models.CharField{},
 		"IsPremium": models.BooleanField{},
 		"Nums":      models.IntegerField{GoType: new(int)},
@@ -73,7 +74,7 @@ func init() {
 
 	user.Methods().PrefixedUser().DeclareMethod(
 		`PrefixedUser is a sample method layer for testing`,
-		func(rs pool.UserSet, prefix string) []string {
+		func(rs h.UserSet, prefix string) []string {
 			var res []string
 			for _, u := range rs.Records() {
 				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Name()))
@@ -83,24 +84,24 @@ func init() {
 
 	user.Methods().DecorateEmail().DeclareMethod(
 		`DecorateEmail is a sample method layer for testing`,
-		func(rs pool.UserSet, email string) string {
+		func(rs h.UserSet, email string) string {
 			return fmt.Sprintf("<%s>", email)
 		})
 
 	user.Methods().DecorateEmail().Extend(
 		`DecorateEmailExtension is a sample method layer for testing`,
-		func(rs pool.UserSet, email string) string {
+		func(rs h.UserSet, email string) string {
 			res := rs.Super().DecorateEmail(email)
 			return fmt.Sprintf("[%s]", res)
 		})
 
 	user.Methods().InverseSetAge().DeclareMethod("",
-		func(rs pool.UserSet, age int16) {
+		func(rs h.UserSet, age int16) {
 			rs.Profile().SetAge(age)
 		})
 
-	pool.User().Methods().PrefixedUser().Extend("",
-		func(rs pool.UserSet, prefix string) []string {
+	h.User().Methods().PrefixedUser().Extend("",
+		func(rs h.UserSet, prefix string) []string {
 			res := rs.Super().PrefixedUser(prefix)
 			for i, u := range rs.Records() {
 				res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
@@ -108,59 +109,59 @@ func init() {
 			return res
 		})
 
-	pool.User().Methods().UpdateCity().DeclareMethod("",
-		func(rs pool.UserSet, value string) {
+	h.User().Methods().UpdateCity().DeclareMethod("",
+		func(rs h.UserSet, value string) {
 			rs.Profile().SetCity(value)
 		})
 
-	profile := pool.Profile().DeclareModel()
+	profile := h.Profile().DeclareModel()
 	profile.AddFields(map[string]models.FieldDefinition{
 		"Age":      models.IntegerField{GoType: new(int16)},
 		"Gender":   models.SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
 		"Money":    models.FloatField{},
-		"User":     models.Many2OneField{RelationModel: pool.User()},
-		"BestPost": models.One2OneField{RelationModel: pool.Post()},
+		"User":     models.Many2OneField{RelationModel: h.User()},
+		"BestPost": models.One2OneField{RelationModel: h.Post()},
 		"City":     models.CharField{},
 		"Country":  models.CharField{},
 	})
 
-	post := pool.Post().DeclareModel()
+	post := h.Post().DeclareModel()
 	post.AddFields(map[string]models.FieldDefinition{
-		"User":            models.Many2OneField{RelationModel: pool.User()},
+		"User":            models.Many2OneField{RelationModel: h.User()},
 		"Title":           models.CharField{Required: true},
 		"Content":         models.HTMLField{},
-		"Tags":            models.Many2ManyField{RelationModel: pool.Tag()},
-		"BestPostProfile": models.Rev2OneField{RelationModel: pool.Profile(), ReverseFK: "BestPost"},
+		"Tags":            models.Many2ManyField{RelationModel: h.Tag()},
+		"BestPostProfile": models.Rev2OneField{RelationModel: h.Profile(), ReverseFK: "BestPost"},
 		"Abstract":        models.TextField{},
 		"Attachment":      models.BinaryField{},
 		"LastRead":        models.DateField{},
 	})
 
-	pool.Post().Methods().Create().Extend("",
-		func(rs pool.PostSet, data *pool.PostData) pool.PostSet {
+	h.Post().Methods().Create().Extend("",
+		func(rs h.PostSet, data *h.PostData) h.PostSet {
 			res := rs.Super().Create(data)
 			return res
 		})
 
-	pool.Post().Methods().Search().Extend("",
-		func(rs pool.PostSet, cond pool.PostCondition) pool.PostSet {
+	h.Post().Methods().Search().Extend("",
+		func(rs h.PostSet, cond q.PostCondition) h.PostSet {
 			res := rs.Super().Search(cond)
 			return res
 		})
 
-	tag := pool.Tag().DeclareModel()
+	tag := h.Tag().DeclareModel()
 	tag.AddFields(map[string]models.FieldDefinition{
 		"Name":        models.CharField{Constraint: tag.Methods().CheckNameDescription()},
-		"BestPost":    models.Many2OneField{RelationModel: pool.Post()},
-		"Posts":       models.Many2ManyField{RelationModel: pool.Post()},
-		"Parent":      models.Many2OneField{RelationModel: pool.Tag()},
+		"BestPost":    models.Many2OneField{RelationModel: h.Post()},
+		"Posts":       models.Many2ManyField{RelationModel: h.Post()},
+		"Parent":      models.Many2OneField{RelationModel: h.Tag()},
 		"Description": models.CharField{Constraint: tag.Methods().CheckNameDescription()},
 		"Rate":        models.FloatField{Constraint: tag.Methods().CheckRate(), GoType: new(float32)},
 	})
 
 	tag.Methods().CheckNameDescription().DeclareMethod(
 		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
-		func(rs pool.TagSet) {
+		func(rs h.TagSet) {
 			if rs.Rate() < 0 || rs.Rate() > 10 {
 				log.Panic("Tag rate must be between 0 and 10")
 			}
@@ -168,20 +169,20 @@ func init() {
 
 	tag.Methods().CheckRate().DeclareMethod(
 		`CheckNameDescription checks that the description of a tag is not equal to its name`,
-		func(rs pool.TagSet) {
+		func(rs h.TagSet) {
 			if rs.Name() == rs.Description() {
 				log.Panic("Tag name and description must be different")
 			}
 		})
 
-	cv := pool.Resume().DeclareModel()
+	cv := h.Resume().DeclareModel()
 	cv.AddFields(map[string]models.FieldDefinition{
 		"Education":  models.TextField{},
 		"Experience": models.TextField{},
 		"Leisure":    models.TextField{},
 	})
 
-	addressMI := pool.AddressMixIn().DeclareMixinModel()
+	addressMI := h.AddressMixIn().DeclareMixinModel()
 	addressMI.AddFields(map[string]models.FieldDefinition{
 		"Street": models.CharField{GoType: new(string)},
 		"Zip":    models.CharField{},
@@ -189,54 +190,54 @@ func init() {
 	})
 	profile.InheritModel(addressMI)
 
-	pool.Profile().Methods().PrintAddress().DeclareMethod(
+	h.Profile().Methods().PrintAddress().DeclareMethod(
 		`PrintAddress is a sample method layer for testing`,
-		func(rs pool.ProfileSet) string {
+		func(rs h.ProfileSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("%s, %s", res, rs.Country())
 		})
 
-	pool.Profile().Methods().PrintAddress().Extend("",
-		func(rs pool.ProfileSet) string {
+	h.Profile().Methods().PrintAddress().Extend("",
+		func(rs h.ProfileSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	addressMI2 := pool.AddressMixIn()
+	addressMI2 := h.AddressMixIn()
 	addressMI2.Methods().SayHello().DeclareMethod(
 		`SayHello is a sample method layer for testing`,
-		func(rs pool.AddressMixInSet) string {
+		func(rs h.AddressMixInSet) string {
 			return "Hello !"
 		})
 
 	addressMI2.Methods().PrintAddress().DeclareMethod(
 		`PrintAddressMixIn is a sample method layer for testing`,
-		func(rs pool.AddressMixInSet) string {
+		func(rs h.AddressMixInSet) string {
 			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
 		})
 
 	addressMI2.Methods().PrintAddress().Extend("",
-		func(rs pool.AddressMixInSet) string {
+		func(rs h.AddressMixInSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("<%s>", res)
 		})
 
-	activeMI := pool.ActiveMixIn().DeclareMixinModel()
+	activeMI := h.ActiveMixIn().DeclareMixinModel()
 	activeMI.AddFields(map[string]models.FieldDefinition{
 		"Active": models.BooleanField{},
 	})
-	pool.ModelMixin().InheritModel(activeMI)
+	h.ModelMixin().InheritModel(activeMI)
 
 	// Chained declaration
-	activeMI1 := pool.ActiveMixIn()
+	activeMI1 := h.ActiveMixIn()
 	activeMI2 := activeMI1
 	activeMI2.Methods().IsActivated().DeclareMethod(
 		`IsACtivated is a sample method of ActiveMixIn"`,
-		func(rs pool.ActiveMixInSet) bool {
+		func(rs h.ActiveMixInSet) bool {
 			return rs.Active()
 		})
 
-	viewModel := pool.UserView().DeclareManualModel()
+	viewModel := h.UserView().DeclareManualModel()
 	viewModel.AddFields(map[string]models.FieldDefinition{
 		"Name": models.CharField{},
 		"City": models.CharField{},

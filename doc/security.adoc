@@ -98,13 +98,13 @@ chained
 
 [source,go]
 ----
-pool.Users().Methods().SayHello().DeclareMethod(
+h.Users().Methods().SayHello().DeclareMethod(
     "SayHello returns Hello",
-    func(rs pool.UsersSet) {
+    func(rs h.UsersSet) {
         return "Hello"
     }).
     AllowGroup(sale.GroupSalesman).
-    AllowGroup(stock.GroupPicker, pool.Users().Methods().Create())
+    AllowGroup(stock.GroupPicker, h.Users().Methods().Create())
     // Pickers can say hello only from the 'Create' method
 ----
 
@@ -112,7 +112,7 @@ pool.Users().Methods().SayHello().DeclareMethod(
 This is a helper method to grant access to all methods of a model at once:
 
 [source,go]
-pool.Users().Methods().AllowAllToGroup(GroupERPManager)
+h.Users().Methods().AllowAllToGroup(GroupERPManager)
 
 `*(*MethodCollection) RevokeAllFromGroup(group *security.Group)*`::
 Revokes permissions on all methods given by AllowAllToGroup.
@@ -158,7 +158,7 @@ chained.
 
 [source,go]
 salesManager := security.Registry.GetGroup("sale_manager")
-pool.Partner().Fields().Phone().
+h.Partner().Fields().Phone().
     RevokeAccess(security.GroupEveryOne, security.Read).
     AllowAccess(salesManager, security.Read)
 
@@ -203,11 +203,11 @@ rule's `Name` already exists, then the rule is overwritten.
 ----
 salesman := security.Registry.GetGroup("sale_user")
 
-func getUserID(rs pool.PartnerSet) interface{} {
+func getUserID(rs h.PartnerSet) interface{} {
     return rs.Env().Uid()
 }
 
-cond := pool.Partner().UserFilteredOn(pool.User().ID().EqualsFunc(getUserID))
+cond := q.Partner().UserFilteredOn(h.User().ID().EqualsFunc(getUserID))
 
 rule := models.RecordRule {
     Name:      "salesman_own_partner",
@@ -215,7 +215,7 @@ rule := models.RecordRule {
     Condition: cond,
     Perms:     security.All,
 }
-pool.Partner().AddRecordRule(&rule)
+h.Partner().AddRecordRule(&rule)
 ----
 
 `*(*Model) RemoveRecordRule(name string)*`::
@@ -223,7 +223,7 @@ Removes the Record Rule with the given `name` from the rule registry of the
 given `model`.
 
 [source,go]
-pool.Partner().RemoveRecordRule("salesman_own_partner")
+h.Partner().RemoveRecordRule("salesman_own_partner")
 
 === Record Rules combination
 

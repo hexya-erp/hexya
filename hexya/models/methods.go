@@ -272,7 +272,7 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 			// Target is a FieldMap, so we give the FieldMap of this FieldMapper
 			return reflect.ValueOf(at.FieldMap()), nil
 		}
-		// => Target is a struct pointer *pool.MyModelData
+		// => Target is a struct pointer *h.MyModelData
 		if fm, ok := at.(FieldMap); ok {
 			// Given arg is a FieldMap, so we map to our struct
 			val = reflect.New(fnctArgType.Elem())

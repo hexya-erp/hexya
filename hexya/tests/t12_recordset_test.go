@@ -19,7 +19,8 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/models/security"
-	"github.com/hexya-erp/hexya/pool"
+	"github.com/hexya-erp/hexya/pool/h"
+	"github.com/hexya-erp/hexya/pool/q"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -27,17 +28,17 @@ func TestCreateRecordSet(t *testing.T) {
 	Convey("Test record creation", t, func() {
 		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Creating simple user John with no relations and checking ID", func() {
-				userJohnData := pool.UserData{
+				userJohnData := h.UserData{
 					Name:    "John Smith",
 					Email:   "jsmith@example.com",
 					IsStaff: true,
 				}
-				userJohn := pool.User().Create(env, &userJohnData)
+				userJohn := h.User().Create(env, &userJohnData)
 				So(userJohn.Len(), ShouldEqual, 1)
 				So(userJohn.ID(), ShouldBeGreaterThan, 0)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Tags", func() {
-				profileData := pool.ProfileData{
+				profileData := h.ProfileData{
 					Age:     int16(23),
 					Money:   12345,
 					Street:  "165 5th Avenue",
@@ -45,43 +46,43 @@ func TestCreateRecordSet(t *testing.T) {
 					Zip:     "0305",
 					Country: "USA",
 				}
-				profile := pool.Profile().Create(env, &profileData)
+				profile := h.Profile().Create(env, &profileData)
 				So(profile.Len(), ShouldEqual, 1)
-				post1Data := pool.PostData{
+				post1Data := h.PostData{
 					Title:   "1st Post",
 					Content: "Content of first post",
 				}
-				post1 := pool.Post().Create(env, &post1Data)
+				post1 := h.Post().Create(env, &post1Data)
 				So(post1.Len(), ShouldEqual, 1)
-				post2Data := pool.PostData{
+				post2Data := h.PostData{
 					Title:   "2nd Post",
 					Content: "Content of second post",
 				}
-				post2 := pool.Post().Create(env, &post2Data)
+				post2 := h.Post().Create(env, &post2Data)
 				So(post2.Len(), ShouldEqual, 1)
 				posts := post1.Union(post2)
 				profile.SetBestPost(post1)
-				userJaneData := pool.UserData{
+				userJaneData := h.UserData{
 					Name:    "Jane Smith",
 					Email:   "jane.smith@example.com",
 					Profile: profile,
 					Posts:   posts,
 					Nums:    2,
 				}
-				userJane := pool.User().Create(env, &userJaneData)
+				userJane := h.User().Create(env, &userJaneData)
 				So(userJane.Len(), ShouldEqual, 1)
 				So(userJane.Profile().ID(), ShouldEqual, profile.ID())
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
 				So(post2.User().ID(), ShouldEqual, userJane.ID())
 				So(userJane.Posts().Len(), ShouldEqual, 2)
 
-				tag1 := pool.Tag().Create(env, &pool.TagData{
+				tag1 := h.Tag().Create(env, &h.TagData{
 					Name: "Trending",
 				})
-				tag2 := pool.Tag().Create(env, &pool.TagData{
+				tag2 := h.Tag().Create(env, &h.TagData{
 					Name: "Books",
 				})
-				tag3 := pool.Tag().Create(env, &pool.TagData{
+				tag3 := h.Tag().Create(env, &h.TagData{
 					Name: "Jane's",
 				})
 				post1.SetTags(tag1.Union(tag3))
@@ -96,31 +97,31 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
 			})
 			Convey("Creating a user Will Smith", func() {
-				userWillData := pool.UserData{
+				userWillData := h.UserData{
 					Name:  "Will Smith",
 					Email: "will.smith@example.com",
 				}
-				userWill := pool.User().Create(env, &userWillData)
+				userWill := h.User().Create(env, &userWillData)
 				So(userWill.Len(), ShouldEqual, 1)
 				So(userWill.ID(), ShouldBeGreaterThan, 0)
 			})
 			Convey("Checking constraint methods enforcement", func() {
-				tag1Data := &pool.TagData{
+				tag1Data := &h.TagData{
 					Name:        "Tag1",
 					Description: "Tag1",
 				}
-				So(func() { pool.Tag().Create(env, tag1Data) }, ShouldPanic)
-				tag2Data := &pool.TagData{
+				So(func() { h.Tag().Create(env, tag1Data) }, ShouldPanic)
+				tag2Data := &h.TagData{
 					Name: "Tag2",
 					Rate: 12,
 				}
-				So(func() { pool.Tag().Create(env, tag2Data) }, ShouldPanic)
-				tag3Data := &pool.TagData{
+				So(func() { h.Tag().Create(env, tag2Data) }, ShouldPanic)
+				tag3Data := &h.TagData{
 					Name:        "Tag2",
 					Description: "Tag2",
 					Rate:        -3,
 				}
-				So(func() { pool.Tag().Create(env, tag3Data) }, ShouldPanic)
+				So(func() { h.Tag().Create(env, tag3Data) }, ShouldPanic)
 			})
 		})
 	})
@@ -129,50 +130,50 @@ func TestCreateRecordSet(t *testing.T) {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
 			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot create records", func() {
-				userTomData := pool.UserData{
+				userTomData := h.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",
 				}
-				So(func() { pool.User().Create(env, &userTomData) }, ShouldPanic)
+				So(func() { h.User().Create(env, &userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
-				pool.User().Methods().Create().AllowGroup(group1)
-				pool.Resume().Methods().Create().AllowGroup(group1, pool.User().Methods().Write())
-				userTomData := pool.UserData{
+				h.User().Methods().Create().AllowGroup(group1)
+				h.Resume().Methods().Create().AllowGroup(group1, h.User().Methods().Write())
+				userTomData := h.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",
 				}
-				So(func() { pool.User().Create(env, &userTomData) }, ShouldPanic)
+				So(func() { h.User().Create(env, &userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for posts and it works", func() {
-				pool.Resume().Methods().Create().AllowGroup(group1, pool.User().Methods().Create())
-				userTomData := pool.UserData{
+				h.Resume().Methods().Create().AllowGroup(group1, h.User().Methods().Create())
+				userTomData := h.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",
 				}
-				userTom := pool.User().Create(env, &userTomData)
+				userTom := h.User().Create(env, &userTomData)
 				So(func() { userTom.Name() }, ShouldPanic)
 			})
 			Convey("Checking creation again with read rights too", func() {
-				pool.User().Methods().Load().AllowGroup(group1)
-				userTomData := pool.UserData{
+				h.User().Methods().Load().AllowGroup(group1)
+				userTomData := h.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",
 				}
-				userTom := pool.User().Create(env, &userTomData)
+				userTom := h.User().Create(env, &userTomData)
 				So(userTom.Name(), ShouldEqual, "Tom Smith")
 				So(userTom.Email(), ShouldEqual, "tsmith@example.com")
 			})
 			Convey("Removing Create right on Email field", func() {
-				pool.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Write)
-				userTomData := pool.UserData{
+				h.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Write)
+				userTomData := h.UserData{
 					Name:  "Tom Smith",
 					Email: "tsmith@example.com",
 				}
-				userTom := pool.User().Create(env, &userTomData)
+				userTom := h.User().Create(env, &userTomData)
 				So(userTom.Name(), ShouldEqual, "Tom Smith")
 				So(userTom.Email(), ShouldBeBlank)
-				pool.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Write)
+				h.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Write)
 			})
 		})
 	})
@@ -181,14 +182,9 @@ func TestCreateRecordSet(t *testing.T) {
 
 func TestSearchRecordSet(t *testing.T) {
 	Convey("Testing search through RecordSets", t, func() {
-		type UserStruct struct {
-			ID    int64
-			Name  string
-			Email string
-		}
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Searching User Jane", func() {
-				userJane := pool.User().Search(env, pool.User().Name().Equals("Jane Smith"))
+				userJane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(userJane.Len(), ShouldEqual, 1)
 				Convey("Reading Jane with getters", func() {
 					So(userJane.Name(), ShouldEqual, "Jane Smith")
@@ -210,7 +206,7 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 
 			Convey("Testing search all users", func() {
-				usersAll := pool.User().NewSet(env).OrderBy("Name").Load()
+				usersAll := h.User().NewSet(env).OrderBy("Name").Load()
 				So(usersAll.Len(), ShouldEqual, 3)
 				Convey("Reading first user with getters", func() {
 					So(usersAll.Name(), ShouldEqual, "Jane Smith")
@@ -232,9 +228,9 @@ func TestSearchRecordSet(t *testing.T) {
 			})
 
 			Convey("Testing search on manual model", func() {
-				userViews := pool.UserView().NewSet(env).SearchAll()
+				userViews := h.UserView().NewSet(env).SearchAll()
 				So(userViews.Len(), ShouldEqual, 3)
-				userViews = pool.UserView().NewSet(env).OrderBy("Name")
+				userViews = h.UserView().NewSet(env).OrderBy("Name")
 				So(userViews.Len(), ShouldEqual, 3)
 				recs := userViews.Records()
 				So(len(recs), ShouldEqual, 3)
@@ -252,14 +248,14 @@ func TestSearchRecordSet(t *testing.T) {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
 			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot access records", func() {
-				pool.User().Methods().Search().AllowGroup(group1)
-				userJane := pool.User().Search(env, pool.User().Name().Equals("Jane Smith"))
+				h.User().Methods().Search().AllowGroup(group1)
+				userJane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 and checking access", func() {
-				pool.User().Methods().Load().AllowGroup(group1)
+				h.User().Methods().Load().AllowGroup(group1)
 
-				userJane := pool.User().Search(env, pool.User().Name().Equals("Jane Smith"))
+				userJane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldNotPanic)
 				So(userJane.Name(), ShouldEqual, "Jane Smith")
 				So(userJane.Email(), ShouldEqual, "jane.smith@example.com")
@@ -267,43 +263,43 @@ func TestSearchRecordSet(t *testing.T) {
 				So(func() { userJane.Profile().Age() }, ShouldPanic)
 			})
 			Convey("Adding field access rights to user 2 and checking access", func() {
-				pool.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Read)
-				pool.User().Fields().Age().RevokeAccess(security.GroupEveryone, security.Read)
+				h.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Read)
+				h.User().Fields().Age().RevokeAccess(security.GroupEveryone, security.Read)
 
-				userJane := pool.User().Search(env, pool.User().Name().Equals("Jane Smith"))
+				userJane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldNotPanic)
 				So(userJane.Name(), ShouldEqual, "Jane Smith")
 				So(userJane.Email(), ShouldBeBlank)
 				So(userJane.Age(), ShouldEqual, 0)
 
-				pool.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Read)
-				pool.User().Fields().Age().GrantAccess(security.GroupEveryone, security.Read)
+				h.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Read)
+				h.User().Fields().Age().GrantAccess(security.GroupEveryone, security.Read)
 			})
 			Convey("Checking record rules", func() {
-				users := pool.User().NewSet(env).SearchAll()
+				users := h.User().NewSet(env).SearchAll()
 				So(users.Len(), ShouldEqual, 3)
 
 				rule := models.RecordRule{
 					Name:      "jOnly",
 					Group:     group1,
-					Condition: pool.User().Name().IContains("j").Condition,
+					Condition: q.User().Name().IContains("j").Condition,
 					Perms:     security.Read,
 				}
-				pool.User().AddRecordRule(&rule)
+				h.User().AddRecordRule(&rule)
 
 				notUsedRule := models.RecordRule{
 					Name:      "writeRule",
 					Group:     group1,
-					Condition: pool.User().Name().Equals("Nobody").Condition,
+					Condition: q.User().Name().Equals("Nobody").Condition,
 					Perms:     security.Write,
 				}
-				pool.User().AddRecordRule(&notUsedRule)
+				h.User().AddRecordRule(&notUsedRule)
 
-				users = pool.User().NewSet(env).SearchAll()
+				users = h.User().NewSet(env).SearchAll()
 				So(users.Len(), ShouldEqual, 2)
 				So(users.Records()[0].Name(), ShouldBeIn, []string{"Jane Smith", "John Smith"})
-				pool.User().RemoveRecordRule("jOnly")
-				pool.User().RemoveRecordRule("writeRule")
+				h.User().RemoveRecordRule("jOnly")
+				h.User().RemoveRecordRule("writeRule")
 			})
 		})
 	})
@@ -313,32 +309,32 @@ func TestSearchRecordSet(t *testing.T) {
 func TestAdvancedQueries(t *testing.T) {
 	Convey("Testing advanced queries on M2O relations", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
-			jane := pool.User().Search(env, pool.User().Name().Equals("Jane Smith"))
+			jane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 			So(jane.Len(), ShouldEqual, 1)
 			Convey("Condition on m2o relation fields", func() {
-				users := pool.User().Search(env, pool.User().Profile().Equals(jane.Profile()))
+				users := h.User().Search(env, q.User().Profile().Equals(jane.Profile()))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.ID(), ShouldEqual, jane.ID())
 			})
 			Convey("Empty RecordSet on m2o relation fields", func() {
-				users := pool.User().Search(env, pool.User().Profile().Equals(pool.Profile().NewSet(env)))
+				users := h.User().Search(env, q.User().Profile().Equals(h.Profile().NewSet(env)))
 				So(users.Len(), ShouldEqual, 2)
 			})
 			Convey("Empty RecordSet on m2o relation fields with IsNull", func() {
-				users := pool.User().Search(env, pool.User().Profile().IsNull())
+				users := h.User().Search(env, q.User().Profile().IsNull())
 				So(users.Len(), ShouldEqual, 2)
 			})
 			Convey("Condition on m2o relation fields with IN operator", func() {
-				users := pool.User().Search(env, pool.User().Profile().In(jane.Profile()))
+				users := h.User().Search(env, q.User().Profile().In(jane.Profile()))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.ID(), ShouldEqual, jane.ID())
 			})
 			Convey("Empty RecordSet on m2o relation fields with IN operator", func() {
-				users := pool.User().Search(env, pool.User().Profile().In(pool.Profile().NewSet(env)))
+				users := h.User().Search(env, q.User().Profile().In(h.Profile().NewSet(env)))
 				So(users.Len(), ShouldEqual, 0)
 			})
 			Convey("M2O chain", func() {
-				users := pool.User().Search(env, pool.User().ProfileFilteredOn(pool.Profile().BestPostFilteredOn(pool.Post().Title().Equals("1st Post"))))
+				users := h.User().Search(env, q.User().ProfileFilteredOn(q.Profile().BestPostFilteredOn(q.Post().Title().Equals("1st Post"))))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.ID(), ShouldEqual, jane.ID())
 			})
@@ -346,27 +342,27 @@ func TestAdvancedQueries(t *testing.T) {
 	})
 	Convey("Testing advanced queries on O2M relations", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
-			jane := pool.User().Search(env, pool.User().Name().Equals("Jane Smith"))
+			jane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 			So(jane.Len(), ShouldEqual, 1)
 			Convey("Conditions on o2m relation", func() {
-				users := pool.User().Search(env, pool.User().Posts().Equals(jane.Posts().Records()[0]))
+				users := h.User().Search(env, q.User().Posts().Equals(jane.Posts().Records()[0]))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
 			Convey("Conditions on o2m relation with IN operator", func() {
-				users := pool.User().Search(env, pool.User().Posts().In(jane.Posts()))
+				users := h.User().Search(env, q.User().Posts().In(jane.Posts()))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
 			Convey("Conditions on o2m relation with null", func() {
-				users := pool.User().Search(env, pool.User().Posts().IsNull())
+				users := h.User().Search(env, q.User().Posts().IsNull())
 				So(users.Len(), ShouldEqual, 2)
 				userRecs := users.Records()
 				So(userRecs[0].Name(), ShouldEqual, "John Smith")
 				So(userRecs[1].Name(), ShouldEqual, "Will Smith")
 			})
 			Convey("O2M Chain", func() {
-				users := pool.User().Search(env, pool.User().PostsFilteredOn(pool.Post().Title().Equals("1st Post")))
+				users := h.User().Search(env, q.User().PostsFilteredOn(q.Post().Title().Equals("1st Post")))
 				So(users.Len(), ShouldEqual, 1)
 				So(users.ID(), ShouldEqual, jane.ID())
 			})
@@ -374,29 +370,29 @@ func TestAdvancedQueries(t *testing.T) {
 	})
 	Convey("Testing advanced queries on M2M relations", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
-			post1 := pool.Post().Search(env, pool.Post().Title().Equals("1st Post"))
+			post1 := h.Post().Search(env, q.Post().Title().Equals("1st Post"))
 			So(post1.Len(), ShouldEqual, 1)
-			post2 := pool.Post().Search(env, pool.Post().Title().Equals("2nd Post"))
+			post2 := h.Post().Search(env, q.Post().Title().Equals("2nd Post"))
 			So(post2.Len(), ShouldEqual, 1)
-			tag1 := pool.Tag().Search(env, pool.Tag().Name().Equals("Trending"))
-			tag2 := pool.Tag().Search(env, pool.Tag().Name().Equals("Books"))
+			tag1 := h.Tag().Search(env, q.Tag().Name().Equals("Trending"))
+			tag2 := h.Tag().Search(env, q.Tag().Name().Equals("Books"))
 			So(tag1.Len(), ShouldEqual, 1)
 			Convey("Condition on m2m relation", func() {
-				posts := pool.Post().Search(env, pool.Post().Tags().Equals(tag1))
+				posts := h.Post().Search(env, q.Post().Tags().Equals(tag1))
 				So(posts.Len(), ShouldEqual, 1)
 				So(posts.ID(), ShouldEqual, post1.ID())
 			})
 			Convey("Condition on m2m relation with null", func() {
-				posts := pool.Post().Search(env, pool.Post().Tags().IsNull())
+				posts := h.Post().Search(env, q.Post().Tags().IsNull())
 				So(posts.Len(), ShouldEqual, 0)
 			})
 			Convey("Condition on m2m relation with IN operator", func() {
 				tags := tag1.Union(tag2)
-				posts := pool.Post().Search(env, pool.Post().Tags().In(tags))
+				posts := h.Post().Search(env, q.Post().Tags().In(tags))
 				So(posts.Len(), ShouldEqual, 2)
 			})
 			Convey("M2M Chain", func() {
-				posts := pool.Post().Search(env, pool.Post().TagsFilteredOn(pool.Tag().Name().Equals("Trending")))
+				posts := h.Post().Search(env, q.Post().TagsFilteredOn(q.Tag().Name().Equals("Trending")))
 				So(posts.Len(), ShouldEqual, 1)
 				So(posts.ID(), ShouldEqual, post1.ID())
 			})
@@ -408,21 +404,21 @@ func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
 		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Update on users Jane and John with Write and Set", func() {
-				jane := pool.User().Search(env, pool.User().Name().Equals("Jane Smith"))
+				jane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)
 				jane.Set("Name", "Jane A. Smith")
 				jane.Load()
 				So(jane.Name(), ShouldEqual, "Jane A. Smith")
 				So(jane.Email(), ShouldEqual, "jane.smith@example.com")
 
-				john := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
+				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := pool.UserData{
+				johnValues := h.UserData{
 					Email:   "jsmith2@example.com",
 					Nums:    13,
 					IsStaff: false,
 				}
-				john.Write(&johnValues, pool.User().Email(), pool.User().IsStaff())
+				john.Write(&johnValues, h.User().Email(), h.User().IsStaff())
 				john.Load()
 				So(john.Name(), ShouldEqual, "John Smith")
 				So(john.Email(), ShouldEqual, "jsmith2@example.com")
@@ -436,8 +432,8 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(john.IsStaff(), ShouldBeTrue)
 			})
 			Convey("Multiple updates at once on users", func() {
-				cond := pool.User().Name().Equals("Jane A. Smith").Or().Name().Equals("John Smith")
-				users := pool.User().Search(env, cond)
+				cond := q.User().Name().Equals("Jane A. Smith").Or().Name().Equals("John Smith")
+				users := h.User().Search(env, cond)
 				So(users.Len(), ShouldEqual, 2)
 				userRecs := users.Records()
 				So(userRecs[0].IsStaff(), ShouldBeTrue)
@@ -450,11 +446,11 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userRecs[0].IsStaff(), ShouldBeTrue)
 				So(userRecs[1].IsStaff(), ShouldBeTrue)
 
-				uData := pool.UserData{
+				uData := h.UserData{
 					IsStaff:  false,
 					IsActive: true,
 				}
-				users.Write(&uData, pool.User().IsActive(), pool.User().IsStaff())
+				users.Write(&uData, h.User().IsActive(), h.User().IsStaff())
 				users.Load()
 				So(userRecs[0].IsStaff(), ShouldBeFalse)
 				So(userRecs[1].IsStaff(), ShouldBeFalse)
@@ -462,52 +458,52 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userRecs[1].IsActive(), ShouldBeTrue)
 			})
 			Convey("Updating many2one fields", func() {
-				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+				userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 				profile := userJane.Profile()
-				userJane.SetProfile(pool.Profile().NewSet(env))
+				userJane.SetProfile(h.Profile().NewSet(env))
 				So(userJane.Profile().ID(), ShouldEqual, 0)
 				userJane.SetProfile(profile)
 				So(userJane.Profile().ID(), ShouldEqual, profile.Ids()[0])
 			})
 			Convey("Updating many2many fields", func() {
-				post1 := pool.Post().Search(env, pool.Post().Title().Equals("1st Post"))
-				tagBooks := pool.Tag().Search(env, pool.Tag().Name().Equals("Books"))
+				post1 := h.Post().Search(env, q.Post().Title().Equals("1st Post"))
+				tagBooks := h.Tag().Search(env, q.Tag().Name().Equals("Books"))
 				post1.SetTags(tagBooks)
 
 				post1Tags := post1.Tags()
 				So(post1Tags.Len(), ShouldEqual, 1)
 				So(post1Tags.Name(), ShouldEqual, "Books")
-				post2Tags := pool.Post().Search(env, pool.Post().Title().Equals("2nd Post")).Tags()
+				post2Tags := h.Post().Search(env, q.Post().Title().Equals("2nd Post")).Tags()
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Name(), ShouldBeIn, "Books", "Jane's")
 				So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
 			})
 			Convey("Updating One2many fields", func() {
-				posts := pool.Post().NewSet(env)
-				post1 := posts.Search(pool.Post().Title().Equals("1st Post"))
-				post2 := posts.Search(pool.Post().Title().Equals("2nd Post"))
-				post3 := posts.Create(&pool.PostData{
+				posts := h.Post().NewSet(env)
+				post1 := posts.Search(q.Post().Title().Equals("1st Post"))
+				post2 := posts.Search(q.Post().Title().Equals("2nd Post"))
+				post3 := posts.Create(&h.PostData{
 					Title:   "3rd Post",
 					Content: "Content of third post",
 				})
 				So(post3.Title(), ShouldEqual, "3rd Post")
 				So(post3.Content(), ShouldEqual, "Content of third post")
-				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+				userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 				userJane.SetPosts(post1.Union(post3))
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
 				So(post3.User().ID(), ShouldEqual, userJane.ID())
 				So(post2.User().ID(), ShouldEqual, 0)
 			})
 			Convey("Checking constraint methods enforcement", func() {
-				tag1 := pool.Tag().Search(env, pool.Tag().Name().Equals("Trending"))
+				tag1 := h.Tag().Search(env, q.Tag().Name().Equals("Trending"))
 				So(func() { tag1.SetDescription("Trending") }, ShouldPanic)
-				tag2 := pool.Tag().Search(env, pool.Tag().Name().Equals("Books"))
+				tag2 := h.Tag().Search(env, q.Tag().Name().Equals("Books"))
 				So(func() { tag2.SetRate(12) }, ShouldPanic)
 				So(func() {
-					tag2.Write(&pool.TagData{
+					tag2.Write(&h.TagData{
 						Description: "Books",
 						Rate:        -3,
-					}, pool.Tag().Description(), pool.Tag().Rate())
+					}, h.Tag().Description(), h.Tag().Rate())
 				}, ShouldPanic)
 			})
 		})
@@ -517,20 +513,20 @@ func TestUpdateRecordSet(t *testing.T) {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
 			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot update records", func() {
-				pool.User().Methods().Load().AllowGroup(group1)
-				john := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
+				h.User().Methods().Load().AllowGroup(group1)
+				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := pool.UserData{
+				johnValues := h.UserData{
 					Email: "jsmith3@example.com",
 					Nums:  13,
 				}
 				So(func() { john.Write(&johnValues) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 and check update", func() {
-				pool.User().Methods().Write().AllowGroup(group1)
-				john := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
+				h.User().Methods().Write().AllowGroup(group1)
+				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := pool.UserData{
+				johnValues := h.UserData{
 					Email: "jsmith3@example.com",
 					Nums:  13,
 				}
@@ -541,25 +537,25 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(john.Nums(), ShouldEqual, 13)
 			})
 			Convey("Checking that user 2 cannot update profile through UpdateCity method", func() {
-				pool.User().Methods().Load().AllowGroup(group1)
-				pool.User().Methods().UpdateCity().AllowGroup(group1)
-				jane := pool.User().Search(env, pool.User().Name().Equals("Jane A. Smith"))
+				h.User().Methods().Load().AllowGroup(group1)
+				h.User().Methods().UpdateCity().AllowGroup(group1)
+				jane := h.User().Search(env, q.User().Name().Equals("Jane A. Smith"))
 				So(jane.Len(), ShouldEqual, 1)
 				So(func() { jane.UpdateCity("London") }, ShouldPanic)
 			})
 			Convey("Checking that user 2 can run UpdateCity after giving permission for caller", func() {
-				pool.User().Methods().Load().AllowGroup(group1)
-				pool.Profile().Methods().Load().AllowGroup(group1, pool.User().Methods().UpdateCity())
-				pool.Profile().Methods().Write().AllowGroup(group1, pool.User().Methods().UpdateCity())
-				jane := pool.User().Search(env, pool.User().Name().Equals("Jane A. Smith"))
+				h.User().Methods().Load().AllowGroup(group1)
+				h.Profile().Methods().Load().AllowGroup(group1, h.User().Methods().UpdateCity())
+				h.Profile().Methods().Write().AllowGroup(group1, h.User().Methods().UpdateCity())
+				jane := h.User().Search(env, q.User().Name().Equals("Jane A. Smith"))
 				So(jane.Len(), ShouldEqual, 1)
 				So(func() { jane.UpdateCity("London") }, ShouldNotPanic)
 			})
 			Convey("Removing Update right on Email field", func() {
-				pool.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Write)
-				john := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
+				h.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Write)
+				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := pool.UserData{
+				johnValues := h.UserData{
 					Email: "jsmith3@example.com",
 					Nums:  13,
 				}
@@ -568,39 +564,39 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(john.Name(), ShouldEqual, "John Smith")
 				So(john.Email(), ShouldEqual, "jsmith2@example.com")
 				So(john.Nums(), ShouldEqual, 13)
-				pool.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Write)
+				h.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Write)
 			})
 			Convey("Checking record rules", func() {
-				userJane := pool.User().NewSet(env).SearchAll()
+				userJane := h.User().NewSet(env).SearchAll()
 				So(userJane.Len(), ShouldEqual, 3)
 
 				rule := models.RecordRule{
 					Name:      "jOnly",
 					Group:     group1,
-					Condition: pool.User().Name().IContains("j").Condition,
+					Condition: q.User().Name().IContains("j").Condition,
 					Perms:     security.Write,
 				}
-				pool.User().AddRecordRule(&rule)
+				h.User().AddRecordRule(&rule)
 
 				notUsedRule := models.RecordRule{
 					Name:      "unlinkRule",
 					Group:     group1,
-					Condition: pool.User().Name().Equals("Nobody").Condition,
+					Condition: q.User().Name().Equals("Nobody").Condition,
 					Perms:     security.Unlink,
 				}
-				pool.User().AddRecordRule(&notUsedRule)
+				h.User().AddRecordRule(&notUsedRule)
 
-				userJane = pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+				userJane = h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 				So(userJane.Len(), ShouldEqual, 1)
 				So(userJane.Name(), ShouldEqual, "Jane A. Smith")
 				userJane.SetName("Jane B. Smith")
 				So(userJane.Name(), ShouldEqual, "Jane B. Smith")
 
-				userWill := pool.User().Search(env, pool.User().Name().Equals("Will Smith"))
+				userWill := h.User().Search(env, q.User().Name().Equals("Will Smith"))
 				So(func() { userWill.SetName("Will Jr. Smith") }, ShouldPanic)
 
-				pool.User().RemoveRecordRule("jOnly")
-				pool.User().RemoveRecordRule("unlinkRule")
+				h.User().RemoveRecordRule("jOnly")
+				h.User().RemoveRecordRule("unlinkRule")
 			})
 		})
 	})
@@ -610,7 +606,7 @@ func TestUpdateRecordSet(t *testing.T) {
 func TestDeleteRecordSet(t *testing.T) {
 	Convey("Delete user John Smith", t, func() {
 		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
-			users := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
+			users := h.User().Search(env, q.User().Name().Equals("John Smith"))
 			num := users.Unlink()
 			Convey("Number of deleted record should be 1", func() {
 				So(num, ShouldEqual, 1)
@@ -622,13 +618,13 @@ func TestDeleteRecordSet(t *testing.T) {
 		models.SimulateInNewEnvironment(2, func(env models.Environment) {
 			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot unlink records", func() {
-				pool.User().Methods().Load().AllowGroup(group1)
-				users := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
+				h.User().Methods().Load().AllowGroup(group1)
+				users := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(func() { users.Unlink() }, ShouldPanic)
 			})
 			Convey("Adding unlink permission to user2", func() {
-				pool.User().Methods().Unlink().AllowGroup(group1)
-				users := pool.User().Search(env, pool.User().Name().Equals("John Smith"))
+				h.User().Methods().Unlink().AllowGroup(group1)
+				users := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				num := users.Unlink()
 				So(num, ShouldEqual, 1)
 			})
@@ -637,28 +633,28 @@ func TestDeleteRecordSet(t *testing.T) {
 				rule := models.RecordRule{
 					Name:      "jOnly",
 					Group:     group1,
-					Condition: pool.User().Name().IContains("j").Condition,
+					Condition: q.User().Name().IContains("j").Condition,
 					Perms:     security.Unlink,
 				}
-				pool.User().AddRecordRule(&rule)
+				h.User().AddRecordRule(&rule)
 
 				notUsedRule := models.RecordRule{
 					Name:      "writeRule",
 					Group:     group1,
-					Condition: pool.User().Name().Equals("Nobody").Condition,
+					Condition: q.User().Name().Equals("Nobody").Condition,
 					Perms:     security.Write,
 				}
-				pool.User().AddRecordRule(&notUsedRule)
+				h.User().AddRecordRule(&notUsedRule)
 
-				userJane := pool.User().Search(env, pool.User().Email().Equals("jane.smith@example.com"))
+				userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 				So(userJane.Len(), ShouldEqual, 1)
 				So(userJane.Unlink(), ShouldEqual, 1)
 
-				userWill := pool.User().Search(env, pool.User().Name().Equals("Will Smith"))
+				userWill := h.User().Search(env, q.User().Name().Equals("Will Smith"))
 				So(userWill.Unlink(), ShouldEqual, 0)
 
-				pool.User().RemoveRecordRule("jOnly")
-				pool.User().RemoveRecordRule("writeRule")
+				h.User().RemoveRecordRule("jOnly")
+				h.User().RemoveRecordRule("writeRule")
 			})
 		})
 	})

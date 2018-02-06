@@ -49,9 +49,9 @@ To translate such strings, they need to be passed to the `T()` method of a Recor
 
 [source,go]
 ----
-pool.OpenAcademyCourse().Methods().HelloWorld().DeclareMethod(
+h.OpenAcademyCourse().Methods().HelloWorld().DeclareMethod(
     `HelloWorld returns a localized "Hello World" message`,
-    func(rs pool.PartnerSet) string {
+    func(rs h.PartnerSet) string {
         return rs.T("Hello World")
     })
 
