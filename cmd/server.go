@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/hexya/actions"
 	"github.com/hexya-erp/hexya/hexya/controllers"
@@ -90,8 +91,20 @@ func StartServer(config map[string]interface{}) {
 	server.PostInit()
 	srv := server.GetServer()
 	address := fmt.Sprintf("%s:%s", viper.GetString("Server.Interface"), viper.GetString("Server.Port"))
-	log.Info("Hexya is up and running", "address", address)
-	srv.Run(address)
+	cert := viper.GetString("Server.Certificate")
+	key := viper.GetString("Server.PrivateKey")
+	domain := viper.GetString("Server.Domain")
+	switch {
+	case cert != "":
+		log.Info("Hexya is up and running HTTPS", "address", address, "cert", cert, "key", key)
+		srv.RunTLS(address, cert, key)
+	case domain != "":
+		log.Info("Hexya is up and running HTTPS auto", "address", address, "domain", domain)
+		autotls.Run(srv, domain)
+	default:
+		log.Info("Hexya is up and running HTTP", "address", address)
+		srv.Run(address)
+	}
 }
 
 // setupConfig takes the given config map and stores it into the viper configuration
@@ -132,6 +145,12 @@ func init() {
 	viper.BindPFlag("Server.Port", serverCmd.PersistentFlags().Lookup("port"))
 	serverCmd.PersistentFlags().StringSliceP("languages", "l", []string{}, "Comma separated list of language codes to load (ex: fr,de,es).")
 	viper.BindPFlag("Server.Languages", serverCmd.PersistentFlags().Lookup("languages"))
+	serverCmd.PersistentFlags().StringP("domain", "d", "", "Domain name of the server. When set, interface and port are set to 0.0.0.0:443 and it will automatically get an HTTPS certificate from Letsencrypt")
+	viper.BindPFlag("Server.Domain", serverCmd.PersistentFlags().Lookup("domain"))
+	serverCmd.PersistentFlags().StringP("certificate", "C", "", "Certificate file for HTTPS. If neither certificate nor domain is set, the server will run on plain HTTP. When certificate is set, private-key must also be set.")
+	viper.BindPFlag("Server.Certificate", serverCmd.PersistentFlags().Lookup("certificate"))
+	serverCmd.PersistentFlags().StringP("private-key", "K", "", "Private key file for HTTPS.")
+	viper.BindPFlag("Server.PrivateKey", serverCmd.PersistentFlags().Lookup("private-key"))
 	HexyaCmd.AddCommand(serverCmd)
 }
 

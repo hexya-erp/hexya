@@ -72,7 +72,7 @@ func (mc *modelCollection) GetSequence(nameOrJSON string) (s *Sequence, ok bool)
 	return
 }
 
-// MustGet the given sequence by name or by db name.
+// MustGetSequence gets the given sequence by name or by db name.
 // It panics if the Sequence does not exist
 func (mc *modelCollection) MustGetSequence(nameOrJSON string) *Sequence {
 	s, ok := mc.GetSequence(nameOrJSON)
