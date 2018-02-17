@@ -1,8 +1,8 @@
 language: go
 go:
- - 1.9
- - 1.10.x
- - tip
+ - "1.9"
+ - "1.10"
+ - "tip"
 
 addons:
   postgresql: "9.4"
