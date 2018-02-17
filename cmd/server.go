@@ -21,7 +21,6 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/gin-gonic/autotls"
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/hexya/actions"
 	"github.com/hexya-erp/hexya/hexya/controllers"
@@ -96,13 +95,10 @@ func StartServer(config map[string]interface{}) {
 	domain := viper.GetString("Server.Domain")
 	switch {
 	case cert != "":
-		log.Info("Hexya is up and running HTTPS", "address", address, "cert", cert, "key", key)
 		srv.RunTLS(address, cert, key)
 	case domain != "":
-		log.Info("Hexya is up and running HTTPS auto", "address", address, "domain", domain)
-		autotls.Run(srv, domain)
+		srv.RunAutoTLS(domain)
 	default:
-		log.Info("Hexya is up and running HTTP", "address", address)
 		srv.Run(address)
 	}
 }

@@ -15,12 +15,17 @@
 package server
 
 import (
+	"crypto/tls"
 	"encoding/json"
+	"net/http"
+	"path/filepath"
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
+	"github.com/spf13/viper"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // A Server is the http server of the application
@@ -35,6 +40,53 @@ func (s *Server) Group(relativePath string, handlers ...HandlerFunc) *RouterGrou
 	return &RouterGroup{
 		RouterGroup: *s.Engine.Group(relativePath, wrapContextFuncs(handlers...)...),
 	}
+}
+
+// Run attaches the router to a http.Server and starts listening and serving HTTP requests.
+// It is a shortcut for http.ListenAndServe(addr, router)
+// Note: this method will block the calling goroutine indefinitely unless an error happens.
+func (s *Server) Run(addr string) (err error) {
+	defer func() { log.Error("HTTP server stopped", err) }()
+
+	log.Info("Hexya is up and running HTTP", "address", addr)
+	err = http.ListenAndServe(addr, s)
+	return
+}
+
+// RunTLS attaches the router to a http.Server and starts listening and serving HTTPS (secure) requests.
+// It is a shortcut for http.ListenAndServeTLS(addr, certFile, keyFile, router)
+// Note: this method will block the calling goroutine indefinitely unless an error happens.
+func (s *Server) RunTLS(addr string, certFile string, keyFile string) (err error) {
+	defer func() { log.Error("HTTPS server stopped", err) }()
+
+	log.Info("Hexya is up and running HTTPS", "address", addr, "cert", certFile, "key", keyFile)
+	err = http.ListenAndServeTLS(addr, certFile, keyFile, s)
+	return
+}
+
+// RunAutoTLS attaches the router to a http.Server and starts listening and serving HTTPS (secure) requests on port 443
+// for all interfaces.
+// It automatically gets certificate for the given domain from Letsencrypt.
+// Note: this method will block the calling goroutine indefinitely unless an error happens.
+func (s *Server) RunAutoTLS(domain string) (err error) {
+	defer func() { log.Error("HTTPS server stopped", err) }()
+
+	log.Info("Hexya is up and running HTTPS auto", "domain", domain)
+
+	cacheDir := filepath.Join(viper.GetString("DataDir"), "autotls")
+	m := &autocert.Manager{
+		Cache:      autocert.DirCache(cacheDir),
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist(domain),
+	}
+	go http.ListenAndServe(":http", m.HTTPHandler(nil))
+	srv := &http.Server{
+		Addr:      ":https",
+		TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
+		Handler:   s,
+	}
+	err = srv.ListenAndServeTLS("", "")
+	return
 }
 
 // A RequestRPC is the message format expected from a client
