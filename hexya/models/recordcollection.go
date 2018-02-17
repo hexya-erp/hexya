@@ -30,12 +30,13 @@ import (
 // RecordCollection is a generic struct representing several
 // records of a model.
 type RecordCollection struct {
-	model    *Model
-	query    *Query
-	env      *Environment
-	ids      []int64
-	fetched  bool
-	filtered bool
+	model      *Model
+	query      *Query
+	env        *Environment
+	prefetchRC *RecordCollection
+	ids        []int64
+	fetched    bool
+	filtered   bool
 }
 
 // String returns the string representation of a RecordSet
@@ -486,7 +487,11 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 	if len(rc.query.groups) > 0 {
 		log.Panic("Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
 	}
-	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
+	rSet := rc.prefetchRC
+	if rSet == nil {
+		rSet = rc
+	}
+	rSet = rSet.addRecordRuleConditions(rc.env.uid, security.Read)
 	if len(rSet.query.orders) == 0 {
 		rSet.query.orders = rSet.model.defaultOrder
 	}
@@ -664,6 +669,7 @@ func (rc *RecordCollection) All(structSlicePtr interface{}) {
 	structType := sspType.Elem().Elem()
 	val.Elem().Set(reflect.MakeSlice(sspType, rc.Len(), rc.Len()))
 	recs := rc.Records()
+	rc.Load()
 	for i := 0; i < rc.Len(); i++ {
 		fMap := rc.env.cache.getRecord(rc.Model(), recs[i].ids[0])
 		newStructPtr := reflect.New(structType).Interface()
@@ -740,13 +746,11 @@ func (rc *RecordCollection) Condition() *Condition {
 // Records returns the slice of RecordCollection singletons that constitute this
 // RecordCollection.
 func (rc *RecordCollection) Records() []*RecordCollection {
-	if !rc.env.cache.checkIfInCache(rc.model, rc.Ids(), rc.model.fields.storedFieldNames()) {
-		rc.Load()
-	}
 	res := make([]*RecordCollection, rc.Len())
 	for i, id := range rc.Ids() {
 		newRC := newRecordCollection(rc.Env(), rc.ModelName())
 		res[i] = newRC.withIds([]int64{id})
+		res[i].prefetchRC = rc
 	}
 	return res
 }
