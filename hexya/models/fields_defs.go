@@ -18,8 +18,8 @@ import (
 
 // A FieldDefinition is a struct that declares a new field in a fields collection;
 type FieldDefinition interface {
-	// DeclareField adds this field to the given FieldsCollection with the given name.
-	DeclareField(*FieldsCollection, string)
+	// DeclareField creates a field for the given FieldsCollection with the given name and returns the created field.
+	DeclareField(*FieldsCollection, string) *Field
 }
 
 // A BinaryField is a field for storing binary data, such as images.
@@ -48,8 +48,8 @@ type BinaryField struct {
 	Default    func(Environment) interface{}
 }
 
-// DeclareField adds this binary field to the given FieldsCollection with the given name.
-func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a binary field for the given FieldsCollection with the given name.
+func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(string))
 	if bf.GoType != nil {
 		typ = reflect.TypeOf(bf.GoType).Elem()
@@ -85,7 +85,7 @@ func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A BooleanField is a field for storing true/false values.
@@ -112,8 +112,8 @@ type BooleanField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this boolean field to the given FieldsCollection with the given name.
-func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a boolean field for the given FieldsCollection with the given name.
+func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(bool))
 	if bf.GoType != nil {
 		typ = reflect.TypeOf(bf.GoType).Elem()
@@ -149,7 +149,7 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A CharField is a field for storing short text. There is no
@@ -178,8 +178,8 @@ type CharField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this char field to the given FieldsCollection with the given name.
-func (cf CharField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a char field for the given FieldsCollection with the given name.
+func (cf CharField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(string))
 	if cf.GoType != nil {
 		typ = reflect.TypeOf(cf.GoType).Elem()
@@ -216,7 +216,7 @@ func (cf CharField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A DateField is a field for storing dates without time.
@@ -243,8 +243,8 @@ type DateField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this date field to the given FieldsCollection with the given name.
-func (df DateField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a date field for the given FieldsCollection with the given name.
+func (df DateField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(dates.Date))
 	if df.GoType != nil {
 		typ = reflect.TypeOf(df.GoType).Elem()
@@ -280,7 +280,7 @@ func (df DateField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A DateTimeField is a field for storing dates with time.
@@ -307,8 +307,8 @@ type DateTimeField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this datetime field to the given FieldsCollection with the given name.
-func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a datetime field for the given FieldsCollection with the given name.
+func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(dates.DateTime))
 	if df.GoType != nil {
 		typ = reflect.TypeOf(df.GoType).Elem()
@@ -344,7 +344,7 @@ func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A FloatField is a field for storing decimal numbers.
@@ -370,8 +370,8 @@ type FloatField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this datetime field to the given FieldsCollection with the given name.
-func (ff FloatField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField adds this datetime field for the given FieldsCollection with the given name.
+func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(float64))
 	if ff.GoType != nil {
 		typ = reflect.TypeOf(ff.GoType).Elem()
@@ -407,7 +407,7 @@ func (ff FloatField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // An HTMLField is a field for storing HTML formatted strings.
@@ -435,8 +435,8 @@ type HTMLField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this html field to the given FieldsCollection with the given name.
-func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a html field for the given FieldsCollection with the given name.
+func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(string))
 	if tf.GoType != nil {
 		typ = reflect.TypeOf(tf.GoType).Elem()
@@ -473,7 +473,7 @@ func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // An IntegerField is a field for storing non decimal numbers.
@@ -498,8 +498,8 @@ type IntegerField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this datetime field to the given FieldsCollection with the given name.
-func (i IntegerField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a datetime field for the given FieldsCollection with the given name.
+func (i IntegerField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(int64))
 	if i.GoType != nil {
 		typ = reflect.TypeOf(i.GoType).Elem()
@@ -535,7 +535,7 @@ func (i IntegerField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A Many2ManyField is a field for storing many-to-many relations.
@@ -564,8 +564,8 @@ type Many2ManyField struct {
 	Default          func(Environment) interface{}
 }
 
-// DeclareField adds this many2many field to the given FieldsCollection with the given name.
-func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a many2many field for the given FieldsCollection with the given name.
+func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new([]int64)),
@@ -624,7 +624,7 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:         onchange,
 		constraint:       constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A Many2OneField is a field for storing many-to-one relations,
@@ -653,8 +653,8 @@ type Many2OneField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this many2one field to the given FieldsCollection with the given name.
-func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a many2one field for the given FieldsCollection with the given name.
+func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new(int64)),
@@ -703,7 +703,7 @@ func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) {
 		filter:           filter,
 		constraint:       constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A One2ManyField is a field for storing one-to-many relations.
@@ -730,8 +730,8 @@ type One2ManyField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this one2many field to the given FieldsCollection with the given name.
-func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a one2many field for the given FieldsCollection with the given name.
+func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new([]int64)),
@@ -768,7 +768,7 @@ func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:         onchange,
 		constraint:       constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A One2OneField is a field for storing one-to-one relations,
@@ -797,8 +797,8 @@ type One2OneField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this one2one field to the given FieldsCollection with the given name.
-func (of One2OneField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a one2one field for the given FieldsCollection with the given name.
+func (of One2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new(int64)),
@@ -847,7 +847,7 @@ func (of One2OneField) DeclareField(fc *FieldsCollection, name string) {
 		filter:           filter,
 		constraint:       constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A Rev2OneField is a field for storing reverse one-to-one relations,
@@ -875,8 +875,8 @@ type Rev2OneField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this rev2one field to the given FieldsCollection with the given name.
-func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a rev2one field for the given FieldsCollection with the given name.
+func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new(int64)),
@@ -913,7 +913,7 @@ func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:         onchange,
 		constraint:       constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A SelectionField is a field for storing a value from a preset list.
@@ -939,8 +939,8 @@ type SelectionField struct {
 	Default    func(Environment) interface{}
 }
 
-// DeclareField adds this selection field to the given FieldsCollection with the given name.
-func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a selection field for the given FieldsCollection with the given name.
+func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field {
 	structField := reflect.StructField{
 		Name: name,
 		Type: reflect.TypeOf(*new(string)),
@@ -971,7 +971,7 @@ func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:    onchange,
 		constraint:  constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
 }
 
 // A TextField is a field for storing long text. There is no
@@ -1000,8 +1000,8 @@ type TextField struct {
 	Default       func(Environment) interface{}
 }
 
-// DeclareField adds this text field to the given FieldsCollection with the given name.
-func (tf TextField) DeclareField(fc *FieldsCollection, name string) {
+// DeclareField creates a text field for the given FieldsCollection with the given name.
+func (tf TextField) DeclareField(fc *FieldsCollection, name string) *Field {
 	typ := reflect.TypeOf(*new(string))
 	if tf.GoType != nil {
 		typ = reflect.TypeOf(tf.GoType).Elem()
@@ -1038,7 +1038,27 @@ func (tf TextField) DeclareField(fc *FieldsCollection, name string) {
 		onChange:      onchange,
 		constraint:    constraint,
 	}
-	fc.add(fInfo)
+	return fInfo
+}
+
+// DummyField is used internally to inflate mixins. It should not be used.
+type DummyField struct{}
+
+// DeclareField creates a dummy field for the given FieldsCollection with the given name.
+func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
+	json, _ := getJSONAndString(name, fieldtype.NoType, "", "")
+	fInfo := &Field{
+		model: fc.model,
+		acl:   security.NewAccessControlList(),
+		name:  name,
+		json:  json,
+		structField: reflect.StructField{
+			Name: name,
+			Type: reflect.TypeOf(*new(bool)),
+		},
+		fieldType: fieldtype.NoType,
+	}
+	return fInfo
 }
 
 // getJSONAndString computes the default json and description fields for the
@@ -1076,31 +1096,101 @@ func getFuncNames(compute, inverse, onchange, constraint Methoder) (string, stri
 // AddFields adds the given fields to the model.
 func (m *Model) AddFields(fields map[string]FieldDefinition) {
 	for name, field := range fields {
-		field.DeclareField(m.fields, name)
+		newField := field.DeclareField(m.fields, name)
+		if _, exists := m.fields.Get(name); exists {
+			log.Panic("Field already exists", "model", m.name, "field", name)
+		}
+		m.fields.add(newField)
+	}
+}
+
+// addUpdate adds an update entry for for this field with the given property and the given value
+func (f *Field) addUpdate(property string, value interface{}) {
+	if Registry.bootstrapped {
+		log.Panic("Fields must not be modified after bootstrap", "model", f.model.name, "field", f.name, "property", property, "value", value)
+	}
+	update := map[string]interface{}{property: value}
+	f.updates = append(f.updates, update)
+}
+
+// setProperty sets the given property value in this field
+// This method uses switch as they are unexported struct fields
+func (f *Field) setProperty(property string, value interface{}) {
+	switch property {
+	case "description":
+		f.description = value.(string)
+	case "help":
+		f.help = value.(string)
+	case "stored":
+		f.stored = value.(bool)
+	case "required":
+		f.required = value.(bool)
+	case "unique":
+		f.unique = value.(bool)
+	case "index":
+		f.index = value.(bool)
+	case "compute":
+		f.compute = value.(string)
+	case "depends":
+		f.depends = value.([]string)
+	case "selection":
+		f.selection = value.(types.Selection)
+	case "groupOperator":
+		f.groupOperator = value.(string)
+	case "size":
+		f.size = value.(int)
+	case "digits":
+		f.digits = value.(nbutils.Digits)
+	case "relatedPath":
+		f.relatedPath = value.(string)
+	case "embed":
+		f.embed = value.(bool)
+	case "noCopy":
+		f.noCopy = value.(bool)
+	case "defaultFunc":
+		f.defaultFunc = value.(func(Environment) interface{})
+	case "onDelete":
+		f.onDelete = value.(OnDeleteAction)
+	case "onChange":
+		f.onChange = value.(string)
+	case "constraint":
+		f.constraint = value.(string)
+	case "inverse":
+		f.inverse = value.(string)
+	case "filter":
+		f.filter = value.(*Condition)
+	case "translate":
+		f.translate = value.(bool)
 	}
 }
 
 // SetString overrides the value of the String parameter of this Field
 func (f *Field) SetString(value string) *Field {
-	f.description = value
+	f.addUpdate("description", value)
 	return f
 }
 
 // SetHelp overrides the value of the Help parameter of this Field
 func (f *Field) SetHelp(value string) *Field {
-	f.help = value
+	f.addUpdate("help", value)
 	return f
 }
 
 // SetGroupOperator overrides the value of the GroupOperator parameter of this Field
 func (f *Field) SetGroupOperator(value string) *Field {
-	f.groupOperator = value
+	f.addUpdate("groupOperator", value)
 	return f
 }
 
 // SetRelated overrides the value of the Related parameter of this Field
 func (f *Field) SetRelated(value string) *Field {
-	f.relatedPath = value
+	f.addUpdate("relatedPath", value)
+	return f
+}
+
+// SetOnDelete overrides the value of the OnDelete parameter of this Field
+func (f *Field) SetOnDelete(value OnDeleteAction) *Field {
+	f.addUpdate("onDelete", value)
 	return f
 }
 
@@ -1110,70 +1200,86 @@ func (f *Field) SetCompute(value Methoder) *Field {
 	if value != nil {
 		methName = value.Underlying().name
 	}
-	f.compute = methName
+	f.addUpdate("compute", methName)
 	return f
 }
 
 // SetDepends overrides the value of the Depends parameter of this Field
 func (f *Field) SetDepends(value []string) *Field {
-	f.depends = value
+	f.addUpdate("depends", value)
 	return f
 }
 
 // SetStored overrides the value of the Stored parameter of this Field
 func (f *Field) SetStored(value bool) *Field {
-	f.stored = value
+	f.addUpdate("stored", value)
 	return f
 }
 
 // SetRequired overrides the value of the Required parameter of this Field
 func (f *Field) SetRequired(value bool) *Field {
-	f.required = value
+	f.addUpdate("required", value)
 	return f
 }
 
 // SetUnique overrides the value of the Unique parameter of this Field
 func (f *Field) SetUnique(value bool) *Field {
-	f.unique = value
+	f.addUpdate("unique", value)
 	return f
 }
 
 // SetIndex overrides the value of the Index parameter of this Field
 func (f *Field) SetIndex(value bool) *Field {
-	f.index = value
+	f.addUpdate("index", value)
+	return f
+}
+
+// SetEmbed overrides the value of the Embed parameter of this Field
+func (f *Field) SetEmbed(value bool) *Field {
+	f.addUpdate("embed", value)
+	return f
+}
+
+// SetSize overrides the value of the Size parameter of this Field
+func (f *Field) SetSize(value int) *Field {
+	f.addUpdate("size", value)
+	return f
+}
+
+// SetDigits overrides the value of the Digits parameter of this Field
+func (f *Field) SetDigits(value nbutils.Digits) *Field {
+	f.addUpdate("digits", value)
 	return f
 }
 
 // SetNoCopy overrides the value of the NoCopy parameter of this Field
 func (f *Field) SetNoCopy(value bool) *Field {
-	f.noCopy = value
+	f.addUpdate("noCopy", value)
 	return f
 }
 
 // SetTranslate overrides the value of the Translate parameter of this Field
 func (f *Field) SetTranslate(value bool) *Field {
-	f.translate = value
+	f.addUpdate("translate", value)
 	return f
 }
 
 // SetDefault overrides the value of the Default parameter of this Field
 func (f *Field) SetDefault(value func(Environment) interface{}) *Field {
-	f.defaultFunc = value
+	f.addUpdate("defaultFunc", value)
 	return f
 }
 
 // SetSelection overrides the value of the Selection parameter of this Field
 func (f *Field) SetSelection(value types.Selection) *Field {
-	f.selection = value
+	f.addUpdate("selection", value)
 	return f
 }
 
 // UpdateSelection updates the value of the Selection parameter of this Field
 // with the given value. Existing keys are overridden.
 func (f *Field) UpdateSelection(value types.Selection) *Field {
-	for k, v := range value {
-		f.selection[k] = v
-	}
+	f.addUpdate("selection_add", value)
 	return f
 }
 
@@ -1183,7 +1289,7 @@ func (f *Field) SetOnchange(value Methoder) *Field {
 	if value != nil {
 		methName = value.Underlying().name
 	}
-	f.onChange = methName
+	f.addUpdate("onChange", methName)
 	return f
 }
 
@@ -1193,7 +1299,7 @@ func (f *Field) SetConstraint(value Methoder) *Field {
 	if value != nil {
 		methName = value.Underlying().name
 	}
-	f.constraint = methName
+	f.addUpdate("constraint", methName)
 	return f
 }
 
@@ -1203,6 +1309,12 @@ func (f *Field) SetInverse(value Methoder) *Field {
 	if value != nil {
 		methName = value.Underlying().name
 	}
-	f.inverse = methName
+	f.addUpdate("inverse", methName)
+	return f
+}
+
+// SetFilter overrides the value of the Filter parameter of this Field
+func (f *Field) SetFilter(value Conditioner) *Field {
+	f.addUpdate("filter", value.Underlying())
 	return f
 }

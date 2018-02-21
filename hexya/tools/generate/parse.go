@@ -115,6 +115,7 @@ type FieldASTData struct {
 	RelModel    string
 	Type        TypeData
 	IsRS        bool
+	MixinField  bool
 	embed       bool
 }
 
@@ -242,6 +243,10 @@ func inflateMixins(modelName string, modelsData *map[string]ModelASTData) {
 	for mixin := range (*modelsData)[modelName].Mixins {
 		inflateMixins(mixin, modelsData)
 		for fieldName, field := range (*modelsData)[mixin].Fields {
+			if fieldName == "ID" {
+				continue
+			}
+			field.MixinField = true
 			(*modelsData)[modelName].Fields[fieldName] = field
 		}
 		for methodName, method := range (*modelsData)[mixin].Methods {
