@@ -20,12 +20,13 @@ import (
 
 // A fieldData describes a field in a RecordSet
 type fieldData struct {
-	Name     string
-	JSON     string
-	RelModel string
-	Type     string
-	SanType  string
-	IsRS     bool
+	Name       string
+	JSON       string
+	RelModel   string
+	Type       string
+	SanType    string
+	IsRS       bool
+	MixinField bool
 }
 
 // A returnType characterizes a return value of a method
@@ -399,12 +400,13 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 		}
 		jsonName := strutils.GetDefaultString(fieldASTData.JSON, strutils.SnakeCaseString(fieldName))
 		modelData.Fields = append(modelData.Fields, fieldData{
-			Name:     fieldName,
-			JSON:     jsonName,
-			Type:     typStr,
-			IsRS:     fieldASTData.IsRS,
-			RelModel: fieldASTData.RelModel,
-			SanType:  createTypeIdent(typStr),
+			Name:       fieldName,
+			JSON:       jsonName,
+			Type:       typStr,
+			IsRS:       fieldASTData.IsRS,
+			RelModel:   fieldASTData.RelModel,
+			SanType:    createTypeIdent(typStr),
+			MixinField: fieldASTData.MixinField,
 		})
 		(*depsMap)[fieldASTData.Type.ImportPath] = true
 	}
@@ -854,6 +856,11 @@ func init() {
 {{ if .ToDeclare }}	{{ $.Name }}().AddEmptyMethod("{{ .Name }}")
 {{ end -}}
 {{- end }}
+	{{ $.Name }}().AddFields(map[string]models.FieldDefinition{
+{{- range .Fields -}}
+{{ if .MixinField }}		"{{ .Name }}": models.DummyField{},{{ end }}
+{{ end -}}
+	})
 }
 `))
 

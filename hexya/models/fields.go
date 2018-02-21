@@ -207,6 +207,7 @@ type Field struct {
 	inverse          string
 	filter           *Condition
 	translate        bool
+	updates          []map[string]interface{}
 }
 
 // isComputedField returns true if this field is computed

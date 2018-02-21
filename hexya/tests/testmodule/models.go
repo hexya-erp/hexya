@@ -121,9 +121,9 @@ func init() {
 		"Money":    models.FloatField{},
 		"User":     models.Many2OneField{RelationModel: h.User()},
 		"BestPost": models.One2OneField{RelationModel: h.Post()},
-		"City":     models.CharField{},
 		"Country":  models.CharField{},
 	})
+	profile.Fields().Zip().SetString("Zip Code")
 
 	post := h.Post().DeclareModel()
 	post.AddFields(map[string]models.FieldDefinition{

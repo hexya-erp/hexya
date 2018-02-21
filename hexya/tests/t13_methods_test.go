@@ -53,6 +53,7 @@ func TestComputedNonStoredFields(t *testing.T) {
 			})
 			Convey("Testing built-in DisplayName", func() {
 				users := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
+				So(users.Len(), ShouldEqual, 1)
 				So(users.DisplayName(), ShouldEqual, "Jane A. Smith")
 			})
 		})

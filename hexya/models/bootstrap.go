@@ -19,6 +19,7 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
+	"github.com/hexya-erp/hexya/hexya/models/types"
 )
 
 // A modelCouple holds a model and one of its mixin
@@ -42,6 +43,7 @@ func BootStrap() {
 	Registry.bootstrapped = true
 
 	inflateMixIns()
+	processUpdates()
 	createModelLinks()
 	inflateEmbeddings()
 	syncRelatedFieldInfo()
@@ -50,6 +52,26 @@ func BootStrap() {
 	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
+}
+
+// processUpdates applies all the directives of the update map to the fields
+func processUpdates() {
+	for _, model := range Registry.registryByName {
+		for _, fi := range model.fields.registryByName {
+			for _, update := range fi.updates {
+				for property, value := range update {
+					if property == "selection_add" {
+						for k, v := range value.(types.Selection) {
+							fi.selection[k] = v
+						}
+						continue
+					}
+					fi.setProperty(property, value)
+				}
+			}
+			fi.updates = nil
+		}
+	}
 }
 
 // createModelLinks create links with related Model
@@ -157,12 +179,19 @@ func addMixinMethods(mixinModel, model *Model) {
 // addMixinFields adds the fields of mixinModel into model
 func addMixinFields(mixinModel, model *Model) {
 	for fName, fi := range mixinModel.fields.registryByName {
-		if _, exists := model.fields.registryByName[fName]; exists {
-			// We do not add fields that already exist in the targetModel
-			// since the target model should always override mixins.
-			continue
-		}
+		existingFI, exists := model.fields.registryByName[fName]
 		newFI := *fi
+		if exists {
+			if existingFI.fieldType != fieldtype.NoType {
+				// We do not add fields that already exist in the targetModel
+				// since the target model should always override mixins.
+				continue
+			}
+			// We extract updates from our DummyField and remove it from the registry
+			newFI.updates = append(newFI.updates, existingFI.updates...)
+			delete(model.fields.registryByJSON, existingFI.json)
+			delete(model.fields.registryByName, existingFI.name)
+		}
 		newFI.model = model
 		newFI.acl = security.NewAccessControlList()
 		if newFI.fieldType == fieldtype.Many2Many {

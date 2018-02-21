@@ -111,18 +111,6 @@ func TestBootStrap(t *testing.T) {
 			So(testAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
 		})
 	})
-	Convey("Making small changes to test DB sync", t, func() {
-		Convey("Modifying Required and Default values", func() {
-			numsField := Registry.MustGet("User").Fields().MustGet("Nums")
-			numsField.SetDefault(nil).SetIndex(false)
-			So(numsField.defaultFunc, ShouldBeNil)
-			So(numsField.index, ShouldBeFalse)
-			profileField := Registry.MustGet("User").Fields().MustGet("Profile")
-			profileField.SetRequired(false)
-			So(profileField.required, ShouldBeFalse)
-			So(SyncDatabase, ShouldNotPanic)
-		})
-	})
 
 	Convey("Truncating all tables...", t, func() {
 		for tn, mi := range Registry.registryByTableName {
