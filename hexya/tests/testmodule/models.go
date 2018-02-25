@@ -71,6 +71,7 @@ func init() {
 		"Nums":      models.IntegerField{GoType: new(int)},
 		"Size":      models.FloatField{},
 	})
+	user.Fields().Experience().SetString("Professional Experience")
 
 	user.Methods().PrefixedUser().DeclareMethod(
 		`PrefixedUser is a sample method layer for testing`,
