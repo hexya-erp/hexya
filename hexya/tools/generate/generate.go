@@ -27,6 +27,7 @@ type fieldData struct {
 	SanType    string
 	IsRS       bool
 	MixinField bool
+	EmbedField bool
 }
 
 // A returnType characterizes a return value of a method
@@ -407,6 +408,7 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 			RelModel:   fieldASTData.RelModel,
 			SanType:    createTypeIdent(typStr),
 			MixinField: fieldASTData.MixinField,
+			EmbedField: fieldASTData.EmbedField,
 		})
 		(*depsMap)[fieldASTData.Type.ImportPath] = true
 	}
@@ -858,7 +860,7 @@ func init() {
 {{- end }}
 	{{ $.Name }}().AddFields(map[string]models.FieldDefinition{
 {{- range .Fields -}}
-{{ if .MixinField }}		"{{ .Name }}": models.DummyField{},{{ end }}
+{{ if or .MixinField .EmbedField}}		"{{ .Name }}": models.DummyField{},{{ end }}
 {{ end -}}
 	})
 }

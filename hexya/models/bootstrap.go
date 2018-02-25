@@ -43,9 +43,9 @@ func BootStrap() {
 	Registry.bootstrapped = true
 
 	inflateMixIns()
-	processUpdates()
 	createModelLinks()
 	inflateEmbeddings()
+	processUpdates()
 	syncRelatedFieldInfo()
 	bootStrapMethods()
 	processDepends()
@@ -211,28 +211,34 @@ func addMixinFields(mixinModel, model *Model) {
 
 // inflateEmbeddings creates related fields for all fields of embedded models.
 func inflateEmbeddings() {
-	for _, mi := range Registry.registryByName {
-		for _, fi := range mi.fields.registryByName {
+	for _, model := range Registry.registryByName {
+		for _, fi := range model.fields.registryByName {
 			if !fi.embed {
 				continue
 			}
 			for relName, relFI := range fi.relatedModel.fields.registryByName {
-				if _, ok := mi.fields.Get(relName); ok {
-					// Don't add the field if we have a field with the same name
-					// in our model (shadowing).
-					continue
-				}
-				fInfo := Field{
+				newFI := Field{
 					name:        relName,
 					json:        relFI.json,
 					acl:         security.NewAccessControlList(),
-					model:       mi,
+					model:       model,
 					stored:      fi.stored,
 					structField: relFI.structField,
 					noCopy:      true,
 					relatedPath: fmt.Sprintf("%s%s%s", fi.name, ExprSep, relName),
 				}
-				mi.fields.add(&fInfo)
+				if existingFI, ok := model.fields.Get(relName); ok {
+					if existingFI.fieldType != fieldtype.NoType {
+						// We do not add fields that already exist in the targetModel
+						// since the target model should always override mixins.
+						continue
+					}
+					// We extract updates from our DummyField and remove it from the registry
+					newFI.updates = append(newFI.updates, existingFI.updates...)
+					delete(model.fields.registryByJSON, existingFI.json)
+					delete(model.fields.registryByName, existingFI.name)
+				}
+				model.fields.add(&newFI)
 			}
 		}
 	}

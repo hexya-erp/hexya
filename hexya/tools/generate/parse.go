@@ -116,6 +116,7 @@ type FieldASTData struct {
 	Type        TypeData
 	IsRS        bool
 	MixinField  bool
+	EmbedField  bool
 	embed       bool
 }
 
@@ -232,6 +233,10 @@ func inflateEmbeds(modelName string, modelsData *map[string]ModelASTData) {
 		relModel := (*modelsData)[modelName].Fields[emb].RelModel
 		inflateEmbeds(relModel, modelsData)
 		for fieldName, field := range (*modelsData)[relModel].Fields {
+			if fieldName == "ID" {
+				continue
+			}
+			field.EmbedField = true
 			(*modelsData)[modelName].Fields[fieldName] = field
 		}
 	}
