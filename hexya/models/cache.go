@@ -223,6 +223,9 @@ func (c *cache) getRecord(model *Model, id int64) FieldMap {
 // checkIfInCache returns true if all fields given by fieldNames are available
 // in cache for all the records with the given ids in the given model.
 func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string) bool {
+	if len(ids) == 0 {
+		return false
+	}
 	for _, id := range ids {
 		for _, fName := range fieldNames {
 			ref, path, err := c.getRelatedRef(mi, id, fName)

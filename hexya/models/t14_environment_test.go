@@ -15,6 +15,7 @@
 package models
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
@@ -148,6 +149,15 @@ func TestEnvironment(t *testing.T) {
 				}
 				So(userJane.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 2)
 			})
+			Convey("Creating an extra post should update jane's posts", func() {
+				userJane.Load("Posts")
+				So(userJane.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 2)
+				env.Pool("Post").Call("Create", FieldMap{
+					"Title": "Extra Post",
+					"User":  userJane,
+				})
+				So(userJane.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 3)
+			})
 			Convey("Reading M2M fields should work both ways", func() {
 				postModel := env.Pool("Post").Model()
 				tagModel := env.Pool("Tag").Model()
@@ -191,6 +201,50 @@ func TestEnvironment(t *testing.T) {
 				decoratedName := userJane.Get("DecoratedName")
 				So(env.cache.data[janeCacheRef], ShouldContainKey, "decorated_name")
 				So(env.cache.data[janeCacheRef]["decorated_name"], ShouldEqual, decoratedName)
+			})
+		})
+	})
+	Convey("Testing prefetch", t, func() {
+		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			users := env.Pool("User")
+			userSet := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com").
+				Or().Field("name").Equals("John Smith"))
+			So(userSet.fetched, ShouldBeFalse)
+			So(env.cache.checkIfInCache(users.Model(), userSet.ids, []string{"Name"}), ShouldBeFalse)
+			Convey("Loading one record should load all of its original record", func() {
+				records := userSet.Records()
+				So(userSet.fetched, ShouldBeTrue)
+				So(records, ShouldHaveLength, 2)
+				So(records[0].fetched, ShouldBeTrue)
+				So(records[1].fetched, ShouldBeTrue)
+				sort.Slice(records, func(i, j int) bool {
+					return records[i].Get("ID").(int64) < records[j].Get("ID").(int64)
+				})
+				So(env.cache.checkIfInCache(users.Model(), userSet.ids, []string{"Name"}), ShouldBeFalse)
+				name, fetched := records[0].get("Name", false)
+				So(name, ShouldEqual, "John Smith")
+				So(fetched, ShouldBeTrue)
+				name2, fetched2 := records[1].get("Name", false)
+				So(name2, ShouldEqual, "Jane A. Smith")
+				So(fetched2, ShouldBeFalse)
+			})
+			Convey("Returned recordset by Load should be the right one", func() {
+				records := userSet.Records()
+				sort.Slice(records, func(i, j int) bool {
+					return records[i].Get("ID").(int64) < records[j].Get("ID").(int64)
+				})
+				rc := records[0].Load()
+				So(rc.Equals(records[0]), ShouldBeTrue)
+			})
+			Convey("Nested records", func() {
+				records := userSet.Records()
+				sort.Slice(records, func(i, j int) bool {
+					return records[i].Get("ID").(int64) < records[j].Get("ID").(int64)
+				})
+				postsJohn := records[0].Get("Posts").(*RecordCollection).Records()
+				postsJane := records[1].Get("Posts").(*RecordCollection).Records()
+				So(postsJohn, ShouldHaveLength, 0)
+				So(postsJane, ShouldHaveLength, 2)
 			})
 		})
 	})

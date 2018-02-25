@@ -92,6 +92,7 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	sql, args := rc.query.insertQuery(storedFieldMap)
 	rc.env.cr.Get(&createdId, sql, args...)
 
+	rc.env.cache.addRecord(rc.model, createdId, storedFieldMap)
 	rSet := rc.withIds([]int64{createdId})
 	// update reverse relation fields
 	rSet.updateRelationFields(fMap)
@@ -487,9 +488,12 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 	if len(rc.query.groups) > 0 {
 		log.Panic("Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
 	}
-	rSet := rc.prefetchRC
-	if rSet == nil {
-		rSet = rc
+	rSet := rc
+	var prefetch bool
+	if !rc.prefetchRC.IsEmpty() && len(rc.ids) > 0 {
+		// We have a prefetch recordSet and our ids are already fetched
+		prefetch = true
+		rSet = rc.prefetchRC
 	}
 	rSet = rSet.addRecordRuleConditions(rc.env.uid, security.Read)
 	if len(rSet.query.orders) == 0 {
@@ -520,6 +524,9 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 
 	rSet = rSet.withIds(ids)
 	rSet.loadRelationFields(fields)
+	if prefetch {
+		return rc
+	}
 	return rSet
 }
 
@@ -557,11 +564,14 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc *RecordCollection) Get(fieldName string) interface{} {
+	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	rc.Fetch()
 	fi := rc.model.fields.MustGet(fieldName)
 	var res interface{}
 
 	switch {
+	case !checkFieldPermission(fi, rc.env.uid, security.Read):
+		res = nil
 	case rc.IsEmpty():
 		res = reflect.Zero(fi.structField.Type).Interface()
 	case fi.isComputedField() && !fi.isStored():
@@ -653,6 +663,7 @@ func (rc *RecordCollection) First(structPtr interface{}) {
 	}
 	rc.Load(fields...)
 	fMap := rc.env.cache.getRecord(rc.Model(), rc.ids[0])
+	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Read)
 	MapToStruct(rc, structPtr, fMap)
 }
 
@@ -672,6 +683,7 @@ func (rc *RecordCollection) All(structSlicePtr interface{}) {
 	rc.Load()
 	for i := 0; i < rc.Len(); i++ {
 		fMap := rc.env.cache.getRecord(rc.Model(), recs[i].ids[0])
+		fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Read)
 		newStructPtr := reflect.New(structType).Interface()
 		MapToStruct(rc, newStructPtr, fMap)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))

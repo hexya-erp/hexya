@@ -15,9 +15,9 @@
 package models
 
 import (
-	"testing"
-
 	"fmt"
+	"sort"
+	"testing"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	. "github.com/smartystreets/goconvey/convey"
@@ -239,6 +239,9 @@ func TestSearchRecordSet(t *testing.T) {
 					So(userJane.Get("Profile").(RecordSet).Collection().Get("Country"), ShouldEqual, "USA")
 					So(userJane.Get("Profile").(RecordSet).Collection().Get("Zip"), ShouldEqual, "0305")
 					recs := userJane.Get("Posts").(RecordSet).Collection().Records()
+					sort.Slice(recs, func(i, j int) bool {
+						return recs[i].Get("Title").(string) < recs[j].Get("Title").(string)
+					})
 					So(recs, ShouldHaveLength, 2)
 					So(recs[0].Get("Title"), ShouldEqual, "1st Post")
 					So(recs[1].Get("Title"), ShouldEqual, "2nd Post")
