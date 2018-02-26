@@ -233,11 +233,12 @@ func inflateEmbeds(modelName string, modelsData *map[string]ModelASTData) {
 		relModel := (*modelsData)[modelName].Fields[emb].RelModel
 		inflateEmbeds(relModel, modelsData)
 		for fieldName, field := range (*modelsData)[relModel].Fields {
-			if fieldName == "ID" {
+			if _, exists := (*modelsData)[modelName].Fields[fieldName]; exists {
 				continue
 			}
-			field.EmbedField = true
-			(*modelsData)[modelName].Fields[fieldName] = field
+			embeddedField := field
+			embeddedField.EmbedField = true
+			(*modelsData)[modelName].Fields[fieldName] = embeddedField
 		}
 	}
 }
