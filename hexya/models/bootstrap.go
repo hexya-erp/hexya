@@ -230,7 +230,7 @@ func inflateEmbeddings() {
 				if existingFI, ok := model.fields.Get(relName); ok {
 					if existingFI.fieldType != fieldtype.NoType {
 						// We do not add fields that already exist in the targetModel
-						// since the target model should always override mixins.
+						// since the target model should always override embedded fields.
 						continue
 					}
 					// We extract updates from our DummyField and remove it from the registry

@@ -70,6 +70,7 @@ func init() {
 		"IsPremium": models.BooleanField{},
 		"Nums":      models.IntegerField{GoType: new(int)},
 		"Size":      models.FloatField{},
+		"Education": models.TextField{String: "Educational Background"},
 	})
 	user.Fields().Experience().SetString("Professional Experience")
 
