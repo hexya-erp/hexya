@@ -24,7 +24,7 @@ import (
 
 func TestCreateRecordSet(t *testing.T) {
 	Convey("Test record creation", t, func() {
-		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Creating simple user John with no relations and checking ID", func() {
 				userJohnData := FieldMap{
 					"Name":    "John Smith",
@@ -125,7 +125,7 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				So(func() { env.Pool("Tag").Call("Create", tag3Data) }, ShouldPanic)
 			})
-		})
+		}), ShouldBeNil)
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
@@ -138,7 +138,7 @@ func TestCreateRecordSet(t *testing.T) {
 	})
 	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Testing access control list on creation (create only)", t, func() {
-		SimulateInNewEnvironment(2, func(env Environment) {
+		So(SimulateInNewEnvironment(2, func(env Environment) {
 			security.Registry.AddMembership(2, group1)
 			userModel := Registry.MustGet("User")
 			resumeModel := Registry.MustGet("Resume")
@@ -213,7 +213,7 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				So(func() { env.Pool("Tag").Call("Create", tagData) }, ShouldNotPanic)
 			})
-		})
+		}), ShouldBeNil)
 	})
 	security.Registry.UnregisterGroup(group1)
 }
@@ -226,7 +226,7 @@ func TestSearchRecordSet(t *testing.T) {
 			Email   string
 			Profile *RecordCollection
 		}
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Searching User Jane", func() {
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(userJane.Len(), ShouldEqual, 1)
@@ -290,12 +290,12 @@ func TestSearchRecordSet(t *testing.T) {
 				So(recs[1].Get("City"), ShouldEqual, "")
 				So(recs[2].Get("City"), ShouldEqual, "")
 			})
-		})
+		}), ShouldBeNil)
 	})
 	group1 := security.Registry.NewGroup("group1", "Group 1")
 	security.Registry.AddMembership(2, group1)
 	Convey("Testing access control list while searching", t, func() {
-		SimulateInNewEnvironment(2, func(env Environment) {
+		So(SimulateInNewEnvironment(2, func(env Environment) {
 			userModel := Registry.MustGet("User")
 			Convey("Checking that user 2 cannot access records", func() {
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
@@ -361,14 +361,14 @@ func TestSearchRecordSet(t *testing.T) {
 				userModel.RemoveRecordRule("jOnly")
 				userModel.RemoveRecordRule("writeRule")
 			})
-		})
+		}), ShouldBeNil)
 	})
 	security.Registry.UnregisterGroup(group1)
 }
 
 func TestAdvancedQueries(t *testing.T) {
 	Convey("Testing advanced queries on M2O relations", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 			So(jane.Len(), ShouldEqual, 1)
 			Convey("Condition on m2o relation fields with ids", func() {
@@ -414,10 +414,10 @@ func TestAdvancedQueries(t *testing.T) {
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
-		})
+		}), ShouldBeNil)
 	})
 	Convey("Testing advanced queries on O2M relations", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 			So(jane.Len(), ShouldEqual, 1)
 			Convey("Condition on o2m relation with slice of ids", func() {
@@ -456,10 +456,10 @@ func TestAdvancedQueries(t *testing.T) {
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
 			})
-		})
+		}), ShouldBeNil)
 	})
 	Convey("Testing advanced queries on M2M relations", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			post1 := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Equals("1st Post"))
 			So(post1.Len(), ShouldEqual, 1)
 			post2 := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Equals("2nd Post"))
@@ -496,13 +496,13 @@ func TestAdvancedQueries(t *testing.T) {
 				So(posts.Len(), ShouldEqual, 1)
 				So(posts.Get("ID").(int64), ShouldEqual, post1.Get("ID").(int64))
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
 
 func TestGroupedQueries(t *testing.T) {
 	Convey("Testing grouped queries", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Simple grouped query on the whole table", func() {
 				groupedUsers := env.Pool("User").Call("GroupBy", []FieldNamer{FieldName("IsStaff")}).(RecordSet).Collection().Call("Aggregates", []FieldNamer{FieldName("IsStaff"), FieldName("Nums")}).([]GroupAggregateRow)
 				So(len(groupedUsers), ShouldEqual, 2)
@@ -517,13 +517,13 @@ func TestGroupedQueries(t *testing.T) {
 				So(groupedUsers[1].Values["nums"], ShouldEqual, 4)
 				So(groupedUsers[1].Count, ShouldEqual, 2)
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
 
 func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
-		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)
@@ -627,7 +627,7 @@ func TestUpdateRecordSet(t *testing.T) {
 					})
 				}, ShouldPanic)
 			})
-		})
+		}), ShouldBeNil)
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
@@ -639,7 +639,7 @@ func TestUpdateRecordSet(t *testing.T) {
 	group1 := security.Registry.NewGroup("group1", "Group 1")
 	security.Registry.AddMembership(2, group1)
 	Convey("Testing access control list on update (write only)", t, func() {
-		SimulateInNewEnvironment(2, func(env Environment) {
+		So(SimulateInNewEnvironment(2, func(env Environment) {
 			userModel := Registry.MustGet("User")
 			profileModel := Registry.MustGet("Profile")
 
@@ -729,25 +729,25 @@ func TestUpdateRecordSet(t *testing.T) {
 				userModel.RemoveRecordRule("jOnly")
 				userModel.RemoveRecordRule("unlinkRule")
 			})
-		})
+		}), ShouldBeNil)
 	})
 	security.Registry.UnregisterGroup(group1)
 }
 
 func TestDeleteRecordSet(t *testing.T) {
 	Convey("Delete user John Smith", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 			num := users.Call("Unlink")
 			Convey("Number of deleted record should be 1", func() {
 				So(num, ShouldEqual, 1)
 			})
-		})
+		}), ShouldBeNil)
 	})
 	group1 := security.Registry.NewGroup("group1", "Group 1")
 	security.Registry.AddMembership(2, group1)
 	Convey("Checking unlink access permissions", t, func() {
-		SimulateInNewEnvironment(2, func(env Environment) {
+		So(SimulateInNewEnvironment(2, func(env Environment) {
 			userModel := Registry.MustGet("User")
 
 			Convey("Checking that user 2 cannot unlink records", func() {
@@ -789,7 +789,7 @@ func TestDeleteRecordSet(t *testing.T) {
 				userModel.RemoveRecordRule("jOnly")
 				userModel.RemoveRecordRule("writeRule")
 			})
-		})
+		}), ShouldBeNil)
 	})
 	security.Registry.UnregisterGroup(group1)
 }

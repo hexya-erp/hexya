@@ -15,7 +15,7 @@ import (
 
 func TestBaseModelMethods(t *testing.T) {
 	Convey("Testing base model methods", t, func() {
-		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 			Convey("Copy", func() {
 				userJane.Write(&h.UserData{Password: "Jane's Password"})
@@ -28,6 +28,6 @@ func TestBaseModelMethods(t *testing.T) {
 				So(userJaneCopy.Nums(), ShouldEqual, 2)
 				So(userJaneCopy.Posts().Len(), ShouldEqual, 0)
 			})
-		})
+		}), ShouldBeNil)
 	})
 }

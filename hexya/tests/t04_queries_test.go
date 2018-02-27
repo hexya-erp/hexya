@@ -27,7 +27,7 @@ import (
 func TestConditions(t *testing.T) {
 	Convey("Testing SQL building for queries", t, func() {
 		if driver == "postgres" {
-			models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+			So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 				rs := h.User().NewSet(env)
 				rs = rs.Search(q.User().ProfileFilteredOn(q.Profile().BestPostFilteredOn(q.Post().Title().Equals("foo"))))
 				Convey("Simple query", func() {
@@ -51,7 +51,7 @@ func TestConditions(t *testing.T) {
 					rs.Load()
 					So(func() { rs.Load() }, ShouldNotPanic)
 				})
-			})
+			}), ShouldBeNil)
 		}
 	})
 }

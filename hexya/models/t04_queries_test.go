@@ -25,7 +25,7 @@ import (
 func TestConditions(t *testing.T) {
 	Convey("Testing SQL building for queries", t, func() {
 		if dbArgs.Driver == "postgres" {
-			SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 				rs := env.Pool("User")
 				rs = rs.Search(rs.Model().FilteredOn("Profile", env.Pool("Profile").Model().FilteredOn("BestPost", env.Pool("Post").Model().Field("Title").Equals("foo"))))
 				fields := []string{"name", "profile_id.best_post_id.title"}
@@ -134,12 +134,12 @@ func TestConditions(t *testing.T) {
 					So(args, ShouldContain, "%Jane%")
 					So(args, ShouldContain, "%John%")
 				})
-			})
+			}), ShouldBeNil)
 		}
 	})
 	Convey("Testing predicate operators", t, func() {
 		if dbArgs.Driver == "postgres" {
-			SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 				rs := env.Pool("User")
 				Convey("Equals", func() {
 					rs = rs.Search(rs.Model().Field("Name").Equals("John"))
@@ -231,7 +231,7 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user"  WHERE ("user".id = ? )   `)
 					So(args, ShouldContain, 101)
 				})
-			})
+			}), ShouldBeNil)
 		}
 	})
 }
