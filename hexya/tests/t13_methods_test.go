@@ -26,19 +26,19 @@ import (
 
 func TestMethods(t *testing.T) {
 	Convey("Testing simple methods", t, func() {
-		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Getting all users and calling `PrefixedUser`", func() {
 				users := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 				res := users.PrefixedUser("Prefix")
 				So(res[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
 
 func TestComputedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored computed fields", t, func() {
-		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Getting one user (Jane) and checking DisplayName", func() {
 				users := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 				So(users.DecoratedName(), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
@@ -56,13 +56,13 @@ func TestComputedNonStoredFields(t *testing.T) {
 				So(users.Len(), ShouldEqual, 1)
 				So(users.DisplayName(), ShouldEqual, "Jane A. Smith")
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
 
 func TestComputedStoredFields(t *testing.T) {
 	Convey("Testing stored computed fields", t, func() {
-		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+		So(models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking that user Jane is 23", func() {
 				userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 				So(userJane.Age(), ShouldEqual, 23)
@@ -108,13 +108,13 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill := h.User().Search(env, q.User().Email().Equals("will.smith@example.com"))
 				So(func() { userWill.SetDecoratedName("FooBar") }, ShouldPanic)
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
 
 func TestRelatedNonStoredFields(t *testing.T) {
 	Convey("Testing non stored related fields", t, func() {
-		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking that users PMoney is correct", func() {
 				userJohn := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(userJohn.Len(), ShouldEqual, 1)
@@ -167,13 +167,13 @@ func TestRelatedNonStoredFields(t *testing.T) {
 				So(pUsersRecs[1].Equals(userWill), ShouldBeTrue)
 				So(pUsersRecs[2].Equals(userJane), ShouldBeTrue)
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
 
 func TestEmbeddedModels(t *testing.T) {
 	Convey("Testing embedded models", t, func() {
-		models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+		So(models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 			Convey("Checking that Jane's resume exists", func() {
 				So(userJane.Resume().IsEmpty(), ShouldBeFalse)
@@ -188,13 +188,13 @@ func TestEmbeddedModels(t *testing.T) {
 				So(userJane.Resume().Experience(), ShouldEqual, "Hexya developer for 10 years")
 				So(userJane.Resume().Leisure(), ShouldEqual, "Music, Sports")
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
 
 func TestMixedInModels(t *testing.T) {
 	Convey("Testing mixed in models", t, func() {
-		models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking that mixed in functions are correctly inherited", func() {
 				janeProfile := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com")).Profile()
 				So(janeProfile.PrintAddress(), ShouldEqual, "[<165 5th Avenue, 0305 New York>, USA]")
@@ -210,6 +210,6 @@ func TestMixedInModels(t *testing.T) {
 				So(janeProfile.Active(), ShouldEqual, true)
 				So(janeProfile.IsActivated(), ShouldEqual, true)
 			})
-		})
+		}), ShouldBeNil)
 	})
 }

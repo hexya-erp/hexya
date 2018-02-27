@@ -16,7 +16,7 @@ import (
 
 func TestBaseModelMethods(t *testing.T) {
 	Convey("Testing base model methods", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userModel := Registry.MustGet("User")
 			userJane := userModel.Search(env, userModel.Field("Email").Equals("jane.smith@example.com"))
 			Convey("LastUpdate", func() {
@@ -284,6 +284,6 @@ func TestBaseModelMethods(t *testing.T) {
 					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
 				}
 			})
-		})
+		}), ShouldBeNil)
 	})
 }

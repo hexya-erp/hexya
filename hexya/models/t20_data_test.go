@@ -12,7 +12,7 @@ import (
 
 func TestDataLoading(t *testing.T) {
 	Convey("Testing CSV data loading into database", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userObj := env.Pool("User")
 			Convey("Simple import of users - no update", func() {
 				LoadCSVDataFile("testdata/User.csv")
@@ -114,6 +114,6 @@ func TestDataLoading(t *testing.T) {
 				So(nickPost.Get("Content"), ShouldEqual, "No content")
 				So(nickPost.Get("Tags").(RecordSet).Collection().Len(), ShouldEqual, 3)
 			})
-		})
+		}), ShouldBeNil)
 	})
 }

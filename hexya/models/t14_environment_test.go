@@ -24,7 +24,7 @@ import (
 
 func TestEnvironment(t *testing.T) {
 	Convey("Testing Environment Modifications", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			env.context = types.NewContext().WithKey("key", "context value")
 			users := env.Pool("User")
 			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
@@ -96,10 +96,10 @@ func TestEnvironment(t *testing.T) {
 				So(posts.Env().Context().HasKey("foo"), ShouldBeFalse)
 				So(posts.Env().callStack, ShouldBeEmpty)
 			})
-		})
+		}), ShouldBeNil)
 	})
 	Convey("Testing cache operation", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 			Convey("Cache should be empty at startup", func() {
@@ -201,10 +201,10 @@ func TestEnvironment(t *testing.T) {
 				So(env.cache.data[janeCacheRef], ShouldContainKey, "decorated_name")
 				So(env.cache.data[janeCacheRef]["decorated_name"], ShouldEqual, decoratedName)
 			})
-		})
+		}), ShouldBeNil)
 	})
 	Convey("Testing prefetch", t, func() {
-		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			userSet := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com").
 				Or().Field("name").Equals("John Smith"))
@@ -236,6 +236,6 @@ func TestEnvironment(t *testing.T) {
 				So(postsJohn, ShouldHaveLength, 0)
 				So(postsJane, ShouldHaveLength, 2)
 			})
-		})
+		}), ShouldBeNil)
 	})
 }
