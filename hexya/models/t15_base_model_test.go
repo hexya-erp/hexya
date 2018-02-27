@@ -207,6 +207,83 @@ func TestBaseModelMethods(t *testing.T) {
 					tagB.Union(tagD).Union(tagF),
 					tagB.Union(tagD).Union(tagG)), ShouldBeTrue)
 			})
+			Convey("Sorted", func() {
+				for i := 0; i < 20; i++ {
+					env.Pool("Post").Call("Create", FieldMap{
+						"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
+						"User":  userJane,
+					})
+				}
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
+				for i, post := range posts.Records() {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+				}
+
+				sortedPosts := posts.Call("Sorted", func(rs1 RecordSet, rs2 RecordSet) bool {
+					return rs1.Collection().Get("Title").(string) < rs2.Collection().Get("Title").(string)
+				}).(RecordSet).Collection().Records()
+				So(sortedPosts, ShouldHaveLength, 20)
+				for i, post := range sortedPosts {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+				}
+			})
+			Convey("SortedDefault", func() {
+				for i := 0; i < 20; i++ {
+					env.Pool("Post").Call("Create", FieldMap{
+						"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
+						"User":  userJane,
+					})
+				}
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
+				for i, post := range posts.Records() {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+				}
+
+				sortedPosts := posts.Call("SortedDefault").(RecordSet).Collection().Records()
+				So(sortedPosts, ShouldHaveLength, 20)
+				for i, post := range sortedPosts {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+				}
+			})
+			Convey("SortedByField", func() {
+				for i := 0; i < 20; i++ {
+					env.Pool("Post").Call("Create", FieldMap{
+						"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
+						"User":  userJane,
+					})
+				}
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
+				for i, post := range posts.Records() {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+				}
+
+				sortedPosts := posts.Call("SortedByField", FieldName("Title"), false).(RecordSet).Collection().Records()
+				So(sortedPosts, ShouldHaveLength, 20)
+				for i, post := range sortedPosts {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+				}
+
+				revSortedPosts := posts.Call("SortedByField", FieldName("Title"), true).(RecordSet).Collection().Records()
+				So(revSortedPosts, ShouldHaveLength, 20)
+				for i, post := range revSortedPosts {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", 19-i))
+				}
+			})
+			Convey("Testing one2many sets keep the default order", func() {
+				userJane.Get("Posts").(RecordSet).Collection().Call("Unlink")
+				for i := 0; i < 20; i++ {
+					env.Pool("Post").Call("Create", FieldMap{
+						"Title": fmt.Sprintf("Post no %02d", 19-i),
+						"User":  userJane,
+					})
+				}
+
+				posts := userJane.Get("Posts").(RecordSet).Collection()
+				So(posts.Len(), ShouldEqual, 20)
+				for i, post := range posts.Records() {
+					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+				}
+			})
 		})
 	})
 }

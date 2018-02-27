@@ -15,7 +15,6 @@
 package models
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
@@ -212,14 +211,11 @@ func TestEnvironment(t *testing.T) {
 			So(userSet.fetched, ShouldBeFalse)
 			So(env.cache.checkIfInCache(users.Model(), userSet.ids, []string{"Name"}), ShouldBeFalse)
 			Convey("Loading one record should load all of its original record", func() {
-				records := userSet.Records()
+				records := userSet.SortedByField(FieldName("ID"), false).Records()
 				So(userSet.fetched, ShouldBeTrue)
 				So(records, ShouldHaveLength, 2)
 				So(records[0].fetched, ShouldBeTrue)
 				So(records[1].fetched, ShouldBeTrue)
-				sort.Slice(records, func(i, j int) bool {
-					return records[i].Get("ID").(int64) < records[j].Get("ID").(int64)
-				})
 				So(env.cache.checkIfInCache(users.Model(), userSet.ids, []string{"Name"}), ShouldBeFalse)
 				name, fetched := records[0].get("Name", false)
 				So(name, ShouldEqual, "John Smith")
@@ -229,18 +225,12 @@ func TestEnvironment(t *testing.T) {
 				So(fetched2, ShouldBeFalse)
 			})
 			Convey("Returned recordset by Load should be the right one", func() {
-				records := userSet.Records()
-				sort.Slice(records, func(i, j int) bool {
-					return records[i].Get("ID").(int64) < records[j].Get("ID").(int64)
-				})
+				records := userSet.SortedByField(FieldName("ID"), false).Records()
 				rc := records[0].Load()
 				So(rc.Equals(records[0]), ShouldBeTrue)
 			})
 			Convey("Nested records", func() {
-				records := userSet.Records()
-				sort.Slice(records, func(i, j int) bool {
-					return records[i].Get("ID").(int64) < records[j].Get("ID").(int64)
-				})
+				records := userSet.SortedByField(FieldName("ID"), false).Records()
 				postsJohn := records[0].Get("Posts").(*RecordCollection).Records()
 				postsJane := records[1].Get("Posts").(*RecordCollection).Records()
 				So(postsJohn, ShouldHaveLength, 0)

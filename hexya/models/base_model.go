@@ -493,6 +493,28 @@ func declareSearchMethods() {
 		func(rc *RecordCollection, other RecordSet) bool {
 			return rc.Equals(other)
 		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("Sorted",
+		`Sorted returns a new RecordCollection sorted according to the given less function.
+
+		The less function should return true if rs1 < rs2`,
+		func(rc *RecordCollection, less func(rs1 RecordSet, rs2 RecordSet) bool) *RecordCollection {
+			return rc.Sorted(less)
+		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("SortedDefault",
+		`SortedDefault returns a new record set with the same records as rc but sorted according
+		to the default order of this model`,
+		func(rc *RecordCollection) *RecordCollection {
+			return rc.SortedDefault()
+		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("SortedByField",
+		`SortedByField returns a new record set with the same records as rc but sorted by the given field.
+		If reverse is true, the sort is done in reversed order`,
+		func(rc *RecordCollection, namer FieldNamer, reverse bool) *RecordCollection {
+			return rc.SortedByField(namer, reverse)
+		}).AllowGroup(security.GroupEveryone)
 }
 
 func declareEnvironmentMethods() {
