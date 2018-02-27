@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types/dates"
+	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -604,7 +606,7 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 				res = res.(RecordSet).Collection().withIds([]int64{r})
 			}
 		case []int64:
-			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
+			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r).SortedDefault()
 		}
 	}
 	return res
@@ -809,7 +811,7 @@ func (rc *RecordCollection) Model() *Model {
 
 // Union returns a new RecordCollection that is the union of this RecordCollection
 // and the given `other` RecordCollection. The result is guaranteed to be a
-// set of unique records.
+// set of unique records. The order of the records is kept.
 func (rc *RecordCollection) Union(other RecordSet) *RecordCollection {
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to union RecordCollections of different models", "this", rc.ModelName(),
@@ -817,15 +819,16 @@ func (rc *RecordCollection) Union(other RecordSet) *RecordCollection {
 	}
 	rc.Fetch()
 	idMap := make(map[int64]bool)
-	for _, id := range rc.ids {
-		idMap[id] = true
-	}
-	for _, id := range other.Ids() {
+	origIds := append(rc.ids, other.Ids()...)
+	for _, id := range origIds {
 		idMap[id] = true
 	}
 	ids := make([]int64, len(idMap))
 	i := 0
-	for id := range idMap {
+	for _, id := range origIds {
+		if _, ok := idMap[id]; !ok {
+			continue
+		}
 		ids[i] = id
 		i++
 	}
@@ -850,7 +853,10 @@ func (rc *RecordCollection) Subtract(other RecordSet) *RecordCollection {
 	}
 	ids := make([]int64, len(idMap))
 	i := 0
-	for id := range idMap {
+	for _, id := range rc.ids {
+		if _, ok := idMap[id]; !ok {
+			continue
+		}
 		ids[i] = id
 		i++
 	}
@@ -876,7 +882,10 @@ func (rc *RecordCollection) Intersect(other RecordSet) *RecordCollection {
 	}
 	ids := make([]int64, len(idMap))
 	i := 0
-	for id := range idMap {
+	for _, id := range rc.ids {
+		if _, ok := idMap[id]; !ok {
+			continue
+		}
 		ids[i] = id
 		i++
 	}
@@ -918,6 +927,53 @@ func (rc *RecordCollection) Equals(other RecordSet) bool {
 		return false
 	}
 	return true
+}
+
+// Sorted returns a new RecordCollection sorted according to the given less function.
+//
+// The less function should return true if rs1 < rs2
+func (rc *RecordCollection) Sorted(less func(rs1 RecordSet, rs2 RecordSet) bool) *RecordCollection {
+	records := rc.Records()
+	sort.Slice(records, func(i, j int) bool {
+		return less(records[i], records[j])
+	})
+	var ids []int64
+	for _, rec := range records {
+		ids = append(ids, rec.ids[0])
+	}
+	return newRecordCollection(rc.Env(), rc.ModelName()).withIds(ids)
+}
+
+// SortedDefault returns a new record set with the same records as rc but sorted according
+// to the default order of this model
+func (rc *RecordCollection) SortedDefault() *RecordCollection {
+	return rc.Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
+		for _, order := range Registry.MustGet(rs1.ModelName()).defaultOrder {
+			if eq, _ := typesutils.AreEqual(rs1.Collection().Get(order), rs2.Collection().Get(order)); eq {
+				continue
+			}
+			if lt, _ := typesutils.IsLessThan(rs1.Collection().Get(order), rs2.Collection().Get(order)); !lt {
+				return false
+			}
+			return true
+		}
+		return false
+	})
+}
+
+// SortedByField returns a new record set with the same records as rc but sorted by the given field.
+// If reverse is true, the sort is done in reversed order
+func (rc *RecordCollection) SortedByField(namer FieldNamer, reverse bool) *RecordCollection {
+	return rc.Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
+		lt, err := typesutils.IsLessThan(rs1.Collection().Get(namer.String()), rs2.Collection().Get(namer.String()))
+		if err != nil {
+			log.Panic("Unable to sort recordset", "recordset", rc, "error", err)
+		}
+		if reverse {
+			return !lt
+		}
+		return lt
+	})
 }
 
 // withIdMap adds the given ids to this RecordCollection and returns it too.

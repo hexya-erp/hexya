@@ -345,11 +345,18 @@ NOTE: Unless the RecordSet is already loaded in cache, it is generally faster
 and more efficient to use `Search()` on the RecordSet to return a filtered
 Set.
 
-`*Sorted(key func(Record) interface{}) RecordSetType*`::
-Returns a sorted copy of this RecordSet. `key(record)` should return a
-sortable value on which the RecordSet will be sorted.
+`*Sorted(less func(RecordSet, RecordSet) bool) RecordSetType*`::
+Returns a sorted copy of this RecordSet. `less(rs1, rs2)` should return true
+if rs1 < rs2.
 +
 The Sort is not guaranteed to be stable.
+
+`*SortedDefault() RecordSetType*`::
+Returns a sorted copy of this RecordSet according to the model's default order.
+
+`*SortedByField(f FieldNamer, reverse bool) RecordSetType*`::
+Returns a sorted copy of this RecordSet by comparing the given field.
+If reverse is true, the sort is done in reversed order.
 
 `*Union(other RecordSetType) RecordSetType*`::
 Returns a new RecordSet that is the union of this RecordSet and the given

@@ -194,6 +194,7 @@ func TestSearchRecordSet(t *testing.T) {
 					So(userJane.Profile().Country(), ShouldEqual, "USA")
 					So(userJane.Profile().Zip(), ShouldEqual, "0305")
 					recs := userJane.Posts().Records()
+					So(len(recs), ShouldEqual, 2)
 					So(recs[0].Title(), ShouldEqual, "1st Post")
 					So(recs[1].Title(), ShouldEqual, "2nd Post")
 				})
