@@ -499,7 +499,8 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 	}
 	rSet = rSet.addRecordRuleConditions(rc.env.uid, security.Read)
 	if len(rSet.query.orders) == 0 {
-		rSet.query.orders = rSet.model.defaultOrder
+		rSet.query.orders = make([]string, len(rSet.model.defaultOrder))
+		copy(rSet.query.orders, rSet.model.defaultOrder)
 	}
 	var results []FieldMap
 	if len(fields) == 0 {
@@ -830,6 +831,7 @@ func (rc *RecordCollection) Union(other RecordSet) *RecordCollection {
 			continue
 		}
 		ids[i] = id
+		delete(idMap, id)
 		i++
 	}
 	return newRecordCollection(rc.Env(), rc.ModelName()).withIds(ids)
@@ -949,6 +951,7 @@ func (rc *RecordCollection) Sorted(less func(rs1 RecordSet, rs2 RecordSet) bool)
 func (rc *RecordCollection) SortedDefault() *RecordCollection {
 	return rc.Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
 		for _, order := range Registry.MustGet(rs1.ModelName()).defaultOrder {
+			order = strings.Split(order, " ")[0]
 			if eq, _ := typesutils.AreEqual(rs1.Collection().Get(order), rs2.Collection().Get(order)); eq {
 				continue
 			}
