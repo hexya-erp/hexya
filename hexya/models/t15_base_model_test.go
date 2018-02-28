@@ -128,6 +128,21 @@ func TestBaseModelMethods(t *testing.T) {
 				So(usersJ.Records(), ShouldHaveLength, 2)
 				So(usersJ.Equals(johnAndJane), ShouldBeTrue)
 			})
+			Convey("Union", func() {
+				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
+					Field("Name").Equals("John Smith")).(RecordSet).Collection()
+				johnAndJane := userJohn.Union(userJane)
+				userWill := env.Pool("User").Call("Search", env.Pool("User").Model().
+					Field("Name").Equals("Will Smith")).(RecordSet).Collection()
+				johnAndWill := userWill.Union(userJohn)
+				So(johnAndJane.Len(), ShouldEqual, 2)
+				So(johnAndWill.Len(), ShouldEqual, 2)
+				all := johnAndJane.Union(johnAndWill)
+				So(all.Len(), ShouldEqual, 3)
+				So(all.Intersect(userJane).Equals(userJane), ShouldBeTrue)
+				So(all.Intersect(userJohn).Equals(userJohn), ShouldBeTrue)
+				So(all.Intersect(userWill).Equals(userWill), ShouldBeTrue)
+			})
 			Convey("Subtract", func() {
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field("Name").Equals("John Smith")).(RecordSet).Collection()
