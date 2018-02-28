@@ -572,15 +572,15 @@ func (m {{ .Name }}Model) Browse(env models.Environment, ids []int64) {{ .Name }
 
 {{ end }}
 // Fields returns the Field Collection of the {{ .Name }} Model
-func (m {{ .Name }}Model) Fields() {{ .Name }}FieldsCollection {
-	return {{ .Name }}FieldsCollection {
+func (m {{ .Name }}Model) Fields() p{{ .Name }}FieldsCollection {
+	return p{{ .Name }}FieldsCollection {
 		FieldsCollection: m.Model.Fields(),
 	}
 }
 
 // Methods returns the Method Collection of the {{ .Name }} Model
-func (m {{ .Name }}Model) Methods() {{ .Name }}MethodsCollection {
-	return {{ .Name }}MethodsCollection {
+func (m {{ .Name }}Model) Methods() p{{ .Name }}MethodsCollection {
+	return p{{ .Name }}MethodsCollection {
 		MethodsCollection: m.Model.Methods(),
 	}
 }
@@ -616,57 +616,57 @@ func (m {{ $.Name }}Model) {{ .Name }}() models.FieldName {
 
 // ------- FIELD COLLECTION ----------
 
-// A {{ .Name }}FieldsCollection is the collection of fields
+// A p{{ .Name }}FieldsCollection is the collection of fields
 // of the {{ .Name }} model.
-type {{ .Name }}FieldsCollection struct {
+type p{{ .Name }}FieldsCollection struct {
 	*models.FieldsCollection
 }
 
 {{ range .Fields }}
 // {{ .Name }} returns a pointer to the {{ .Name }} Field.
-func (c {{ $.Name }}FieldsCollection) {{ .Name }}() *models.Field {
+func (c p{{ $.Name }}FieldsCollection) {{ .Name }}() *models.Field {
 	return c.MustGet("{{ .Name }}")
 }
 {{ end }}
 
 // ------- METHOD COLLECTION ----------
 
-// A {{ .Name }}MethodsCollection is the collection of methods
+// A p{{ .Name }}MethodsCollection is the collection of methods
 // of the {{ .Name }} model.
-type {{ .Name }}MethodsCollection struct {
+type p{{ .Name }}MethodsCollection struct {
 	*models.MethodsCollection
 }
 
 {{ range .AllMethods }}
-// {{ $.Name }}_{{ .Name }} holds the metadata of the {{ $.Name }}.{{ .Name }}() method
-type {{ $.Name }}_{{ .Name }} struct {
+// p{{ $.Name }}_{{ .Name }} holds the metadata of the {{ $.Name }}.{{ .Name }}() method
+type p{{ $.Name }}_{{ .Name }} struct {
 	*models.Method
 }
 
 // Extend adds the given fnct function as a new layer on this method.
-func (m {{ $.Name }}_{{ .Name }}) Extend(doc string, fnct func({{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) {{ $.Name }}_{{ .Name }} {
-	return {{ $.Name }}_{{ .Name }} {
+func (m p{{ $.Name }}_{{ .Name }}) Extend(doc string, fnct func({{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) p{{ $.Name }}_{{ .Name }} {
+	return p{{ $.Name }}_{{ .Name }} {
 		Method: m.Method.Extend(doc, fnct),
 	}
 }
 
 // DeclareMethod declares this method to the framework with the given function as the first layer.
-func (m {{ $.Name }}_{{ .Name }}) DeclareMethod(doc string, fnct interface{}) {{ $.Name }}_{{ .Name }} {
-	return {{ $.Name }}_{{ .Name }} {
+func (m p{{ $.Name }}_{{ .Name }}) DeclareMethod(doc string, fnct interface{}) p{{ $.Name }}_{{ .Name }} {
+	return p{{ $.Name }}_{{ .Name }} {
 		Method: m.Method.DeclareMethod(doc, fnct),
 	}
 }
 
 // Underlying returns a pointer to the underlying Method data object.
-func (m {{ $.Name }}_{{ .Name }}) Underlying() *models.Method {
+func (m p{{ $.Name }}_{{ .Name }}) Underlying() *models.Method {
 	return m.Method
 }
 
-var _ models.Methoder = {{ $.Name }}_{{ .Name }}{}
+var _ models.Methoder = p{{ $.Name }}_{{ .Name }}{}
 
 // {{ .Name }} returns a pointer to the {{ .Name }} Method.
-func (c {{ $.Name }}MethodsCollection) {{ .Name }}() {{ $.Name }}_{{ .Name }} {
-	return {{ $.Name }}_{{ .Name }} {
+func (c p{{ $.Name }}MethodsCollection) {{ .Name }}() p{{ $.Name }}_{{ .Name }} {
+	return p{{ $.Name }}_{{ .Name }} {
 		Method: c.MustGet("{{ .Name }}"),
 	}
 }
@@ -981,8 +981,8 @@ type ConditionStart struct {
 
 {{ range .Fields }}
 // {{ .Name }} adds the "{{ .Name }}" field to the Condition
-func (cs ConditionStart) {{ .Name }}() {{ .SanType }}ConditionField {
-	return {{ .SanType }}ConditionField{
+func (cs ConditionStart) {{ .Name }}() p{{ .SanType }}ConditionField {
+	return p{{ .SanType }}ConditionField{
 		ConditionField: cs.Field("{{ .Name }}"),
 	}
 }
@@ -1001,15 +1001,15 @@ func (cs ConditionStart) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) Co
 // ------- CONDITION FIELDS ----------
 
 {{ range $typ := .Types }}
-// A {{ $typ.SanType }}ConditionField is a partial Condition when
+// A p{{ $typ.SanType }}ConditionField is a partial Condition when
 // we have selected a field of type {{ $typ.Type }} and expecting an operator.
-type {{ $typ.SanType }}ConditionField struct {
+type p{{ $typ.SanType }}ConditionField struct {
 	*models.ConditionField
 }
 
 {{ range $typ.Operators }}
 // {{ .Name }} adds a condition value to the ConditionPath
-func (c {{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) Condition {
+func (c p{{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ $typ.Type }}) Condition {
 	return Condition{
 		Condition: c.ConditionField.{{ .Name }}(arg),
 	}
@@ -1018,7 +1018,7 @@ func (c {{ $typ.SanType }}ConditionField) {{ .Name }}(arg {{ if and .Multi (not 
 // {{ .Name }}Func adds a function value to the ConditionPath.
 // The function will be evaluated when the query is performed and
 // it will be given the RecordSet on which the query is made as parameter
-func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.RecordSet) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ if $typ.IsRS }}models.RecordSet{{ else }}{{ $typ.Type }}{{ end }}) Condition {
+func (c p{{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.RecordSet) {{ if and .Multi (not $typ.IsRS) }}[]{{ end }}{{ if $typ.IsRS }}models.RecordSet{{ else }}{{ $typ.Type }}{{ end }}) Condition {
 	return Condition{
 		Condition: c.ConditionField.{{ .Name }}(arg),
 	}
@@ -1028,7 +1028,7 @@ func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Func(arg func (models.Recor
 // The expression value will be evaluated by the client with the
 // corresponding execution context. The resulting Condition cannot
 // be used server-side.
-func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Eval(expression string) Condition {
+func (c p{{ $typ.SanType }}ConditionField) {{ .Name }}Eval(expression string) Condition {
 	return Condition{
 		Condition: c.ConditionField.{{ .Name }}(models.ClientEvaluatedString(expression)),
 	}
@@ -1037,14 +1037,14 @@ func (c {{ $typ.SanType }}ConditionField) {{ .Name }}Eval(expression string) Con
 {{ end }}
 
 // IsNull checks if the current condition field is null
-func (c {{ $typ.SanType }}ConditionField) IsNull() Condition {
+func (c p{{ $typ.SanType }}ConditionField) IsNull() Condition {
 	return Condition{
 		Condition: c.ConditionField.IsNull(),
 	}
 }
 
 // IsNotNull checks if the current condition field is not null
-func (c {{ $typ.SanType }}ConditionField) IsNotNull() Condition {
+func (c p{{ $typ.SanType }}ConditionField) IsNotNull() Condition {
 	return Condition{
 		Condition: c.ConditionField.IsNotNull(),
 	}
@@ -1055,7 +1055,7 @@ func (c {{ $typ.SanType }}ConditionField) IsNotNull() Condition {
 // otherwise, it will return an int64 and panic if the recordset is not a singleton.
 //
 // This method is low level and should be avoided. Use operator methods such as Equals() instead.
-func (c {{ $typ.SanType }}ConditionField) AddOperator(op operator.Operator, data interface{}) Condition {
+func (c p{{ $typ.SanType }}ConditionField) AddOperator(op operator.Operator, data interface{}) Condition {
 	return Condition{
 		Condition: c.ConditionField.AddOperator(op, data),
 	}
