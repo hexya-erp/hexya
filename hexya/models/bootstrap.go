@@ -431,8 +431,9 @@ func updateDBColumns(mi *Model) {
 			(dbColData.IsNullable == "YES" && adapter.fieldIsNotNull(fi)) {
 			updateDBColumnNullable(fi)
 		}
-		if dbColData.ColumnDefault.Valid &&
-			dbColData.ColumnDefault.String != adapter.fieldSQLDefault(fi) {
+		if (dbColData.ColumnDefault.Valid && (fi.required ||
+			dbColData.ColumnDefault.String != adapter.fieldSQLDefault(fi))) ||
+			(!dbColData.ColumnDefault.Valid && !fi.required) {
 			updateDBColumnDefault(fi)
 		}
 	}
@@ -587,7 +588,7 @@ func updateDBIndexes(m *Model) {
 		switch {
 		case fi.index && !indexInDB:
 			createColumnIndex(m.tableName, colName)
-		case !fi.index && indexInDB:
+		case indexInDB && !fi.index:
 			dropColumnIndex(m.tableName, colName)
 		}
 	}

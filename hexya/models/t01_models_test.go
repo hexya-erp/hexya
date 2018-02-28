@@ -20,6 +20,7 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -212,12 +213,16 @@ func TestModelDeclaration(t *testing.T) {
 		post.AddFields(map[string]FieldDefinition{
 			"User":            Many2OneField{RelationModel: Registry.MustGet("User")},
 			"Title":           CharField{Required: true},
-			"Content":         HTMLField{},
+			"Content":         HTMLField{Required: true},
 			"Tags":            Many2ManyField{RelationModel: Registry.MustGet("Tag")},
 			"BestPostProfile": Rev2OneField{RelationModel: Registry.MustGet("Profile"), ReverseFK: "BestPost"},
 			"Abstract":        TextField{},
 			"Attachment":      BinaryField{},
 			"LastRead":        DateField{},
+			"Visibility": SelectionField{Selection: types.Selection{
+				"invisible": "Invisible",
+				"visible":   "Visible",
+			}},
 		})
 		post.SetDefaultOrder("Title")
 
@@ -312,10 +317,37 @@ func TestFieldModification(t *testing.T) {
 		checkUpdates(numsField, "unique", true)
 		numsField.SetUnique(false)
 		checkUpdates(numsField, "unique", false)
-		profileField := Registry.MustGet("User").Fields().MustGet("Profile")
-		profileField.SetRequired(false)
-		checkUpdates(profileField, "required", false)
-		numsField.SetDefault(nil).SetIndex(false)
+		nameField := Registry.MustGet("User").Fields().MustGet("Name")
+		nameField.SetSize(127)
+		checkUpdates(nameField, "size", 127)
+		nameField.SetOnchange(nil)
+		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("ComputeDecoratedName"))
+		nameField.SetConstraint(Registry.MustGet("User").Methods().MustGet("UpdateCity"))
+		nameField.SetConstraint(nil)
+		nameField.SetInverse(Registry.MustGet("User").Methods().MustGet("InverseSetAge"))
+		nameField.SetInverse(nil)
+		sizeField := Registry.MustGet("User").Fields().MustGet("Size")
+		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 1})
+		So(sizeField.updates[len(sizeField.updates)-1], ShouldContainKey, "digits")
+		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Precision, ShouldEqual, 6)
+		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Scale, ShouldEqual, 1)
+		userField := Registry.MustGet("Post").Fields().MustGet("User")
+		userField.SetOnDelete(Cascade)
+		checkUpdates(userField, "onDelete", Cascade)
+		userField.SetOnDelete(SetNull)
+		checkUpdates(userField, "onDelete", SetNull)
+		userField.SetEmbed(true)
+		checkUpdates(userField, "embed", true)
+		userField.SetEmbed(false)
+		checkUpdates(userField, "embed", false)
+		userField.SetFilter(Registry.MustGet("User").Field("SetActive").Equals(true))
+		userField.SetFilter(Condition{})
+		visibilityField := Registry.MustGet("Post").Fields().MustGet("Visibility")
+		visibilityField.UpdateSelection(types.Selection{"logged_in": "Logged in users"})
+		So(visibilityField.updates[len(sizeField.updates)-1], ShouldContainKey, "selection_add")
+		genderField := Registry.MustGet("Profile").Fields().MustGet("Gender")
+		genderField.SetSelection(types.Selection{"m": "Male", "f": "Female"})
+		So(genderField.updates[len(sizeField.updates)-1], ShouldContainKey, "selection")
 	})
 }
 
