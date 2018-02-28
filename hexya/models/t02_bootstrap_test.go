@@ -110,6 +110,32 @@ func TestBootStrap(t *testing.T) {
 			So(testAdapter.constraints("%_mancon"), ShouldHaveLength, 1)
 			So(testAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
 		})
+		Convey("Applying DB modifications", func() {
+			Registry.bootstrapped = false
+			contentField := Registry.MustGet("Post").Fields().MustGet("Content")
+			contentField.SetRequired(false)
+			profileField := Registry.MustGet("User").Fields().MustGet("Profile")
+			profileField.SetRequired(false)
+			numsField := Registry.MustGet("User").Fields().MustGet("Nums")
+			numsField.SetDefault(nil).SetIndex(false)
+			So(BootStrap, ShouldNotPanic)
+			So(contentField.required, ShouldBeFalse)
+			So(profileField.required, ShouldBeFalse)
+			So(numsField.index, ShouldBeFalse)
+			So(SyncDatabase, ShouldNotPanic)
+		})
+	})
+
+	Convey("Post testing models modifications", t, func() {
+		visibilityField := Registry.MustGet("Post").Fields().MustGet("Visibility")
+		So(visibilityField.selection, ShouldHaveLength, 3)
+		So(visibilityField.selection, ShouldContainKey, "visible")
+		So(visibilityField.selection, ShouldContainKey, "invisible")
+		So(visibilityField.selection, ShouldContainKey, "logged_in")
+		genderField := Registry.MustGet("Profile").Fields().MustGet("Gender")
+		So(genderField.selection, ShouldHaveLength, 2)
+		So(genderField.selection, ShouldContainKey, "m")
+		So(genderField.selection, ShouldContainKey, "f")
 	})
 
 	Convey("Truncating all tables...", t, func() {

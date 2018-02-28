@@ -72,21 +72,16 @@ func (env Environment) rollback() {
 	env.Cr().tx.Rollback()
 }
 
-// newEnvironment returns a new Environment with the given parameters
-// in a new DB transaction.
+// newEnvironment returns a new Environment for the given user ID
 //
-// WARNING: Callers to NewEnvironment should ensure to either call Commit()
+// WARNING: Callers to newEnvironment should ensure to either call Commit()
 // or Rollback() on the returned Environment after operation to release
 // the database connection.
-func newEnvironment(uid int64, context ...types.Context) Environment {
-	var ctx types.Context
-	if len(context) > 0 {
-		ctx = context[0]
-	}
+func newEnvironment(uid int64) Environment {
 	env := Environment{
 		cr:      newCursor(db),
 		uid:     uid,
-		context: &ctx,
+		context: types.NewContext(),
 		cache:   newCache(),
 	}
 	return env

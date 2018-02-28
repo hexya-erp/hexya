@@ -72,6 +72,7 @@ func initializeTests() {
 	logging.Initialize()
 
 	admDB := sqlx.MustConnect(dbArgs.Driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", dbArgs.User, dbArgs.Password))
+	admDB.MustExec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbArgs.DB))
 	admDB.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbArgs.DB))
 	admDB.Close()
 
