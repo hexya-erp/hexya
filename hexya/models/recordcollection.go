@@ -979,6 +979,23 @@ func (rc *RecordCollection) SortedByField(namer FieldNamer, reverse bool) *Recor
 	})
 }
 
+// Filtered returns a new record set with only the elements of this record set
+// for which test is true.
+//
+// Note that if this record set is not fully loaded, this function will call the database
+// to load the fields before doing the filtering. In this case, it might be more efficient
+// to search the database directly with the filter condition.
+func (rc *RecordCollection) Filtered(test func(rs RecordSet) bool) *RecordCollection {
+	res := rc.Env().Pool(rc.ModelName())
+	for _, rec := range rc.Records() {
+		if !test(rec) {
+			continue
+		}
+		res = res.Union(rec)
+	}
+	return res
+}
+
 // withIdMap adds the given ids to this RecordCollection and returns it too.
 // It overrides the current query with ("ID", "in", ids).
 func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
