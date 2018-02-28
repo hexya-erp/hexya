@@ -111,6 +111,7 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 	"Write":            writeMethodHandler,
 	"Copy":             copyMethodHandler,
 	"CartesianProduct": cartesianProductMethodHandler,
+	"Sorted":           sortedMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
@@ -262,6 +263,17 @@ func cartesianProductMethodHandler(modelData *modelData, depsMap *map[string]boo
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
 		ParamsTypes:  fmt.Sprintf("...%sSet", modelData.Name),
+		ReturnString: returnString,
+	})
+}
+
+// sortedMethodHandler returns the specific methodData for the Sorted method.
+func sortedMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "Sorted"
+	returnString := fmt.Sprintf("%sSet", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("func(%sSet, %sSet) bool", modelData.Name, modelData.Name),
 		ReturnString: returnString,
 	})
 }
@@ -776,6 +788,18 @@ func (s {{ .Name }}Set) CartesianProduct(others ...{{ .Name }}Set) []{{ .Name }}
 		}
 	}
 	return res
+}
+
+// Sorted returns a new {{ .Name}}Set sorted according to the given less function.
+//
+// The less function should return true if rs1 < rs2
+func (s {{ .Name}}Set) Sorted(less func(rs1, rs2 {{ .Name}}Set) bool) {{ .Name}}Set {
+	res := s.RecordCollection.Sorted(func(rc1 models.RecordSet, rc2 models.RecordSet) bool {
+		return less({{ .Name }}Set{RecordCollection: rc1.Collection()}, {{ .Name }}Set{RecordCollection: rc2.Collection()})
+	})
+	return {{ .Name }}Set{
+		RecordCollection: res,
+	}
 }
 
 // Model returns an instance of {{ .Name }}Model
