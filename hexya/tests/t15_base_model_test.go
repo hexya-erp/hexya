@@ -49,6 +49,28 @@ func TestBaseModelMethods(t *testing.T) {
 					So(post.Title(), ShouldEqual, fmt.Sprintf("Post no %02d", i))
 				}
 			})
+			Convey("Filtered", func() {
+				for i := 0; i < 20; i++ {
+					h.Post().Create(env, &h.PostData{
+						Title: fmt.Sprintf("Post no %02d", i),
+						User:  userJane,
+					})
+				}
+				posts := h.Post().Search(env, q.Post().Title().Contains("Post no"))
+
+				evenPosts := posts.Filtered(func(rs h.PostSet) bool {
+					var num int
+					fmt.Sscanf(rs.Title(), "Post no %02d", &num)
+					if num%2 == 0 {
+						return true
+					}
+					return false
+				}).Records()
+				So(evenPosts, ShouldHaveLength, 10)
+				for i := 0; i < 10; i++ {
+					So(evenPosts[i].Title(), ShouldEqual, fmt.Sprintf("Post no %02d", 2*i))
+				}
+			})
 		}), ShouldBeNil)
 	})
 }

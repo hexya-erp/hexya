@@ -515,6 +515,17 @@ func declareSearchMethods() {
 		func(rc *RecordCollection, namer FieldNamer, reverse bool) *RecordCollection {
 			return rc.SortedByField(namer, reverse)
 		}).AllowGroup(security.GroupEveryone)
+
+	commonMixin.AddMethod("Filtered",
+		`Filtered returns a new record set with only the elements of this record set
+		for which test is true.
+		
+		Note that if this record set is not fully loaded, this function will call the database
+		to load the fields before doing the filtering. In this case, it might be more efficient
+		to search the database directly with the filter condition.`,
+		func(rc *RecordCollection, test func(rs RecordSet) bool) *RecordCollection {
+			return rc.Filtered(test)
+		}).AllowGroup(security.GroupEveryone)
 }
 
 func declareEnvironmentMethods() {

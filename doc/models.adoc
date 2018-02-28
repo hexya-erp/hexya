@@ -341,7 +341,7 @@ than one Record or if there are no Records at all.
 Select the records in this RecordSet such that fn(Record) is true, and return
 them as a RecordSet. Filtered will use the data in cache if present.
 
-NOTE: Unless the RecordSet is already loaded in cache, it is generally faster
+NOTE: Unless the RecordSet is already loaded in cache, it might be faster
 and more efficient to use `Search()` on the RecordSet to return a filtered
 Set.
 

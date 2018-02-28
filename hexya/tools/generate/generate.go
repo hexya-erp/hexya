@@ -112,6 +112,7 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 	"Copy":             copyMethodHandler,
 	"CartesianProduct": cartesianProductMethodHandler,
 	"Sorted":           sortedMethodHandler,
+	"Filtered":         filteredMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
@@ -274,6 +275,17 @@ func sortedMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
 		ParamsTypes:  fmt.Sprintf("func(%sSet, %sSet) bool", modelData.Name, modelData.Name),
+		ReturnString: returnString,
+	})
+}
+
+// filteredMethodHandler returns the specific methodData for the Sorted method.
+func filteredMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "Filtered"
+	returnString := fmt.Sprintf("%sSet", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ParamsTypes:  fmt.Sprintf("func(%sSet) bool", modelData.Name),
 		ReturnString: returnString,
 	})
 }
@@ -796,6 +808,21 @@ func (s {{ .Name }}Set) CartesianProduct(others ...{{ .Name }}Set) []{{ .Name }}
 func (s {{ .Name}}Set) Sorted(less func(rs1, rs2 {{ .Name}}Set) bool) {{ .Name}}Set {
 	res := s.RecordCollection.Sorted(func(rc1 models.RecordSet, rc2 models.RecordSet) bool {
 		return less({{ .Name }}Set{RecordCollection: rc1.Collection()}, {{ .Name }}Set{RecordCollection: rc2.Collection()})
+	})
+	return {{ .Name }}Set{
+		RecordCollection: res,
+	}
+}
+
+// Filtered returns a new {{ .Name }}Set with only the elements of this record set
+// for which test is true.
+//
+// Note that if this {{ .Name }}Set is not fully loaded, this function will call the database
+// to load the fields before doing the filtering. In this case, it might be more efficient
+// to search the database directly with the filter condition.
+func (s {{ .Name}}Set) Filtered(test func(rs {{ .Name}}Set) bool) {{ .Name}}Set {
+	res := s.RecordCollection.Filtered(func(rc models.RecordSet) bool {
+		return test({{ .Name }}Set{RecordCollection: rc.Collection()})
 	})
 	return {{ .Name }}Set{
 		RecordCollection: res,

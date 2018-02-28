@@ -299,6 +299,31 @@ func TestBaseModelMethods(t *testing.T) {
 					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
 				}
 			})
+			Convey("Filtered", func() {
+				for i := 0; i < 20; i++ {
+					env.Pool("Post").Call("Create", FieldMap{
+						"Title": fmt.Sprintf("Post no %02d", i),
+						"User":  userJane,
+					})
+				}
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no"))
+
+				evenPosts := posts.Call("Filtered", func(rs RecordSet) bool {
+					var num int
+					_, err := fmt.Sscanf(rs.Collection().Get("Title").(string), "Post no %02d", &num)
+					if err != nil {
+						t.Error(err)
+					}
+					if num%2 == 0 {
+						return true
+					}
+					return false
+				}).(RecordSet).Collection().Records()
+				So(evenPosts, ShouldHaveLength, 10)
+				for i := 0; i < 10; i++ {
+					So(evenPosts[i].Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", 2*i))
+				}
+			})
 		}), ShouldBeNil)
 	})
 }
