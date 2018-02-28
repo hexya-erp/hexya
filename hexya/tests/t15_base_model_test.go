@@ -4,6 +4,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hexya-erp/hexya/hexya/models"
@@ -27,6 +28,26 @@ func TestBaseModelMethods(t *testing.T) {
 				So(userJaneCopy.Age(), ShouldEqual, 24)
 				So(userJaneCopy.Nums(), ShouldEqual, 2)
 				So(userJaneCopy.Posts().Len(), ShouldEqual, 0)
+			})
+			Convey("Sorted", func() {
+				for i := 0; i < 20; i++ {
+					h.Post().Create(env, &h.PostData{
+						Title: fmt.Sprintf("Post no %02d", (24-i)%20),
+						User:  userJane,
+					})
+				}
+				posts := h.Post().Search(env, q.Post().Title().Contains("Post no")).OrderBy("ID")
+				for i, post := range posts.Records() {
+					So(post.Title(), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+				}
+
+				sortedPosts := posts.Sorted(func(rs1, rs2 h.PostSet) bool {
+					return rs1.Title() < rs2.Title()
+				}).Records()
+				So(sortedPosts, ShouldHaveLength, 20)
+				for i, post := range sortedPosts {
+					So(post.Title(), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+				}
 			})
 		}), ShouldBeNil)
 	})
