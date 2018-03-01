@@ -243,22 +243,38 @@ func TestBaseModelMethods(t *testing.T) {
 				}
 			})
 			Convey("SortedDefault", func() {
-				for i := 0; i < 20; i++ {
-					env.Pool("Post").Call("Create", FieldMap{
-						"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
-						"User":  userJane,
-					})
-				}
-				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
-				for i, post := range posts.Records() {
-					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
-				}
+				Convey("With posts", func() {
+					for i := 0; i < 20; i++ {
+						env.Pool("Post").Call("Create", FieldMap{
+							"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
+							"User":  userJane,
+						})
+					}
+					posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
+					for i, post := range posts.Records() {
+						So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+					}
 
-				sortedPosts := posts.Call("SortedDefault").(RecordSet).Collection().Records()
-				So(sortedPosts, ShouldHaveLength, 20)
-				for i, post := range sortedPosts {
-					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
-				}
+					sortedPosts := posts.Call("SortedDefault").(RecordSet).Collection().Records()
+					So(sortedPosts, ShouldHaveLength, 20)
+					for i, post := range sortedPosts {
+						So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+					}
+				})
+				Convey("With tags", func() {
+					env.Pool("Tag").SearchAll().Call("Unlink")
+					for i := 0; i < 20; i++ {
+						env.Pool("Tag").Call("Create", FieldMap{
+							"Name": fmt.Sprintf("Tag %02d", i/2),
+						})
+					}
+					tags := env.Pool("Tag").SearchAll()
+					sortedTags := tags.Call("SortedDefault").(RecordSet).Collection().Records()
+					for i, tag := range sortedTags {
+						So(tag.Get("Name"), ShouldEqual, fmt.Sprintf("Tag %02d", 9-(i/2)))
+						So(tag.Get("ID"), ShouldEqual, int(sortedTags[0].ids[0])+1-i+i%2-(i+1)%2)
+					}
+				})
 			})
 			Convey("SortedByField", func() {
 				for i := 0; i < 20; i++ {

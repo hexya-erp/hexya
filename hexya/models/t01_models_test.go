@@ -234,6 +234,7 @@ func TestModelDeclaration(t *testing.T) {
 			"Description": CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
 			"Rate":        FloatField{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
 		})
+		tag.SetDefaultOrder("Name DESC", "ID ASC")
 
 		cv.AddFields(map[string]FieldDefinition{
 			"Education":  TextField{},

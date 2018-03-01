@@ -185,9 +185,9 @@ func TestEnvironment(t *testing.T) {
 				So(post2.Get("Tags").(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
 				So(post2.Get("Tags").(RecordSet).Collection().Ids(), ShouldContain, tags.ids[0])
 				So(post2.Get("Tags").(RecordSet).Collection().Ids(), ShouldContain, tags.ids[1])
-				So(tags.Records()[0].Get("Posts").(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
+				So(tags.Records()[0].Get("Posts").(RecordSet).Collection().Ids(), ShouldHaveLength, 1)
 				So(tags.Records()[0].Get("Posts").(RecordSet).Collection().Ids(), ShouldContain, post2.ids[0])
-				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldHaveLength, 1)
+				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
 				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldContain, post2.ids[0])
 			})
 			Convey("Check that computed fields are stored and read in cache", func() {
