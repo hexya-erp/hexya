@@ -15,7 +15,6 @@
 package models
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
@@ -596,7 +595,6 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post1Tags.Len(), ShouldEqual, 1)
 				So(post1Tags.Get("Name"), ShouldEqual, "Books")
 				post2Tags := posts.Search(posts.Model().Field("title").Equals("2nd Post")).Get("Tags").(RecordSet).Collection()
-				fmt.Println("Test", post2Tags.env.cache.m2mLinks)
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Get("Name"), ShouldBeIn, "Books", "Jane's")
 				So(post2Tags.Records()[1].Get("Name"), ShouldBeIn, "Books", "Jane's")
