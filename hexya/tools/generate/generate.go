@@ -891,9 +891,9 @@ func (s {{ .Name }}Set) DataStruct(fMap models.FieldMap) (*{{ .Name }}Data, []mo
 {{ .Doc }}
 func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}) {
 {{- if eq .Returns "" }}
-	s.Call("{{ .Name }}", {{ .Params}})
+	{{ $.Name }}().Methods().{{ .Name }}().Call(s.Collection(), {{ .Params}})
 {{- else }}
-	res := s.{{ .Call }}("{{ .Name }}", {{ .Params}})
+	res := {{ $.Name }}().Methods().{{ .Name }}().{{ .Call }}(s.Collection(), {{ .Params}})
 	{{ .ReturnAsserts }}
 	return {{ .Returns }}
 {{- end }}
