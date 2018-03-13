@@ -149,11 +149,6 @@ func (m *Method) AllowGroup(group *security.Group, callers ...Methoder) *Method 
 	return m
 }
 
-// Underlying returns the underlysing method data object
-func (m *Method) Underlying() *Method {
-	return m
-}
-
 // RevokeGroup revokes the execution permission on the method to the given group
 // if it has been given previously, otherwise does nothing.
 // Note that this methods revokes all permissions, whatever the caller.
@@ -167,6 +162,23 @@ func (m *Method) RevokeGroup(group *security.Group) *Method {
 		}
 	}
 	return m
+}
+
+// Underlying returns the underlysing method data object
+func (m *Method) Underlying() *Method {
+	return m
+}
+
+// Call executes the given method with the given parameters
+// and returns (only) the first returned value
+func (m *Method) Call(rc *RecordCollection, params ...interface{}) interface{} {
+	return rc.Call(m.name, params...)
+}
+
+// CallMulti executes the given method with the given parameters
+// and returns all returned value as []interface{}.
+func (m *Method) CallMulti(rc *RecordCollection, params ...interface{}) []interface{} {
+	return rc.CallMulti(m.name, params...)
 }
 
 var _ Methoder = new(Method)
