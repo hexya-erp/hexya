@@ -150,7 +150,6 @@ func init() {
 // PostInit runs all actions that need to be done after all modules have been loaded.
 // This is typically all actions that need to be done after bootstrapping the models.
 // This function:
-// - loads the data from the data files of all modules,
 // - runs successively all PostInit() func of all modules,
 // - loads html templates from all modules.
 func PostInit() {

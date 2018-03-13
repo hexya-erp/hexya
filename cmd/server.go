@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/hexya/actions"
 	"github.com/hexya-erp/hexya/hexya/controllers"
@@ -78,6 +79,8 @@ func generateAndRunFile(projectDir, fileName string, tmpl *template.Template) {
 // a project start file which imports all the project's module.
 func StartServer(config map[string]interface{}) {
 	setupConfig(config)
+	setupLogger()
+	setupDebug()
 	connectToDB()
 	models.BootStrap()
 	i18n.BootStrap()
@@ -104,16 +107,25 @@ func StartServer(config map[string]interface{}) {
 }
 
 // setupConfig takes the given config map and stores it into the viper configuration
-// It also initializes the logger
 func setupConfig(config map[string]interface{}) {
 	for key, value := range config {
 		viper.Set(key, value)
 	}
-	if viper.GetBool("Debug") {
-		gin.SetMode(gin.DebugMode)
-	}
+}
+
+// setupLogger initializes the logger
+func setupLogger() {
 	logging.Initialize()
 	log = logging.GetLogger("init")
+}
+
+// setupDebug updates the server for debugging if Debug is enabled
+func setupDebug() {
+	if !viper.GetBool("Debug") {
+		return
+	}
+	gin.SetMode(gin.DebugMode)
+	pprof.Register(server.GetServer().Engine)
 }
 
 // connectToDB creates the connection to the database
