@@ -97,6 +97,41 @@ func init() {
 			return fmt.Sprintf("[%s]", res)
 		})
 
+	user.Methods().RecursiveMethod().DeclareMethod(
+		`RecursiveMethod is a sample method layer for testing`,
+		func(rs h.UserSet, depth int, result string) string {
+			if depth == 0 {
+				return result
+			}
+			return rs.RecursiveMethod(depth-1, fmt.Sprintf("%s, recursion %d", result, depth))
+		})
+
+	user.Methods().RecursiveMethod().Extend("",
+		func(rs h.UserSet, depth int, result string) string {
+			result = "> " + result + " <"
+			sup := rs.Super().RecursiveMethod(depth, result)
+			return sup
+		})
+
+	user.Methods().SubSetSuper().DeclareMethod("",
+		func(rs h.UserSet) string {
+			var res string
+			for _, rec := range rs.Records() {
+				res += rec.Name()
+			}
+			return res
+		})
+
+	user.Methods().SubSetSuper().Extend("",
+		func(rs h.UserSet) string {
+			userJane := h.User().Search(rs.Env(), q.User().Email().Equals("jane.smith@example.com"))
+			userJohn := h.User().Search(rs.Env(), q.User().Email().Equals("jsmith2@example.com"))
+			users := h.User().NewSet(rs.Env())
+			users = users.Union(userJane)
+			users = users.Union(userJohn)
+			return users.Super().SubSetSuper()
+		})
+
 	user.Methods().InverseSetAge().DeclareMethod("",
 		func(rs h.UserSet, age int16) {
 			rs.Profile().SetAge(age)

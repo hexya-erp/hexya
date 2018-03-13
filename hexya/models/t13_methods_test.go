@@ -36,6 +36,14 @@ func TestMethods(t *testing.T) {
 				res := users.WithContext("use_double_square", true).Call("PrefixedUser", "Prefix")
 				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [[jane.smith@example.com]]")
 			})
+			Convey("Calling super on subset", func() {
+				users := env.Pool("User").SearchAll()
+				So(users.Call("SubSetSuper").(string), ShouldEqual, "Jane A. SmithJohn Smith")
+			})
+			Convey("Calling recursive method", func() {
+				users := env.Pool("User")
+				So(users.Call("RecursiveMethod", 3, "Start"), ShouldEqual, "> > > > Start <, recursion 3 <, recursion 2 <, recursion 1 <")
+			})
 		}), ShouldBeNil)
 	})
 }

@@ -18,7 +18,10 @@ import (
 	"reflect"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
+	"github.com/jtolds/gls"
 )
+
+var ctxManager = gls.NewContextManager()
 
 // Call calls the given method name methName on the given RecordCollection
 // with the given arguments and returns (only) the first result as interface{}.
@@ -39,18 +42,27 @@ func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []in
 	}
 
 	methLayer := methInfo.topLayer
-	if rc.env.super != nil {
-		if rc.env.super.method != methInfo {
-			log.Panic("Trying to call a different method on Super()", "current", methInfo.name, "called", rc.env.super.method.name)
-		}
-		methLayer = rc.env.super
+	var previousLayer *methodLayer
+	layers, ok := ctxManager.GetValue("layers")
+	if ok {
+		previousLayer = layers.([2]*methodLayer)[0]
 	}
-	newEnv := rc.Env()
-	newEnv.callStack = append([]*methodLayer{methLayer}, newEnv.callStack...)
-	newEnv.super = nil
+	if rc.env.super {
+		if !ok {
+			log.Panic("Missing layer", "method", methName, "model", rc.model.name)
+		}
+		methLayer = methInfo.getNextLayer(layers.([2]*methodLayer)[0])
+	}
 
+	newEnv := rc.Env()
+	newEnv.super = false
 	rSet := rc.WithEnv(newEnv)
-	return rSet.callMulti(methLayer, args...)
+
+	var res []interface{}
+	ctxManager.SetValues(gls.Values{"layers": [2]*methodLayer{methLayer, previousLayer}}, func() {
+		res = rSet.callMulti(methLayer, args...)
+	})
+	return res
 }
 
 // Super returns a RecordSet with a modified callstack so that call to the current
@@ -69,18 +81,8 @@ func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []in
 // if the current method has been called from a layer of the other method. Otherwise,
 // it will be the same as calling the other method directly.
 func (rc *RecordCollection) Super() *RecordCollection {
-	if len(rc.env.callStack) == 0 {
-		log.Panic("Empty call stack", "model", rc.model.name)
-	}
-	currentLayer := rc.env.callStack[0]
-	methInfo := currentLayer.method
-	methLayer := methInfo.getNextLayer(currentLayer)
-	if methLayer == nil {
-		// No parent
-		log.Panic("Called Super() on a base method", "model", rc.model.name, "method", methInfo.name)
-	}
 	newEnv := rc.Env()
-	newEnv.super = methLayer
+	newEnv.super = true
 	return rc.WithEnv(newEnv)
 }
 
@@ -118,8 +120,11 @@ func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...interface{
 // if the user has the execution permission and false otherwise.
 func (rc *RecordCollection) CheckExecutionPermission(method *Method, dontPanic ...bool) bool {
 	var caller *Method
-	if len(rc.env.callStack) > 1 {
-		caller = rc.env.callStack[1].method
+	layers, ok := ctxManager.GetValue("layers")
+	if ok {
+		if methLayer := layers.([2]*methodLayer)[1]; methLayer != nil {
+			caller = methLayer.method
+		}
 	}
 	if caller == method {
 		// We are calling Super on the same method, so it's ok

@@ -543,7 +543,6 @@ func declareEnvironmentMethods() {
 		func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
-			rc.env.callStack = rc.env.callStack[1:]
 			return rc.WithContext(key, value)
 		}).AllowGroup(security.GroupEveryone)
 
@@ -553,7 +552,6 @@ func declareEnvironmentMethods() {
 		func(rc *RecordCollection, context *types.Context) *RecordCollection {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
-			rc.env.callStack = rc.env.callStack[1:]
 			return rc.WithNewContext(context)
 		}).AllowGroup(security.GroupEveryone)
 
@@ -563,7 +561,6 @@ func declareEnvironmentMethods() {
 		func(rc *RecordCollection, userID ...int64) *RecordCollection {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
-			rc.env.callStack = rc.env.callStack[1:]
 			return rc.Sudo(userID...)
 		}).AllowGroup(security.GroupEveryone)
 }

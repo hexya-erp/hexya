@@ -73,6 +73,40 @@ func TestModelDeclaration(t *testing.T) {
 				return fmt.Sprintf("[%s]", res)
 			})
 
+		user.AddMethod("RecursiveMethod", "",
+			func(rc *RecordCollection, depth int, res string) string {
+				if depth == 0 {
+					return res
+				}
+				return rc.Call("RecursiveMethod", depth-1, fmt.Sprintf("%s, recursion %d", res, depth)).(string)
+			})
+
+		user.Methods().MustGet("RecursiveMethod").Extend("",
+			func(rc *RecordCollection, depth int, res string) string {
+				res = "> " + res + " <"
+				sup := rc.Super().Call("RecursiveMethod", depth, res).(string)
+				return sup
+			})
+
+		user.AddMethod("SubSetSuper", "",
+			func(rc *RecordCollection) string {
+				var res string
+				for _, rec := range rc.Records() {
+					res += rec.Get("Name").(string)
+				}
+				return res
+			})
+
+		user.Methods().MustGet("SubSetSuper").Extend("",
+			func(rc *RecordCollection) string {
+				users := rc.Env().Pool("User")
+				userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+				userJohn := users.Search(users.Model().Field("Email").Equals("jsmith2@example.com"))
+				users = users.Call("Union", userJane).(RecordSet).Collection()
+				users = users.Call("Union", userJohn).(RecordSet).Collection()
+				return users.Super().Call("SubSetSuper").(string)
+			})
+
 		user.AddMethod("ComputeDecoratedName", "",
 			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
