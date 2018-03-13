@@ -373,6 +373,9 @@ func (rc *RecordCollection) unlink() int64 {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Unlink"))
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Unlink)
 	ids := rSet.Ids()
+	if rSet.IsEmpty() {
+		return 0
+	}
 	sql, args := rSet.query.deleteQuery()
 	res := rSet.env.cr.Execute(sql, args...)
 	num, _ := res.RowsAffected()
