@@ -57,21 +57,27 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 	if rc.Env().Context().GetBool("hexya_no_recompute_stored_fields") {
 		return
 	}
+	// Find record fields to update from the modified fields of fMap
 	fieldNames := fMap.Keys()
-	toUpdate := make(map[computeData]bool)
+	toUpdate := make(map[computeData][]FieldNamer)
 	for _, fieldName := range fieldNames {
 		refFieldInfo, ok := rc.model.fields.Get(fieldName)
 		if !ok {
 			continue
 		}
 		for _, dep := range refFieldInfo.dependencies {
-			toUpdate[dep] = true
+			fName := dep.fieldName
+			if dep.stored {
+				// We remove fieldName to group calls to the compute method if stored
+				dep.fieldName = ""
+			}
+			toUpdate[dep] = append(toUpdate[dep], FieldName(fName))
 		}
 	}
 
 	// Compute all that must be computed and store the values
 	rc.Fetch()
-	for cData := range toUpdate {
+	for cData, fNames := range toUpdate {
 		recs := rc
 		if cData.path != "" {
 			recs = rc.Env().Pool(cData.model.name).Search(rc.Model().Field(cData.path).In(rc.Ids()))
@@ -83,16 +89,15 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 			}
 			continue
 		}
-		updateStoredFields(recs, cData.compute)
+		updateStoredFields(recs, cData.compute, fNames)
 	}
 }
 
 // updateStoredFields calls the given computeMethod on recs and stores the values.
-func updateStoredFields(recs *RecordCollection, computeMethod string) {
+func updateStoredFields(recs *RecordCollection, computeMethod string, fieldsToReset []FieldNamer) {
 	for _, rec := range recs.Records() {
-		retVal := rec.CallMulti(computeMethod)
-		toUnset := retVal[1].([]FieldNamer)
-		vals := retVal[0].(FieldMapper).FieldMap(toUnset...)
+		retVal := rec.Call(computeMethod)
+		vals := retVal.(FieldMapper).FieldMap(fieldsToReset...)
 		// Check if the values actually changed
 		var doUpdate bool
 		for f, v := range vals {
@@ -112,7 +117,7 @@ func updateStoredFields(recs *RecordCollection, computeMethod string) {
 			}
 		}
 		if doUpdate {
-			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals, toUnset)
+			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals, fieldsToReset)
 		}
 	}
 }

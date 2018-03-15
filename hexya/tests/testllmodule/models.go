@@ -71,18 +71,25 @@ func declareModels() {
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	user.AddMethod("ComputeDecoratedName", "",
+	user.AddMethod("OnChangeName", "",
 		func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 			return res, []models.FieldNamer{models.FieldName("DecoratedName")}
 		})
 
+	user.AddMethod("ComputeDecoratedName", "",
+		func(rc *models.RecordCollection) models.FieldMap {
+			res := make(models.FieldMap)
+			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
+			return res
+		})
+
 	user.AddMethod("ComputeAge", "",
-		func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+		func(rc *models.RecordCollection) models.FieldMap {
 			res := make(models.FieldMap)
 			res["Age"] = rc.Get("Profile").(*models.RecordCollection).Get("Age").(int16)
-			return res, []models.FieldNamer{}
+			return res
 		})
 
 	user.AddMethod("InverseSetAge", "",
@@ -160,7 +167,7 @@ func declareModels() {
 
 	user.AddFields(map[string]models.FieldDefinition{
 		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
-			NoCopy: true, OnChange: user.Methods().MustGet("ComputeDecoratedName")},
+			NoCopy: true, OnChange: user.Methods().MustGet("OnChangeName")},
 		"DecoratedName": models.CharField{Compute: user.Methods().MustGet("ComputeDecoratedName")},
 		"Email":         models.CharField{Help: "The user's email address", Size: 100, Index: true},
 		"Password":      models.CharField{NoCopy: true},

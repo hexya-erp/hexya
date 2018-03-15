@@ -1093,7 +1093,7 @@ To create a computed field, create a field and set its attribute `Compute` to
 a method. The computation method should have the following signature:
 
 [source,go]
-func (RecordSet) (*RecordData, []models.FieldNamer)
+func (RecordSet) *RecordData
 
 `RecordSet` type depends on the model and is named `ModelSet` for model `Model`
 (e.g. `OpenAcademySessionSet`)
@@ -1127,13 +1127,13 @@ func init() {
 
     h.OpenAcademySession().Methods().ComputeTakenSeats().DeclareMethod(
         `ComputeTakenSeats returns the percentage of taken seats in this session`,
-        func(rs h.OpenAcademySessionSet) (*h.OpenAcademySessionData, []models.FieldNamer) {
+        func(rs h.OpenAcademySessionSet) *h.OpenAcademySessionData {
             var res h.OpenAcademySessionData
             // res struct fields default to their Go zero value
             if rs.Seats() != 0 {
                 res.TakenSeats = 100.0 * float64(rs.Attendees().Len()) / float64(rs.Seats())
             }
-            return &res, []models.FieldNamer{h.OpenAcademySession().TakenSeats()}
+            return &res
         })
 (...)
 }
@@ -1218,8 +1218,10 @@ to the database.
 To achieve this, set the `OnChange:` parameter of the field with a computation
 function.
 
-Such fonction have the same signature as the functions in `Compute:` parameter
-(see <<Computed fields and default values>>).
+Such fonction have the following signature:
+
+[source,go]
+func (RecordSet) (*RecordData, []models.FieldNamer)
 
 For computed fields, valued `onchange` behavior is built-in as can be seen by
 playing with the *Session* form: change the number of seats or participants, and

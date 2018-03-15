@@ -91,20 +91,20 @@ func declareBaseComputeMethods() {
 
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
-		func(rc *RecordCollection) (FieldMap, []FieldNamer) {
+		func(rc *RecordCollection) FieldMap {
 			if !rc.Get("WriteDate").(dates.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("WriteDate").(dates.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
+				return FieldMap{"LastUpdate": rc.Get("WriteDate").(dates.DateTime)}
 			}
 			if !rc.Get("CreateDate").(dates.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("CreateDate").(dates.DateTime)}, []FieldNamer{FieldName("LastUpdate")}
+				return FieldMap{"LastUpdate": rc.Get("CreateDate").(dates.DateTime)}
 			}
-			return FieldMap{"LastUpdate": dates.Now()}, []FieldNamer{FieldName("LastUpdate")}
+			return FieldMap{"LastUpdate": dates.Now()}
 		}).AllowGroup(security.GroupEveryone)
 
 	model.AddMethod("ComputeDisplayName",
 		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
-		func(rc *RecordCollection) (FieldMap, []FieldNamer) {
-			return FieldMap{"DisplayName": rc.Call("NameGet")}, []FieldNamer{FieldName("DisplayName")}
+		func(rc *RecordCollection) FieldMap {
+			return FieldMap{"DisplayName": rc.Call("NameGet")}
 		}).AllowGroup(security.GroupEveryone)
 
 }
