@@ -33,6 +33,7 @@ import (
 // This struct is used to register modules.
 type Module struct {
 	Name     string
+	PreInit  func()
 	PostInit func()
 }
 

@@ -147,6 +147,23 @@ func init() {
 	hexyaServer.Use(logging.LogForGin(log))
 }
 
+// PreInit runs all actions that need to be done after we get the configuration,
+// but before bootstrap.
+//
+// This function runs successively all PreInit() func of modules
+func PreInit() {
+	PreInitModules()
+}
+
+// PreInitModules calls successively all PreInit functions of all installed modules
+func PreInitModules() {
+	for _, module := range Modules {
+		if module.PreInit != nil {
+			module.PreInit()
+		}
+	}
+}
+
 // PostInit runs all actions that need to be done after all modules have been loaded.
 // This is typically all actions that need to be done after bootstrapping the models.
 // This function:
@@ -160,6 +177,8 @@ func PostInit() {
 // PostInitModules calls successively all PostInit functions of all installed modules
 func PostInitModules() {
 	for _, module := range Modules {
-		module.PostInit()
+		if module.PostInit != nil {
+			module.PostInit()
+		}
 	}
 }
