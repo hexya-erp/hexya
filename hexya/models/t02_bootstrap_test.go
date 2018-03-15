@@ -19,7 +19,11 @@ func (f TestFieldMap) FieldMap(...FieldNamer) FieldMap {
 
 func TestIllegalMethods(t *testing.T) {
 	Convey("Checking that invalid data leads to panic", t, func() {
+		So(func() { Registry.MustGet("NonExistentModel") }, ShouldPanic)
+
 		userModel := Registry.MustGet("User")
+		So(func() { userModel.Fields().MustGet("NonExistentField") }, ShouldPanic)
+		So(func() { userModel.Methods().MustGet("NonExistentMethod") }, ShouldPanic)
 
 		So(func() { userModel.AddMethod("WrongType", "Test with int instead of func literal", 12) }, ShouldPanic)
 		So(func() {
@@ -59,6 +63,34 @@ func TestIllegalMethods(t *testing.T) {
 		So(checkTypesMatch(reflect.TypeOf(TestRecordSet{}), reflect.TypeOf(new(RecordCollection))), ShouldBeTrue)
 		So(checkTypesMatch(reflect.TypeOf(TestFieldMap{}), reflect.TypeOf(FieldMap{})), ShouldBeTrue)
 		So(checkTypesMatch(reflect.TypeOf(FieldMap{}), reflect.TypeOf(TestFieldMap{})), ShouldBeTrue)
+	})
+	Convey("Test methods signature check", t, func() {
+		userModel := Registry.MustGet("User")
+		nameField := userModel.Fields().MustGet("Name")
+		nameField.SetOnchange(userModel.Methods().MustGet("ComputeAge"))
+		processUpdates()
+		So(func() { checkOnChangeMethType(nameField, "Onchange") }, ShouldPanic)
+		nameField.SetOnchange(userModel.Methods().MustGet("SubSetSuper"))
+		processUpdates()
+		So(func() { checkOnChangeMethType(nameField, "Onchange") }, ShouldPanic)
+		nameField.SetOnchange(userModel.Methods().MustGet("InverseSetAge"))
+		processUpdates()
+		So(func() { checkOnChangeMethType(nameField, "Onchange") }, ShouldPanic)
+		nameField.SetOnchange(userModel.Methods().MustGet("OnChangeName"))
+		processUpdates()
+
+		ageField := userModel.Fields().MustGet("Age")
+		ageField.SetCompute(userModel.Methods().MustGet("OnChangeName"))
+		processUpdates()
+		So(func() { checkComputeMethType(ageField, "Compute") }, ShouldPanic)
+		ageField.SetCompute(userModel.Methods().MustGet("SubSetSuper"))
+		processUpdates()
+		So(func() { checkComputeMethType(ageField, "Compute") }, ShouldPanic)
+		ageField.SetCompute(userModel.Methods().MustGet("InverseSetAge"))
+		processUpdates()
+		So(func() { checkComputeMethType(ageField, "Compute") }, ShouldPanic)
+		ageField.SetCompute(userModel.Methods().MustGet("ComputeAge"))
+		processUpdates()
 	})
 }
 
