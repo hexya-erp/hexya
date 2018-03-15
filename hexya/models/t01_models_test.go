@@ -107,18 +107,25 @@ func TestModelDeclaration(t *testing.T) {
 				return users.Super().Call("SubSetSuper").(string)
 			})
 
-		user.AddMethod("ComputeDecoratedName", "",
+		user.AddMethod("OnChangeName", "",
 			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 				return res, []FieldNamer{FieldName("DecoratedName")}
 			})
 
+		user.AddMethod("ComputeDecoratedName", "",
+			func(rc *RecordCollection) FieldMap {
+				res := make(FieldMap)
+				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
+				return res
+			})
+
 		user.AddMethod("ComputeAge", "",
-			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
+			func(rc *RecordCollection) FieldMap {
 				res := make(FieldMap)
 				res["Age"] = rc.Get("Profile").(*RecordCollection).Get("Age").(int16)
-				return res, []FieldNamer{}
+				return res
 			})
 
 		user.AddMethod("InverseSetAge", "",
@@ -132,8 +139,8 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("ComputeNum", "Dummy method",
-			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
-				return FieldMap{}, []FieldNamer{}
+			func(rc *RecordCollection) FieldMap {
+				return FieldMap{}
 			})
 
 		activeMI.AddMethod("IsActivated", "",
@@ -209,7 +216,7 @@ func TestModelDeclaration(t *testing.T) {
 
 		user.AddFields(map[string]FieldDefinition{
 			"Name": CharField{String: "Name", Help: "The user's username", Unique: true,
-				NoCopy: true, OnChange: user.Methods().MustGet("ComputeDecoratedName")},
+				NoCopy: true, OnChange: user.Methods().MustGet("OnChangeName")},
 			"DecoratedName": CharField{Compute: user.Methods().MustGet("ComputeDecoratedName")},
 			"Email":         CharField{Help: "The user's email address", Size: 100, Index: true},
 			"Password":      CharField{NoCopy: true},
@@ -356,7 +363,7 @@ func TestFieldModification(t *testing.T) {
 		nameField.SetSize(127)
 		checkUpdates(nameField, "size", 127)
 		nameField.SetOnchange(nil)
-		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("ComputeDecoratedName"))
+		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("OnChangeName"))
 		nameField.SetConstraint(Registry.MustGet("User").Methods().MustGet("UpdateCity"))
 		nameField.SetConstraint(nil)
 		nameField.SetInverse(Registry.MustGet("User").Methods().MustGet("InverseSetAge"))

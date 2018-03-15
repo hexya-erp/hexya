@@ -42,11 +42,11 @@ const (
 
 // computeData holds data to recompute another field.
 // - model is a pointer to the Model instance to recompute
+// - fieldName is the name of the field to recompute in model.
 // - compute is the name of the method to call on model
 // - path is the search string that will be used to find records to update
 // (e.g. path = "Profile.BestPost").
 // - stored is true if the computed field is stored
-// - fieldName is this fieldName if the field is not stored, empty otherwise.
 type computeData struct {
 	model     *Model
 	stored    bool
@@ -375,14 +375,10 @@ func processDepends() {
 				tokens := jsonizeExpr(mi, strings.Split(depString, ExprSep))
 				refName = tokens[len(tokens)-1]
 				path := strings.Join(tokens[:len(tokens)-1], ExprSep)
-				var fieldName string
-				if !fInfo.stored {
-					fieldName = fInfo.name
-				}
 				targetComputeData := computeData{
 					model:     mi,
 					stored:    fInfo.stored,
-					fieldName: fieldName,
+					fieldName: fInfo.name,
 					compute:   fInfo.compute,
 					path:      path,
 				}
@@ -400,19 +396,16 @@ func processDepends() {
 func checkComputeMethodsSignature() {
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.computedFields {
-			method := mi.methods.MustGet(fi.compute)
-			checkMethType(method, "Compute methods")
+			checkComputeMethType(fi, "Compute methods")
 		}
 		for _, fi := range mi.fields.computedStoredFields {
-			method := mi.methods.MustGet(fi.compute)
-			checkMethType(method, "Compute method for stored fields")
+			checkComputeMethType(fi, "Compute method for stored fields")
 		}
 		for _, fi := range mi.fields.registryByName {
 			if fi.onChange == "" {
 				continue
 			}
-			method := mi.methods.MustGet(fi.onChange)
-			checkMethType(method, "OnChange methods")
+			checkOnChangeMethType(fi, "OnChange methods")
 		}
 		for _, fi := range mi.fields.registryByName {
 			if fi.inverse == "" {
@@ -430,9 +423,31 @@ func checkComputeMethodsSignature() {
 	}
 }
 
-// checkMethType panics if the given method does not have
-// the correct number and type for its arguments and returns
-func checkMethType(method *Method, label string) {
+// checkComputeMethType panics if the given method does not have
+// the correct number and type of arguments and returns for a compute method
+func checkComputeMethType(fi *Field, label string) {
+	method := fi.model.methods.MustGet(fi.compute)
+	methType := method.methodType
+	var msg string
+	switch {
+	case methType.NumIn() != 1:
+		msg = fmt.Sprintf("%s should have no arguments", label)
+	case methType.NumOut() == 0:
+		msg = fmt.Sprintf("%s should return a value", label)
+	case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
+		msg = "First return argument must implement models.FieldMapper"
+	case methType.NumOut() > 1:
+		msg = fmt.Sprintf("Too many return values for %s", label)
+	}
+	if msg != "" {
+		log.Panic(msg, "model", method.model.name, "method", method.name, "field", fi.name)
+	}
+}
+
+// checkOnChangeMethType panics if the given method does not have
+// the correct number and type of arguments and returns for an onchange method
+func checkOnChangeMethType(fi *Field, label string) {
+	method := fi.model.methods.MustGet(fi.onChange)
 	methType := method.methodType
 	var msg string
 	switch {
@@ -450,6 +465,6 @@ func checkMethType(method *Method, label string) {
 		msg = fmt.Sprintf("Too many return values for %s", label)
 	}
 	if msg != "" {
-		log.Panic(msg, "model", method.model.name, "method", method.name)
+		log.Panic(msg, "model", method.model.name, "method", method.name, "field", fi.name)
 	}
 }

@@ -31,7 +31,7 @@ func init() {
 
 	// Methods directly declared with AddMethod must be defined before being referenced in the field declaration
 
-	user.AddMethod("ComputeDecoratedName", "",
+	user.AddMethod("OnChangeName", "",
 		func(rs h.UserSet) (*h.UserData, []models.FieldNamer) {
 			res := h.UserData{
 				DecoratedName: rs.PrefixedUser("User")[0],
@@ -39,18 +39,26 @@ func init() {
 			return &res, []models.FieldNamer{h.User().DecoratedName()}
 		})
 
+	user.AddMethod("ComputeDecoratedName", "",
+		func(rs h.UserSet) *h.UserData {
+			res := h.UserData{
+				DecoratedName: rs.PrefixedUser("User")[0],
+			}
+			return &res
+		})
+
 	user.AddMethod("ComputeAge",
 		`ComputeAge is a sample method layer for testing`,
-		func(rs h.UserSet) (*h.UserData, []models.FieldNamer) {
+		func(rs h.UserSet) *h.UserData {
 			res := h.UserData{
 				Age: rs.Profile().Age(),
 			}
-			return &res, []models.FieldNamer{h.User().Age()}
+			return &res
 		})
 
 	user.AddFields(map[string]models.FieldDefinition{
 		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
-			NoCopy: true, OnChange: user.Methods().ComputeDecoratedName()},
+			NoCopy: true, OnChange: user.Methods().OnChangeName()},
 		"DecoratedName": models.CharField{Compute: user.Methods().ComputeDecoratedName()},
 		"Email":         models.CharField{Help: "The user's email address", Size: 100, Index: true},
 		"Password":      models.CharField{NoCopy: true},

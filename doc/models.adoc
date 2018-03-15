@@ -786,11 +786,11 @@ the model. It defaults to `sum`.
 `Compute` Methoder::
 Declares this field as a computed field. The value must be a
 method on this RecordSet with the following signature, which returns a
-Record with the values to update and a slice of field names to unset.
+Record struct with the values to update.
 
 [source,go]
 ----
-func (RecordSetType) (*RecordType, []models.FieldNamer)
+func (RecordSetType) *RecordType
 ----
 
 `Inverse` Methoder::
