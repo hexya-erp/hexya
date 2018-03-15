@@ -44,6 +44,18 @@ func TestMethods(t *testing.T) {
 				users := env.Pool("User")
 				So(users.Call("RecursiveMethod", 3, "Start"), ShouldEqual, "> > > > Start <, recursion 3 <, recursion 2 <, recursion 1 <")
 			})
+			Convey("Direct calls from method object", func() {
+				users := env.Pool("User")
+				users = users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+				res := users.Model().Methods().MustGet("PrefixedUser").Call(users, "Prefix")
+				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
+				resMulti := users.Model().Methods().MustGet("OnChangeName").CallMulti(users)
+				res1 := resMulti[0].(FieldMap)
+				res2 := resMulti[1].([]FieldNamer)
+				So(res1, ShouldContainKey, "DecoratedName")
+				So(res1["DecoratedName"], ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+				So(res2, ShouldContain, FieldName("DecoratedName"))
+			})
 		}), ShouldBeNil)
 	})
 }
