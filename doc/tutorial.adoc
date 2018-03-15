@@ -115,14 +115,17 @@ const MODULE_NAME string = "openacademy"
 func init() {
     server.RegisterModule(&server.Module{
 		Name: MODULE_NAME,
+		PreInit: func() {},
 		PostInit: func() {},
 	})
 }
 ----
 
-The declared `PostInit` function allows to execute some code at server startup
-after the models are bootstrapped. We leave it as an empty function for the
-moment.
+The declared `PreInit` and `PostInit` functions allows to execute some code at server startup.
+
+- `PreInit` is run after all models are declared and configuration is loaded but before bootstrapping.
+- `PostInit` is run after the models, views and controllers are bootstrapped.
+We leave them as empty functions for the moment.
 
 == Object-Relational Mapping
 
@@ -1574,6 +1577,7 @@ var (
 func init() {
     server.RegisterModule(&server.Module{
 		Name: MODULE_NAME,
+		PreInit: func() {},
 		PostInit: func() {},
 	})
 }

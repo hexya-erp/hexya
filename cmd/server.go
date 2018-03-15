@@ -81,6 +81,7 @@ func StartServer(config map[string]interface{}) {
 	setupConfig(config)
 	setupLogger()
 	setupDebug()
+	server.PreInit()
 	connectToDB()
 	models.BootStrap()
 	i18n.BootStrap()
