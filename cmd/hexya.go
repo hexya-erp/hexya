@@ -60,6 +60,8 @@ func init() {
 
 	HexyaCmd.PersistentFlags().String("db-driver", "postgres", "Database driver to use")
 	viper.BindPFlag("DB.Driver", HexyaCmd.PersistentFlags().Lookup("db-driver"))
+	HexyaCmd.PersistentFlags().String("db-sslmode", "disable", "Database driver sslmode")
+	viper.BindPFlag("DB.SSLMode", HexyaCmd.PersistentFlags().Lookup("db-sslmode"))
 	HexyaCmd.PersistentFlags().String("db-host", "/var/run/postgresql",
 		"The database host to connect to. Values that start with / are for unix domain sockets directory")
 	viper.BindPFlag("DB.Host", HexyaCmd.PersistentFlags().Lookup("db-host"))
