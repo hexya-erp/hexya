@@ -131,20 +131,17 @@ func setupDebug() {
 
 // connectToDB creates the connection to the database
 func connectToDB() {
-	connectString := fmt.Sprintf("dbname=%s sslmode=disable", viper.GetString("DB.Name"))
-	if viper.GetString("DB.User") != "" {
-		connectString += fmt.Sprintf(" user=%s", viper.GetString("DB.User"))
-	}
-	if viper.GetString("DB.Password") != "" {
-		connectString += fmt.Sprintf(" password=%s", viper.GetString("DB.Password"))
-	}
-	if viper.GetString("DB.Host") != "" {
-		connectString += fmt.Sprintf(" host=%s", viper.GetString("DB.Host"))
-	}
-	if viper.GetString("DB.Port") != "5432" {
-		connectString += fmt.Sprintf(" port=%s", viper.GetString("DB.Port"))
-	}
-	models.DBConnect(viper.GetString("DB.Driver"), connectString)
+	models.DBConnect(viper.GetString("DB.Driver"), models.ConnectionParams{
+		Host:     viper.GetString("DB.Host"),
+		Port:     viper.GetString("DB.Port"),
+		User:     viper.GetString("DB.User"),
+		Password: viper.GetString("DB.Password"),
+		DBName:   viper.GetString("DB.Name"),
+		SSLMode:  viper.GetString("DB.SSLMode"),
+		SSLCert:  viper.GetString("DB.SSLCert"),
+		SSLKey:   viper.GetString("DB.SSLKey"),
+		SSLCA:    viper.GetString("DB.SSLCA"),
+	})
 }
 
 func init() {

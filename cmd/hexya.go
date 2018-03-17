@@ -71,6 +71,14 @@ func init() {
 	viper.BindPFlag("DB.Password", HexyaCmd.PersistentFlags().Lookup("db-password"))
 	HexyaCmd.PersistentFlags().String("db-name", "hexya", "Database name")
 	viper.BindPFlag("DB.Name", HexyaCmd.PersistentFlags().Lookup("db-name"))
+	HexyaCmd.PersistentFlags().String("db-ssl-mode", "prefer", "SSL mode to connect to the database. Must be one of 'disable', 'prefer' (default), 'require', 'verify-ca' and 'verify-full'")
+	viper.BindPFlag("DB.SSLMode", HexyaCmd.PersistentFlags().Lookup("db-ssl-mode"))
+	HexyaCmd.PersistentFlags().String("db-ssl-cert", "", "Path to client certificate file")
+	viper.BindPFlag("DB.SSLCert", HexyaCmd.PersistentFlags().Lookup("db-ssl-cert"))
+	HexyaCmd.PersistentFlags().String("db-ssl-key", "", "Path to client private key file")
+	viper.BindPFlag("DB.SSLKey", HexyaCmd.PersistentFlags().Lookup("db-ssl-key"))
+	HexyaCmd.PersistentFlags().String("db-ssl-ca", "", "Path to certificate authority certificate(s) file")
+	viper.BindPFlag("DB.SSLCA", HexyaCmd.PersistentFlags().Lookup("db-ssl-ca"))
 }
 
 func initConfig() {
