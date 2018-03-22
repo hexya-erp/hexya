@@ -74,6 +74,12 @@ func LoadDataRecords() {
 	loadData("data", "csv", models.LoadCSVDataFile)
 }
 
+// LoadDemoRecords loads all the data records in the 'demo' directory into the database.
+// Demo records are defined in CSV files.
+func LoadDemoRecords() {
+	loadData("demo", "csv", models.LoadCSVDataFile)
+}
+
 // LoadTranslations loads all translation data from the PO files in the 'i18n' directory
 // into the translations registry.
 func LoadTranslations(langs []string) {

@@ -133,7 +133,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 			val = base64.StdEncoding.EncodeToString(fileContent)
 		case fi.fieldType == fieldtype.Boolean:
 			val = false
-			if strings.ToLower(record[i]) == "true" {
+			if res, _ := strconv.ParseBool(record[i]); res {
 				val = true
 			}
 		default:

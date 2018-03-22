@@ -9,6 +9,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/server"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const updateDBFileName string = "updatedb.go"
@@ -34,6 +35,10 @@ func UpdateDB(config map[string]interface{}) {
 	models.BootStrap()
 	models.SyncDatabase()
 	server.LoadDataRecords()
+	if viper.GetBool("Demo") {
+		log.Info("Demo mode detected: loading demo data")
+		server.LoadDemoRecords()
+	}
 	log.Info("Database updated successfully")
 }
 

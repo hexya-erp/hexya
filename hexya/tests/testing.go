@@ -88,6 +88,7 @@ func InitializeTests(moduleName string) {
 	models.BootStrap()
 	models.SyncDatabase()
 	server.LoadDataRecords()
+	server.LoadDemoRecords()
 
 	server.PostInitModules()
 }
