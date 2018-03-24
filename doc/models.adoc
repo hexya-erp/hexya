@@ -631,6 +631,7 @@ apply on a Field instance.
 `*(f *Field) SetDepends(value []string) *Field*`::
 `*(f *Field) SetStored(value bool) *Field*`::
 `*(f *Field) SetRequired(value bool) *Field*`::
+`*(f *Field) SetReadOnly(value bool) *Field*`::
 `*(f *Field) SetUnique(value bool) *Field*`::
 `*(f *Field) SetIndex(value bool) *Field*`::
 `*(f *Field) SetNoCopy(value bool) *Field*`::
@@ -728,6 +729,10 @@ Field's help typically displayed as tooltip.
 
 `Required` bool::
 Defines the field as required (i.e. not null).
+
+`ReadOnly` bool::
+This field will be shown as read only on all views.
+Note that this does not prevent setting the field by code or through a method.
 
 `Unique` bool::
 Defines the field as unique in the database table.

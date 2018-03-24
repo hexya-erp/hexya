@@ -34,6 +34,7 @@ type BinaryField struct {
 	Help       string
 	Stored     bool
 	Required   bool
+	ReadOnly   bool
 	Unique     bool
 	Index      bool
 	Compute    Methoder
@@ -70,6 +71,7 @@ func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          bf.Help,
 		stored:        bf.Stored,
 		required:      bf.Required,
+		readOnly:      bf.ReadOnly,
 		unique:        bf.Unique,
 		index:         bf.Index,
 		compute:       compute,
@@ -97,6 +99,7 @@ type BooleanField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -134,6 +137,7 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          bf.Help,
 		stored:        bf.Stored,
 		required:      bf.Required,
+		readOnly:      bf.ReadOnly,
 		unique:        bf.Unique,
 		index:         bf.Index,
 		compute:       compute,
@@ -162,6 +166,7 @@ type CharField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -200,6 +205,7 @@ func (cf CharField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          cf.Help,
 		stored:        cf.Stored,
 		required:      cf.Required,
+		readOnly:      cf.ReadOnly,
 		unique:        cf.Unique,
 		index:         cf.Index,
 		compute:       compute,
@@ -228,6 +234,7 @@ type DateField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -265,6 +272,7 @@ func (df DateField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          df.Help,
 		stored:        df.Stored,
 		required:      df.Required,
+		readOnly:      df.ReadOnly,
 		unique:        df.Unique,
 		index:         df.Index,
 		compute:       compute,
@@ -292,6 +300,7 @@ type DateTimeField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -329,6 +338,7 @@ func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          df.Help,
 		stored:        df.Stored,
 		required:      df.Required,
+		readOnly:      df.ReadOnly,
 		unique:        df.Unique,
 		index:         df.Index,
 		compute:       compute,
@@ -354,6 +364,7 @@ type FloatField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -391,6 +402,7 @@ func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          ff.Help,
 		stored:        ff.Stored,
 		required:      ff.Required,
+		readOnly:      ff.ReadOnly,
 		unique:        ff.Unique,
 		index:         ff.Index,
 		compute:       compute,
@@ -419,6 +431,7 @@ type HTMLField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -457,6 +470,7 @@ func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          tf.Help,
 		stored:        tf.Stored,
 		required:      tf.Required,
+		readOnly:      tf.ReadOnly,
 		unique:        tf.Unique,
 		index:         tf.Index,
 		compute:       compute,
@@ -483,6 +497,7 @@ type IntegerField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -520,6 +535,7 @@ func (i IntegerField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          i.Help,
 		stored:        i.Stored,
 		required:      i.Required,
+		readOnly:      i.ReadOnly,
 		unique:        i.Unique,
 		index:         i.Index,
 		compute:       compute,
@@ -547,6 +563,7 @@ type Many2ManyField struct {
 	Help             string
 	Stored           bool
 	Required         bool
+	ReadOnly         bool
 	Index            bool
 	Compute          Methoder
 	Depends          []string
@@ -606,6 +623,7 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field 
 		help:             mf.Help,
 		stored:           mf.Stored,
 		required:         mf.Required,
+		readOnly:         mf.ReadOnly,
 		index:            mf.Index,
 		compute:          compute,
 		inverse:          inverse,
@@ -637,6 +655,7 @@ type Many2OneField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Index         bool
 	Compute       Methoder
 	Depends       []string
@@ -686,6 +705,7 @@ func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:             mf.Help,
 		stored:           mf.Stored,
 		required:         required,
+		readOnly:         mf.ReadOnly,
 		index:            mf.Index,
 		compute:          compute,
 		inverse:          inverse,
@@ -715,6 +735,7 @@ type One2ManyField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Index         bool
 	Compute       Methoder
 	Depends       []string
@@ -752,6 +773,7 @@ func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:             of.Help,
 		stored:           of.Stored,
 		required:         of.Required,
+		readOnly:         of.ReadOnly,
 		index:            of.Index,
 		compute:          compute,
 		inverse:          inverse,
@@ -781,6 +803,7 @@ type One2OneField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Index         bool
 	Compute       Methoder
 	Depends       []string
@@ -830,6 +853,7 @@ func (of One2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:             of.Help,
 		stored:           of.Stored,
 		required:         required,
+		readOnly:         of.ReadOnly,
 		index:            of.Index,
 		compute:          compute,
 		inverse:          inverse,
@@ -860,6 +884,7 @@ type Rev2OneField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Index         bool
 	Compute       Methoder
 	Depends       []string
@@ -897,6 +922,7 @@ func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:             rf.Help,
 		stored:           rf.Stored,
 		required:         rf.Required,
+		readOnly:         rf.ReadOnly,
 		index:            rf.Index,
 		compute:          compute,
 		inverse:          inverse,
@@ -925,6 +951,7 @@ type SelectionField struct {
 	Help       string
 	Stored     bool
 	Required   bool
+	ReadOnly   bool
 	Unique     bool
 	Index      bool
 	Compute    Methoder
@@ -956,6 +983,7 @@ func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field 
 		help:        sf.Help,
 		stored:      sf.Stored,
 		required:    sf.Required,
+		readOnly:    sf.ReadOnly,
 		unique:      sf.Unique,
 		index:       sf.Index,
 		compute:     compute,
@@ -984,6 +1012,7 @@ type TextField struct {
 	Help          string
 	Stored        bool
 	Required      bool
+	ReadOnly      bool
 	Unique        bool
 	Index         bool
 	Compute       Methoder
@@ -1022,6 +1051,7 @@ func (tf TextField) DeclareField(fc *FieldsCollection, name string) *Field {
 		help:          tf.Help,
 		stored:        tf.Stored,
 		required:      tf.Required,
+		readOnly:      tf.ReadOnly,
 		unique:        tf.Unique,
 		index:         tf.Index,
 		compute:       compute,
@@ -1125,6 +1155,8 @@ func (f *Field) setProperty(property string, value interface{}) {
 		f.stored = value.(bool)
 	case "required":
 		f.required = value.(bool)
+	case "readOnly":
+		f.readOnly = value.(bool)
 	case "unique":
 		f.unique = value.(bool)
 	case "index":
@@ -1219,6 +1251,12 @@ func (f *Field) SetStored(value bool) *Field {
 // SetRequired overrides the value of the Required parameter of this Field
 func (f *Field) SetRequired(value bool) *Field {
 	f.addUpdate("required", value)
+	return f
+}
+
+// SetReadOnly overrides the value of the ReadOnly parameter of this Field
+func (f *Field) SetReadOnly(value bool) *Field {
+	f.addUpdate("readOnly", value)
 	return f
 }
 
