@@ -147,7 +147,7 @@ func TestViews(t *testing.T) {
 		So(view.Name, ShouldEqual, "My View")
 		So(view.Model, ShouldEqual, "User")
 		So(view.Priority, ShouldEqual, 16)
-		So(view.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
 			`<form>
 	<group>
 		<field name="UserName"/>
@@ -165,7 +165,7 @@ func TestViews(t *testing.T) {
 		So(view.Name, ShouldEqual, "my.other.id")
 		So(view.Model, ShouldEqual, "Partner")
 		So(view.Priority, ShouldEqual, 12)
-		So(view.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
 			`<form>
 	<h1>
 		<field name="Name"/>
@@ -186,7 +186,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view1 := Registry.GetByID("my_id")
-		So(view1.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view1.Arch("")), ShouldEqual,
 			`<form>
 	<group>
 		<field name="UserName"/>
@@ -195,7 +195,7 @@ func TestViews(t *testing.T) {
 </form>
 `)
 		view2 := Registry.GetByID("my_other_id")
-		So(view2.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h1>
 		<field name="Name"/>
@@ -218,7 +218,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
-		So(view2.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -245,7 +245,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
-		So(view2.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -274,9 +274,9 @@ func TestViews(t *testing.T) {
 		So(view1, ShouldNotBeNil)
 		So(view2, ShouldNotBeNil)
 		So(view3, ShouldNotBeNil)
-		So(view1.Type, ShouldEqual, VIEW_TYPE_FORM)
-		So(view2.Type, ShouldEqual, VIEW_TYPE_FORM)
-		So(view3.Type, ShouldEqual, VIEW_TYPE_TREE)
+		So(view1.Type, ShouldEqual, ViewTypeForm)
+		So(view2.Type, ShouldEqual, ViewTypeForm)
+		So(view3.Type, ShouldEqual, ViewTypeTree)
 	})
 	Convey("Testing embedded views", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef7))
@@ -287,7 +287,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
 		view := Registry.GetByID("embedded_form")
 		So(view.ID, ShouldEqual, "embedded_form")
-		So(view.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
 			`<form>
 	<field name="Name"/>
 	<field name="Age"/>
@@ -300,18 +300,18 @@ func TestViews(t *testing.T) {
 		So(view.SubViews, ShouldContainKey, "Groups")
 		viewCategories := view.SubViews["Categories"]
 		So(viewCategories, ShouldHaveLength, 2)
-		viewCategoriesForm := viewCategories[VIEW_TYPE_FORM]
+		viewCategoriesForm := viewCategories[ViewTypeForm]
 		So(viewCategoriesForm.ID, ShouldEqual, "embedded_form_childview_Categories_1")
-		So(viewCategoriesForm.Arch(""), ShouldEqual, `<form>
+		So(xmlutils.ElementToXML(viewCategoriesForm.Arch("")), ShouldEqual, `<form>
 	<h1>This is my form</h1>
 	<field name="Name"/>
 	<field name="Color"/>
 	<field name="Sequence"/>
 </form>
 `)
-		viewCategoriesTree := viewCategories[VIEW_TYPE_TREE]
+		viewCategoriesTree := viewCategories[ViewTypeTree]
 		So(viewCategoriesTree.ID, ShouldEqual, "embedded_form_childview_Categories_0")
-		So(viewCategoriesTree.Arch(""), ShouldEqual, `<tree>
+		So(xmlutils.ElementToXML(viewCategoriesTree.Arch("")), ShouldEqual, `<tree>
 	<field name="Name"/>
 	<field name="Color"/>
 </tree>
@@ -319,9 +319,9 @@ func TestViews(t *testing.T) {
 
 		viewGroups := view.SubViews["Groups"]
 		So(viewGroups, ShouldHaveLength, 1)
-		viewGroupsTree := viewGroups[VIEW_TYPE_TREE]
+		viewGroupsTree := viewGroups[ViewTypeTree]
 		So(viewGroupsTree.ID, ShouldEqual, "embedded_form_childview_Groups_0")
-		So(viewGroupsTree.Arch(""), ShouldEqual, `<tree>
+		So(xmlutils.ElementToXML(viewGroupsTree.Arch("")), ShouldEqual, `<tree>
 	<field name="Name"/>
 	<field name="Active"/>
 </tree>
@@ -332,7 +332,7 @@ func TestViews(t *testing.T) {
 		So(allViews, ShouldHaveLength, 4)
 		userViews := Registry.GetAllViewsForModel("User")
 		So(userViews, ShouldHaveLength, 3)
-		userFirstView := Registry.GetFirstViewForModel("User", VIEW_TYPE_FORM)
+		userFirstView := Registry.GetFirstViewForModel("User", ViewTypeForm)
 		So(userFirstView.ID, ShouldEqual, "my_id")
 	})
 	Convey("Testing default views", t, func() {
@@ -340,10 +340,16 @@ func TestViews(t *testing.T) {
 		soModel.AddFields(map[string]models.FieldDefinition{
 			"Name": models.CharField{},
 		})
-		soSearch := Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_SEARCH)
-		So(soSearch.arch, ShouldEqual, `<search><field name="Name"/></search>`)
-		soTree := Registry.GetFirstViewForModel("SaleOrder", VIEW_TYPE_TREE)
-		So(soTree.arch, ShouldEqual, `<tree><field name="Name"/></tree>`)
+		soSearch := Registry.GetFirstViewForModel("SaleOrder", ViewTypeSearch)
+		So(xmlutils.ElementToXML(soSearch.arch), ShouldEqual, `<search>
+	<field name="Name"/>
+</search>
+`)
+		soTree := Registry.GetFirstViewForModel("SaleOrder", ViewTypeTree)
+		So(xmlutils.ElementToXML(soTree.arch), ShouldEqual, `<tree>
+	<field name="Name"/>
+</tree>
+`)
 	})
 	Convey("Create new base view from inheritance", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef8))
@@ -352,7 +358,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
 		newView := Registry.GetByID("new_base_view")
-		So(view2.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -371,7 +377,7 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
-		So(newView.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(newView.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -399,7 +405,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
 		newView := Registry.GetByID("new_base_view")
-		So(view2.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -418,7 +424,7 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
-		So(newView.Arch(""), ShouldEqual,
+		So(xmlutils.ElementToXML(newView.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="Name"/>
@@ -506,7 +512,7 @@ func TestViews(t *testing.T) {
 		Convey("Marshalling a ViewTuple", func() {
 			vt := ViewTuple{
 				ID:   "my_id",
-				Type: VIEW_TYPE_FORM,
+				Type: ViewTypeForm,
 			}
 			data, err := json.Marshal(vt)
 			So(err, ShouldBeNil)
@@ -518,7 +524,7 @@ func TestViews(t *testing.T) {
 			err := json.Unmarshal(data, &vt)
 			So(err, ShouldBeNil)
 			So(vt.ID, ShouldEqual, "my_tree_id")
-			So(vt.Type, ShouldEqual, VIEW_TYPE_TREE)
+			So(vt.Type, ShouldEqual, ViewTypeTree)
 		})
 	})
 }

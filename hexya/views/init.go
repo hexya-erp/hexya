@@ -3,16 +3,19 @@
 
 package views
 
-import "github.com/hexya-erp/hexya/hexya/tools/logging"
+import (
+	"github.com/beevik/etree"
+	"github.com/hexya-erp/hexya/hexya/tools/logging"
+)
 
 const maxInheritanceDepth = 100
 
 var log *logging.Logger
 
-//BootStrap makes the necessary updates to view definitions. In particular:
-//- sets the type of the view from the arch root.
-//- extracts embedded views
-//- populates the fields map from the views arch.
+// BootStrap makes the necessary updates to view definitions. In particular:
+// - sets the type of the view from the arch root.
+// - extracts embedded views
+// - populates the fields map from the views arch.
 func BootStrap() {
 	// Inherit/Extend views
 	for loop := 0; loop < maxInheritanceDepth; loop++ {
@@ -59,7 +62,7 @@ func BootStrap() {
 				arch:        baseView.arch,
 				Name:        baseView.Name,
 				Type:        baseView.Type,
-				arches:      make(map[string]string),
+				arches:      make(map[string]*etree.Element),
 				FieldParent: baseView.FieldParent,
 			}
 			newView.updateViewFromXML(xmlView)
