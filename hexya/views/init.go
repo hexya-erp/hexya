@@ -5,6 +5,7 @@ package views
 
 import (
 	"github.com/beevik/etree"
+	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
@@ -17,6 +18,9 @@ var log *logging.Logger
 // - extracts embedded views
 // - populates the fields map from the views arch.
 func BootStrap() {
+	if !models.BootStrapped() {
+		log.Panic("Models must be bootstrapped before bootstrapping views")
+	}
 	// Inherit/Extend views
 	for loop := 0; loop < maxInheritanceDepth; loop++ {
 		// First step: we extend all we can with pure extension views (no ID)
@@ -72,6 +76,7 @@ func BootStrap() {
 	}
 	// Post-process all views
 	for _, v := range Registry.views {
+		log.Debug("Postprocessing view", "viewID", v.ID, "model", v.Model, "Type", v.Type)
 		v.postProcess()
 	}
 }

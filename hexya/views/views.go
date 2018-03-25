@@ -248,12 +248,12 @@ func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View
 	view := View{
 		Model:  model,
 		Type:   viewType,
-		Fields: []models.FieldName{},
+		Fields: []models.FieldNamer{},
 		arch:   xmlutils.XMLToElement(fmt.Sprintf(`<%s></%s>`, viewType, viewType)),
 		arches: make(map[string]*etree.Element),
 	}
 	if _, ok := models.Registry.MustGet(model).Fields().Get("Name"); ok {
-		view.Fields = []models.FieldName{models.FieldName("Name")}
+		view.Fields = []models.FieldNamer{models.FieldName("Name")}
 		view.arch = xmlutils.XMLToElement(fmt.Sprintf(`<%s><field name="Name"/></%s>`, viewType, viewType))
 	}
 	view.translateArch()
@@ -323,7 +323,7 @@ type View struct {
 	Priority    uint8
 	arch        *etree.Element
 	FieldParent string
-	Fields      []models.FieldName
+	Fields      []models.FieldNamer
 	SubViews    map[string]SubViews
 	arches      map[string]*etree.Element
 }
@@ -331,8 +331,8 @@ type View struct {
 // A SubViews is a holder for embedded views of a field
 type SubViews map[ViewType]*View
 
-// populateFieldsMap scans arch, extract field names and put them in the fields slice
-func (v *View) populateFieldsMap() {
+// populateFieldNames scans arch, extract field names and put them in the fields slice
+func (v *View) populateFieldNames() {
 	fieldElems := v.arch.FindElements("//field")
 	for _, f := range fieldElems {
 		v.Fields = append(v.Fields, models.FieldName(f.SelectAttr("name").Value))
@@ -357,7 +357,7 @@ func (v *View) setViewType() {
 
 // extractSubViews recursively scans arch for embedded views,
 // extract them from arch and add them to SubViews.
-func (v *View) extractSubViews() {
+func (v *View) extractSubViews(model *models.Model, fInfos map[string]*models.FieldInfo) {
 	archElem := xmlutils.CopyElement(v.arch)
 	fieldElems := archElem.FindElements("//field")
 	for _, f := range fieldElems {
@@ -375,6 +375,7 @@ func (v *View) extractSubViews() {
 				arch:     xmlutils.CopyElement(childElement),
 				SubViews: make(map[string]SubViews),
 				arches:   make(map[string]*etree.Element),
+				Model:    fInfos[model.JSONizeFieldName(fieldName)].Relation,
 			}
 			childView.postProcess()
 			v.SubViews[fieldName][childView.Type] = &childView
@@ -391,10 +392,63 @@ func (v *View) extractSubViews() {
 
 // postProcess executes all actions that are needed the view for bootstrapping
 func (v *View) postProcess() {
+	model := models.Registry.MustGet(v.Model)
+	fInfos := model.FieldsGet()
+
 	v.setViewType()
-	v.extractSubViews()
-	v.populateFieldsMap()
+	v.extractSubViews(model, fInfos)
+	v.updateFieldNames(model)
+	v.populateFieldNames()
+	v.AddOnchanges(fInfos)
+	v.SanitizeSearchView()
 	v.translateArch()
+}
+
+// UpdateFieldNames changes the field names in the view to the column names.
+// If a field name is already column names then it does nothing.
+func (v *View) updateFieldNames(model *models.Model) {
+	for _, fieldTag := range v.arch.FindElements("//field") {
+		fieldName := fieldTag.SelectAttr("name").Value
+		fieldJSON := model.JSONizeFieldName(fieldName)
+		fieldTag.RemoveAttr("name")
+		fieldTag.CreateAttr("name", fieldJSON)
+	}
+	for _, labelTag := range v.arch.FindElements("//label") {
+		if labelTag.SelectAttr("for") == nil {
+			continue
+		}
+		fieldName := labelTag.SelectAttr("for").Value
+		fieldJSON := model.JSONizeFieldName(fieldName)
+		labelTag.RemoveAttr("for")
+		labelTag.CreateAttr("for", fieldJSON)
+	}
+}
+
+// AddOnchanges adds onchange=1 for each field in the view which has an OnChange
+// method defined
+func (v *View) AddOnchanges(fInfos map[string]*models.FieldInfo) {
+	for fieldName, fInfo := range fInfos {
+		if !fInfo.OnChange {
+			continue
+		}
+		for _, elt := range v.arch.FindElements(fmt.Sprintf("//field[@name='%s']", fieldName)) {
+			if elt.SelectAttr("on_change") == nil {
+				elt.CreateAttr("on_change", "1")
+			}
+		}
+	}
+}
+
+// SanitizeSearchView adds the missing domain attribute if it does not exist
+func (v *View) SanitizeSearchView() {
+	if v.Type != ViewTypeSearch {
+		return
+	}
+	for _, fieldTag := range v.arch.FindElements("//field") {
+		if fieldTag.SelectAttrValue("domain", "") == "" {
+			fieldTag.CreateAttr("domain", "[]")
+		}
+	}
 }
 
 // translateArch populates the arches map with all the translations

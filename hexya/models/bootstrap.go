@@ -54,6 +54,11 @@ func BootStrap() {
 	setupSecurity()
 }
 
+// BootStrapped returns true if the models have been bootstrapped
+func BootStrapped() bool {
+	return Registry.bootstrapped
+}
+
 // processUpdates applies all the directives of the update map to the fields
 func processUpdates() {
 	for _, model := range Registry.registryByName {

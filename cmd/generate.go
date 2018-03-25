@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"go/build"
+	"go/types"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,6 +71,9 @@ func runGenerate() {
 
 	conf := loader.Config{
 		AllowErrors: true,
+		TypeChecker: types.Config{
+			Error: func(err error) {},
+		},
 	}
 
 	fmt.Println(`Hexya Generate
@@ -91,8 +95,7 @@ func runGenerate() {
 		conf.Import(ip)
 	}
 
-	fmt.Println(`Loading program...
-Warnings may appear here, just ignore them if hexya-generate doesn't crash.`)
+	fmt.Print(`Loading program...`)
 
 	program, _ := conf.Load()
 	fmt.Println("Ok")

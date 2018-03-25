@@ -30,12 +30,6 @@ type fieldData struct {
 	EmbedField bool
 }
 
-// A returnType characterizes a return value of a method
-type returnType struct {
-	Type string
-	IsRS bool
-}
-
 // A methodData describes a method in a RecordSet
 type methodData struct {
 	Name           string
