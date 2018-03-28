@@ -114,19 +114,21 @@ func (c Condition) Serialize() []interface{} {
 	return serializePredicates(c.predicates)
 }
 
-// Fields returns the list of all fields that are used in this condition.
-// Fields are returned as paths. It includes fields of the nested conditions.
-func (c Condition) Fields() []string {
-	var res []string
+// HasField returns true if the given field is in at least one of the
+// the predicates of this condition or of one of its nested conditions.
+//
+func (c Condition) HasField(f *Field) bool {
 	for _, pred := range c.predicates {
 		if len(pred.exprs) > 0 {
-			res = append(res, strings.Join(pred.exprs, ExprSep))
+			if strings.Join(jsonizeExpr(f.model, pred.exprs), ExprSep) == f.json {
+				return true
+			}
 		}
-		if pred.cond != nil {
-			res = append(res, pred.cond.Fields()...)
+		if pred.cond != nil && pred.cond.HasField(f) {
+			return true
 		}
 	}
-	return res
+	return false
 }
 
 // Underlying returns the underlying Condition (i.e. itself)

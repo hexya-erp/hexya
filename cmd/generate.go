@@ -77,7 +77,7 @@ func runGenerate() {
 	}
 
 	fmt.Println(`Hexya Generate
-------------`)
+--------------`)
 	fmt.Printf("Detected Hexya root directory at %s.\n", generate.HexyaDir)
 
 	targetPaths := viper.GetStringSlice("Modules")
@@ -121,9 +121,11 @@ func runGenerate() {
 
 	fmt.Print("Checking the generated code...")
 	conf.AllowErrors = false
+	conf.TypeChecker = types.Config{}
 	_, err := conf.Load()
 	if err != nil {
-		fmt.Println("FAIL", err)
+		fmt.Println("FAIL")
+		fmt.Println(err)
 		os.Exit(1)
 	}
 	fmt.Println("Ok")
