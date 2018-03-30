@@ -408,13 +408,17 @@ func (v *View) postProcess() {
 // If a field name is already column names then it does nothing.
 func (v *View) updateFieldNames(model *models.Model) {
 	for _, fieldTag := range v.arch.FindElements("//field") {
+		if xmlutils.HasParentTag(fieldTag, "field") {
+			// Discard fields of embedded views
+			continue
+		}
 		fieldName := fieldTag.SelectAttr("name").Value
 		fieldJSON := model.JSONizeFieldName(fieldName)
 		fieldTag.RemoveAttr("name")
 		fieldTag.CreateAttr("name", fieldJSON)
 	}
 	for _, labelTag := range v.arch.FindElements("//label") {
-		if labelTag.SelectAttr("for") == nil {
+		if labelTag.SelectAttr("for") == nil || xmlutils.HasParentTag(labelTag, "field") {
 			continue
 		}
 		fieldName := labelTag.SelectAttr("for").Value

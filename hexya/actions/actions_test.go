@@ -53,6 +53,18 @@ var viewDef1 = `
 `
 
 func TestActions(t *testing.T) {
+	Convey("Creating models", t, func() {
+		user := models.NewModel("User")
+		partner := models.NewModel("Partner")
+		user.AddFields(map[string]models.FieldDefinition{
+			"UserName": models.CharField{},
+			"Age":      models.IntegerField{},
+		})
+		partner.AddFields(map[string]models.FieldDefinition{
+			"Name": models.CharField{},
+		})
+		models.BootStrap()
+	})
 	Convey("Creating Action 1", t, func() {
 		views.LoadFromEtree(xmlutils.XMLToElement(viewDef1))
 		views.BootStrap()
@@ -81,10 +93,6 @@ func TestActions(t *testing.T) {
 		So(action.HelpXML.Content, ShouldEqual, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
 	})
 	Convey("Testing Boostrap and Get functions", t, func() {
-		partnerModel := models.NewModel("Partner")
-		partnerModel.AddFields(map[string]models.FieldDefinition{
-			"Name": models.CharField{},
-		})
 		BootStrap()
 		allActions := Registry.GetAll()
 		So(allActions, ShouldHaveLength, 2)

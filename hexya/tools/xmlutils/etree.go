@@ -53,7 +53,7 @@ func FindNextSibling(element *etree.Element) *etree.Element {
 }
 
 // HasParentTag returns true if this element has at least
-// one parent node with the given parent tag name
+// one ancestor node with the given parent tag name
 func HasParentTag(element *etree.Element, parent string) bool {
 	for e := element.Parent(); e != nil; e = e.Parent() {
 		if e.Tag == parent {
