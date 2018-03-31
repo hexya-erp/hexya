@@ -128,6 +128,10 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 	fieldType := fieldtype.Boolean
 	json, str := getJSONAndString(name, fieldType, bf.JSON, bf.String)
 	compute, inverse, onchange, constraint := getFuncNames(bf.Compute, bf.Inverse, bf.OnChange, bf.Constraint)
+	defaultFunc := bf.Default
+	if defaultFunc == nil {
+		defaultFunc = DefaultValue(false)
+	}
 	fInfo := &Field{
 		model:         fc.model,
 		acl:           security.NewAccessControlList(),
@@ -136,7 +140,7 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 		description:   str,
 		help:          bf.Help,
 		stored:        bf.Stored,
-		required:      bf.Required,
+		required:      true,
 		readOnly:      bf.ReadOnly,
 		unique:        bf.Unique,
 		index:         bf.Index,
@@ -148,7 +152,7 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 		noCopy:        bf.NoCopy,
 		structField:   structField,
 		fieldType:     fieldType,
-		defaultFunc:   bf.Default,
+		defaultFunc:   defaultFunc,
 		translate:     bf.Translate,
 		onChange:      onchange,
 		constraint:    constraint,

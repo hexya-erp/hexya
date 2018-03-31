@@ -15,6 +15,7 @@
 package models
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -48,14 +49,16 @@ func newCondition() *Condition {
 	return c
 }
 
-// And completes the current condition with a simple AND clause : c.And().nextCond => c AND nextCond
+// And completes the current condition with a simple AND clause : c.And().nextCond => c AND nextCond.
+//
+// No brackets are added so AND precedence over OR applies.
 func (c Condition) And() *ConditionStart {
 	res := ConditionStart{cond: c}
 	return &res
 }
 
 // AndCond completes the current condition with the given cond as an AND clause
-// between brackets : c.And(cond) => c AND (cond)
+// between brackets : c.And(cond) => (c) AND (cond)
 func (c Condition) AndCond(cond *Condition) *Condition {
 	if !cond.IsEmpty() {
 		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true})
@@ -65,6 +68,8 @@ func (c Condition) AndCond(cond *Condition) *Condition {
 
 // AndNot completes the current condition with a simple AND NOT clause :
 // c.AndNot().nextCond => c AND NOT nextCond
+//
+// No brackets are added so AND precedence over OR applies.
 func (c Condition) AndNot() *ConditionStart {
 	res := ConditionStart{cond: c}
 	res.nextIsNot = true
@@ -72,13 +77,15 @@ func (c Condition) AndNot() *ConditionStart {
 }
 
 // AndNotCond completes the current condition with an AND NOT clause between
-// brackets : c.AndNot(cond) => c AND NOT (cond)
+// brackets : c.AndNot(cond) => (c) AND NOT (cond)
 func (c Condition) AndNotCond(cond *Condition) *Condition {
 	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isNot: true})
 	return &c
 }
 
 // Or completes the current condition both with a simple OR clause : c.Or().nextCond => c OR nextCond
+//
+// No brackets are added so AND precedence over OR applies.
 func (c Condition) Or() *ConditionStart {
 	res := ConditionStart{cond: c}
 	res.nextIsOr = true
@@ -86,7 +93,7 @@ func (c Condition) Or() *ConditionStart {
 }
 
 // OrCond completes the current condition both with an OR clause between
-// brackets : c.Or(cond) => c OR (cond)
+// brackets : c.Or(cond) => (c) OR (cond)
 func (c Condition) OrCond(cond *Condition) *Condition {
 	if !cond.IsEmpty() {
 		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true})
@@ -95,6 +102,8 @@ func (c Condition) OrCond(cond *Condition) *Condition {
 }
 
 // OrNot completes the current condition both with a simple OR NOT clause : c.OrNot().nextCond => c OR NOT nextCond
+//
+// No brackets are added so AND precedence over OR applies.
 func (c Condition) OrNot() *ConditionStart {
 	res := ConditionStart{cond: c}
 	res.nextIsNot = true
@@ -103,7 +112,7 @@ func (c Condition) OrNot() *ConditionStart {
 }
 
 // OrNotCond completes the current condition both with an OR NOT clause between
-// brackets : c.OrNot(cond) => c OR NOT (cond)
+// brackets : c.OrNot(cond) => (c) OR NOT (cond)
 func (c Condition) OrNotCond(cond *Condition) *Condition {
 	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true, isNot: true})
 	return &c
@@ -129,6 +138,27 @@ func (c Condition) HasField(f *Field) bool {
 		}
 	}
 	return false
+}
+
+// String method for the Condition. Recursively print all predicates.
+func (c Condition) String() string {
+	var res string
+	for _, p := range c.predicates {
+		if p.isOr {
+			res += "OR "
+		} else {
+			res += "AND "
+		}
+		if p.isNot {
+			res += "NOT "
+		}
+		if p.isCond {
+			res += fmt.Sprintf("(\n%s\n)\n", p.cond.String())
+			continue
+		}
+		res += fmt.Sprintf("%s %s %v\n", strings.Join(p.exprs, ExprSep), p.operator, p.arg)
+	}
+	return res
 }
 
 // Underlying returns the underlying Condition (i.e. itself)

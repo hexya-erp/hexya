@@ -69,7 +69,9 @@ func LoadCSVDataFile(fileName string) {
 			delete(values, "id")
 			values["hexya_external_id"] = externalID
 			values["hexya_version"] = version
-			rec := rc.Call("Search", rc.Model().Field("HexyaExternalID").Equals(externalID)).(RecordSet).Collection().Limit(1)
+			// We deliberately call Search directly without Call so as not to be polluted by Search overrides
+			// such as "Active test".
+			rec := rc.Search(rc.Model().Field("HexyaExternalID").Equals(externalID)).Limit(1)
 			switch {
 			case rec.Len() == 0:
 				rc.Call("Create", values)

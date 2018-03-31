@@ -292,7 +292,7 @@ func TestModelDeclaration(t *testing.T) {
 		profile.InheritModel(addressMI)
 
 		activeMI.AddFields(map[string]FieldDefinition{
-			"Active": BooleanField{},
+			"Active": BooleanField{Default: DefaultValue(true)},
 		})
 
 		Registry.MustGet("ModelMixin").InheritModel(activeMI)

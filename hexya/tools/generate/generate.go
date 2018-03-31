@@ -966,6 +966,8 @@ type Condition struct {
 
 {{ range .ConditionFuncs }}
 // {{ . }} completes the current condition with a simple {{ . }} clause : c.{{ . }}().nextCond => c {{ . }} nextCond
+//
+// No brackets are added so AND precedence over OR applies.
 func (c Condition) {{ . }}() ConditionStart {
 	return ConditionStart{
 		ConditionStart: c.Condition.{{ . }}(),

@@ -82,42 +82,37 @@ func (q *Query) conditionSQLClause(c *Condition) (string, SQLParams) {
 	)
 
 	first := true
-	for _, val := range c.predicates {
-		vSQL, vArgs := q.predicateSQLClause(val, first)
-		first = false
-		sql += vSQL
+	for _, p := range c.predicates {
+		op := "AND"
+		if p.isOr {
+			op = "OR"
+		}
+		if p.isNot {
+			op += " NOT"
+		}
+
+		vSQL, vArgs := q.predicateSQLClause(p)
+		switch {
+		case first:
+			sql = vSQL
+			if p.isNot {
+				sql = "NOT " + sql
+			}
+		case p.isCond:
+			sql = fmt.Sprintf("(%s) %s (%s)", sql, op, vSQL)
+		default:
+			sql = fmt.Sprintf("%s %s %s", sql, op, vSQL)
+		}
 		args = args.Extend(vArgs)
+		first = false
 	}
 	return sql, args
 }
 
-// sqlClause returns the sql WHERE clause for this predicate.
-// If 'first' is given and true, then the sql clause is not prefixed with
-// 'AND' and panics if isOr is true.
-func (q *Query) predicateSQLClause(p predicate, first ...bool) (string, SQLParams) {
-	var (
-		sql     string
-		args    SQLParams
-		isFirst bool
-		adapter = adapters[db.DriverName()]
-	)
-	if len(first) > 0 {
-		isFirst = first[0]
-	}
-	if p.isOr && !isFirst {
-		sql += "OR "
-	} else if !isFirst {
-		sql += "AND "
-	}
-	if p.isNot {
-		sql += "NOT "
-	}
-
+// sqlClause returns the sql WHERE clause and arguments for this predicate.
+func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 	if p.isCond {
-		subSQL, subArgs := q.conditionSQLClause(p.cond)
-		sql += fmt.Sprintf(`(%s) `, subSQL)
-		args = args.Extend(subArgs)
-		return sql, args
+		return q.conditionSQLClause(p.cond)
 	}
 
 	exprs := jsonizeExpr(q.recordSet.model, p.exprs)
@@ -128,21 +123,26 @@ func (q *Query) predicateSQLClause(p predicate, first ...bool) (string, SQLParam
 			p.arg = nil
 		}
 	}
+
+	var (
+		sql  string
+		args SQLParams
+	)
 	field := q.joinedFieldExpression(exprs)
 	if p.arg == nil {
 		switch p.operator {
 		case operator.Equals:
-			sql += fmt.Sprintf(`%s IS NULL `, field)
+			sql = fmt.Sprintf(`%s IS NULL`, field)
 		case operator.NotEquals:
-			sql += fmt.Sprintf(`%s IS NOT NULL `, field)
+			sql = fmt.Sprintf(`%s IS NOT NULL`, field)
 		default:
 			log.Panic("Null argument can only be used with = and != operators", "operator", p.operator)
 		}
 		return sql, args
 	}
-
+	adapter := adapters[db.DriverName()]
 	opSql, arg := adapter.operatorSQL(p.operator, p.arg)
-	sql += fmt.Sprintf(`%s %s `, field, opSql)
+	sql = fmt.Sprintf(`%s %s`, field, opSql)
 	args = append(args, arg)
 	return sql, args
 }
