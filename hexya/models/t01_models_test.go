@@ -221,7 +221,7 @@ func TestModelDeclaration(t *testing.T) {
 			"Email":         CharField{Help: "The user's email address", Size: 100, Index: true},
 			"Password":      CharField{NoCopy: true},
 			"Status": IntegerField{JSON: "status_json", GoType: new(int16),
-				Default: DefaultValue(int16(12))},
+				Default: DefaultValue(int16(12)), ReadOnly: true},
 			"IsStaff":  BooleanField{},
 			"IsActive": BooleanField{},
 			"Profile": Many2OneField{RelationModel: Registry.MustGet("Profile"),
@@ -390,6 +390,9 @@ func TestFieldModification(t *testing.T) {
 		genderField := Registry.MustGet("Profile").Fields().MustGet("Gender")
 		genderField.SetSelection(types.Selection{"m": "Male", "f": "Female"})
 		So(genderField.updates[len(sizeField.updates)-1], ShouldContainKey, "selection")
+		statusField := Registry.MustGet("User").Fields().MustGet("Status")
+		statusField.SetReadOnly(false)
+		checkUpdates(statusField, "readOnly", false)
 	})
 }
 

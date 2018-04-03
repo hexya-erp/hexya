@@ -48,6 +48,12 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fMap, ShouldContainKey, "id")
 				So(fMap["id"], ShouldEqual, userJane.Ids()[0])
 			})
+			Convey("SearchCount", func() {
+				countSingle := userJane.Call("SearchCount").(int)
+				So(countSingle, ShouldEqual, 1)
+				allCount := env.Pool(userModel.name).Call("SearchCount").(int)
+				So(allCount, ShouldEqual, 3)
+			})
 			Convey("Copy", func() {
 				userJane.Call("Write", FieldMap{"Password": "Jane's Password"})
 				userJaneCopy := userJane.Call("Copy", FieldMap{"Name": "Jane's Copy", "Email2": "js@example.com"}).(RecordSet).Collection()

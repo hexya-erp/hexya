@@ -30,6 +30,7 @@ var viewDef1 = `
 	<form>
 		<group>
 			<field name="UserName"/>
+			<label for="Age"/>
 			<field name="Age"/>
 		</group>
 	</form>
@@ -147,6 +148,14 @@ var viewDef9 = `
 </view>
 `
 
+var viewDef10 = `
+<view id="search_view" model="User">
+	<search>
+		<field name="UserName"/>
+	</search>
+</view>
+`
+
 func TestViews(t *testing.T) {
 	Convey("Creating View 1", t, func() {
 		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
@@ -161,6 +170,7 @@ func TestViews(t *testing.T) {
 			`<form>
 	<group>
 		<field name="UserName"/>
+		<label for="Age"/>
 		<field name="Age"/>
 	</group>
 </form>
@@ -191,11 +201,17 @@ func TestViews(t *testing.T) {
 </form>
 `)
 	})
+	Convey("Bootstrapping views before models should panic", t, func() {
+		So(BootStrap, ShouldPanic)
+	})
 	Convey("Creating models and boostrap them", t, func() {
 		group := models.NewModel("Group")
 		category := models.NewModel("Category")
 		user := models.NewModel("User")
 		partner := models.NewModel("Partner")
+		user.AddMethod("OnChangeAge", "", func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+			return make(models.FieldMap), []models.FieldNamer{}
+		})
 		group.AddFields(map[string]models.FieldDefinition{
 			"Name":   models.CharField{},
 			"Active": models.BooleanField{},
@@ -207,7 +223,7 @@ func TestViews(t *testing.T) {
 		})
 		user.AddFields(map[string]models.FieldDefinition{
 			"UserName": models.CharField{},
-			"Age":      models.IntegerField{},
+			"Age":      models.IntegerField{OnChange: models.Registry.MustGet("User").Methods().MustGet("OnChangeAge")},
 			"Groups":   models.Many2ManyField{RelationModel: models.Registry.MustGet("Group")},
 			"Categories": models.Many2ManyField{RelationModel: models.Registry.MustGet("Category"),
 				JSON: "category_ids"},
@@ -237,7 +253,8 @@ func TestViews(t *testing.T) {
 			`<form>
 	<group>
 		<field name="user_name"/>
-		<field name="age"/>
+		<label for="age"/>
+		<field name="age" on_change="1"/>
 	</group>
 </form>
 `)
@@ -359,7 +376,7 @@ func TestViews(t *testing.T) {
 		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
 			`<form>
 	<field name="user_name"/>
-	<field name="age"/>
+	<field name="age" on_change="1"/>
 	<field name="category_ids"/>
 	<field name="groups"/>
 </form>
@@ -416,7 +433,7 @@ func TestViews(t *testing.T) {
 		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
 			`<form>
 	<field required="1" name="user_name"/>
-	<field name="age"/>
+	<field name="age" on_change="1"/>
 	<field name="category_ids"/>
 	<field name="groups"/>
 </form>
@@ -670,4 +687,17 @@ func TestViews(t *testing.T) {
 			So(vt.Type, ShouldEqual, ViewTypeTree)
 		})
 	})
+	Convey("Testing search view sanitizing", t, func() {
+		Registry = NewCollection()
+		LoadFromEtree(xmlutils.XMLToElement(viewDef10))
+		BootStrap()
+		So(Registry.GetByID("search_view"), ShouldNotBeNil)
+		searchView := Registry.GetByID("search_view")
+		So(xmlutils.ElementToXML(searchView.Arch("")), ShouldEqual,
+			`<search>
+	<field name="user_name" domain="[]"/>
+</search>
+`)
+	})
+
 }

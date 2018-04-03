@@ -234,6 +234,27 @@ func TestConditions(t *testing.T) {
 			}), ShouldBeNil)
 		}
 	})
+	Convey("Testing Condition Methods", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			cond := env.Pool("User").Model().Field("Name").IContains("Jane")
+			cond2 := env.Pool("User").Model().Field("ID").NotIn([]int64{23, 31})
+			Convey("HasField", func() {
+				So(cond.HasField(Registry.MustGet("User").Fields().MustGet("Name")), ShouldBeTrue)
+				So(cond.HasField(Registry.MustGet("User").Fields().MustGet("Status")), ShouldBeFalse)
+				So(cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("Name")), ShouldBeTrue)
+				So(cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("ID")), ShouldBeTrue)
+				So(cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("Status")), ShouldBeFalse)
+			})
+			Convey("String", func() {
+				So(cond.OrNotCond(cond2).String(), ShouldEqual, `AND Name ilike Jane
+OR NOT (
+AND ID not in [23 31]
+
+)
+`)
+			})
+		}), ShouldBeNil)
+	})
 }
 
 func TestConditionSerialization(t *testing.T) {
