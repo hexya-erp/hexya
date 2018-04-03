@@ -70,6 +70,36 @@ var pgDefaultValues = map[fieldtype.Type]string{
 	fieldtype.Selection: "''",
 }
 
+// connectionString returns the connection string for the given parameters
+func (d *postgresAdapter) connectionString(params ConnectionParams) string {
+	connectString := fmt.Sprintf("dbname=%s", params.DBName)
+	if params.SSLMode != "" {
+		connectString += fmt.Sprintf(" sslmode=%s", params.SSLMode)
+	}
+	if params.SSLCert != "" {
+		connectString += fmt.Sprintf(" sslcert=%s", params.SSLCert)
+	}
+	if params.SSLKey != "" {
+		connectString += fmt.Sprintf(" sslkey=%s", params.SSLKey)
+	}
+	if params.SSLCA != "" {
+		connectString += fmt.Sprintf(" sslrootcert=%s", params.SSLCA)
+	}
+	if params.User != "" {
+		connectString += fmt.Sprintf(" user=%s", params.User)
+	}
+	if params.Password != "" {
+		connectString += fmt.Sprintf(" password=%s", params.Password)
+	}
+	if params.Host != "" {
+		connectString += fmt.Sprintf(" host=%s", params.Host)
+	}
+	if params.Port != "" && params.Port != "5432" {
+		connectString += fmt.Sprintf(" port=%s", params.Port)
+	}
+	return connectString
+}
+
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
 // Also modifies the given args to match the syntax of the operator.
 func (d *postgresAdapter) operatorSQL(do operator.Operator, arg interface{}) (string, interface{}) {

@@ -469,6 +469,7 @@ func (rc *RecordCollection) SearchAll() *RecordCollection {
 func (rc *RecordCollection) SearchCount() int {
 	rSet := rc.Limit(0)
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
+	_, rSet = rSet.substituteRelatedFields([]string{"id"})
 	sql, args := rSet.query.countQuery()
 	var res int
 	rSet.env.cr.Get(&res, sql, args...)

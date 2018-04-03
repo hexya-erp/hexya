@@ -179,6 +179,7 @@ type Field struct {
 	help             string
 	stored           bool
 	required         bool
+	readOnly         bool
 	unique           bool
 	index            bool
 	compute          string
@@ -243,6 +244,9 @@ func (f *Field) isStored() bool {
 // isReadOnly returns true if this field must not be set directly
 // by the user.
 func (f *Field) isReadOnly() bool {
+	if f.readOnly {
+		return true
+	}
 	fInfo := f
 	if fInfo.isRelatedField() {
 		fInfo = f.model.getRelatedFieldInfo(fInfo.relatedPath)

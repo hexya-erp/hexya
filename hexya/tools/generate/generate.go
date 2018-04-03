@@ -30,12 +30,6 @@ type fieldData struct {
 	EmbedField bool
 }
 
-// A returnType characterizes a return value of a method
-type returnType struct {
-	Type string
-	IsRS bool
-}
-
 // A methodData describes a method in a RecordSet
 type methodData struct {
 	Name           string
@@ -972,6 +966,8 @@ type Condition struct {
 
 {{ range .ConditionFuncs }}
 // {{ . }} completes the current condition with a simple {{ . }} clause : c.{{ . }}().nextCond => c {{ . }} nextCond
+//
+// No brackets are added so AND precedence over OR applies.
 func (c Condition) {{ . }}() ConditionStart {
 	return ConditionStart{
 		ConditionStart: c.Condition.{{ . }}(),

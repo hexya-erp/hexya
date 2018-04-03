@@ -76,7 +76,12 @@ func initializeTests() {
 	admDB.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbArgs.DB))
 	admDB.Close()
 
-	DBConnect(dbArgs.Driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", dbArgs.DB, dbArgs.User, dbArgs.Password))
+	DBConnect(dbArgs.Driver, ConnectionParams{
+		DBName:   dbArgs.DB,
+		User:     dbArgs.User,
+		Password: dbArgs.Password,
+		SSLMode:  "disable",
+	})
 	testAdapter = adapters[db.DriverName()]
 }
 

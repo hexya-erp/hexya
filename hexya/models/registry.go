@@ -397,6 +397,49 @@ func (m *Model) Field(name string) *ConditionField {
 	return &cp
 }
 
+// FieldsGet returns the definition of each field.
+// The embedded fields are included.
+//
+// If no fields are given, then all fields are returned.
+//
+// The result map is indexed by the fields JSON names.
+func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
+	if len(fields) == 0 {
+		for jName := range m.fields.registryByJSON {
+			fields = append(fields, FieldName(jName))
+		}
+	}
+	res := make(map[string]*FieldInfo)
+	for _, f := range fields {
+		fInfo := m.fields.MustGet(f.String())
+		var relation string
+		if fInfo.relatedModel != nil {
+			relation = fInfo.relatedModel.name
+		}
+		var filter interface{}
+		if fInfo.filter != nil {
+			filter = fInfo.filter.Serialize()
+		}
+		res[fInfo.json] = &FieldInfo{
+			Help:       fInfo.help,
+			Searchable: true,
+			Depends:    fInfo.depends,
+			Sortable:   true,
+			Type:       fInfo.fieldType,
+			Store:      fInfo.isStored(),
+			String:     fInfo.description,
+			Relation:   relation,
+			Required:   fInfo.required,
+			Selection:  fInfo.selection,
+			Domain:     filter,
+			ReadOnly:   fInfo.isReadOnly(),
+			ReverseFK:  fInfo.jsonReverseFK,
+			OnChange:   fInfo.onChange != "",
+		}
+	}
+	return res
+}
+
 // FilteredOn adds a condition with a table join on the given field and
 // filters the result with the given condition
 func (m *Model) FilteredOn(field string, condition *Condition) *Condition {

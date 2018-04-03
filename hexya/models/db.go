@@ -27,6 +27,19 @@ var (
 	adapters map[string]dbAdapter
 )
 
+// ConnectionParams are the database agnostic parameters to connect to the database
+type ConnectionParams struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	DBName   string
+	SSLMode  string
+	SSLCert  string
+	SSLKey   string
+	SSLCA    string
+}
+
 // A ColumnData holds information from the db schema about one column
 type ColumnData struct {
 	ColumnName    string
@@ -36,6 +49,8 @@ type ColumnData struct {
 }
 
 type dbAdapter interface {
+	// connectionString returns the connection string for the given parameters
+	connectionString(ConnectionParams) string
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
 	operatorSQL(operator.Operator, interface{}) (string, interface{})
 	// typeSQL returns the SQL type string, including columns constraints if any
@@ -120,10 +135,10 @@ func newCursor(db *sqlx.DB) *Cursor {
 	}
 }
 
-// DBConnect is a wrapper around sqlx.MustConnect
-// It connects to a database using the given driver and
-// connection data.
-func DBConnect(driver, connData string) {
+// DBConnect connects to a database using the given driver and arguments.
+func DBConnect(driver string, params ConnectionParams) {
+	adapter := adapters[driver]
+	connData := adapter.connectionString(params)
 	db = sqlx.MustConnect(driver, connData)
 	log.Info("Connected to database", "driver", driver, "connData", connData)
 }

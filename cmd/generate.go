@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 	"go/build"
+	"go/types"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +49,7 @@ This command must be rerun after each source code modification, including module
 	},
 }
 
-var symlinkDirs = []string{"static", "templates", "data", "resources", "i18n"}
+var symlinkDirs = []string{"static", "templates", "data", "demo", "resources", "i18n"}
 
 var (
 	generateEmptyPool bool
@@ -70,10 +71,13 @@ func runGenerate() {
 
 	conf := loader.Config{
 		AllowErrors: true,
+		TypeChecker: types.Config{
+			Error: func(err error) {},
+		},
 	}
 
 	fmt.Println(`Hexya Generate
-------------`)
+--------------`)
 	fmt.Printf("Detected Hexya root directory at %s.\n", generate.HexyaDir)
 
 	targetPaths := viper.GetStringSlice("Modules")
@@ -91,8 +95,7 @@ func runGenerate() {
 		conf.Import(ip)
 	}
 
-	fmt.Println(`Loading program...
-Warnings may appear here, just ignore them if hexya-generate doesn't crash.`)
+	fmt.Print(`Loading program...`)
 
 	program, _ := conf.Load()
 	fmt.Println("Ok")
@@ -118,9 +121,11 @@ Warnings may appear here, just ignore them if hexya-generate doesn't crash.`)
 
 	fmt.Print("Checking the generated code...")
 	conf.AllowErrors = false
+	conf.TypeChecker = types.Config{}
 	_, err := conf.Load()
 	if err != nil {
-		fmt.Println("FAIL", err)
+		fmt.Println("FAIL")
+		fmt.Println(err)
 		os.Exit(1)
 	}
 	fmt.Println("Ok")

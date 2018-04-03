@@ -107,6 +107,7 @@ func TestBootStrap(t *testing.T) {
 			So(SyncDatabase, ShouldNotPanic)
 		})
 		Convey("Boostrapping twice should panic", func() {
+			So(BootStrapped(), ShouldBeTrue)
 			So(BootStrap, ShouldPanic)
 		})
 		Convey("Creating methods after bootstrap should panic", func() {

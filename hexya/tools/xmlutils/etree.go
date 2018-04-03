@@ -20,7 +20,7 @@ import "github.com/beevik/etree"
 // all its children.
 func ElementToXML(element *etree.Element) string {
 	doc := etree.NewDocument()
-	doc.SetRoot(element)
+	doc.SetRoot(element.Copy())
 	doc.IndentTabs()
 	xmlStr, err := doc.WriteToString()
 	if err != nil {
@@ -53,7 +53,7 @@ func FindNextSibling(element *etree.Element) *etree.Element {
 }
 
 // HasParentTag returns true if this element has at least
-// one parent node with the given parent tag name
+// one ancestor node with the given parent tag name
 func HasParentTag(element *etree.Element, parent string) bool {
 	for e := element.Parent(); e != nil; e = e.Parent() {
 		if e.Tag == parent {
@@ -61,4 +61,12 @@ func HasParentTag(element *etree.Element, parent string) bool {
 		}
 	}
 	return false
+}
+
+// CopyElement deep copies the given element, setting it as root to a new document
+func CopyElement(element *etree.Element) *etree.Element {
+	el := element.Copy()
+	doc := etree.NewDocument()
+	doc.SetRoot(el)
+	return el
 }

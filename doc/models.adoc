@@ -631,6 +631,7 @@ apply on a Field instance.
 `*(f *Field) SetDepends(value []string) *Field*`::
 `*(f *Field) SetStored(value bool) *Field*`::
 `*(f *Field) SetRequired(value bool) *Field*`::
+`*(f *Field) SetReadOnly(value bool) *Field*`::
 `*(f *Field) SetUnique(value bool) *Field*`::
 `*(f *Field) SetIndex(value bool) *Field*`::
 `*(f *Field) SetNoCopy(value bool) *Field*`::
@@ -729,6 +730,10 @@ Field's help typically displayed as tooltip.
 `Required` bool::
 Defines the field as required (i.e. not null).
 
+`ReadOnly` bool::
+This field will be shown as read only on all views.
+Note that this does not prevent setting the field by code or through a method.
+
 `Unique` bool::
 Defines the field as unique in the database table.
 
@@ -738,11 +743,11 @@ Creates an index on this field in the database.
 `NoCopy` bool::
 Fields marked with this tag will not be copied when a record is duplicated.
 
-`Default` func(Environment, FieldMap) interface{}::
+`Default` func(Environment) interface{}::
 Function that will be called by clients to set a default value in the user
 interface before calling Create.
 +
-The default value will also be set when calling Create only if this is a required field and not value is set.
+The default value will also be set when calling Create only if this is a required field and no value is set.
 
 `OnChange` Methoder::
 The method to call when this field is changed in the interface.

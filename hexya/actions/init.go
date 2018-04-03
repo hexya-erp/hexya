@@ -94,14 +94,15 @@ modeLoop:
 	fixViewModes(a)
 }
 
-//For OpenERP historical reasons, tree views are called 'list' when
-//in ActionViewType 'form' and 'tree' when in ActionViewType 'tree'.
-//fixViewModes makes the necessary changes to the given action.
+// fixViewModes makes the necessary changes to the given action.
+//
+// For OpenERP historical reasons, tree views are called 'list' when
+// in ActionViewType 'form' and 'tree' when in ActionViewType 'tree'.
 func fixViewModes(a *Action) {
 	if a.ActViewType == ActionViewTypeForm {
 		for i, v := range a.Views {
-			if v.Type == views.VIEW_TYPE_TREE {
-				v.Type = views.VIEW_TYPE_LIST
+			if v.Type == views.ViewTypeTree {
+				v.Type = views.ViewTypeList
 			}
 			a.Views[i].Type = v.Type
 		}

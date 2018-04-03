@@ -48,6 +48,12 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fMap, ShouldContainKey, "id")
 				So(fMap["id"], ShouldEqual, userJane.Ids()[0])
 			})
+			Convey("SearchCount", func() {
+				countSingle := userJane.Call("SearchCount").(int)
+				So(countSingle, ShouldEqual, 1)
+				allCount := env.Pool(userModel.name).Call("SearchCount").(int)
+				So(allCount, ShouldEqual, 3)
+			})
 			Convey("Copy", func() {
 				userJane.Call("Write", FieldMap{"Password": "Jane's Password"})
 				userJaneCopy := userJane.Call("Copy", FieldMap{"Name": "Jane's Copy", "Email2": "js@example.com"}).(RecordSet).Collection()
@@ -74,10 +80,18 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("DefaultGet", func() {
 				defaults := userJane.Call("DefaultGet").(FieldMap)
-				So(defaults, ShouldHaveLength, 2)
+				So(defaults, ShouldHaveLength, 6)
 				So(defaults, ShouldContainKey, "status_json")
 				So(defaults["status_json"], ShouldEqual, 12)
 				So(defaults, ShouldContainKey, "hexya_external_id")
+				So(defaults, ShouldContainKey, "is_active")
+				So(defaults["is_active"], ShouldEqual, false)
+				So(defaults, ShouldContainKey, "active")
+				So(defaults["active"], ShouldEqual, true)
+				So(defaults, ShouldContainKey, "is_premium")
+				So(defaults["is_premium"], ShouldEqual, false)
+				So(defaults, ShouldContainKey, "is_staff")
+				So(defaults["is_staff"], ShouldEqual, false)
 			})
 			Convey("Onchange", func() {
 				res := userJane.Call("Onchange", OnchangeParams{

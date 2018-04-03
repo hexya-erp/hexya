@@ -5,13 +5,19 @@ Author Nicolas Piganeau
 :sectnums:
 
 == Introduction
-In many cases, it is necessary to include configuration data into the database
-just for the logic to work. In order to manage the configuration of this data,
-the Hexya framework provides a way to load data through the use of CSV files.
+Hexya framework provides a way to load user space data directly into the database through the use of CSV files.
+
+Hexya manages two kinds of data:
+
+- Configuration data needed for the logic to work.
+They are always loaded.
+- Demo data needed either for evaluating the module or for use as test data.
+Demo data is only loaded if the `Demo` configuration parameter is set to True.
 
 == CSV Files
-All files that will be put in the `data` subdirectory of a module will be
-automatically loaded in the database by alphabetical order, following these
+Configuration data must be put in the `data` subdirectory of a module, whereas demo data must be put in the `demo` subdirectory.
+
+The files inside these subdirectories will be automatically loaded in the database by alphabetical order, following these
 rules:
 
 - The name of the CSV file must be the name of a model defined in the framework
@@ -27,6 +33,8 @@ will provide one for each record.
 - Many-to-Many fields must be set with a `|` separated list of external IDs
 - Binary fields must be set with the relative path (from this file's directory)
 to a file with the binary content to load.
+
+NOTE:: Files in the `demo` subdirectory will only be loaded if the `Demo` parameter is set in the config.
 
 == Versions
 Versions of data can be handled through the name of the CSV file.

@@ -3,17 +3,24 @@
 
 package views
 
-import "github.com/hexya-erp/hexya/hexya/tools/logging"
+import (
+	"github.com/beevik/etree"
+	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/hexya/tools/logging"
+)
 
 const maxInheritanceDepth = 100
 
 var log *logging.Logger
 
-//BootStrap makes the necessary updates to view definitions. In particular:
-//- sets the type of the view from the arch root.
-//- extracts embedded views
-//- populates the fields map from the views arch.
+// BootStrap makes the necessary updates to view definitions. In particular:
+// - sets the type of the view from the arch root.
+// - extracts embedded views
+// - populates the fields map from the views arch.
 func BootStrap() {
+	if !models.BootStrapped() {
+		log.Panic("Models must be bootstrapped before bootstrapping views")
+	}
 	// Inherit/Extend views
 	for loop := 0; loop < maxInheritanceDepth; loop++ {
 		// First step: we extend all we can with pure extension views (no ID)
@@ -59,7 +66,7 @@ func BootStrap() {
 				arch:        baseView.arch,
 				Name:        baseView.Name,
 				Type:        baseView.Type,
-				arches:      make(map[string]string),
+				arches:      make(map[string]*etree.Element),
 				FieldParent: baseView.FieldParent,
 			}
 			newView.updateViewFromXML(xmlView)
@@ -69,6 +76,7 @@ func BootStrap() {
 	}
 	// Post-process all views
 	for _, v := range Registry.views {
+		log.Debug("Postprocessing view", "viewID", v.ID, "model", v.Model, "Type", v.Type)
 		v.postProcess()
 	}
 }

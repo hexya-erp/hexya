@@ -79,10 +79,16 @@ func InitializeTests(moduleName string) {
 	db.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbName))
 	db.Close()
 
-	models.DBConnect(driver, fmt.Sprintf("dbname=%s sslmode=disable user=%s password=%s", dbName, user, password))
+	models.DBConnect(driver, models.ConnectionParams{
+		DBName:   dbName,
+		User:     user,
+		Password: password,
+		SSLMode:  "disable",
+	})
 	models.BootStrap()
 	models.SyncDatabase()
 	server.LoadDataRecords()
+	server.LoadDemoRecords()
 
 	server.PostInitModules()
 }

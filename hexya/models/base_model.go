@@ -241,40 +241,21 @@ func declareRecordSetMethods() {
 
 		The result map is indexed by the fields JSON names.`,
 		func(rc *RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
-			lang := rc.Env().Context().GetString("lang")
-			res := make(map[string]*FieldInfo)
-			fields := args.Fields
-			if len(args.Fields) == 0 {
-				for jName := range rc.model.fields.registryByJSON {
-					fields = append(fields, FieldName(jName))
-				}
+			// Create our fields list
+			var fields []FieldNamer
+			for _, f := range args.Fields {
+				fields = append(fields, f)
 			}
-			for _, f := range fields {
-				fInfo := rc.model.fields.MustGet(string(f))
-				var relation string
-				if fInfo.relatedModel != nil {
-					relation = fInfo.relatedModel.name
-				}
-				var filter interface{}
-				if fInfo.filter != nil {
-					filter = fInfo.filter.Serialize()
-				}
-				res[fInfo.json] = &FieldInfo{
-					Help:       i18n.Registry.TranslateFieldHelp(lang, fInfo.model.name, fInfo.name, fInfo.help),
-					Searchable: true,
-					Depends:    fInfo.depends,
-					Sortable:   true,
-					Type:       fInfo.fieldType,
-					Store:      fInfo.isStored(),
-					String:     i18n.Registry.TranslateFieldDescription(lang, fInfo.model.name, fInfo.name, fInfo.description),
-					Relation:   relation,
-					Required:   fInfo.required,
-					Selection:  i18n.Registry.TranslateFieldSelection(lang, fInfo.model.name, fInfo.name, fInfo.selection),
-					Domain:     filter,
-					ReadOnly:   fInfo.isReadOnly(),
-					ReverseFK:  fInfo.jsonReverseFK,
-					OnChange:   fInfo.onChange != "",
-				}
+
+			// Get the field informations
+			res := rc.model.FieldsGet(fields...)
+
+			// Translate attributes when required
+			lang := rc.Env().Context().GetString("lang")
+			for fieldName, fInfo := range res {
+				res[fieldName].Help = i18n.Registry.TranslateFieldHelp(lang, rc.model.name, fieldName, fInfo.Help)
+				res[fieldName].String = i18n.Registry.TranslateFieldDescription(lang, rc.model.name, fieldName, fInfo.String)
+				res[fieldName].Selection = i18n.Registry.TranslateFieldSelection(lang, rc.model.name, fieldName, fInfo.Selection)
 			}
 			return res
 		}).AllowGroup(security.GroupEveryone)
