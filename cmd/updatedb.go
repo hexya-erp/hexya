@@ -31,6 +31,9 @@ var updateDBCmd = &cobra.Command{
 // a project start file which imports all the project's module.
 func UpdateDB(config map[string]interface{}) {
 	setupConfig(config)
+	setupLogger()
+	setupDebug()
+	server.PreInit()
 	connectToDB()
 	models.BootStrap()
 	models.SyncDatabase()
