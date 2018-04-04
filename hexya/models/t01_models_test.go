@@ -20,6 +20,7 @@ import (
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -177,6 +178,17 @@ func TestModelDeclaration(t *testing.T) {
 				return fmt.Sprintf("[%s]", res)
 			})
 
+		post.AddMethod("ComputeRead", "",
+			func(rc *RecordCollection) FieldMap {
+				var read bool
+				if !rc.Get("LastRead").(dates.Date).IsZero() {
+					read = true
+				}
+				return FieldMap{
+					"Read": read,
+				}
+			})
+
 		post.Methods().MustGet("Create").Extend("",
 			func(rc *RecordCollection, data FieldMapper) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
@@ -259,6 +271,7 @@ func TestModelDeclaration(t *testing.T) {
 			"BestPostProfile": Rev2OneField{RelationModel: Registry.MustGet("Profile"), ReverseFK: "BestPost"},
 			"Abstract":        TextField{},
 			"Attachment":      BinaryField{},
+			"Read":            BooleanField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeRead")},
 			"LastRead":        DateField{},
 			"Visibility": SelectionField{Selection: types.Selection{
 				"invisible": "Invisible",

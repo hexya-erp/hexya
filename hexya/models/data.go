@@ -63,7 +63,7 @@ func LoadCSVDataFile(fileName string) {
 				break
 			}
 
-			values := getRecordValuesMap(headers, modelName, record, env, line, filepath.Dir(fileName))
+			values := getRecordValuesMap(headers, modelName, record, env, line, fileName)
 
 			externalID := values["id"]
 			delete(values, "id")
@@ -88,7 +88,7 @@ func LoadCSVDataFile(fileName string) {
 	}
 }
 
-func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int, dir string) FieldMap {
+func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int, fileName string) FieldMap {
 	values := make(map[string]interface{})
 	for i := 0; i < len(headers); i++ {
 		fi := Registry.MustGet(modelName).getRelatedFieldInfo(headers[i])
@@ -102,22 +102,21 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 		case fi.fieldType == fieldtype.Integer:
 			val, err = strconv.ParseInt(record[i], 0, 64)
 			if err != nil {
-				log.Panic("Error while converting integer", "line", line, "field", headers[i], "value", record[i], "error", err)
+				log.Panic("Error while converting integer", "fileName", fileName, "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
 		case fi.fieldType == fieldtype.Float:
 			val, err = strconv.ParseFloat(record[i], 64)
 			if err != nil {
-				log.Panic("Error while converting float", "line", line, "field", headers[i], "value", record[i], "error", err)
+				log.Panic("Error while converting float", "fileName", fileName, "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
 		case fi.fieldType.IsFKRelationType():
+			val = nil
 			if record[i] != "" {
 				relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").Equals(record[i]))
 				if relRC.Len() != 1 {
-					log.Panic("Unable to find related record from external ID", "line", line, "field", headers[i], "value", record[i])
+					log.Panic("Unable to find related record from external ID", "fileName", fileName, "line", line, "field", headers[i], "value", record[i])
 				}
 				val = relRC.Ids()[0]
-			} else {
-				val = nil
 			}
 		case fi.fieldType == fieldtype.Many2Many:
 			ids := strings.Split(record[i], "|")
@@ -127,8 +126,9 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 			if record[i] == "" {
 				continue
 			}
-			fileName := filepath.Join(dir, record[i])
-			fileContent, err := ioutil.ReadFile(fileName)
+			dir := filepath.Dir(fileName)
+			bFileName := filepath.Join(dir, record[i])
+			fileContent, err := ioutil.ReadFile(bFileName)
 			if err != nil {
 				log.Panic("Unable to open file with binary data", "error", err, "line", line, "field", headers[i], "value", record[i])
 			}

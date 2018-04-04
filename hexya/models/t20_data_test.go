@@ -26,6 +26,10 @@ func TestDataLoading(t *testing.T) {
 				So(userMary.Get("Nums").(int), ShouldEqual, 3)
 				So(userMary.Get("IsStaff").(bool), ShouldEqual, false)
 				So(userMary.Get("Size").(float64), ShouldEqual, 1.59)
+
+				So(func() { LoadCSVDataFile("testdata/001User.csv") }, ShouldPanic)
+				So(func() { LoadCSVDataFile("testdata/011User.csv") }, ShouldPanic)
+				So(func() { LoadCSVDataFile("testdata/012User.csv") }, ShouldPanic)
 			})
 			Convey("Check that no update does not update existing records", func() {
 				userPeter := userObj.Search(userObj.Model().Field("Name").Equals("Peter")).Fetch()
@@ -113,6 +117,9 @@ func TestDataLoading(t *testing.T) {
 				So(nickPost.Get("Title"), ShouldEqual, "Nick's Post")
 				So(nickPost.Get("Content"), ShouldEqual, "No content")
 				So(nickPost.Get("Tags").(RecordSet).Collection().Len(), ShouldEqual, 3)
+
+				So(func() { LoadCSVDataFile("testdata/001Post.csv") }, ShouldPanic)
+				So(func() { LoadCSVDataFile("testdata/002Post.csv") }, ShouldPanic)
 			})
 		}), ShouldBeNil)
 	})

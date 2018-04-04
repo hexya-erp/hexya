@@ -132,6 +132,10 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 	if defaultFunc == nil {
 		defaultFunc = DefaultValue(false)
 	}
+	required := true
+	if bf.Compute != nil && bf.Inverse == nil {
+		required = false
+	}
 	fInfo := &Field{
 		model:         fc.model,
 		acl:           security.NewAccessControlList(),
@@ -140,7 +144,7 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 		description:   str,
 		help:          bf.Help,
 		stored:        bf.Stored,
-		required:      true,
+		required:      required,
 		readOnly:      bf.ReadOnly,
 		unique:        bf.Unique,
 		index:         bf.Index,
