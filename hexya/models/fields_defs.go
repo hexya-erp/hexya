@@ -42,7 +42,6 @@ type BinaryField struct {
 	Related    string
 	NoCopy     bool
 	GoType     interface{}
-	Translate  bool
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
@@ -51,117 +50,41 @@ type BinaryField struct {
 
 // DeclareField creates a binary field for the given FieldsCollection with the given name.
 func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(string))
-	if bf.GoType != nil {
-		typ = reflect.TypeOf(bf.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	fieldType := fieldtype.Binary
-	json, str := getJSONAndString(name, fieldType, bf.JSON, bf.String)
-	compute, inverse, onchange, constraint := getFuncNames(bf.Compute, bf.Inverse, bf.OnChange, bf.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          bf.Help,
-		stored:        bf.Stored,
-		required:      bf.Required,
-		readOnly:      bf.ReadOnly,
-		unique:        bf.Unique,
-		index:         bf.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       bf.Depends,
-		relatedPath:   bf.Related,
-		groupOperator: "sum",
-		noCopy:        bf.NoCopy,
-		structField:   structField,
-		fieldType:     fieldType,
-		defaultFunc:   bf.Default,
-		translate:     bf.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
-	return fInfo
+	return genericDeclareField(fc, &bf, name, fieldtype.Binary, new(string))
 }
 
 // A BooleanField is a field for storing true/false values.
 //
 // Clients are expected to handle boolean fields as checkboxes.
 type BooleanField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	GoType        interface{}
-	Translate     bool
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Default       func(Environment) interface{}
+	JSON       string
+	String     string
+	Help       string
+	Stored     bool
+	Required   bool
+	ReadOnly   bool
+	Unique     bool
+	Index      bool
+	Compute    Methoder
+	Depends    []string
+	Related    string
+	NoCopy     bool
+	GoType     interface{}
+	OnChange   Methoder
+	Constraint Methoder
+	Inverse    Methoder
+	Default    func(Environment) interface{}
 }
 
 // DeclareField creates a boolean field for the given FieldsCollection with the given name.
 func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(bool))
-	if bf.GoType != nil {
-		typ = reflect.TypeOf(bf.GoType).Elem()
+	if bf.Default == nil {
+		bf.Default = DefaultValue(false)
 	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
+	if bf.Compute == nil || bf.Inverse != nil {
+		bf.Required = true
 	}
-	fieldType := fieldtype.Boolean
-	json, str := getJSONAndString(name, fieldType, bf.JSON, bf.String)
-	compute, inverse, onchange, constraint := getFuncNames(bf.Compute, bf.Inverse, bf.OnChange, bf.Constraint)
-	defaultFunc := bf.Default
-	if defaultFunc == nil {
-		defaultFunc = DefaultValue(false)
-	}
-	required := true
-	if bf.Compute != nil && bf.Inverse == nil {
-		required = false
-	}
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          bf.Help,
-		stored:        bf.Stored,
-		required:      required,
-		readOnly:      bf.ReadOnly,
-		unique:        bf.Unique,
-		index:         bf.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       bf.Depends,
-		relatedPath:   bf.Related,
-		groupOperator: strutils.GetDefaultString(bf.GroupOperator, "sum"),
-		noCopy:        bf.NoCopy,
-		structField:   structField,
-		fieldType:     fieldType,
-		defaultFunc:   defaultFunc,
-		translate:     bf.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
-	return fInfo
+	return genericDeclareField(fc, &bf, name, fieldtype.Boolean, new(bool))
 }
 
 // A CharField is a field for storing short text. There is no
@@ -169,67 +92,31 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle Char fields as single line inputs.
 type CharField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	Size          int
-	GoType        interface{}
-	Translate     bool
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Default       func(Environment) interface{}
+	JSON       string
+	String     string
+	Help       string
+	Stored     bool
+	Required   bool
+	ReadOnly   bool
+	Unique     bool
+	Index      bool
+	Compute    Methoder
+	Depends    []string
+	Related    string
+	NoCopy     bool
+	Size       int
+	GoType     interface{}
+	Translate  bool
+	OnChange   Methoder
+	Constraint Methoder
+	Inverse    Methoder
+	Default    func(Environment) interface{}
 }
 
 // DeclareField creates a char field for the given FieldsCollection with the given name.
 func (cf CharField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(string))
-	if cf.GoType != nil {
-		typ = reflect.TypeOf(cf.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	fieldType := fieldtype.Char
-	json, str := getJSONAndString(name, fieldType, cf.JSON, cf.String)
-	compute, inverse, onchange, constraint := getFuncNames(cf.Compute, cf.Inverse, cf.OnChange, cf.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          cf.Help,
-		stored:        cf.Stored,
-		required:      cf.Required,
-		readOnly:      cf.ReadOnly,
-		unique:        cf.Unique,
-		index:         cf.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       cf.Depends,
-		relatedPath:   cf.Related,
-		groupOperator: strutils.GetDefaultString(cf.GroupOperator, "sum"),
-		noCopy:        cf.NoCopy,
-		structField:   structField,
-		size:          cf.Size,
-		fieldType:     fieldType,
-		defaultFunc:   cf.Default,
-		translate:     cf.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
+	fInfo := genericDeclareField(fc, &cf, name, fieldtype.Char, new(string))
+	fInfo.size = cf.Size
 	return fInfo
 }
 
@@ -251,7 +138,6 @@ type DateField struct {
 	GroupOperator string
 	NoCopy        bool
 	GoType        interface{}
-	Translate     bool
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
@@ -260,42 +146,8 @@ type DateField struct {
 
 // DeclareField creates a date field for the given FieldsCollection with the given name.
 func (df DateField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(dates.Date))
-	if df.GoType != nil {
-		typ = reflect.TypeOf(df.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	fieldType := fieldtype.Date
-	json, str := getJSONAndString(name, fieldType, df.JSON, df.String)
-	compute, inverse, onchange, constraint := getFuncNames(df.Compute, df.Inverse, df.OnChange, df.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          df.Help,
-		stored:        df.Stored,
-		required:      df.Required,
-		readOnly:      df.ReadOnly,
-		unique:        df.Unique,
-		index:         df.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       df.Depends,
-		relatedPath:   df.Related,
-		groupOperator: strutils.GetDefaultString(df.GroupOperator, "sum"),
-		noCopy:        df.NoCopy,
-		structField:   structField,
-		fieldType:     fieldType,
-		defaultFunc:   df.Default,
-		translate:     df.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
+	fInfo := genericDeclareField(fc, &df, name, fieldtype.Date, new(dates.Date))
+	fInfo.groupOperator = strutils.GetDefaultString(df.GroupOperator, "sum")
 	return fInfo
 }
 
@@ -317,7 +169,6 @@ type DateTimeField struct {
 	GroupOperator string
 	NoCopy        bool
 	GoType        interface{}
-	Translate     bool
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
@@ -326,42 +177,8 @@ type DateTimeField struct {
 
 // DeclareField creates a datetime field for the given FieldsCollection with the given name.
 func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(dates.DateTime))
-	if df.GoType != nil {
-		typ = reflect.TypeOf(df.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	fieldType := fieldtype.DateTime
-	json, str := getJSONAndString(name, fieldType, df.JSON, df.String)
-	compute, inverse, onchange, constraint := getFuncNames(df.Compute, df.Inverse, df.OnChange, df.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          df.Help,
-		stored:        df.Stored,
-		required:      df.Required,
-		readOnly:      df.ReadOnly,
-		unique:        df.Unique,
-		index:         df.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       df.Depends,
-		relatedPath:   df.Related,
-		groupOperator: strutils.GetDefaultString(df.GroupOperator, "sum"),
-		noCopy:        df.NoCopy,
-		structField:   structField,
-		fieldType:     fieldType,
-		defaultFunc:   df.Default,
-		translate:     df.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
+	fInfo := genericDeclareField(fc, &df, name, fieldtype.DateTime, new(dates.DateTime))
+	fInfo.groupOperator = strutils.GetDefaultString(df.GroupOperator, "sum")
 	return fInfo
 }
 
@@ -382,7 +199,6 @@ type FloatField struct {
 	NoCopy        bool
 	Digits        nbutils.Digits
 	GoType        interface{}
-	Translate     bool
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
@@ -391,42 +207,9 @@ type FloatField struct {
 
 // DeclareField adds this datetime field for the given FieldsCollection with the given name.
 func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(float64))
-	if ff.GoType != nil {
-		typ = reflect.TypeOf(ff.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	json, str := getJSONAndString(name, fieldtype.Float, ff.JSON, ff.String)
-	compute, inverse, onchange, constraint := getFuncNames(ff.Compute, ff.Inverse, ff.OnChange, ff.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          ff.Help,
-		stored:        ff.Stored,
-		required:      ff.Required,
-		readOnly:      ff.ReadOnly,
-		unique:        ff.Unique,
-		index:         ff.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       ff.Depends,
-		relatedPath:   ff.Related,
-		groupOperator: strutils.GetDefaultString(ff.GroupOperator, "sum"),
-		noCopy:        ff.NoCopy,
-		structField:   structField,
-		digits:        ff.Digits,
-		fieldType:     fieldtype.Float,
-		defaultFunc:   ff.Default,
-		translate:     ff.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
+	fInfo := genericDeclareField(fc, &ff, name, fieldtype.Float, new(float64))
+	fInfo.groupOperator = strutils.GetDefaultString(ff.GroupOperator, "sum")
+	fInfo.digits = ff.Digits
 	return fInfo
 }
 
@@ -434,67 +217,31 @@ func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle HTML fields with multi-line HTML editors.
 type HTMLField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	Size          int
-	GoType        interface{}
-	Translate     bool
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Default       func(Environment) interface{}
+	JSON       string
+	String     string
+	Help       string
+	Stored     bool
+	Required   bool
+	ReadOnly   bool
+	Unique     bool
+	Index      bool
+	Compute    Methoder
+	Depends    []string
+	Related    string
+	NoCopy     bool
+	Size       int
+	GoType     interface{}
+	Translate  bool
+	OnChange   Methoder
+	Constraint Methoder
+	Inverse    Methoder
+	Default    func(Environment) interface{}
 }
 
 // DeclareField creates a html field for the given FieldsCollection with the given name.
 func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(string))
-	if tf.GoType != nil {
-		typ = reflect.TypeOf(tf.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	fieldType := fieldtype.HTML
-	json, str := getJSONAndString(name, fieldType, tf.JSON, tf.String)
-	compute, inverse, onchange, constraint := getFuncNames(tf.Compute, tf.Inverse, tf.OnChange, tf.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          tf.Help,
-		stored:        tf.Stored,
-		required:      tf.Required,
-		readOnly:      tf.ReadOnly,
-		unique:        tf.Unique,
-		index:         tf.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       tf.Depends,
-		relatedPath:   tf.Related,
-		groupOperator: strutils.GetDefaultString(tf.GroupOperator, "sum"),
-		noCopy:        tf.NoCopy,
-		structField:   structField,
-		size:          tf.Size,
-		fieldType:     fieldType,
-		defaultFunc:   tf.Default,
-		translate:     tf.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
+	fInfo := genericDeclareField(fc, &tf, name, fieldtype.HTML, new(string))
+	fInfo.size = tf.Size
 	return fInfo
 }
 
@@ -514,7 +261,6 @@ type IntegerField struct {
 	GroupOperator string
 	NoCopy        bool
 	GoType        interface{}
-	Translate     bool
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
@@ -523,42 +269,8 @@ type IntegerField struct {
 
 // DeclareField creates a datetime field for the given FieldsCollection with the given name.
 func (i IntegerField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(int64))
-	if i.GoType != nil {
-		typ = reflect.TypeOf(i.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	fieldType := fieldtype.Integer
-	json, str := getJSONAndString(name, fieldType, i.JSON, i.String)
-	compute, inverse, onchange, constraint := getFuncNames(i.Compute, i.Inverse, i.OnChange, i.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          i.Help,
-		stored:        i.Stored,
-		required:      i.Required,
-		readOnly:      i.ReadOnly,
-		unique:        i.Unique,
-		index:         i.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       i.Depends,
-		relatedPath:   i.Related,
-		groupOperator: strutils.GetDefaultString(i.GroupOperator, "sum"),
-		noCopy:        i.NoCopy,
-		structField:   structField,
-		fieldType:     fieldType,
-		defaultFunc:   i.Default,
-		translate:     i.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
+	fInfo := genericDeclareField(fc, &i, name, fieldtype.Integer, new(int64))
+	fInfo.groupOperator = strutils.GetDefaultString(i.GroupOperator, "sum")
 	return fInfo
 }
 
@@ -581,7 +293,6 @@ type Many2ManyField struct {
 	M2MLinkModelName string
 	M2MOurField      string
 	M2MTheirField    string
-	Translate        bool
 	OnChange         Methoder
 	Constraint       Methoder
 	Filter           Conditioner
@@ -591,10 +302,7 @@ type Many2ManyField struct {
 
 // DeclareField creates a many2many field for the given FieldsCollection with the given name.
 func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	structField := reflect.StructField{
-		Name: name,
-		Type: reflect.TypeOf(*new([]int64)),
-	}
+	fInfo := genericDeclareField(fc, &mf, name, fieldtype.Many2Many, new([]int64))
 	our := mf.M2MOurField
 	if our == "" {
 		our = fc.model.name
@@ -616,40 +324,15 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field 
 	}
 	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, fc.model.name, mf.RelationModel.Underlying().name, our, their, fc.model.isMixin())
 
-	json, str := getJSONAndString(name, fieldtype.Float, mf.JSON, mf.String)
-	compute, inverse, onchange, constraint := getFuncNames(mf.Compute, mf.Inverse, mf.OnChange, mf.Constraint)
 	var filter *Condition
 	if mf.Filter != nil {
 		filter = mf.Filter.Underlying()
 	}
-	fInfo := &Field{
-		model:            fc.model,
-		acl:              security.NewAccessControlList(),
-		name:             name,
-		json:             json,
-		description:      str,
-		help:             mf.Help,
-		stored:           mf.Stored,
-		required:         mf.Required,
-		readOnly:         mf.ReadOnly,
-		index:            mf.Index,
-		compute:          compute,
-		inverse:          inverse,
-		depends:          mf.Depends,
-		relatedPath:      mf.Related,
-		noCopy:           mf.NoCopy,
-		structField:      structField,
-		relatedModelName: mf.RelationModel.Underlying().name,
-		m2mRelModel:      m2mRelModel,
-		m2mOurField:      m2mOurField,
-		m2mTheirField:    m2mTheirField,
-		fieldType:        fieldtype.Many2Many,
-		defaultFunc:      mf.Default,
-		translate:        mf.Translate,
-		filter:           filter,
-		onChange:         onchange,
-		constraint:       constraint,
-	}
+	fInfo.relatedModelName = mf.RelationModel.Underlying().name
+	fInfo.m2mRelModel = m2mRelModel
+	fInfo.m2mOurField = m2mOurField
+	fInfo.m2mTheirField = m2mTheirField
+	fInfo.filter = filter
 	return fInfo
 }
 
@@ -671,7 +354,6 @@ type Many2OneField struct {
 	NoCopy        bool
 	RelationModel Modeler
 	Embed         bool
-	Translate     bool
 	OnDelete      OnDeleteAction
 	OnChange      Methoder
 	Constraint    Methoder
@@ -682,12 +364,7 @@ type Many2OneField struct {
 
 // DeclareField creates a many2one field for the given FieldsCollection with the given name.
 func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	structField := reflect.StructField{
-		Name: name,
-		Type: reflect.TypeOf(*new(int64)),
-	}
-	fieldType := fieldtype.Many2One
-	json, str := getJSONAndString(name, fieldType, mf.JSON, mf.String)
+	fInfo := genericDeclareField(fc, &mf, name, fieldtype.Many2One, new(int64))
 	onDelete := SetNull
 	if mf.OnDelete != "" {
 		onDelete = mf.OnDelete
@@ -699,38 +376,16 @@ func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 		required = true
 		noCopy = true
 	}
-	compute, inverse, onchange, constraint := getFuncNames(mf.Compute, mf.Inverse, mf.OnChange, mf.Constraint)
 	var filter *Condition
 	if mf.Filter != nil {
 		filter = mf.Filter.Underlying()
 	}
-	fInfo := &Field{
-		model:            fc.model,
-		acl:              security.NewAccessControlList(),
-		name:             name,
-		json:             json,
-		description:      str,
-		help:             mf.Help,
-		stored:           mf.Stored,
-		required:         required,
-		readOnly:         mf.ReadOnly,
-		index:            mf.Index,
-		compute:          compute,
-		inverse:          inverse,
-		depends:          mf.Depends,
-		relatedPath:      mf.Related,
-		noCopy:           noCopy,
-		structField:      structField,
-		embed:            mf.Embed,
-		relatedModelName: mf.RelationModel.Underlying().name,
-		fieldType:        fieldType,
-		onDelete:         onDelete,
-		defaultFunc:      mf.Default,
-		translate:        mf.Translate,
-		onChange:         onchange,
-		filter:           filter,
-		constraint:       constraint,
-	}
+	fInfo.filter = filter
+	fInfo.relatedModelName = mf.RelationModel.Underlying().name
+	fInfo.onDelete = onDelete
+	fInfo.noCopy = noCopy
+	fInfo.required = required
+	fInfo.embed = mf.Embed
 	return fInfo
 }
 
@@ -751,7 +406,6 @@ type One2ManyField struct {
 	NoCopy        bool
 	RelationModel Modeler
 	ReverseFK     string
-	Translate     bool
 	OnChange      Methoder
 	Constraint    Methoder
 	Filter        Conditioner
@@ -761,43 +415,14 @@ type One2ManyField struct {
 
 // DeclareField creates a one2many field for the given FieldsCollection with the given name.
 func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	structField := reflect.StructField{
-		Name: name,
-		Type: reflect.TypeOf(*new([]int64)),
-	}
-	fieldType := fieldtype.One2Many
-	json, str := getJSONAndString(name, fieldType, of.JSON, of.String)
-	compute, inverse, onchange, constraint := getFuncNames(of.Compute, of.Inverse, of.OnChange, of.Constraint)
+	fInfo := genericDeclareField(fc, &of, name, fieldtype.One2Many, new([]int64))
 	var filter *Condition
 	if of.Filter != nil {
 		filter = of.Filter.Underlying()
 	}
-	fInfo := &Field{
-		model:            fc.model,
-		acl:              security.NewAccessControlList(),
-		name:             name,
-		json:             json,
-		description:      str,
-		help:             of.Help,
-		stored:           of.Stored,
-		required:         of.Required,
-		readOnly:         of.ReadOnly,
-		index:            of.Index,
-		compute:          compute,
-		inverse:          inverse,
-		depends:          of.Depends,
-		relatedPath:      of.Related,
-		noCopy:           of.NoCopy,
-		structField:      structField,
-		relatedModelName: of.RelationModel.Underlying().name,
-		reverseFK:        of.ReverseFK,
-		fieldType:        fieldType,
-		defaultFunc:      of.Default,
-		translate:        of.Translate,
-		filter:           filter,
-		onChange:         onchange,
-		constraint:       constraint,
-	}
+	fInfo.filter = filter
+	fInfo.relatedModelName = of.RelationModel.Underlying().name
+	fInfo.reverseFK = of.ReverseFK
 	return fInfo
 }
 
@@ -819,7 +444,6 @@ type One2OneField struct {
 	NoCopy        bool
 	RelationModel Modeler
 	Embed         bool
-	Translate     bool
 	OnDelete      OnDeleteAction
 	OnChange      Methoder
 	Constraint    Methoder
@@ -830,12 +454,7 @@ type One2OneField struct {
 
 // DeclareField creates a one2one field for the given FieldsCollection with the given name.
 func (of One2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	structField := reflect.StructField{
-		Name: name,
-		Type: reflect.TypeOf(*new(int64)),
-	}
-	fieldType := fieldtype.One2One
-	json, str := getJSONAndString(name, fieldType, of.JSON, of.String)
+	fInfo := genericDeclareField(fc, &of, name, fieldtype.One2One, new(int64))
 	onDelete := SetNull
 	if of.OnDelete != "" {
 		onDelete = of.OnDelete
@@ -847,38 +466,16 @@ func (of One2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 		required = true
 		noCopy = true
 	}
-	compute, inverse, onchange, constraint := getFuncNames(of.Compute, of.Inverse, of.OnChange, of.Constraint)
 	var filter *Condition
 	if of.Filter != nil {
 		filter = of.Filter.Underlying()
 	}
-	fInfo := &Field{
-		model:            fc.model,
-		acl:              security.NewAccessControlList(),
-		name:             name,
-		json:             json,
-		description:      str,
-		help:             of.Help,
-		stored:           of.Stored,
-		required:         required,
-		readOnly:         of.ReadOnly,
-		index:            of.Index,
-		compute:          compute,
-		inverse:          inverse,
-		depends:          of.Depends,
-		relatedPath:      of.Related,
-		noCopy:           noCopy,
-		structField:      structField,
-		embed:            of.Embed,
-		relatedModelName: of.RelationModel.Underlying().name,
-		fieldType:        fieldType,
-		onDelete:         onDelete,
-		defaultFunc:      of.Default,
-		translate:        of.Translate,
-		onChange:         onchange,
-		filter:           filter,
-		constraint:       constraint,
-	}
+	fInfo.filter = filter
+	fInfo.relatedModelName = of.RelationModel.Underlying().name
+	fInfo.onDelete = onDelete
+	fInfo.noCopy = noCopy
+	fInfo.required = required
+	fInfo.embed = of.Embed
 	return fInfo
 }
 
@@ -900,7 +497,6 @@ type Rev2OneField struct {
 	NoCopy        bool
 	RelationModel Modeler
 	ReverseFK     string
-	Translate     bool
 	OnChange      Methoder
 	Constraint    Methoder
 	Filter        Conditioner
@@ -910,43 +506,14 @@ type Rev2OneField struct {
 
 // DeclareField creates a rev2one field for the given FieldsCollection with the given name.
 func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	structField := reflect.StructField{
-		Name: name,
-		Type: reflect.TypeOf(*new(int64)),
-	}
-	fieldType := fieldtype.Rev2One
-	json, str := getJSONAndString(name, fieldType, rf.JSON, rf.String)
-	compute, inverse, onchange, constraint := getFuncNames(rf.Compute, rf.Inverse, rf.OnChange, rf.Constraint)
+	fInfo := genericDeclareField(fc, &rf, name, fieldtype.Rev2One, new(int64))
 	var filter *Condition
 	if rf.Filter != nil {
 		filter = rf.Filter.Underlying()
 	}
-	fInfo := &Field{
-		model:            fc.model,
-		acl:              security.NewAccessControlList(),
-		name:             name,
-		json:             json,
-		description:      str,
-		help:             rf.Help,
-		stored:           rf.Stored,
-		required:         rf.Required,
-		readOnly:         rf.ReadOnly,
-		index:            rf.Index,
-		compute:          compute,
-		inverse:          inverse,
-		depends:          rf.Depends,
-		relatedPath:      rf.Related,
-		noCopy:           rf.NoCopy,
-		structField:      structField,
-		relatedModelName: rf.RelationModel.Underlying().name,
-		reverseFK:        rf.ReverseFK,
-		fieldType:        fieldType,
-		defaultFunc:      rf.Default,
-		translate:        rf.Translate,
-		filter:           filter,
-		onChange:         onchange,
-		constraint:       constraint,
-	}
+	fInfo.filter = filter
+	fInfo.relatedModelName = rf.RelationModel.Underlying().name
+	fInfo.reverseFK = rf.ReverseFK
 	return fInfo
 }
 
@@ -967,7 +534,6 @@ type SelectionField struct {
 	Related    string
 	NoCopy     bool
 	Selection  types.Selection
-	Translate  bool
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
@@ -976,37 +542,8 @@ type SelectionField struct {
 
 // DeclareField creates a selection field for the given FieldsCollection with the given name.
 func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field {
-	structField := reflect.StructField{
-		Name: name,
-		Type: reflect.TypeOf(*new(string)),
-	}
-	json, str := getJSONAndString(name, fieldtype.Selection, sf.JSON, sf.String)
-	compute, inverse, onchange, constraint := getFuncNames(sf.Compute, sf.Inverse, sf.OnChange, sf.Constraint)
-	fInfo := &Field{
-		model:       fc.model,
-		acl:         security.NewAccessControlList(),
-		name:        name,
-		json:        json,
-		description: str,
-		help:        sf.Help,
-		stored:      sf.Stored,
-		required:    sf.Required,
-		readOnly:    sf.ReadOnly,
-		unique:      sf.Unique,
-		index:       sf.Index,
-		compute:     compute,
-		inverse:     inverse,
-		depends:     sf.Depends,
-		relatedPath: sf.Related,
-		noCopy:      sf.NoCopy,
-		structField: structField,
-		selection:   sf.Selection,
-		fieldType:   fieldtype.Selection,
-		defaultFunc: sf.Default,
-		translate:   sf.Translate,
-		onChange:    onchange,
-		constraint:  constraint,
-	}
+	fInfo := genericDeclareField(fc, &sf, name, fieldtype.Selection, new(string))
+	fInfo.selection = sf.Selection
 	return fInfo
 }
 
@@ -1015,67 +552,31 @@ func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field 
 //
 // Clients are expected to handle text fields as multi-line inputs.
 type TextField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	Size          int
-	GoType        interface{}
-	Translate     bool
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Default       func(Environment) interface{}
+	JSON       string
+	String     string
+	Help       string
+	Stored     bool
+	Required   bool
+	ReadOnly   bool
+	Unique     bool
+	Index      bool
+	Compute    Methoder
+	Depends    []string
+	Related    string
+	NoCopy     bool
+	Size       int
+	GoType     interface{}
+	Translate  bool
+	OnChange   Methoder
+	Constraint Methoder
+	Inverse    Methoder
+	Default    func(Environment) interface{}
 }
 
 // DeclareField creates a text field for the given FieldsCollection with the given name.
 func (tf TextField) DeclareField(fc *FieldsCollection, name string) *Field {
-	typ := reflect.TypeOf(*new(string))
-	if tf.GoType != nil {
-		typ = reflect.TypeOf(tf.GoType).Elem()
-	}
-	structField := reflect.StructField{
-		Name: name,
-		Type: typ,
-	}
-	fieldType := fieldtype.Text
-	json, str := getJSONAndString(name, fieldType, tf.JSON, tf.String)
-	compute, inverse, onchange, constraint := getFuncNames(tf.Compute, tf.Inverse, tf.OnChange, tf.Constraint)
-	fInfo := &Field{
-		model:         fc.model,
-		acl:           security.NewAccessControlList(),
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          tf.Help,
-		stored:        tf.Stored,
-		required:      tf.Required,
-		readOnly:      tf.ReadOnly,
-		unique:        tf.Unique,
-		index:         tf.Index,
-		compute:       compute,
-		inverse:       inverse,
-		depends:       tf.Depends,
-		relatedPath:   tf.Related,
-		groupOperator: strutils.GetDefaultString(tf.GroupOperator, "sum"),
-		noCopy:        tf.NoCopy,
-		structField:   structField,
-		size:          tf.Size,
-		fieldType:     fieldType,
-		defaultFunc:   tf.Default,
-		translate:     tf.Translate,
-		onChange:      onchange,
-		constraint:    constraint,
-	}
+	fInfo := genericDeclareField(fc, &tf, name, fieldtype.Text, new(string))
+	fInfo.size = tf.Size
 	return fInfo
 }
 
@@ -1095,6 +596,63 @@ func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 			Type: reflect.TypeOf(*new(bool)),
 		},
 		fieldType: fieldtype.NoType,
+	}
+	return fInfo
+}
+
+// genericDeclareField creates a generic Field with the data from the given fStruct
+//
+// fStruct must be a pointer to a struct and goType a pointer to a type instance
+func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string, fieldType fieldtype.Type, goType interface{}) *Field {
+	val := reflect.ValueOf(fStruct).Elem()
+	typ := reflect.TypeOf(goType).Elem()
+	if val.FieldByName("GoType").IsValid() && !val.FieldByName("GoType").IsNil() {
+		typ = reflect.Indirect(val.FieldByName("GoType").Elem()).Type()
+	}
+	structField := reflect.StructField{
+		Name: name,
+		Type: typ,
+	}
+	json, str := getJSONAndString(name, fieldType, val.FieldByName("JSON").String(), val.FieldByName("String").String())
+
+	comp, _ := val.FieldByName("Compute").Interface().(Methoder)
+	inv, _ := val.FieldByName("Inverse").Interface().(Methoder)
+	onc, _ := val.FieldByName("OnChange").Interface().(Methoder)
+	cons, _ := val.FieldByName("Constraint").Interface().(Methoder)
+	compute, inverse, onchange, constraint := getFuncNames(comp, inv, onc, cons)
+
+	var unique bool
+	if uni := val.FieldByName("Unique"); uni.IsValid() {
+		unique = uni.Bool()
+	}
+
+	var translate bool
+	if trans := val.FieldByName("Translate"); trans.IsValid() {
+		translate = trans.Bool()
+	}
+	fInfo := &Field{
+		model:       fc.model,
+		acl:         security.NewAccessControlList(),
+		name:        name,
+		json:        json,
+		description: str,
+		help:        val.FieldByName("Help").String(),
+		stored:      val.FieldByName("Stored").Bool(),
+		required:    val.FieldByName("Required").Bool(),
+		readOnly:    val.FieldByName("ReadOnly").Bool(),
+		unique:      unique,
+		translate:   translate,
+		index:       val.FieldByName("Index").Bool(),
+		compute:     compute,
+		inverse:     inverse,
+		depends:     val.FieldByName("Depends").Interface().([]string),
+		relatedPath: val.FieldByName("Related").String(),
+		noCopy:      val.FieldByName("NoCopy").Bool(),
+		structField: structField,
+		fieldType:   fieldType,
+		defaultFunc: val.FieldByName("Default").Interface().(func(Environment) interface{}),
+		onChange:    onchange,
+		constraint:  constraint,
 	}
 	return fInfo
 }
