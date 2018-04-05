@@ -290,6 +290,15 @@ func ConvertToFieldNameSlice(fields []string) []FieldNamer {
 	return res
 }
 
+// convertToFieldNamerSlice converts the given FieldName fields slice into a slice of FieldNamers
+func convertToFieldNamerSlice(fields []FieldName) []FieldNamer {
+	res := make([]FieldNamer, len(fields))
+	for i, v := range fields {
+		res[i] = v
+	}
+	return res
+}
+
 // getGroupCondition returns the condition to retrieve the individual aggregated rows in vals
 // knowing that they were grouped by groups and that we had the given initial condition
 func getGroupCondition(groups []string, vals map[string]interface{}, initialCondition *Condition) *Condition {

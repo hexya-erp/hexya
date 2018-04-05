@@ -241,12 +241,7 @@ func declareRecordSetMethods() {
 
 		The result map is indexed by the fields JSON names.`,
 		func(rc *RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
-			// Create our fields list
-			var fields []FieldNamer
-			for _, f := range args.Fields {
-				fields = append(fields, f)
-			}
-
+			fields := convertToFieldNamerSlice(args.Fields)
 			// Get the field informations
 			res := rc.model.FieldsGet(fields...)
 
