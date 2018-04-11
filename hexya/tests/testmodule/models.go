@@ -180,6 +180,8 @@ func init() {
 		"Abstract":        models.TextField{},
 		"Attachment":      models.BinaryField{},
 		"LastRead":        models.DateField{},
+		"Comments":        models.One2ManyField{RelationModel: h.Comment(), ReverseFK: "Post"},
+		"LastCommentText": models.TextField{Related: "Comments.Text"},
 	})
 
 	h.Post().Methods().Create().Extend("",
@@ -193,6 +195,12 @@ func init() {
 			res := rs.Super().Search(cond)
 			return res
 		})
+
+	comment := h.Comment().DeclareModel()
+	comment.AddFields(map[string]models.FieldDefinition{
+		"Post": models.Many2OneField{RelationModel: h.Post()},
+		"Text": models.TextField{},
+	})
 
 	tag := h.Tag().DeclareModel()
 	tag.AddFields(map[string]models.FieldDefinition{

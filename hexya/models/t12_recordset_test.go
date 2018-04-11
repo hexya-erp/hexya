@@ -35,7 +35,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID"), ShouldBeGreaterThan, 0)
 			})
-			Convey("Creating user Jane with related Profile and Posts and Tags", func() {
+			Convey("Creating user Jane with related Profile and Posts and Tags and Comments", func() {
 				userJaneProfileData := FieldMap{
 					"Age":     23,
 					"Money":   12345,
@@ -94,6 +94,21 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Get("Name"), ShouldBeIn, "Books", "Jane's")
 				So(post2Tags.Records()[1].Get("Name"), ShouldBeIn, "Books", "Jane's")
+
+				env.Pool("Comment").Call("Create", FieldMap{
+					"Post": post1,
+					"Text": "First Comment",
+				})
+				env.Pool("Comment").Call("Create", FieldMap{
+					"Post": post1,
+					"Text": "Another Comment",
+				})
+				env.Pool("Comment").Call("Create", FieldMap{
+					"Post": post1,
+					"Text": "Third Comment",
+				})
+				So(post1.Get("LastCommentText").(string), ShouldEqual, "Third Comment")
+				So(post1.Get("Comments").(RecordSet).Len(), ShouldEqual, 3)
 			})
 			Convey("Creating a user Will Smith", func() {
 				userWillData := FieldMap{

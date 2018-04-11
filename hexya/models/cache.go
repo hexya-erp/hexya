@@ -17,6 +17,7 @@ package models
 import (
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 )
@@ -30,8 +31,10 @@ type cacheRef struct {
 // A cache holds records field values for caching the database to
 // improve performance. cache is not safe for concurrent access.
 type cache struct {
-	data     map[cacheRef]FieldMap
-	m2mLinks map[*Model]map[[2]int64]bool
+	sync.RWMutex
+	data       map[cacheRef]FieldMap
+	x2mRelated map[cacheRef]map[string]int64
+	m2mLinks   map[*Model]map[[2]int64]bool
 }
 
 // updateEntry creates or updates an entry in the cache defined by its model, id and fieldName.
@@ -55,28 +58,82 @@ func (c *cache) updateEntryByRef(ref cacheRef, jsonName string, value interface{
 	fi := ref.model.fields.MustGet(jsonName)
 	switch fi.fieldType {
 	case fieldtype.One2Many:
-		ids := value.([]int64)
-		for _, id := range ids {
-			c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id)
+		switch ids := value.(type) {
+		case int64:
+			// Related field through O2M, we do not have the complete O2M set.
+			// ids is a single int64 here.
+			c.updateEntry(fi.relatedModel, ids, fi.jsonReverseFK, ref.id)
+			c.setX2MValue(ref, jsonName, ids)
+		case []int64:
+			for _, id := range ids {
+				c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id)
+			}
+			c.setDataValue(ref, jsonName, true)
 		}
-		c.data[ref][jsonName] = true
+
 	case fieldtype.Rev2One:
 		id := value.(int64)
 		c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id)
-		c.data[ref][jsonName] = true
+		c.setDataValue(ref, jsonName, true)
+
 	case fieldtype.Many2Many:
-		ids := value.([]int64)
-		c.removeM2MLinks(fi, ref.id)
-		c.addM2MLink(fi, ref.id, ids)
-		c.data[ref][jsonName] = true
+		switch ids := value.(type) {
+		case int64:
+			// Related field through O2M, we do not have the complete M2M set
+			// ids is a single int64 here.
+			c.addM2MLink(fi, ref.id, []int64{ids})
+			c.setX2MValue(ref, jsonName, ids)
+		case []int64:
+			c.removeM2MLinks(fi, ref.id)
+			c.addM2MLink(fi, ref.id, ids)
+			c.setDataValue(ref, jsonName, true)
+		}
+
 	default:
-		c.data[ref][jsonName] = value
+		c.setDataValue(ref, jsonName, value)
 	}
+}
+
+// setDataValue sets the value for the jsonName field of record ref to value
+func (c *cache) setDataValue(ref cacheRef, jsonName string, value interface{}) {
+	c.Lock()
+	defer c.Unlock()
+	if _, ok := c.data[ref]; !ok {
+		c.data[ref] = make(FieldMap)
+		c.data[ref]["id"] = ref.id
+	}
+	c.data[ref][jsonName] = value
+}
+
+// setX2MValue sets the id for the jsonName field of record ref in the x2mRelation map
+func (c *cache) setX2MValue(ref cacheRef, jsonName string, id int64) {
+	c.Lock()
+	defer c.Unlock()
+	if _, ok := c.x2mRelated[ref]; !ok {
+		c.x2mRelated[ref] = make(map[string]int64)
+	}
+	c.x2mRelated[ref][jsonName] = id
+}
+
+// deleteFieldData removes the cache entry for the jsonName field of record ref
+func (c *cache) deleteFieldData(ref cacheRef, jsonName string) {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.data[ref], jsonName)
+}
+
+// deleteData removes the cache entry for the whole record ref
+func (c *cache) deleteData(ref cacheRef) {
+	c.Lock()
+	defer c.Unlock()
+	delete(c.data, ref)
 }
 
 // removeM2MLinks removes all M2M links associated with the record with
 // the given id on the given field
 func (c *cache) removeM2MLinks(fi *Field, id int64) {
+	c.Lock()
+	defer c.Unlock()
 	if _, exists := c.m2mLinks[fi.m2mRelModel]; !exists {
 		return
 	}
@@ -91,6 +148,8 @@ func (c *cache) removeM2MLinks(fi *Field, id int64) {
 // addM2MLink adds an M2M link between this record with its given ID
 // and the records given by values on the given field.
 func (c *cache) addM2MLink(fi *Field, id int64, values []int64) {
+	c.Lock()
+	defer c.Unlock()
 	if _, exists := c.m2mLinks[fi.m2mRelModel]; !exists {
 		c.m2mLinks[fi.m2mRelModel] = make(map[[2]int64]bool)
 	}
@@ -147,7 +206,7 @@ func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap) {
 // this method, since this will bring discrepancies in the other
 // records references (One2Many and Many2Many fields).
 func (c *cache) invalidateRecord(mi *Model, id int64) {
-	delete(c.data, cacheRef{model: mi, id: id})
+	c.deleteData(cacheRef{model: mi, id: id})
 	for _, fi := range mi.fields.registryByJSON {
 		if fi.fieldType == fieldtype.Many2Many {
 			c.removeM2MLinks(fi, id)
@@ -160,7 +219,7 @@ func (c *cache) removeEntry(mi *Model, id int64, fieldName string) {
 	if !c.checkIfInCache(mi, []int64{id}, []string{fieldName}) {
 		return
 	}
-	delete(c.data[cacheRef{model: mi, id: id}], fieldName)
+	c.deleteFieldData(cacheRef{model: mi, id: id}, fieldName)
 	fi := mi.fields.MustGet(fieldName)
 	if fi.fieldType == fieldtype.Many2Many {
 		c.removeM2MLinks(fi, id)
@@ -245,11 +304,14 @@ func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string) bool
 func (c *cache) getRelatedRef(mi *Model, id int64, path string) (cacheRef, string, error) {
 	exprs := jsonizeExpr(mi, strings.Split(path, ExprSep))
 	if len(exprs) > 1 {
-		relMI := mi.getRelatedModelInfo(exprs[0])
 		fkID, ok := c.get(mi, id, exprs[0]).(int64)
 		if !ok {
-			return cacheRef{}, "", errors.New("requested value not in cache")
+			fkID, ok = c.x2mRelated[cacheRef{model: mi, id: id}][exprs[0]]
+			if !ok {
+				return cacheRef{}, "", errors.New("requested value not in cache")
+			}
 		}
+		relMI := mi.getRelatedModelInfo(exprs[0])
 		return c.getRelatedRef(relMI, fkID, strings.Join(exprs[1:], ExprSep))
 	}
 	return cacheRef{model: mi, id: id}, exprs[0], nil
@@ -258,8 +320,9 @@ func (c *cache) getRelatedRef(mi *Model, id int64, path string) (cacheRef, strin
 // newCache creates a pointer to a new cache instance.
 func newCache() *cache {
 	res := cache{
-		data:     make(map[cacheRef]FieldMap),
-		m2mLinks: make(map[*Model]map[[2]int64]bool),
+		data:       make(map[cacheRef]FieldMap),
+		x2mRelated: make(map[cacheRef]map[string]int64),
+		m2mLinks:   make(map[*Model]map[[2]int64]bool),
 	}
 	return &res
 }

@@ -813,15 +813,23 @@ func (rc *RecordCollection) Model() *Model {
 }
 
 // withIdMap adds the given ids to this RecordCollection and returns it too.
-// It overrides the current query with ("ID", "in", ids).
+//
+// It removes duplicates and overrides the current query with ("ID", "in", ids).
 func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
+	// Remove 0 and duplicate ids
+	idsMap := make(map[int64]bool)
 	var newIds []int64
 	for _, id := range ids {
 		if id == 0 {
 			continue
 		}
-		newIds = append(newIds, id)
+		if !idsMap[id] {
+			newIds = append(newIds, id)
+		}
+		idsMap[id] = true
 	}
+
+	// Update RecordCollection
 	rc.ids = newIds
 	rc.fetched = true
 	rc.filtered = false
@@ -844,7 +852,7 @@ func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 //
 // You MUST pass a string literal as src to have it extracted automatically
 //
-// The given src will be passed to fmt.Sprintf with the optional args
+// The translated string will be passed to fmt.Sprintf with the optional args
 // before being returned.
 func (rc *RecordCollection) T(src string, args ...interface{}) string {
 	lang := rc.Env().Context().GetString("lang")

@@ -211,7 +211,7 @@ func nestMap(fMap FieldMap) FieldMap {
 	return res
 }
 
-// filterOnDBFields returns the given fields slice with only stored fields
+// filterOnDBFields returns the given fields slice with only stored fields.
 // This function also adds the "id" field to the list if not present unless dontAddID is true
 func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 	var res []string
@@ -219,25 +219,32 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 	for _, field := range fields {
 		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
 		fi := mi.fields.MustGet(fieldExprs[0])
-		var resExprs []string
-		if fi.isStored() {
-			resExprs = append(resExprs, fi.json)
-		}
-		if len(fieldExprs) > 1 {
-			// Related field (e.g. User.Profile.Age)
-			if fi.relatedModel != nil {
-				subFieldName := strings.Join(fieldExprs[1:], ExprSep)
-				subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName})
-				if len(subFieldRes) > 0 {
-					resExprs = append(resExprs, subFieldRes[0])
-				}
-			} else {
-				log.Panic("Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
+		// Single field
+		if len(fieldExprs) == 1 {
+			if fi.isStored() {
+				res = append(res, fi.json)
 			}
+			continue
 		}
-		if len(resExprs) > 0 {
-			res = append(res, strings.Join(resExprs, ExprSep))
+
+		// Related field (e.g. User.Profile.Age)
+		resExprs := []string{fi.json}
+		if fi.relatedModel == nil {
+			log.Panic("Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
 		}
+		subFieldName := strings.Join(fieldExprs[1:], ExprSep)
+		subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName})
+		if len(subFieldRes) == 0 {
+			// Our last expr is not stored after all, we don't add anything
+			continue
+		}
+
+		if !fi.isStored() {
+			// We re-add our first expr as it has been removed above (not stored)
+			res = append(res, fi.json)
+		}
+		resExprs = append(resExprs, subFieldRes[0])
+		res = append(res, strings.Join(resExprs, ExprSep))
 	}
 	if len(dontAddID) == 0 || !dontAddID[0] {
 		res = addIDIfNotPresent(res)

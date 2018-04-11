@@ -41,6 +41,13 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id  WHERE "T2".title = ?  `)
 					So(args, ShouldContain, "foo")
 				})
+				Convey("Query with one2many relations", func() {
+					rso2m := env.Pool("User").Search(rs.Model().Field("Posts.Title").Equals("1st post"))
+					fields := []string{"Name"}
+					sql, args := rso2m.query.selectQuery(fields)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name FROM "user" "user" LEFT JOIN "post" "T1" ON "user".id="T1".user_id  WHERE "T1".title = ?  `)
+					So(args, ShouldContain, "1st post")
+				})
 				Convey("Simple query with args inflation", func() {
 					getUserID := func(rc *RecordCollection) int64 {
 						return rc.Env().Uid()

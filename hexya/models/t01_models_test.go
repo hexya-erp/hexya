@@ -32,6 +32,7 @@ func TestModelDeclaration(t *testing.T) {
 		post := NewModel("Post")
 		tag := NewModel("Tag")
 		cv := NewModel("Resume")
+		comment := NewModel("Comment")
 		addressMI := NewMixinModel("AddressMixIn")
 		activeMI := NewMixinModel("ActiveMixIn")
 		viewModel := NewManualModel("UserView")
@@ -277,8 +278,15 @@ func TestModelDeclaration(t *testing.T) {
 				"invisible": "Invisible",
 				"visible":   "Visible",
 			}},
+			"Comments":        One2ManyField{RelationModel: Registry.MustGet("Comment"), ReverseFK: "Post"},
+			"LastCommentText": TextField{Related: "Comments.Text"},
 		})
 		post.SetDefaultOrder("Title")
+
+		comment.AddFields(map[string]FieldDefinition{
+			"Post": Many2OneField{RelationModel: Registry.MustGet("Post")},
+			"Text": TextField{},
+		})
 
 		tag.AddFields(map[string]FieldDefinition{
 			"Name":        CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},

@@ -37,7 +37,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userJohn.Len(), ShouldEqual, 1)
 				So(userJohn.ID(), ShouldBeGreaterThan, 0)
 			})
-			Convey("Creating user Jane with related Profile and Posts and Tags", func() {
+			Convey("Creating user Jane with related Profile and Posts and Comments and Tags", func() {
 				profileData := h.ProfileData{
 					Age:     int16(23),
 					Money:   12345,
@@ -95,6 +95,21 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Name(), ShouldBeIn, "Books", "Jane's")
 				So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
+
+				h.Comment().Create(env, &h.CommentData{
+					Post: post1,
+					Text: "First Comment",
+				})
+				h.Comment().Create(env, &h.CommentData{
+					Post: post1,
+					Text: "Another Comment",
+				})
+				h.Comment().Create(env, &h.CommentData{
+					Post: post1,
+					Text: "Third Comment",
+				})
+				So(post1.LastCommentText(), ShouldEqual, "Third Comment")
+				So(post1.Comments().Len(), ShouldEqual, 3)
 			})
 			Convey("Creating a user Will Smith", func() {
 				userWillData := h.UserData{
