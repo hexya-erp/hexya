@@ -87,6 +87,7 @@ func TestCreateRecordSet(t *testing.T) {
 				})
 				post1.SetTags(tag1.Union(tag3))
 				post2.SetTags(tag2.Union(tag3))
+				So(post1.LastTagName(), ShouldEqual, "Jane's")
 				post1Tags := post1.Tags()
 				So(post1Tags.Len(), ShouldEqual, 2)
 				So(post1Tags.Records()[0].Name(), ShouldBeIn, "Trending", "Jane's")

@@ -182,6 +182,7 @@ func init() {
 		"LastRead":        models.DateField{},
 		"Comments":        models.One2ManyField{RelationModel: h.Comment(), ReverseFK: "Post"},
 		"LastCommentText": models.TextField{Related: "Comments.Text"},
+		"LastTagName":     models.CharField{Related: "Tags.Name"},
 	})
 
 	h.Post().Methods().Create().Extend("",

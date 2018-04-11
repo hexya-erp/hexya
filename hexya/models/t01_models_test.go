@@ -280,6 +280,7 @@ func TestModelDeclaration(t *testing.T) {
 			}},
 			"Comments":        One2ManyField{RelationModel: Registry.MustGet("Comment"), ReverseFK: "Post"},
 			"LastCommentText": TextField{Related: "Comments.Text"},
+			"LastTagName":     CharField{Related: "Tags.Name"},
 		})
 		post.SetDefaultOrder("Title")
 
