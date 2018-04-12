@@ -66,7 +66,7 @@ func init() {
 			Default: models.DefaultValue(int16(12))},
 		"IsStaff":  models.BooleanField{},
 		"IsActive": models.BooleanField{},
-		"Profile":  models.Many2OneField{RelationModel: h.Profile()},
+		"Profile":  models.One2OneField{RelationModel: h.Profile()},
 		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
 			Inverse: user.Methods().InverseSetAge(),
 			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
@@ -164,9 +164,10 @@ func init() {
 		"Age":      models.IntegerField{GoType: new(int16)},
 		"Gender":   models.SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
 		"Money":    models.FloatField{},
-		"User":     models.Many2OneField{RelationModel: h.User()},
-		"BestPost": models.One2OneField{RelationModel: h.Post()},
+		"User":     models.Rev2OneField{RelationModel: h.User(), ReverseFK: "Profile"},
+		"BestPost": models.Many2OneField{RelationModel: h.Post()},
 		"Country":  models.CharField{},
+		"UserName": models.CharField{Related: "User.Name"},
 	})
 	profile.Fields().Zip().SetString("Zip Code")
 
@@ -176,7 +177,6 @@ func init() {
 		"Title":           models.CharField{Required: true},
 		"Content":         models.HTMLField{},
 		"Tags":            models.Many2ManyField{RelationModel: h.Tag()},
-		"BestPostProfile": models.Rev2OneField{RelationModel: h.Profile(), ReverseFK: "BestPost"},
 		"Abstract":        models.TextField{},
 		"Attachment":      models.BinaryField{},
 		"LastRead":        models.DateField{},

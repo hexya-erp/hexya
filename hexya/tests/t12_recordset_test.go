@@ -48,6 +48,8 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				profile := h.Profile().Create(env, &profileData)
 				So(profile.Len(), ShouldEqual, 1)
+				So(profile.UserName(), ShouldBeBlank)
+
 				post1Data := h.PostData{
 					Title:   "1st Post",
 					Content: "Content of first post",
@@ -72,6 +74,8 @@ func TestCreateRecordSet(t *testing.T) {
 				userJane := h.User().Create(env, &userJaneData)
 				So(userJane.Len(), ShouldEqual, 1)
 				So(userJane.Profile().ID(), ShouldEqual, profile.ID())
+				So(profile.UserName(), ShouldEqual, "Jane Smith")
+
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
 				So(post2.User().ID(), ShouldEqual, userJane.ID())
 				So(userJane.Posts().Len(), ShouldEqual, 2)
@@ -85,6 +89,7 @@ func TestCreateRecordSet(t *testing.T) {
 				tag3 := h.Tag().Create(env, &h.TagData{
 					Name: "Jane's",
 				})
+				So(post1.LastTagName(), ShouldBeBlank)
 				post1.SetTags(tag1.Union(tag3))
 				post2.SetTags(tag2.Union(tag3))
 				So(post1.LastTagName(), ShouldEqual, "Jane's")
@@ -97,6 +102,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2Tags.Records()[0].Name(), ShouldBeIn, "Books", "Jane's")
 				So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
 
+				So(post1.LastCommentText(), ShouldBeBlank)
 				h.Comment().Create(env, &h.CommentData{
 					Post: post1,
 					Text: "First Comment",

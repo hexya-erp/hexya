@@ -55,8 +55,13 @@ func TestBaseModelMethods(t *testing.T) {
 				So(allCount, ShouldEqual, 3)
 			})
 			Convey("Copy", func() {
+				newProfile := userJane.Get("Profile").(RecordSet).Collection().Call("Copy", FieldMap{})
 				userJane.Call("Write", FieldMap{"Password": "Jane's Password"})
-				userJaneCopy := userJane.Call("Copy", FieldMap{"Name": "Jane's Copy", "Email2": "js@example.com"}).(RecordSet).Collection()
+				userJaneCopy := userJane.Call("Copy", FieldMap{
+					"Name":    "Jane's Copy",
+					"Email2":  "js@example.com",
+					"Profile": newProfile,
+				}).(RecordSet).Collection()
 				So(userJaneCopy.Get("Name"), ShouldEqual, "Jane's Copy")
 				So(userJaneCopy.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				So(userJaneCopy.Get("Email2"), ShouldEqual, "js@example.com")
