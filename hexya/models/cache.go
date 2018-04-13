@@ -40,6 +40,9 @@ type cache struct {
 // updateEntry creates or updates an entry in the cache defined by its model, id and fieldName.
 // fieldName can be a path
 func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interface{}) error {
+	if id == 0 {
+		return errors.New("skipped entry with id = 0")
+	}
 	ref, fName, err := c.getRelatedRef(mi, id, fieldName)
 	if err != nil {
 		return err
@@ -120,6 +123,9 @@ func (c *cache) deleteFieldData(ref cacheRef, jsonName string) {
 	c.Lock()
 	defer c.Unlock()
 	delete(c.data[ref], jsonName)
+	if _, exists := c.x2mRelated[ref]; exists {
+		delete(c.x2mRelated[ref], jsonName)
+	}
 }
 
 // deleteData removes the cache entry for the whole record ref
@@ -127,6 +133,7 @@ func (c *cache) deleteData(ref cacheRef) {
 	c.Lock()
 	defer c.Unlock()
 	delete(c.data, ref)
+	delete(c.x2mRelated, ref)
 }
 
 // removeM2MLinks removes all M2M links associated with the record with

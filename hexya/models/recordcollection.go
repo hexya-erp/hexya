@@ -504,7 +504,6 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 		rSet.query.orders = make([]string, len(rSet.model.defaultOrder))
 		copy(rSet.query.orders, rSet.model.defaultOrder)
 	}
-	var results []FieldMap
 	if len(fields) == 0 {
 		fields = rSet.model.fields.storedFieldNames()
 	}
@@ -522,7 +521,6 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 		if err != nil {
 			log.Panic(err.Error(), "model", rSet.ModelName(), "fields", fields)
 		}
-		results = append(results, line)
 		rSet.env.cache.addRecord(rSet.model, line["id"].(int64), line)
 		ids = append(ids, line["id"].(int64))
 	}
