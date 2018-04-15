@@ -207,7 +207,7 @@ type Field struct {
 	constraint       string
 	inverse          string
 	filter           *Condition
-	translate        bool
+	contexts         FieldContexts
 	updates          []map[string]interface{}
 }
 
@@ -252,6 +252,14 @@ func (f *Field) isReadOnly() bool {
 		fInfo = f.model.getRelatedFieldInfo(fInfo.relatedPath)
 	}
 	if fInfo.compute != "" && fInfo.inverse == "" {
+		return true
+	}
+	return false
+}
+
+// isContextedField returns true if the value of this field depends on contexts
+func (f *Field) isContextedField() bool {
+	if f.contexts != nil && len(f.contexts) > 0 {
 		return true
 	}
 	return false
@@ -320,7 +328,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 		tableName:    strutils.SnakeCaseString(relModelName),
 		fields:       newFieldsCollection(),
 		methods:      newMethodsCollection(),
-		options:      Many2ManyLinkModel,
+		options:      Many2ManyLinkModel | SystemModel,
 		sqlErrors:    make(map[string]string),
 		defaultOrder: []string{"id"},
 	}
@@ -364,6 +372,88 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	newMI.fields.add(theirField)
 	Registry.add(newMI)
 	return newMI, ourField, theirField
+}
+
+// createContextsModel creates a new contexts model for holding field values that depends on contexts
+func createContextsModel(fi *Field, contexts FieldContexts) *Model {
+	if !fi.isStored() {
+		log.Panic("You cannot add contexts to non stored fields", "model", fi.model.name, "field", fi.name)
+	}
+	name := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
+	newModel := Model{
+		name:          name,
+		acl:           fi.model.acl,
+		rulesRegistry: newRecordRuleRegistry(),
+		tableName:     strutils.SnakeCaseString(name),
+		fields:        newFieldsCollection(),
+		methods:       newMethodsCollection(),
+		options:       ContextsModel | SystemModel,
+		sqlErrors:     make(map[string]string),
+		defaultOrder:  []string{"id"},
+	}
+	pkField := &Field{
+		name:      "ID",
+		json:      "id",
+		acl:       security.NewAccessControlList(),
+		model:     &newModel,
+		required:  true,
+		noCopy:    true,
+		fieldType: fieldtype.Integer,
+		structField: reflect.TypeOf(
+			struct {
+				ID int64
+			}{},
+		).Field(0),
+	}
+	newModel.fields.add(pkField)
+	fkField := &Field{
+		name:             "Record",
+		json:             "record_id",
+		acl:              security.NewAccessControlList(),
+		model:            &newModel,
+		required:         true,
+		noCopy:           true,
+		fieldType:        fieldtype.Many2One,
+		relatedModelName: fi.model.name,
+		relatedModel:     fi.model,
+		index:            true,
+		onDelete:         Cascade,
+		structField: reflect.StructField{
+			Name: "Record",
+			Type: reflect.TypeOf(int64(0)),
+		},
+	}
+	newModel.fields.add(fkField)
+	valueField := *fi
+	valueField.model = &newModel
+	valueField.acl = security.NewAccessControlList()
+	valueField.compute = ""
+	valueField.embed = false
+	valueField.stored = false
+	valueField.onChange = ""
+	valueField.constraint = ""
+	valueField.contexts = nil
+	newModel.fields.add(&valueField)
+
+	for ctName := range contexts {
+		ctField := &Field{
+			name:      ctName,
+			json:      strutils.SnakeCaseString(ctName),
+			acl:       security.NewAccessControlList(),
+			model:     &newModel,
+			noCopy:    true,
+			fieldType: fieldtype.Char,
+			index:     true,
+			structField: reflect.StructField{
+				Name: ctName,
+				Type: reflect.TypeOf(""),
+			},
+		}
+		newModel.fields.add(ctField)
+	}
+	Registry.add(&newModel)
+	injectMixInModel(Registry.MustGet("CommonMixin"), &newModel)
+	return &newModel
 }
 
 // processDepends populates the dependencies of each Field from the depends strings of

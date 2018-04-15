@@ -128,6 +128,8 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userWill.Len(), ShouldEqual, 1)
 				So(userWill.Get("ID"), ShouldBeGreaterThan, 0)
 			})
+		}), ShouldBeNil)
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Checking constraint methods enforcement", func() {
 				tag1Data := FieldMap{
 					"Name":        "Tag1",
@@ -149,7 +151,7 @@ func TestCreateRecordSet(t *testing.T) {
 		}), ShouldBeNil)
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {
-		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userRobData := FieldMap{
 				"Name":      "Rob Smith",
 				"IsPremium": true,
@@ -173,6 +175,7 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
 				userModel.methods.MustGet("Create").AllowGroup(group1)
+				userModel.methods.MustGet("Load").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Write"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
@@ -181,6 +184,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for resume and it works", func() {
+				resumeModel.methods.MustGet("Load").AllowGroup(group1)
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
@@ -635,8 +639,11 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post3.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post2.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, 0)
 			})
+		}), ShouldBeNil)
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Checking constraint methods enforcement", func() {
 				tag1 := env.Pool("Tag").Search(Registry.MustGet("Tag").Field("Name").Equals("Trending"))
+				tag1.Load()
 				So(func() { tag1.Set("Description", "Trending") }, ShouldPanic)
 				tag2 := env.Pool("Tag").Search(Registry.MustGet("Tag").Field("Name").Equals("Books"))
 				So(func() { tag2.Set("Rate", 12) }, ShouldPanic)
@@ -696,7 +703,8 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 			Convey("Checking that user 2 can run UpdateCity after giving permission for caller", func() {
 				userModel.methods.MustGet("Load").AllowGroup(group1)
-				profileModel.methods.MustGet("Load").AllowGroup(group1, userModel.methods.MustGet("UpdateCity"))
+				// TODO We should not need to allow load from write
+				profileModel.methods.MustGet("Load").AllowGroup(group1, userModel.methods.MustGet("UpdateCity"), profileModel.methods.MustGet("Write"))
 				profileModel.methods.MustGet("Write").AllowGroup(group1, userModel.methods.MustGet("UpdateCity"))
 				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane A. Smith"))
 				So(jane.Len(), ShouldEqual, 1)

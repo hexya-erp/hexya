@@ -192,7 +192,7 @@ func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 		return err
 	}
 
-	// Step 2: We populate our FieldMap with these values
+	// Step 2: We populate our dest FieldMap with these values
 	for i, dbValue := range dbValues {
 		colName := strings.Replace(columns[i], sqlSep, ExprSep, -1)
 		dbVal := reflect.ValueOf(dbValue).Elem().Interface()

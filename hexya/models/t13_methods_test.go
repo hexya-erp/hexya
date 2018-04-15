@@ -242,3 +242,55 @@ func TestMixedInModels(t *testing.T) {
 		}), ShouldBeNil)
 	})
 }
+
+func TestContextedFields(t *testing.T) {
+	Convey("Testing contexted fields", t, func() {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			tags := env.Pool("Tag")
+			decs := env.Pool("TagHexyaDescription")
+			var tagc *RecordCollection
+			Convey("Creating record with a single contexted field", func() {
+				tagc = tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Translated description",
+				}).(RecordSet).Collection()
+				So(tagc.Get("DescriptionHexyaContexts").(RecordSet).Len(), ShouldEqual, 1)
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+
+				decs.Call("Create", FieldMap{
+					"lang":        "fr_FR",
+					"Description": "Description traduite",
+					"Record":      tagc,
+				}).(RecordSet).Collection()
+				So(tagc.Get("DescriptionHexyaContexts").(RecordSet).Len(), ShouldEqual, 2)
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+
+				newTag := tags.WithContext("lang", "fr_FR").Search(tags.Model().Field("name").Equals("Contexted tag"))
+				newTag.Load("description")
+				So(newTag.Get("Description"), ShouldEqual, "Description traduite")
+
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description traduite")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "Translated description")
+
+				tagc.WithContext("lang", "fr_FR").Set("Description", "Nouvelle traduction")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Nouvelle traduction")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "Translated description")
+
+				tagc.WithContext("lang", "de_DE").Set("Description", "übersetzte Beschreibung")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Nouvelle traduction")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "übersetzte Beschreibung")
+
+				tagc.WithContext("lang", "es_ES").Set("Description", "descripción traducida")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Nouvelle traduction")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "übersetzte Beschreibung")
+				So(tagc.WithContext("lang", "es_ES").Get("Description"), ShouldEqual, "descripción traducida")
+				So(tagc.WithContext("lang", "it_IT").Get("Description"), ShouldEqual, "Translated description")
+			})
+		}), ShouldBeNil)
+	})
+}

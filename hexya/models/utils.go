@@ -253,11 +253,11 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 }
 
 // filterMapOnStoredFields returns a new FieldMap from fMap
-// with only stored fields keys.
+// with only fields keys stored directly in this model.
 func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
 	newFMap := make(FieldMap)
 	for field, value := range fMap {
-		if fi := mi.getRelatedFieldInfo(field); fi.isStored() {
+		if fi, ok := mi.fields.Get(field); ok && fi.isStored() {
 			newFMap[field] = value
 		}
 	}

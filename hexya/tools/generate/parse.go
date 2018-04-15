@@ -41,6 +41,7 @@ const (
 	Models
 )
 
+// TODO: Remove package variable and pass the fileset as function argument
 var currentFileSet *token.FileSet
 
 // A ModuleInfo is a wrapper around loader.Package with additional data to
@@ -543,7 +544,7 @@ func extractModel(ident ast.Expr) (string, error) {
 				// The assignment is another identifier, we go to the declaration of this new ident.
 				return extractModel(rd)
 			default:
-				return "", fmt.Errorf("unmanaged type %s (%T) for %s", rd, rd, idt.Name)
+				return "", fmt.Errorf("unmanaged type %T at %s for %s", rd, currentFileSet.Position(rd.Pos()), idt.Name)
 			}
 		}
 	case *ast.CallExpr:

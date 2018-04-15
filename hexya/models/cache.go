@@ -33,27 +33,27 @@ type cacheRef struct {
 type cache struct {
 	sync.RWMutex
 	data       map[cacheRef]FieldMap
-	x2mRelated map[cacheRef]map[string]int64
+	x2mRelated map[cacheRef]map[string]map[string]int64
 	m2mLinks   map[*Model]map[[2]int64]bool
 }
 
 // updateEntry creates or updates an entry in the cache defined by its model, id and fieldName.
 // fieldName can be a path
-func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interface{}) error {
+func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interface{}, ctxSlug string) error {
 	if id == 0 {
 		return errors.New("skipped entry with id = 0")
 	}
-	ref, fName, err := c.getRelatedRef(mi, id, fieldName)
+	ref, fName, err := c.getRelatedRef(mi, id, fieldName, ctxSlug)
 	if err != nil {
 		return err
 	}
-	c.updateEntryByRef(ref, fName, value)
+	c.updateEntryByRef(ref, fName, value, ctxSlug)
 	return nil
 }
 
 // updateEntryByRef creates or updates an entry to the cache from a cacheRef
 // and a field json name (no path).
-func (c *cache) updateEntryByRef(ref cacheRef, jsonName string, value interface{}) {
+func (c *cache) updateEntryByRef(ref cacheRef, jsonName string, value interface{}, ctxSlug string) {
 	if _, ok := c.data[ref]; !ok {
 		c.data[ref] = make(FieldMap)
 		c.data[ref]["id"] = ref.id
@@ -65,18 +65,18 @@ func (c *cache) updateEntryByRef(ref cacheRef, jsonName string, value interface{
 		case int64:
 			// Related field through O2M, we do not have the complete O2M set.
 			// ids is a single int64 here.
-			c.updateEntry(fi.relatedModel, ids, fi.jsonReverseFK, ref.id)
-			c.setX2MValue(ref, jsonName, ids)
+			c.updateEntry(fi.relatedModel, ids, fi.jsonReverseFK, ref.id, ctxSlug)
+			c.setX2MValue(ref, jsonName, ids, ctxSlug)
 		case []int64:
 			for _, id := range ids {
-				c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id)
+				c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id, ctxSlug)
 			}
 			c.setDataValue(ref, jsonName, true)
 		}
 
 	case fieldtype.Rev2One:
 		id := value.(int64)
-		c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id)
+		c.updateEntry(fi.relatedModel, id, fi.jsonReverseFK, ref.id, ctxSlug)
 		c.setDataValue(ref, jsonName, true)
 
 	case fieldtype.Many2Many:
@@ -85,7 +85,7 @@ func (c *cache) updateEntryByRef(ref cacheRef, jsonName string, value interface{
 			// Related field through O2M, we do not have the complete M2M set
 			// ids is a single int64 here.
 			c.addM2MLink(fi, ref.id, []int64{ids})
-			c.setX2MValue(ref, jsonName, ids)
+			c.setX2MValue(ref, jsonName, ids, ctxSlug)
 		case []int64:
 			c.removeM2MLinks(fi, ref.id)
 			c.addM2MLink(fi, ref.id, ids)
@@ -109,13 +109,34 @@ func (c *cache) setDataValue(ref cacheRef, jsonName string, value interface{}) {
 }
 
 // setX2MValue sets the id for the jsonName field of record ref in the x2mRelation map
-func (c *cache) setX2MValue(ref cacheRef, jsonName string, id int64) {
+func (c *cache) setX2MValue(ref cacheRef, jsonName string, id int64, ctxSlug string) {
 	c.Lock()
 	defer c.Unlock()
 	if _, ok := c.x2mRelated[ref]; !ok {
-		c.x2mRelated[ref] = make(map[string]int64)
+		c.x2mRelated[ref] = make(map[string]map[string]int64)
 	}
-	c.x2mRelated[ref][jsonName] = id
+	if _, ok := c.x2mRelated[ref][jsonName]; !ok {
+		c.x2mRelated[ref][jsonName] = make(map[string]int64)
+	}
+	if id != c.x2mRelated[ref][jsonName][""] {
+		// We don't add the value if the id is the same as the default context
+		c.x2mRelated[ref][jsonName][ctxSlug] = id
+	}
+}
+
+// getX2MValue return the X2MValue or the default value if the given ctxSlug does not exist in cache
+//
+// 2nd returned value is true if a suitable value has been found
+//
+// 3rd returned value is true if the returned value is the value for the default context
+func (c *cache) getX2MValue(ref cacheRef, jsonName string, ctxSlug string) (int64, bool, bool) {
+	var defaultVal bool
+	res, ok := c.x2mRelated[ref][jsonName][ctxSlug]
+	if !ok {
+		res, ok = c.x2mRelated[ref][jsonName][""]
+		defaultVal = true
+	}
+	return res, ok, defaultVal
 }
 
 // deleteFieldData removes the cache entry for the jsonName field of record ref
@@ -188,7 +209,7 @@ func (c *cache) getM2MLinks(fi *Field, id int64) []int64 {
 
 // addRecord successively adds each entry of the given FieldMap to the cache.
 // fMap keys may be a paths relative to this Model (e.g. "User.Profile.Age").
-func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap) {
+func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap, ctxSlug string) {
 	paths := make(map[int][]string)
 	var maxLen int
 	// We create our exprsMap with the length of the path as key
@@ -202,7 +223,7 @@ func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap) {
 	// We add entries into the cache, starting from the smallest paths
 	for i := 0; i <= maxLen; i++ {
 		for _, path := range paths[i] {
-			c.updateEntry(mi, id, path, fMap[path])
+			c.updateEntry(mi, id, path, fMap[path], ctxSlug)
 		}
 	}
 }
@@ -222,8 +243,8 @@ func (c *cache) invalidateRecord(mi *Model, id int64) {
 }
 
 // removeEntry removes the given entry from cache
-func (c *cache) removeEntry(mi *Model, id int64, fieldName string) {
-	if !c.checkIfInCache(mi, []int64{id}, []string{fieldName}) {
+func (c *cache) removeEntry(mi *Model, id int64, fieldName, ctxSlug string) {
+	if !c.checkIfInCache(mi, []int64{id}, []string{fieldName}, ctxSlug) {
 		return
 	}
 	c.deleteFieldData(cacheRef{model: mi, id: id}, fieldName)
@@ -238,8 +259,8 @@ func (c *cache) removeEntry(mi *Model, id int64, fieldName string) {
 // relative to this Model (e.g. "User.Profile.Age").
 //
 // If the requested value cannot be found, get returns nil
-func (c *cache) get(mi *Model, id int64, fieldName string) interface{} {
-	ref, fName, err := c.getRelatedRef(mi, id, fieldName)
+func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) interface{} {
+	ref, fName, err := c.getRelatedRef(mi, id, fieldName, ctxSlug)
 	if err != nil {
 		return nil
 	}
@@ -277,28 +298,24 @@ func (c *cache) get(mi *Model, id int64, fieldName string) interface{} {
 
 // getRecord returns the whole record specified by modelName and id
 // as it is currently in cache.
-func (c *cache) getRecord(model *Model, id int64) FieldMap {
+func (c *cache) getRecord(model *Model, id int64, ctxSlug string) FieldMap {
 	res := make(FieldMap)
 	ref := cacheRef{model: model, id: id}
 	for _, fName := range c.data[ref].Keys() {
-		res[fName] = c.get(model, id, fName)
+		res[fName] = c.get(model, id, fName, ctxSlug)
 	}
 	return res
 }
 
 // checkIfInCache returns true if all fields given by fieldNames are available
 // in cache for all the records with the given ids in the given model.
-func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string) bool {
+func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string, ctxSlug string) bool {
 	if len(ids) == 0 {
 		return false
 	}
 	for _, id := range ids {
 		for _, fName := range fieldNames {
-			ref, path, err := c.getRelatedRef(mi, id, fName)
-			if err != nil {
-				return false
-			}
-			if _, ok := c.data[ref][path]; !ok {
+			if !c.isInCache(mi, id, fName, ctxSlug) {
 				return false
 			}
 		}
@@ -306,20 +323,54 @@ func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string) bool
 	return true
 }
 
+// isInCache returns true if the related record through path and ctxSlug strictly exists
+// (i.e. no default value for context)
+func (c *cache) isInCache(mi *Model, id int64, path string, ctxSlug string) bool {
+	ref, path, err := c.getStrictRelatedRef(mi, id, path, ctxSlug)
+	if err != nil {
+		return false
+	}
+	if _, ok := c.data[ref][path]; !ok {
+		return false
+	}
+	return true
+}
+
 // getRelatedRef returns the cacheRef and field name of the field that is
 // defined by path when walking from the given model with the given ID.
-func (c *cache) getRelatedRef(mi *Model, id int64, path string) (cacheRef, string, error) {
+func (c *cache) getRelatedRef(mi *Model, id int64, path string, ctxSlug string) (cacheRef, string, error) {
 	exprs := jsonizeExpr(mi, strings.Split(path, ExprSep))
 	if len(exprs) > 1 {
-		fkID, ok := c.get(mi, id, exprs[0]).(int64)
+		fkID, ok := c.get(mi, id, exprs[0], ctxSlug).(int64)
 		if !ok {
-			fkID, ok = c.x2mRelated[cacheRef{model: mi, id: id}][exprs[0]]
+			fkID, ok, _ = c.getX2MValue(cacheRef{model: mi, id: id}, exprs[0], ctxSlug)
 			if !ok {
 				return cacheRef{}, "", errors.New("requested value not in cache")
 			}
 		}
 		relMI := mi.getRelatedModelInfo(exprs[0])
-		return c.getRelatedRef(relMI, fkID, strings.Join(exprs[1:], ExprSep))
+		return c.getRelatedRef(relMI, fkID, strings.Join(exprs[1:], ExprSep), ctxSlug)
+	}
+	return cacheRef{model: mi, id: id}, exprs[0], nil
+}
+
+// getStrictRelatedRef returns the cacheRef and field name of the field that is
+// defined by path when walking from the given model with the given ID.
+//
+// This method returns an error when the value for the given ctxSlug cannot be found.
+func (c *cache) getStrictRelatedRef(mi *Model, id int64, path string, ctxSlug string) (cacheRef, string, error) {
+	exprs := jsonizeExpr(mi, strings.Split(path, ExprSep))
+	if len(exprs) > 1 {
+		fkID, ok := c.get(mi, id, exprs[0], ctxSlug).(int64)
+		if !ok {
+			var defVal bool
+			fkID, ok, defVal = c.getX2MValue(cacheRef{model: mi, id: id}, exprs[0], ctxSlug)
+			if !ok || defVal {
+				return cacheRef{}, "", errors.New("requested value not in cache")
+			}
+		}
+		relMI := mi.getRelatedModelInfo(exprs[0])
+		return c.getStrictRelatedRef(relMI, fkID, strings.Join(exprs[1:], ExprSep), ctxSlug)
 	}
 	return cacheRef{model: mi, id: id}, exprs[0], nil
 }
@@ -328,7 +379,7 @@ func (c *cache) getRelatedRef(mi *Model, id int64, path string) (cacheRef, strin
 func newCache() *cache {
 	res := cache{
 		data:       make(map[cacheRef]FieldMap),
-		x2mRelated: make(map[cacheRef]map[string]int64),
+		x2mRelated: make(map[cacheRef]map[string]map[string]int64),
 		m2mLinks:   make(map[*Model]map[[2]int64]bool),
 	}
 	return &res

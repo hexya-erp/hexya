@@ -229,6 +229,13 @@ type GroupAggregateRow struct {
 	Condition *Condition
 }
 
+// FieldContexts define the different contexts for a field, that will define different
+// values for this field.
+//
+// The key is a context name and the value is a function that returns the context
+// value for the given recordset.
+type FieldContexts map[string]func(RecordSet) string
+
 // A FieldMapper is an object that can convert itself into a FieldMap
 type FieldMapper interface {
 	// FieldMap returns the object converted to a FieldMap.

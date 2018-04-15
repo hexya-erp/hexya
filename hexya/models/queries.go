@@ -16,6 +16,8 @@ package models
 
 import (
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
@@ -43,31 +45,57 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 type Query struct {
 	recordSet  *RecordCollection
 	cond       *Condition
+	ctxCond    *Condition
 	fetchAll   bool
 	limit      int
 	offset     int
 	noDistinct bool
 	groups     []string
 	orders     []string
+	ctxOrders  []string
 }
 
 // clone returns a pointer to a deep copy of this Query
-func (q Query) clone() *Query {
+//
+// rc is the RecordCollection the new query will be bound to.
+func (q Query) clone(rc *RecordCollection) *Query {
 	newCond := *q.cond
 	q.cond = &newCond
+	newCtxCond := *q.ctxCond
+	q.ctxCond = &newCtxCond
 	q.noDistinct = false
+	q.recordSet = rc
 	return &q
 }
 
 // sqlWhereClause returns the sql string and parameters corresponding to the
 // WHERE clause of this Query
-func (q *Query) sqlWhereClause() (string, SQLParams) {
-	q.evaluateConditionArgFunctions()
-	sql, args := q.conditionSQLClause(q.cond)
-	if sql != "" {
-		sql = "WHERE " + sql
+//
+// If noExtraCond is set, the extra conditions are not included
+func (q *Query) sqlWhereClause(noExtraCond ...bool) (string, SQLParams) {
+	var noExtra bool
+	if len(noExtraCond) > 0 {
+		noExtra = noExtraCond[0]
 	}
-	return sql, args
+	sql, args := q.conditionSQLClause(q.cond)
+	extraSQL, extraArgs := q.conditionSQLClause(q.ctxCond)
+	if sql == "" && extraSQL == "" {
+		return "", SQLParams{}
+	}
+	resSQL := "WHERE "
+	resArgs := SQLParams{}
+	switch {
+	case extraSQL == "" || noExtra:
+		resSQL += sql
+		resArgs = args
+	case sql == "":
+		resSQL += extraSQL
+		resArgs = extraArgs
+	default:
+		resSQL += fmt.Sprintf("(%s) AND (%s)", sql, extraSQL)
+		resArgs = args.Extend(extraArgs)
+	}
+	return resSQL, resArgs
 }
 
 // sqlClauses returns the sql string and parameters corresponding to the
@@ -141,7 +169,8 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		return sql, args
 	}
 	adapter := adapters[db.DriverName()]
-	opSql, arg := adapter.operatorSQL(p.operator, p.arg)
+	arg := q.evaluateConditionArgFunctions(p)
+	opSql, arg := adapter.operatorSQL(p.operator, arg)
 	sql = fmt.Sprintf(`%s %s`, field, opSql)
 	args = append(args, arg)
 	return sql, args
@@ -164,7 +193,7 @@ func (q *Query) sqlLimitOffsetClause() string {
 // of this Query
 func (q *Query) sqlOrderByClause() string {
 	var fExprs [][]string
-	directions := make([]string, len(q.orders))
+	directions := make([]string, len(q.orders)+len(q.ctxOrders))
 	for i, order := range q.orders {
 		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
@@ -173,7 +202,15 @@ func (q *Query) sqlOrderByClause() string {
 			directions[i] = fieldOrder[1]
 		}
 	}
-	resSlice := make([]string, len(q.orders))
+	for i, order := range q.ctxOrders {
+		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
+		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
+		fExprs = append(fExprs, oExprs)
+		if len(fieldOrder) > 1 {
+			directions[len(q.orders)+i] = fieldOrder[1]
+		}
+	}
+	resSlice := make([]string, len(q.orders)+len(q.ctxOrders))
 	for i, field := range fExprs {
 		resSlice[i] = q.joinedFieldExpression(field)
 		resSlice[i] += fmt.Sprintf(" %s", directions[i])
@@ -203,7 +240,7 @@ func (q *Query) sqlGroupByClause() string {
 // the rows pointed at by this Query object.
 func (q *Query) deleteQuery() (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
-	sql, args := q.sqlWhereClause()
+	sql, args := q.sqlWhereClause(true)
 	delQuery := fmt.Sprintf(`DELETE FROM %s %s`, adapter.quoteTableName(q.recordSet.model.tableName), sql)
 	return delQuery, args
 }
@@ -360,7 +397,7 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	}
 	tableName := adapter.quoteTableName(q.recordSet.model.tableName)
 	updates := strings.Join(cols, ", ")
-	whereSQL, args := q.sqlWhereClause()
+	whereSQL, args := q.sqlWhereClause(true)
 	sql = fmt.Sprintf("UPDATE %s SET %s %s", tableName, updates, whereSQL)
 	vals = append(vals, args...)
 	return sql, vals
@@ -575,8 +612,20 @@ func (q *Query) substituteConditionExprs(substMap map[string][]string) {
 
 // evaluateConditionArgFunctions evaluates all args in the queries that are functions and
 // substitute it with the result.
-func (q *Query) evaluateConditionArgFunctions() {
-	q.cond.evaluateArgFunctions(q.recordSet)
+//
+// multi should be true if the operator of the predicate in
+func (q *Query) evaluateConditionArgFunctions(p predicate) interface{} {
+	fnctVal := reflect.ValueOf(p.arg)
+	if fnctVal.Kind() != reflect.Func {
+		return p.arg
+	}
+	firstArgType := fnctVal.Type().In(0)
+	if !firstArgType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+		return p.arg
+	}
+	argValue := reflect.ValueOf(q.recordSet)
+	res := fnctVal.Call([]reflect.Value{argValue})
+	return sanitizeArgs(res[0].Interface(), p.operator.IsMulti())
 }
 
 // getAllExpressions returns all expressions used in this query,
@@ -593,7 +642,38 @@ func (q *Query) getOrderByExpressions() [][]string {
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
 		exprs = append(exprs, oExprs)
 	}
+	for _, order := range q.ctxOrders {
+		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
+		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
+		exprs = append(exprs, oExprs)
+	}
 	return exprs
+}
+
+// ctxArgsSlug returns a slug of the arguments of the context condition of this query
+func (q *Query) ctxArgsSlug() string {
+	return q.argsSlug(q.ctxCond)
+}
+
+// argsSlug returns a slug of the given condition arguments
+func (q *Query) argsSlug(c *Condition) string {
+	var (
+		res  string
+		args []string
+	)
+	for _, p := range c.predicates {
+		if p.isCond {
+			res += q.argsSlug(p.cond)
+			continue
+		}
+		arg := fmt.Sprintf("%v", q.evaluateConditionArgFunctions(p))
+		arg = strings.Replace(arg, ExprSep, "-", -1)
+		arg = strings.Replace(arg, ContextSep, "-", -1)
+		args = append(args, arg)
+	}
+	sort.Strings(args)
+	res += strings.Join(args, "")
+	return res
 }
 
 // newQuery returns a new empty query
@@ -605,6 +685,7 @@ func newQuery(rs ...*RecordCollection) *Query {
 	}
 	return &Query{
 		cond:      newCondition(),
+		ctxCond:   newCondition(),
 		recordSet: rset,
 	}
 }

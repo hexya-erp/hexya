@@ -160,6 +160,7 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
 				h.User().Methods().Create().AllowGroup(group1)
+				h.User().Methods().Load().AllowGroup(group1, h.User().Methods().Create())
 				h.Resume().Methods().Create().AllowGroup(group1, h.User().Methods().Write())
 				userTomData := h.UserData{
 					Name:  "Tom Smith",
@@ -168,6 +169,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { h.User().Create(env, &userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for posts and it works", func() {
+				h.Resume().Methods().Load().AllowGroup(group1)
 				h.Resume().Methods().Create().AllowGroup(group1, h.User().Methods().Create())
 				userTomData := h.UserData{
 					Name:  "Tom Smith",

@@ -37,15 +37,15 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 			// probably because it was computed with another field
 			continue
 		}
-		if rc.env.cache.checkIfInCache(rc.model, rc.Ids(), []string{fInfo.name}) {
-			(*params)[fInfo.json] = rc.env.cache.get(rc.model, rc.Ids()[0], fInfo.name)
+		if rc.env.cache.checkIfInCache(rc.model, rc.Ids(), []string{fInfo.name}, rc.query.ctxArgsSlug()) {
+			(*params)[fInfo.json] = rc.env.cache.get(rc.model, rc.Ids()[0], fInfo.name, rc.query.ctxArgsSlug())
 			continue
 		}
 		newParams := rc.Call(fInfo.compute).(FieldMapper).FieldMap()
 		for k, v := range newParams {
 			key, _ := rc.model.fields.Get(k)
 			(*params)[key.json] = v
-			rc.env.cache.updateEntry(rc.model, rc.Ids()[0], fInfo.name, v)
+			rc.env.cache.updateEntry(rc.model, rc.Ids()[0], fInfo.name, v, rc.query.ctxArgsSlug())
 		}
 	}
 }
@@ -85,7 +85,7 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 		if !cData.stored {
 			// Field is not stored, just invalidating cache
 			for _, id := range recs.Ids() {
-				rc.env.cache.removeEntry(recs.model, id, cData.fieldName)
+				rc.env.cache.removeEntry(recs.model, id, cData.fieldName, rc.query.ctxArgsSlug())
 			}
 			continue
 		}

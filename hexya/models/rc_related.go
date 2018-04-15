@@ -14,15 +14,18 @@
 
 package models
 
-import "strings"
+import (
+	"sort"
+	"strings"
 
-// substituteRelatedFields returns :
-// - a copy of the given fields slice with related fields substituted by their related
+	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
+)
+
+// substituteRelatedFields returns a copy of the given fields slice with related fields substituted by their related
 // field path. It also adds the fk and pk fields of all records in the related paths.
-// - a new RecordCollection with substitution of related fields in the query.
 //
 // This method removes duplicates and change all field names to their json names.
-func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, *RecordCollection) {
+func (rc *RecordCollection) substituteRelatedFields(fields []string) []string {
 	// Create a keys map with our fields
 	keys := make(map[string]bool)
 	for _, field := range fields {
@@ -47,7 +50,24 @@ func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, 
 		res[i] = key
 		i++
 	}
+	return res
+}
 
+// substituteRelatedFieldsInMap returns a copy of the given FieldMap with related fields
+// substituted by their related field path.
+func (rc *RecordCollection) substituteRelatedFieldsInMap(fMap FieldMap) FieldMap {
+	res := make(FieldMap)
+	for field, value := range fMap {
+		// Inflate our related fields
+		inflatedPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
+		res[inflatedPath] = value
+	}
+	return res
+}
+
+// substituteRelatedInQuery returns a new RecordCollection with related fields
+// substituted in the query.
+func (rc *RecordCollection) substituteRelatedInQuery() *RecordCollection {
 	// Substitute in RecordCollection query
 	substs := make(map[string][]string)
 	queryExprs := rc.query.getAllExpressions()
@@ -74,7 +94,7 @@ func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, 
 	}
 	rc.query.substituteConditionExprs(substs)
 
-	return res, rc
+	return rc
 }
 
 // substituteRelatedInPath recursively substitutes path for its related value.
@@ -88,4 +108,85 @@ func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 	newPath := strings.Join(exprs[:len(exprs)-1], ExprSep) + ExprSep + fi.relatedPath
 	newPath = strings.TrimLeft(newPath, ExprSep)
 	return rc.substituteRelatedInPath(newPath)
+}
+
+// createRelatedRecords creates the records of related fields set in fMap
+// if they do not exist.
+func (rc *RecordCollection) createRelatedRecords(fMap FieldMap) {
+	for _, rec := range rc.Records() {
+		rec.applyContexts()
+		// 1. We substitute our related fields everywhere
+		allFields := rec.substituteRelatedFields(fMap.Keys())
+
+		// 2. We create a new slice with only paths so as to exit early if we have only simple fields
+		sort.Strings(allFields)
+		var fields []string
+		for _, f := range allFields {
+			exprs := strings.Split(f, ExprSep)
+			if len(exprs) <= 1 {
+				// Don't include simple fields
+				continue
+			}
+			fields = append(fields, f)
+		}
+
+		// 3. We create a list of paths to records to create, by path length
+		// We do not call "Load" directly to have the caller set in the callstack for permissions
+		rec.Call("Load", fields)
+		var (
+			maxLen       int
+			toInvalidate bool
+		)
+		paths := make(map[int]map[string]bool)
+		for _, field := range fields {
+			if rec.env.cache.isInCache(rec.model, rec.ids[0], field, rec.query.ctxArgsSlug()) {
+				// Record exists
+				continue
+			}
+			toInvalidate = true
+			exprs := strings.Split(field, ExprSep)
+			if paths[len(exprs)] == nil {
+				paths[len(exprs)] = make(map[string]bool)
+			}
+			paths[len(exprs)][strings.Join(exprs[:len(exprs)-1], ExprSep)] = true
+			if len(exprs) > maxLen {
+				maxLen = len(exprs)
+			}
+		}
+		if toInvalidate {
+			// invalidate cache in case we have a contexted field set with a new context
+			rec.InvalidateCache()
+		}
+		// 4. We create our records starting by smallest paths
+		for i := 0; i <= maxLen; i++ {
+			rec.createRelatedRecordForPaths(paths[i])
+		}
+	}
+}
+
+// createRelatedRecordForPaths creates Records at the given paths, starting from this recordset.
+// This method does not check whether such a records already exists or not.
+func (rc *RecordCollection) createRelatedRecordForPaths(paths map[string]bool) {
+	rc.EnsureOne()
+	rsPaths := map[string]*RecordCollection{"": rc}
+	for path := range paths {
+		fi := rc.model.getRelatedFieldInfo(path)
+		switch fi.fieldType {
+		case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
+			// We do not call "create" directly to have the caller set in the callstack for permissions
+			res := rc.env.Pool(fi.relatedModel.name).Call("Create", FieldMap{})
+			if resRS, ok := res.(RecordSet); ok {
+				rc.env.Pool(fi.model.name).Call("Set", fi.name, resRS.Collection())
+				rsPaths[path] = resRS.Collection()
+			}
+		case fieldtype.One2Many, fieldtype.Rev2One:
+			exprs := strings.Split(path, ExprSep)
+			// We do not call "create" directly to have the caller set in the callstack for permissions
+			res := rc.env.Pool(fi.relatedModel.name).Call("Create", FieldMap{
+				fi.jsonReverseFK: rsPaths[strings.Join(exprs[:len(exprs)-1], ExprSep)]})
+			if resRS, ok := res.(RecordSet); ok {
+				rsPaths[path] = resRS.Collection()
+			}
+		}
+	}
 }

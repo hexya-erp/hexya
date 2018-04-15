@@ -37,6 +37,8 @@ const (
 	// Many2ManyLinkModel is a model that abstracts the link
 	// table of a many2many relationship
 	Many2ManyLinkModel
+	// ContextsModel is a model for holding fields values that depend on contexts
+	ContextsModel
 	// ManualModel is a model whose table is not automatically generated in the
 	// database. Such models include SQL views and materialized SQL views.
 	ManualModel
@@ -180,7 +182,7 @@ func declareCRUDMethods() {
 			rc.env.cache.invalidateRecord(rc.model, rc.Get("id").(int64))
 			rc.Load(fields...)
 
-			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64))
+			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64), rc.query.ctxArgsSlug())
 			fMap.RemovePK()
 			fMap.MergeWith(overrides.FieldMap(fieldsToUnset...), rc.model)
 			// Reload original record to prevent cache discrepancies
@@ -199,7 +201,7 @@ func declareRecordSetMethods() {
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc *RecordCollection) string {
 			if _, nameExists := rc.model.fields.Get("Name"); nameExists {
-				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}) {
+				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}, rc.query.ctxArgsSlug()) {
 					rc.Load("Name")
 				}
 				switch name := rc.Get("Name").(type) {
@@ -347,7 +349,7 @@ func declareRecordSetSpecificMethods() {
 						continue
 					}
 					env.cache.invalidateRecord(rs.model, rsID)
-					env.cache.addRecord(rs.model, rsID, values)
+					env.cache.addRecord(rs.model, rsID, values, rs.query.ctxArgsSlug())
 					res := rs.CallMulti(fi.onChange)
 					fields = res[1].([]FieldNamer)
 					resMap := res[0].(FieldMapper).FieldMap(fields...)

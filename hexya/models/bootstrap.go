@@ -16,10 +16,12 @@ package models
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
 // A modelCouple holds a model and one of its mixin
@@ -40,18 +42,19 @@ func BootStrap() {
 	Registry.Lock()
 	defer Registry.Unlock()
 
-	Registry.bootstrapped = true
-
 	inflateMixIns()
 	createModelLinks()
 	inflateEmbeddings()
 	processUpdates()
 	syncRelatedFieldInfo()
+	inflateContexts()
 	bootStrapMethods()
 	processDepends()
 	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
+
+	Registry.bootstrapped = true
 }
 
 // BootStrapped returns true if the models have been bootstrapped
@@ -275,6 +278,39 @@ func syncRelatedFieldInfo() {
 	}
 }
 
+// inflateContexts creates the field value tables for fields with contexts.
+func inflateContexts() {
+	for _, mi := range Registry.registryByName {
+		for _, fi := range mi.fields.registryByName {
+			if !fi.isContextedField() {
+				continue
+			}
+			contextsModel := createContextsModel(fi, fi.contexts)
+			// FIXME this should be removed
+			contextsModel.methods.AllowAllToGroup(security.GroupEveryone)
+
+			fieldName := fmt.Sprintf("%sHexyaContexts", fi.name)
+			o2mField := &Field{
+				name:             fieldName,
+				json:             strutils.SnakeCaseString(fieldName),
+				acl:              security.NewAccessControlList(),
+				model:            mi,
+				fieldType:        fieldtype.One2Many,
+				relatedModelName: contextsModel.name,
+				relatedModel:     contextsModel,
+				reverseFK:        "Record",
+				jsonReverseFK:    "record_id",
+				structField: reflect.StructField{
+					Name: fieldName,
+					Type: reflect.TypeOf([]int64{}),
+				},
+			}
+			mi.fields.add(o2mField)
+			fi.relatedPath = fmt.Sprintf("%s%s%s", fieldName, ExprSep, fi.name)
+		}
+	}
+}
+
 // runInit runs the Init function of the given model if it exists
 func runInit(model *Model) {
 	if _, exists := model.methods.get("Init"); exists {
@@ -349,8 +385,8 @@ func SyncDatabase() {
 // buildSQLErrorSubstitutionMap populates the sqlErrors map of the
 // model with the appropriate error message substitution
 func buildSQLErrorSubstitutionMap(model *Model) {
-	for sqlConstraintName, sqlConstraint := range model.sqlConstraints {
-		model.sqlErrors[sqlConstraintName] = sqlConstraint.errorString
+	for sqlConstrName, sqlConstr := range model.sqlConstraints {
+		model.sqlErrors[sqlConstrName] = sqlConstr.errorString
 	}
 	for _, field := range model.fields.registryByJSON {
 		if field.unique {

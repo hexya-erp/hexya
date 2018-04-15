@@ -294,7 +294,7 @@ func TestModelDeclaration(t *testing.T) {
 			"BestPost":    Many2OneField{RelationModel: Registry.MustGet("Post")},
 			"Posts":       Many2ManyField{RelationModel: Registry.MustGet("Post")},
 			"Parent":      Many2OneField{RelationModel: Registry.MustGet("Tag")},
-			"Description": CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
+			"Description": CharField{Constraint: tag.Methods().MustGet("CheckNameDescription"), Translate: true},
 			"Rate":        FloatField{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
 		})
 		tag.SetDefaultOrder("Name DESC", "ID ASC")
@@ -375,8 +375,6 @@ func TestFieldModification(t *testing.T) {
 		checkUpdates(numsField, "stored", true)
 		numsField.SetStored(false)
 		checkUpdates(numsField, "stored", false)
-		numsField.SetTranslate(true)
-		checkUpdates(numsField, "translate", true)
 		numsField.SetUnique(true)
 		checkUpdates(numsField, "unique", true)
 		numsField.SetUnique(false)
@@ -384,6 +382,10 @@ func TestFieldModification(t *testing.T) {
 		nameField := Registry.MustGet("User").Fields().MustGet("Name")
 		nameField.SetSize(127)
 		checkUpdates(nameField, "size", 127)
+		nameField.SetTranslate(true)
+		checkUpdates(nameField, "translate", true)
+		nameField.SetTranslate(false)
+		checkUpdates(nameField, "translate", false)
 		nameField.SetOnchange(nil)
 		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("OnChangeName"))
 		nameField.SetConstraint(Registry.MustGet("User").Methods().MustGet("UpdateCity"))

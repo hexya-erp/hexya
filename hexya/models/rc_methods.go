@@ -15,6 +15,7 @@
 package models
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
@@ -145,7 +146,9 @@ func (rc *RecordCollection) CheckExecutionPermission(method *Method, dontPanic .
 	if len(dontPanic) > 0 && dontPanic[0] {
 		return false
 	}
-	log.Panic("You are not allowed to execute this method", "model", rc.ModelName(), "method", method.name, "uid", rc.env.uid)
+	log.Panic("You are not allowed to execute this method", "model", rc.ModelName(),
+		"method", fmt.Sprintf("%s.%s()", method.model.name, method.name), "uid", rc.env.uid,
+		"methodCaller", fmt.Sprintf("%s.%s()", caller.model.name, caller.name))
 	// Unreachable
 	return false
 }

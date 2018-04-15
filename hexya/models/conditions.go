@@ -22,10 +22,11 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/operator"
 )
 
-// ExprSep define the expression separation
+// Expression separation symbols
 const (
-	ExprSep = "."
-	sqlSep  = "__"
+	ExprSep    = "."
+	sqlSep     = "__"
+	ContextSep = "|"
 )
 
 type predicate struct {
@@ -408,29 +409,6 @@ func (c *Condition) substituteChildOfOperator(rc *RecordCollection) {
 		rc.Env().Cr().Select(&parentIds, adapters[db.DriverName()].childrenIdsQuery(recModel.tableName), p.arg)
 		c.predicates[i].operator = operator.In
 		c.predicates[i].arg = parentIds
-	}
-}
-
-// evaluateArgFunctions recursively evaluates all args in the queries that are
-// functions and substitute it with the result.
-func (c *Condition) evaluateArgFunctions(rc *RecordCollection) {
-	for i, p := range c.predicates {
-		if p.cond != nil {
-			p.cond.evaluateArgFunctions(rc)
-		}
-
-		fnctVal := reflect.ValueOf(p.arg)
-		if fnctVal.Kind() != reflect.Func {
-			continue
-		}
-
-		firstArgType := fnctVal.Type().In(0)
-		if !firstArgType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-			continue
-		}
-		argValue := reflect.ValueOf(rc.Collection())
-		res := fnctVal.Call([]reflect.Value{argValue})
-		c.predicates[i].arg = sanitizeArgs(res[0].Interface(), p.operator.IsMulti())
 	}
 }
 

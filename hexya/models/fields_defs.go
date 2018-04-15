@@ -45,6 +45,7 @@ type BinaryField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
+	Contexts   FieldContexts
 	Default    func(Environment) interface{}
 }
 
@@ -73,6 +74,7 @@ type BooleanField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
+	Contexts   FieldContexts
 	Default    func(Environment) interface{}
 }
 
@@ -110,6 +112,7 @@ type CharField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
+	Contexts   FieldContexts
 	Default    func(Environment) interface{}
 }
 
@@ -141,6 +144,7 @@ type DateField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
+	Contexts      FieldContexts
 	Default       func(Environment) interface{}
 }
 
@@ -172,6 +176,7 @@ type DateTimeField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
+	Contexts      FieldContexts
 	Default       func(Environment) interface{}
 }
 
@@ -202,6 +207,7 @@ type FloatField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
+	Contexts      FieldContexts
 	Default       func(Environment) interface{}
 }
 
@@ -235,6 +241,7 @@ type HTMLField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
+	Contexts   FieldContexts
 	Default    func(Environment) interface{}
 }
 
@@ -264,6 +271,7 @@ type IntegerField struct {
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
+	Contexts      FieldContexts
 	Default       func(Environment) interface{}
 }
 
@@ -359,6 +367,7 @@ type Many2OneField struct {
 	Constraint    Methoder
 	Filter        Conditioner
 	Inverse       Methoder
+	Contexts      FieldContexts
 	Default       func(Environment) interface{}
 }
 
@@ -449,6 +458,7 @@ type One2OneField struct {
 	Constraint    Methoder
 	Filter        Conditioner
 	Inverse       Methoder
+	Contexts      FieldContexts
 	Default       func(Environment) interface{}
 }
 
@@ -537,6 +547,7 @@ type SelectionField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
+	Contexts   FieldContexts
 	Default    func(Environment) interface{}
 }
 
@@ -570,6 +581,7 @@ type TextField struct {
 	OnChange   Methoder
 	Constraint Methoder
 	Inverse    Methoder
+	Contexts   FieldContexts
 	Default    func(Environment) interface{}
 }
 
@@ -626,9 +638,18 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 		unique = uni.Bool()
 	}
 
-	var translate bool
-	if trans := val.FieldByName("Translate"); trans.IsValid() {
-		translate = trans.Bool()
+	var contexts FieldContexts
+	if cont := val.FieldByName("Contexts"); cont.IsValid() {
+		contexts = cont.Interface().(FieldContexts)
+	}
+	if trans := val.FieldByName("Translate"); trans.IsValid() && trans.Bool() {
+		if contexts == nil {
+			contexts = make(FieldContexts)
+		}
+		contexts["lang"] = func(rs RecordSet) string {
+			res := rs.Env().Context().GetString("lang")
+			return res
+		}
 	}
 	fInfo := &Field{
 		model:       fc.model,
@@ -641,7 +662,6 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 		required:    val.FieldByName("Required").Bool(),
 		readOnly:    val.FieldByName("ReadOnly").Bool(),
 		unique:      unique,
-		translate:   translate,
 		index:       val.FieldByName("Index").Bool(),
 		compute:     compute,
 		inverse:     inverse,
@@ -653,6 +673,7 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 		defaultFunc: val.FieldByName("Default").Interface().(func(Environment) interface{}),
 		onChange:    onchange,
 		constraint:  constraint,
+		contexts:    contexts,
 	}
 	return fInfo
 }
@@ -758,7 +779,23 @@ func (f *Field) setProperty(property string, value interface{}) {
 	case "filter":
 		f.filter = value.(*Condition)
 	case "translate":
-		f.translate = value.(bool)
+		switch value.(bool) {
+		case true:
+			if f.contexts == nil {
+				f.contexts = make(FieldContexts)
+			}
+			f.contexts["lang"] = func(rs RecordSet) string {
+				res := rs.Env().Context().GetString("lang")
+				return res
+			}
+		case false:
+			if f.contexts == nil {
+				return
+			}
+			delete(f.contexts, "lang")
+		}
+	case "contexts":
+		f.contexts = value.(FieldContexts)
 	}
 }
 
@@ -865,6 +902,12 @@ func (f *Field) SetNoCopy(value bool) *Field {
 // SetTranslate overrides the value of the Translate parameter of this Field
 func (f *Field) SetTranslate(value bool) *Field {
 	f.addUpdate("translate", value)
+	return f
+}
+
+// SetContexts overrides the value of the Contexts parameter of this Field
+func (f *Field) SetContexts(value FieldContexts) *Field {
+	f.addUpdate("contexts", value)
 	return f
 }
 

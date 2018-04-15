@@ -21,9 +21,10 @@ import (
 
 // WithEnv returns a copy of the current RecordCollection with the given Environment.
 func (rc *RecordCollection) WithEnv(env Environment) *RecordCollection {
-	rSet := *rc
+	rSet := rc.clone()
 	rSet.env = &env
-	return &rSet
+	rSet.applyContexts()
+	return rSet
 }
 
 // WithContext returns a copy of the current RecordCollection with
