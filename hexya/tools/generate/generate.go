@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
@@ -300,35 +301,41 @@ func createTypeIdent(typStr string) string {
 // The generated package will be put in the given dir.
 func CreatePool(program *loader.Program, dir string) {
 	modelsASTData := GetModelsASTData(program)
-	for modelName, modelASTData := range modelsASTData {
-		depsMap := map[string]bool{ModelsPath: true}
-		mData := modelData{
-			Name:              modelName,
-			SnakeName:         strutils.SnakeCaseString(modelName),
-			ModelsPackageName: PoolModelPackage,
-			QueryPackageName:  PoolQueryPackage,
-			ModelType:         modelASTData.ModelType,
-			IsModelMixin:      modelASTData.IsModelMixin,
-			ConditionFuncs:    []string{"And", "AndNot", "Or", "OrNot"},
-		}
-		// Add fields
-		addFieldsToModelData(modelASTData, &mData, &depsMap)
-		// Add field types
-		addFieldTypesToModelData(&mData)
-		// Add methods
-		addMethodsToModelData(modelsASTData, &mData, &depsMap)
-		// Setting imports
-		var deps []string
-		for dep := range depsMap {
-			if dep == "" {
-				continue
+	wg := sync.WaitGroup{}
+	wg.Add(len(modelsASTData))
+	for mName, mASTData := range modelsASTData {
+		go func(modelName string, modelASTData ModelASTData) {
+			depsMap := map[string]bool{ModelsPath: true}
+			mData := modelData{
+				Name:              modelName,
+				SnakeName:         strutils.SnakeCaseString(modelName),
+				ModelsPackageName: PoolModelPackage,
+				QueryPackageName:  PoolQueryPackage,
+				ModelType:         modelASTData.ModelType,
+				IsModelMixin:      modelASTData.IsModelMixin,
+				ConditionFuncs:    []string{"And", "AndNot", "Or", "OrNot"},
 			}
-			deps = append(deps, dep)
-		}
-		mData.Deps = deps
-		// Writing to file
-		createPoolFiles(dir, &mData)
+			// Add fields
+			addFieldsToModelData(modelASTData, &mData, &depsMap)
+			// Add field types
+			addFieldTypesToModelData(&mData)
+			// Add methods
+			addMethodsToModelData(modelsASTData, &mData, &depsMap)
+			// Setting imports
+			var deps []string
+			for dep := range depsMap {
+				if dep == "" {
+					continue
+				}
+				deps = append(deps, dep)
+			}
+			mData.Deps = deps
+			// Writing to file
+			createPoolFiles(dir, &mData)
+			wg.Done()
+		}(mName, mASTData)
 	}
+	wg.Wait()
 }
 
 // addMethodsToModelData extracts data from modelsASTData to populate methods in modelData
