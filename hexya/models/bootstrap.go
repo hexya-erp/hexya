@@ -286,9 +286,19 @@ func inflateContexts() {
 				continue
 			}
 			contextsModel := createContextsModel(fi, fi.contexts)
-			// FIXME this should be removed
-			contextsModel.methods.AllowAllToGroup(security.GroupEveryone)
-
+			// We copy execution permission on CRUD methods to the context model
+			for mName := range unauthorizedMethods {
+				origMeth, exists := mi.methods.get(mName)
+				if !exists {
+					continue
+				}
+				for g := range origMeth.groups {
+					contextsModel.methods.MustGet(mName).groups[g] = true
+				}
+				for cg := range origMeth.groupsCallers {
+					contextsModel.methods.MustGet(mName).groupsCallers[cg] = true
+				}
+			}
 			fieldName := fmt.Sprintf("%sHexyaContexts", fi.name)
 			o2mField := &Field{
 				name:             fieldName,
@@ -661,13 +671,14 @@ func bootStrapMethods() {
 
 // setupSecurity adds execution permission to:
 // - the admin group for all methods
-// - all methods of a model for groups that have been granted all rights
+// - to CRUD methods to call "Load"
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
+		loadMeth, loadExists := model.methods.get("Load")
 		for _, meth := range model.methods.registry {
-			meth.groups[security.GroupAdmin] = true
-			for group := range model.methods.powerGroups {
-				meth.groups[group] = true
+			meth.AllowGroup(security.GroupAdmin)
+			if loadExists && unauthorizedMethods[meth.name] {
+				loadMeth.AllowGroup(security.GroupEveryone, meth)
 			}
 		}
 	}

@@ -22,7 +22,6 @@ import (
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/operator"
-	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 )
@@ -101,13 +100,13 @@ func declareBaseComputeMethods() {
 				return FieldMap{"LastUpdate": rc.Get("CreateDate").(dates.DateTime)}
 			}
 			return FieldMap{"LastUpdate": dates.Now()}
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	model.AddMethod("ComputeDisplayName",
 		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
 		func(rc *RecordCollection) FieldMap {
 			return FieldMap{"DisplayName": rc.Call("NameGet")}
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 }
 
@@ -137,7 +136,7 @@ func declareCRUDMethods() {
 				res = append(res, fData)
 			}
 			return res
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Load",
 		`Load query all data of the RecordCollection and store in cache.
@@ -214,7 +213,7 @@ func declareRecordSetMethods() {
 				}
 			}
 			return rc.String()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SearchByName",
 		`SearchByName searches for records that have a display name matching the given
@@ -255,7 +254,7 @@ func declareRecordSetMethods() {
 				res[fieldName].Selection = i18n.Registry.TranslateFieldSelection(lang, rc.model.name, fieldName, fInfo.Selection)
 			}
 			return res
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("FieldGet",
 		`FieldGet returns the definition of the given field.
@@ -266,7 +265,7 @@ func declareRecordSetMethods() {
 			}
 			fJSON := rc.model.JSONizeFieldName(field.String())
 			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[fJSON]
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
@@ -286,7 +285,7 @@ func declareRecordSetMethods() {
 				res.Set(fJSON, ctxValue, rc.model)
 			}
 			return res
-		}).AllowGroup(security.GroupEveryone)
+		})
 }
 
 func declareRecordSetSpecificMethods() {
@@ -321,7 +320,7 @@ func declareRecordSetSpecificMethods() {
 				}
 			}
 			return true
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified according to each field's Onchange
@@ -362,7 +361,7 @@ func declareRecordSetSpecificMethods() {
 			return OnchangeResult{
 				Value: retValues,
 			}
-		}).AllowGroup(security.GroupEveryone)
+		})
 }
 
 func declareSearchMethods() {
@@ -373,20 +372,20 @@ func declareSearchMethods() {
 		additional given Condition`,
 		func(rc *RecordCollection, cond Conditioner) *RecordCollection {
 			return rc.Search(cond.Underlying())
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Browse",
 		`Browse returns a new RecordSet with only the records with the given ids.
 		Note that this function is just a shorcut for Search on a list of ids.`,
 		func(rc *RecordCollection, ids []int64) *RecordCollection {
 			return rc.Call("Search", rc.Model().Field("ID").In(ids)).(RecordSet).Collection()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SearchCount",
 		`SearchCount fetch from the database the number of records that match the RecordSet conditions`,
 		func(rc *RecordCollection) int {
 			return rc.SearchCount()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
@@ -395,38 +394,38 @@ func declareSearchMethods() {
 		Fetch is lazy and only return ids. Use Load() instead if you want to fetch all fields.`,
 		func(rc *RecordCollection) *RecordCollection {
 			return rc.Fetch()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SearchAll",
 		`SearchAll returns a RecordSet with all items of the table, regardless of the
 		current RecordSet query. It is mainly meant to be used on an empty RecordSet`,
 		func(rc *RecordCollection) *RecordCollection {
 			return rc.SearchAll()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc *RecordCollection, exprs ...FieldNamer) *RecordCollection {
 			return rc.GroupBy(exprs...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Aggregates",
 		`Aggregates returns the result of this RecordSet query, which must by a grouped query.`,
 		func(rc *RecordCollection, exprs ...FieldNamer) []GroupAggregateRow {
 			return rc.Aggregates(exprs...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Limit",
 		`Limit returns a new RecordSet with only the first 'limit' records.`,
 		func(rc *RecordCollection, limit int) *RecordCollection {
 			return rc.Limit(limit)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Offset",
 		`Offset returns a new RecordSet with only the records starting at offset`,
 		func(rc *RecordCollection, offset int) *RecordCollection {
 			return rc.Offset(offset)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("OrderBy",
 		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions.
@@ -435,14 +434,14 @@ func declareSearchMethods() {
 		rs.OrderBy("Company", "Name desc")`,
 		func(rc *RecordCollection, exprs ...string) *RecordCollection {
 			return rc.OrderBy(exprs...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
 		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Union(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Subtract",
 		`Subtract returns a RecordSet with the Records that are in this
@@ -450,27 +449,27 @@ func declareSearchMethods() {
 		The result is guaranteed to be a set of unique records.`,
 		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Subtract(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Intersect",
 		`Intersect returns a new RecordCollection with only the records that are both
 		in this RecordCollection and in the other RecordSet.`,
 		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Intersect(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("CartesianProduct",
 		`CartesianProduct returns the cartesian product of this RecordCollection with others.`,
 		func(rc *RecordCollection, other ...RecordSet) []*RecordCollection {
 			return rc.CartesianProduct(other...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Equals",
 		`Equals returns true if this RecordSet is the same as other
 		i.e. they are of the same model and have the same ids`,
 		func(rc *RecordCollection, other RecordSet) bool {
 			return rc.Equals(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Sorted",
 		`Sorted returns a new RecordCollection sorted according to the given less function.
@@ -478,21 +477,21 @@ func declareSearchMethods() {
 		The less function should return true if rs1 < rs2`,
 		func(rc *RecordCollection, less func(rs1 RecordSet, rs2 RecordSet) bool) *RecordCollection {
 			return rc.Sorted(less)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SortedDefault",
 		`SortedDefault returns a new record set with the same records as rc but sorted according
 		to the default order of this model`,
 		func(rc *RecordCollection) *RecordCollection {
 			return rc.SortedDefault()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SortedByField",
 		`SortedByField returns a new record set with the same records as rc but sorted by the given field.
 		If reverse is true, the sort is done in reversed order`,
 		func(rc *RecordCollection, namer FieldNamer, reverse bool) *RecordCollection {
 			return rc.SortedByField(namer, reverse)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Filtered",
 		`Filtered returns a new record set with only the elements of this record set
@@ -503,7 +502,7 @@ func declareSearchMethods() {
 		to search the database directly with the filter condition.`,
 		func(rc *RecordCollection, test func(rs RecordSet) bool) *RecordCollection {
 			return rc.Filtered(test)
-		}).AllowGroup(security.GroupEveryone)
+		})
 }
 
 func declareEnvironmentMethods() {
@@ -513,7 +512,7 @@ func declareEnvironmentMethods() {
 		`WithEnv returns a copy of the current RecordSet with the given Environment.`,
 		func(rc *RecordCollection, env Environment) *RecordCollection {
 			return rc.WithEnv(env)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("WithContext",
 		`WithContext returns a copy of the current RecordSet with
@@ -522,7 +521,7 @@ func declareEnvironmentMethods() {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			return rc.WithContext(key, value)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("WithNewContext",
 		`WithNewContext returns a copy of the current RecordSet with its context
@@ -531,7 +530,7 @@ func declareEnvironmentMethods() {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			return rc.WithNewContext(context)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Sudo",
 		`Sudo returns a new RecordSet with the given userID
@@ -540,7 +539,7 @@ func declareEnvironmentMethods() {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			return rc.Sudo(userID...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 }
 
 // ConvertLimitToInt converts the given limit as interface{} to an int

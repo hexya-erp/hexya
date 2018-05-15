@@ -121,10 +121,13 @@ func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...interface{
 // if the user has the execution permission and false otherwise.
 func (rc *RecordCollection) CheckExecutionPermission(method *Method, dontPanic ...bool) bool {
 	var caller *Method
-	layers, ok := ctxManager.GetValue("layers")
+	layersIf, ok := ctxManager.GetValue("layers")
 	if ok {
-		if methLayer := layers.([2]*methodLayer)[1]; methLayer != nil {
-			caller = methLayer.method
+		layers := layersIf.([2]*methodLayer)
+		if layers[0] != nil && layers[0].method != method {
+			caller = layers[0].method
+		} else if layers[1] != nil {
+			caller = layers[1].method
 		}
 	}
 	if caller == method {

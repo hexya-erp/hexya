@@ -23,9 +23,9 @@ const (
 	// SuperUserID is the uid of the administrator
 	SuperUserID int64 = 1
 	// GroupAdminID is the string ID of the group with all permissions
-	GroupAdminID string = "admin"
+	GroupAdminID = "admin"
 	// GroupEveryoneID is the string ID of the group everyone belongs to
-	GroupEveryoneID string = "everyone"
+	GroupEveryoneID = "everyone"
 
 	// NativeGroup means that this user has been explicitly given membership in this group
 	NativeGroup InheritanceInfo = iota

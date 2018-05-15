@@ -1542,14 +1542,16 @@ using the field's groups attribute.
 
 === Method Execution Control
 
-By default, only members of `security.AdminGroup` are allowed to execute a
-method. Other groups should be manually added to allowed groups.
+By default:
 
-This is done with `AllowGroup()` applied on a method object.
+- CRUD methods can only be executed by members of `security.AdminGroup`.
+Other groups should be manually added to allowed groups.
+- Other methods can be executed by anybody.
+To restrict execution, you should first revoke execution permission from `security.GroupEveryone` before granting permission to the desired groups.
 
-NOTE: With the helper method `AllowAllToGroup()` applied on the method
-collection of an object, we can grant access to all methods of a model at once
-to a group, including methods that are not yet declared.
+This is done with `AllowGroup()` and `RevokeGroup()` applied on a method object.
+
+NOTE: With the helper method `AllowAllToGroup()` applied on the method collection of an object, we can grant access to all CRUD methods of a model at once to a group.
 
 Now we create :
 

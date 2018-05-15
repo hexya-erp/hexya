@@ -175,7 +175,6 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
 				userModel.methods.MustGet("Create").AllowGroup(group1)
-				userModel.methods.MustGet("Load").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Write"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
@@ -184,7 +183,6 @@ func TestCreateRecordSet(t *testing.T) {
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for resume and it works", func() {
-				resumeModel.methods.MustGet("Load").AllowGroup(group1)
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				userTomData := FieldMap{
 					"Name":  "Tom Smith",
@@ -703,8 +701,6 @@ func TestUpdateRecordSet(t *testing.T) {
 			})
 			Convey("Checking that user 2 can run UpdateCity after giving permission for caller", func() {
 				userModel.methods.MustGet("Load").AllowGroup(group1)
-				// TODO We should not need to allow load from write
-				profileModel.methods.MustGet("Load").AllowGroup(group1, userModel.methods.MustGet("UpdateCity"), profileModel.methods.MustGet("Write"))
 				profileModel.methods.MustGet("Write").AllowGroup(group1, userModel.methods.MustGet("UpdateCity"))
 				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane A. Smith"))
 				So(jane.Len(), ShouldEqual, 1)

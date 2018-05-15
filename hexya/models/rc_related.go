@@ -131,8 +131,7 @@ func (rc *RecordCollection) createRelatedRecords(fMap FieldMap) {
 		}
 
 		// 3. We create a list of paths to records to create, by path length
-		// We do not call "Load" directly to have the caller set in the callstack for permissions
-		rec.Call("Load", fields)
+		rec.Load(fields...)
 		var (
 			maxLen       int
 			toInvalidate bool
