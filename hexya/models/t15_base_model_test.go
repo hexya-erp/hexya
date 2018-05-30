@@ -28,7 +28,6 @@ func TestBaseModelMethods(t *testing.T) {
 					"Nums":    1,
 				})
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newUser.Get("WriteDate").(dates.DateTime).IsZero(), ShouldBeTrue)
 				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {

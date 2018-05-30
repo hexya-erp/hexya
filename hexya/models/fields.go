@@ -433,6 +433,9 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	valueField.onChange = ""
 	valueField.constraint = ""
 	valueField.contexts = nil
+	if valueField.defaultFunc == nil && valueField.required {
+		valueField.defaultFunc = DefaultValue(reflect.Zero(valueField.structField.Type).Interface())
+	}
 	newModel.fields.add(&valueField)
 
 	for ctName := range contexts {

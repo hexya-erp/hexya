@@ -177,25 +177,29 @@ func TestCreateRecordSet(t *testing.T) {
 				userModel.methods.MustGet("Create").AllowGroup(group1)
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Write"))
 				userTomData := FieldMap{
-					"Name":  "Tom Smith",
-					"Email": "tsmith@example.com",
+					"Name":       "Tom Smith",
+					"Email":      "tsmith@example.com",
+					"Experience": "10 year of Hexya development",
 				}
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for resume and it works", func() {
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
+				resumeModel.methods.MustGet("Write").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				userTomData := FieldMap{
-					"Name":  "Tom Smith",
-					"Email": "tsmith@example.com",
+					"Name":       "Tom Smith",
+					"Email":      "tsmith@example.com",
+					"Experience": "10 year of Hexya development",
 				}
 				userTom := env.Pool("User").Call("Create", userTomData).(RecordSet).Collection()
 				So(func() { userTom.Get("Name") }, ShouldPanic)
 			})
-			Convey("Revoking model access rights to user 2 for posts and it doesn't works", func() {
+			Convey("Revoking model access rights to user 2 for resume and it doesn't works", func() {
 				resumeModel.methods.MustGet("Create").RevokeGroup(group1)
 				userTomData := FieldMap{
-					"Name":  "Tom Smith",
-					"Email": "tsmith@example.com",
+					"Name":       "Tom Smith",
+					"Email":      "tsmith@example.com",
+					"Experience": "10 year of Hexya development",
 				}
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})

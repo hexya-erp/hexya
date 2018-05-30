@@ -19,6 +19,7 @@ import (
 
 // LoadCSVDataFile loads the data of the given file into the database.
 func LoadCSVDataFile(fileName string) {
+	log.Info("Importing data file", "fileName", fileName)
 	csvFile, err := os.Open(fileName)
 	defer csvFile.Close()
 	if err != nil {
@@ -86,6 +87,7 @@ func LoadCSVDataFile(fileName string) {
 	if err != nil {
 		log.Panic("Error while loading data", "error", err)
 	}
+	log.Debug("Data file imported successfully", "fileName", fileName)
 }
 
 func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int, fileName string) FieldMap {

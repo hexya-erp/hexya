@@ -24,6 +24,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types/dates"
+	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -91,8 +92,8 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	rc.applyDefaults(&fMap, true)
 	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
+	fMap = rc.addEmbeddedfields(fMap)
 	rc.model.convertValuesToFieldType(&fMap)
-	fMap = rc.createEmbeddedRecords(fMap)
 	fMap = rc.addContextsFieldsValues(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
@@ -115,31 +116,17 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	return rSet
 }
 
-// createEmbeddedRecords creates the records that are embedded in this
-// one if they don't already exist. It returns the given fMap with the
-// ids inserted for the embedded records.
-//
-// Note that the created record is not populated and will be when
-// updateRelatedField() will be called.
-func (rc *RecordCollection) createEmbeddedRecords(fMap FieldMap) FieldMap {
-	toCreate := make(map[string]*Model)
-	// 1. We create entries in our map for each embedded field if they don't already have an id
+// addEmbeddedFields adds FK fields of embedded records into the fMap so that
+// they will be automatically created during related field update.
+func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 	for fName, fi := range rc.model.fields.registryByName {
 		if !fi.embed {
 			continue
 		}
-		if id, ok := fMap[fi.json].(int64); ok && id != int64(0) {
+		if _, ok := fMap[fi.json]; ok {
 			continue
 		}
-		toCreate[fName] = fi.relatedModel
-	}
-	// 2. We create an empty embedded record
-	for fieldName, model := range toCreate {
-		// We do not call "create" directly to have the caller set in the callstack for permissions
-		res := rc.env.Pool(model.name).Call("Create", FieldMap{})
-		if resRS, ok := res.(RecordSet); ok {
-			fMap[fieldName] = resRS.Ids()[0]
-		}
+		fMap[fmt.Sprintf("%s%sID", fName, ExprSep)] = 0
 	}
 	return fMap
 }
@@ -152,8 +139,10 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 		if fi.defaultFunc == nil {
 			continue
 		}
-		val := reflect.ValueOf((*fMap)[fName])
-		if !fi.isReadOnly() && (!val.IsValid() || val == reflect.Zero(val.Type())) {
+		if !fi.isStored() {
+			continue
+		}
+		if typesutils.IsZero((*fMap)[fName]) {
 			if fi.required || !requiredOnly {
 				(*fMap)[fName] = fi.defaultFunc(rc.Env())
 			}
@@ -171,7 +160,7 @@ func (rc *RecordCollection) applyContexts() *RecordCollection {
 		}
 		for ctxName, ctxFunc := range fi.contexts {
 			path := fmt.Sprintf("%sHexyaContexts.%s", fi.name, ctxName)
-			ctxCond = ctxCond.AndCond(rc.model.Field(path).Equals(ctxFunc).Or().Field(path).Equals(""))
+			ctxCond = ctxCond.AndCond(rc.model.Field(path).Equals(ctxFunc).Or().Field(path).Equals("")) //.Or().Field(path).IsNull())
 			ctxOrders = append(ctxOrders, path)
 		}
 	}
@@ -344,8 +333,7 @@ func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
 	}
 }
 
-// updateRelatedFields updates related non stored fields of the
-// given fMap.
+// updateRelatedFields updates related fields of the given fMap.
 func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	rc.Fetch()
 	fMap = rc.substituteRelatedFieldsInMap(fMap)
@@ -384,7 +372,6 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 			updateMap[ref][relField] = value
 		}
 	}
-
 	// Make the update for each record
 	for ref, upMap := range updateMap {
 		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})

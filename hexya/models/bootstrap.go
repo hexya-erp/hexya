@@ -273,6 +273,7 @@ func syncRelatedFieldInfo() {
 			newFI.constraint = ""
 			newFI.inverse = ""
 			newFI.depends = nil
+			newFI.contexts = nil
 			*fi = newFI
 		}
 	}
@@ -317,6 +318,8 @@ func inflateContexts() {
 			}
 			mi.fields.add(o2mField)
 			fi.relatedPath = fmt.Sprintf("%s%s%s", fieldName, ExprSep, fi.name)
+			fi.index = false
+			fi.unique = false
 		}
 	}
 }
@@ -672,13 +675,18 @@ func bootStrapMethods() {
 // setupSecurity adds execution permission to:
 // - the admin group for all methods
 // - to CRUD methods to call "Load"
+// - to "Create" method to call "Write"
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
 		loadMeth, loadExists := model.methods.get("Load")
+		writeMeth, writeExists := model.methods.get("Write")
 		for _, meth := range model.methods.registry {
 			meth.AllowGroup(security.GroupAdmin)
 			if loadExists && unauthorizedMethods[meth.name] {
 				loadMeth.AllowGroup(security.GroupEveryone, meth)
+			}
+			if writeExists && meth.name == "Create" {
+				writeMeth.AllowGroup(security.GroupEveryone, meth)
 			}
 		}
 	}

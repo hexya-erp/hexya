@@ -155,9 +155,6 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 // NOT NULL column in database.
 func (d *postgresAdapter) fieldIsNotNull(fi *Field) bool {
 	if fi.fieldType.IsFKRelationType() {
-		if fi.required {
-			return true
-		}
 		return false
 	}
 	return true

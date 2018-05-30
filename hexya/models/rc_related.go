@@ -129,7 +129,9 @@ func (rc *RecordCollection) createRelatedRecords(fMap FieldMap) {
 			}
 			fields = append(fields, f)
 		}
-
+		if len(fields) == 0 {
+			return
+		}
 		// 3. We create a list of paths to records to create, by path length
 		rec.Load(fields...)
 		var (
@@ -158,6 +160,9 @@ func (rc *RecordCollection) createRelatedRecords(fMap FieldMap) {
 		}
 		// 4. We create our records starting by smallest paths
 		for i := 0; i <= maxLen; i++ {
+			if len(paths[i]) == 0 {
+				continue
+			}
 			rec.createRelatedRecordForPaths(paths[i])
 		}
 	}
@@ -166,20 +171,21 @@ func (rc *RecordCollection) createRelatedRecords(fMap FieldMap) {
 // createRelatedRecordForPaths creates Records at the given paths, starting from this recordset.
 // This method does not check whether such a records already exists or not.
 func (rc *RecordCollection) createRelatedRecordForPaths(paths map[string]bool) {
+	log.Debug("Creating related record", "recordset", rc, "paths", paths)
 	rc.EnsureOne()
 	rsPaths := map[string]*RecordCollection{"": rc}
 	for path := range paths {
 		fi := rc.model.getRelatedFieldInfo(path)
+		exprs := strings.Split(path, ExprSep)
 		switch fi.fieldType {
 		case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
 			// We do not call "create" directly to have the caller set in the callstack for permissions
 			res := rc.env.Pool(fi.relatedModel.name).Call("Create", FieldMap{})
 			if resRS, ok := res.(RecordSet); ok {
-				rc.env.Pool(fi.model.name).Call("Set", fi.name, resRS.Collection())
+				rsPaths[strings.Join(exprs[:len(exprs)-1], ExprSep)].Set(fi.name, resRS.Collection())
 				rsPaths[path] = resRS.Collection()
 			}
 		case fieldtype.One2Many, fieldtype.Rev2One:
-			exprs := strings.Split(path, ExprSep)
 			// We do not call "create" directly to have the caller set in the callstack for permissions
 			res := rc.env.Pool(fi.relatedModel.name).Call("Create", FieldMap{
 				fi.jsonReverseFK: rsPaths[strings.Join(exprs[:len(exprs)-1], ExprSep)]})
