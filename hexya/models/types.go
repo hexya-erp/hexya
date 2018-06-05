@@ -14,7 +14,10 @@
 
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // FieldMap is a map of interface{} specifically used for holding model
 // fields values.
@@ -26,6 +29,16 @@ func (fm FieldMap) Keys() (res []string) {
 		res = append(res, k)
 	}
 	return
+}
+
+// OrderedKeys returns the keys of this FieldMap ordered.
+//
+// This has the convenient side effect of having shorter paths come before longer paths,
+// which is particularly useful when creating or updating related records.
+func (fm FieldMap) OrderedKeys() []string {
+	keys := fm.Keys()
+	sort.Strings(keys)
+	return keys
 }
 
 // FieldNames returns the FieldMap keys as a slice of FieldNamer.

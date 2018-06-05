@@ -94,7 +94,7 @@ func TestConditions(t *testing.T) {
 					So(args, ShouldContain, "%jane%")
 					So(args, ShouldContain, "%MIT%")
 					sql, _ = rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id INNER JOIN "resume" "T3" ON "user".resume_id="T3".id  WHERE (("T2".title = ?) AND ("T1".age >= ?)) AND ("user".name LIKE ? OR "T3".education LIKE ?)  `)
+					So(sql, ShouldEqual, `SELECT DISTINCT "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id LEFT JOIN "resume" "T3" ON "user".resume_id="T3".id  WHERE (("T2".title = ?) AND ("T1".age >= ?)) AND ("user".name LIKE ? OR "T3".education LIKE ?)  `)
 				})
 				Convey("Testing query without WHERE clause", func() {
 					rs = env.Pool("User").Load()

@@ -474,10 +474,6 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 			// or if it is the last field of our expressions
 			break
 		}
-		var innerJoin bool
-		if fi.required {
-			innerJoin = true
-		}
 
 		var field, otherField string
 		var tjExpr string
@@ -499,7 +495,6 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 			tj := tableJoin{
 				tableName:  relationTableName,
 				joined:     true,
-				innerJoin:  false,
 				field:      jsonizePath(fi.m2mRelModel, fi.m2mOurField.name),
 				otherTable: curTJ,
 				otherField: "id",
@@ -520,7 +515,6 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 		nextTJ := tableJoin{
 			tableName:  linkedTableName,
 			joined:     true,
-			innerJoin:  innerJoin,
 			field:      field,
 			otherTable: curTJ,
 			otherField: otherField,
@@ -669,6 +663,7 @@ func (q *Query) argsSlug(c *Condition) string {
 		arg := fmt.Sprintf("%v", q.evaluateConditionArgFunctions(p))
 		arg = strings.Replace(arg, ExprSep, "-", -1)
 		arg = strings.Replace(arg, ContextSep, "-", -1)
+		arg = strings.Replace(arg, "<nil>", "", -1)
 		args = append(args, arg)
 	}
 	sort.Strings(args)

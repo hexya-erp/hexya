@@ -118,10 +118,11 @@ func (c *cache) setX2MValue(ref cacheRef, jsonName string, id int64, ctxSlug str
 	if _, ok := c.x2mRelated[ref][jsonName]; !ok {
 		c.x2mRelated[ref][jsonName] = make(map[string]int64)
 	}
-	if id != c.x2mRelated[ref][jsonName][""] {
+	if id == c.x2mRelated[ref][jsonName][""] {
 		// We don't add the value if the id is the same as the default context
-		c.x2mRelated[ref][jsonName][ctxSlug] = id
+		return
 	}
+	c.x2mRelated[ref][jsonName][ctxSlug] = id
 }
 
 // getX2MValue return the X2MValue or the default value if the given ctxSlug does not exist in cache
@@ -339,19 +340,7 @@ func (c *cache) isInCache(mi *Model, id int64, path string, ctxSlug string) bool
 // getRelatedRef returns the cacheRef and field name of the field that is
 // defined by path when walking from the given model with the given ID.
 func (c *cache) getRelatedRef(mi *Model, id int64, path string, ctxSlug string) (cacheRef, string, error) {
-	exprs := jsonizeExpr(mi, strings.Split(path, ExprSep))
-	if len(exprs) > 1 {
-		fkID, ok := c.get(mi, id, exprs[0], ctxSlug).(int64)
-		if !ok {
-			fkID, ok, _ = c.getX2MValue(cacheRef{model: mi, id: id}, exprs[0], ctxSlug)
-			if !ok {
-				return cacheRef{}, "", errors.New("requested value not in cache")
-			}
-		}
-		relMI := mi.getRelatedModelInfo(exprs[0])
-		return c.getRelatedRef(relMI, fkID, strings.Join(exprs[1:], ExprSep), ctxSlug)
-	}
-	return cacheRef{model: mi, id: id}, exprs[0], nil
+	return c.getRelatedRefCommon(mi, id, path, ctxSlug, false)
 }
 
 // getStrictRelatedRef returns the cacheRef and field name of the field that is
@@ -359,18 +348,26 @@ func (c *cache) getRelatedRef(mi *Model, id int64, path string, ctxSlug string) 
 //
 // This method returns an error when the value for the given ctxSlug cannot be found.
 func (c *cache) getStrictRelatedRef(mi *Model, id int64, path string, ctxSlug string) (cacheRef, string, error) {
+	return c.getRelatedRefCommon(mi, id, path, ctxSlug, true)
+}
+
+// getRelatedRefCommon is the common implementation of getRelatedRef and getStrictRelatedRef.
+func (c *cache) getRelatedRefCommon(mi *Model, id int64, path string, ctxSlug string, strict bool) (cacheRef, string, error) {
+	if id == 0 {
+		return cacheRef{}, "", errors.New("requested value on RecordSet with ID=0")
+	}
 	exprs := jsonizeExpr(mi, strings.Split(path, ExprSep))
 	if len(exprs) > 1 {
 		fkID, ok := c.get(mi, id, exprs[0], ctxSlug).(int64)
 		if !ok {
 			var defVal bool
 			fkID, ok, defVal = c.getX2MValue(cacheRef{model: mi, id: id}, exprs[0], ctxSlug)
-			if !ok || defVal {
+			if !ok || (strict && defVal) {
 				return cacheRef{}, "", errors.New("requested value not in cache")
 			}
 		}
 		relMI := mi.getRelatedModelInfo(exprs[0])
-		return c.getStrictRelatedRef(relMI, fkID, strings.Join(exprs[1:], ExprSep), ctxSlug)
+		return c.getRelatedRefCommon(relMI, fkID, strings.Join(exprs[1:], ExprSep), ctxSlug, strict)
 	}
 	return cacheRef{model: mi, id: id}, exprs[0], nil
 }

@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -126,7 +127,7 @@ func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 		if _, ok := fMap[fi.json]; ok {
 			continue
 		}
-		fMap[fmt.Sprintf("%s%sID", fName, ExprSep)] = 0
+		fMap[fmt.Sprintf("%s%sID", fName, ExprSep)] = nil
 	}
 	return fMap
 }
@@ -159,8 +160,8 @@ func (rc *RecordCollection) applyContexts() *RecordCollection {
 			continue
 		}
 		for ctxName, ctxFunc := range fi.contexts {
-			path := fmt.Sprintf("%sHexyaContexts.%s", fi.name, ctxName)
-			ctxCond = ctxCond.AndCond(rc.model.Field(path).Equals(ctxFunc).Or().Field(path).Equals("")) //.Or().Field(path).IsNull())
+			path := fmt.Sprintf("%sHexyaContexts%s%s", fi.name, ExprSep, ctxName)
+			ctxCond = ctxCond.AndCond(rc.model.Field(path).Equals(ctxFunc).Or().Field(path).Equals("").Or().Field(path).IsNull())
 			ctxOrders = append(ctxOrders, path)
 		}
 	}
@@ -266,6 +267,9 @@ func (rc *RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 // updates the cache for the record
 func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Write"))
+	if rc.IsEmpty() {
+		log.Panic("Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
@@ -273,12 +277,18 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 	}()
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	// update DB
-	if len(fMap) > 0 {
-		sql, args := rc.query.updateQuery(fMap)
-		res := rc.env.cr.Execute(sql, args...)
-		if num, _ := res.RowsAffected(); num == 0 {
-			log.Panic("Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
+	if len(fMap) == 2 {
+		_, okWD := fMap["write_date"]
+		_, okWU := fMap["write_uid"]
+		if okWD && okWU {
+			// We only have write_date and write_uid to update, so we ignore
+			return
 		}
+	}
+	sql, args := rc.query.updateQuery(fMap)
+	res := rc.env.cr.Execute(sql, args...)
+	if num, _ := res.RowsAffected(); num == 0 {
+		log.Panic("Unexpected noop on update (num = 0)", "model", rc.ModelName(), "values", fMap, "query", sql, "args", args)
 	}
 	for _, rec := range rc.Records() {
 		for k, v := range fMap {
@@ -337,19 +347,49 @@ func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
 func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	rc.Fetch()
 	fMap = rc.substituteRelatedFieldsInMap(fMap)
-	rc.createRelatedRecords(fMap)
+	fields := rc.addIntermediatePaths(fMap.Keys())
+	rc.loadRelatedRecords(fields)
+
+	// Create an update map for each record to update
+	updateMap := make(map[cacheRef]FieldMap)
+	createdPaths := make(map[string]bool)
+	// Ordered fields will show shorter paths before longer paths
+	sort.Strings(fields)
+	for _, rec := range rc.Records() {
+		for _, path := range fields {
+			vals, prefix := rc.relatedRecordMap(fMap, path)
+			if createdPaths[prefix] {
+				continue
+			}
+			ref, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, rc.query.ctxArgsSlug())
+			if err != nil {
+				// Record does not exist, we create it on the fly instead of updating
+				rc.createRelatedRecord(prefix, vals)
+				createdPaths[prefix] = true
+				continue
+			}
+			if len(vals) == 0 {
+				continue
+			}
+			updateMap[ref] = vals
+		}
+	}
+	// Make the update for each record
+	for ref, upMap := range updateMap {
+		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})
+		rs.Call("Write", upMap)
+	}
+}
+
+// loadRelatedRecords loads all records pointed at by the given fMap keys
+// relatively to this record collection if they are not already in cache.
+func (rc *RecordCollection) loadRelatedRecords(fields []string) {
 	var toLoad []string
-	toUpdateMap := make(FieldMap)
-	for field, value := range fMap {
-		fi := rc.model.getRelatedFieldInfo(field)
+	for _, field := range fields {
 		exprs := strings.Split(field, ExprSep)
 		if len(exprs) <= 1 {
 			continue
 		}
-		if !checkFieldPermission(fi, rc.env.uid, security.Write) {
-			continue
-		}
-		toUpdateMap[field] = value
 		if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{field}, rc.query.ctxArgsSlug()) {
 			toLoad = append(toLoad, field)
 		}
@@ -358,25 +398,27 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	if len(toLoad) > 0 {
 		rc.Load(toLoad...)
 	}
-	// Create an update map for each record to update
-	updateMap := make(map[cacheRef]FieldMap)
-	for _, rec := range rc.Records() {
-		for path, value := range toUpdateMap {
-			ref, relField, err := rec.env.cache.getRelatedRef(rec.model, rec.ids[0], path, rc.query.ctxArgsSlug())
-			if err != nil {
-				log.Panic("Related record does not exist", "model", rec.model, "id", rec.ids[0], "path", path)
-			}
-			if _, exists := updateMap[ref]; !exists {
-				updateMap[ref] = make(FieldMap)
-			}
-			updateMap[ref][relField] = value
+}
+
+// createRelatedRecordMap return a FieldMap to create or update the related record
+// defined by path from this RecordCollection, using fMap values. The second record
+// value is the path to the related record.
+//
+// field must be a field of the related record (and not an M2O field pointing to it)
+func (rc *RecordCollection) relatedRecordMap(fMap FieldMap, field string) (FieldMap, string) {
+	exprs := strings.Split(field, ExprSep)
+	prefix := strings.Join(exprs[:len(exprs)-1], ExprSep)
+	res := make(FieldMap)
+	for f, v := range fMap {
+		fExprs := strings.Split(f, ExprSep)
+		if len(fExprs) != len(exprs) {
+			continue
+		}
+		if strings.HasPrefix(f, prefix+ExprSep) {
+			res[fExprs[len(fExprs)-1]] = v
 		}
 	}
-	// Make the update for each record
-	for ref, upMap := range updateMap {
-		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})
-		rs.Call("Write", upMap)
-	}
+	return res, prefix
 }
 
 // substituteSQLErrorMessage changes the message from the given recover data

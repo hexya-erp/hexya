@@ -15,7 +15,6 @@
 package models
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
@@ -26,14 +25,26 @@ import (
 //
 // This method removes duplicates and change all field names to their json names.
 func (rc *RecordCollection) substituteRelatedFields(fields []string) []string {
-	// Create a keys map with our fields
+	for i, field := range fields {
+		fields[i] = jsonizePath(rc.model, rc.substituteRelatedInPath(field))
+	}
+	return rc.addIntermediatePaths(fields)
+}
+
+// addIntermediatePaths adds the paths that compose fields and returns a new slice.
+//
+// e.g. given [User.Address.Country Note Partner.Age] will return
+// [User User.Address User.address.country Note Partner Partner.Age]
+//
+// This method removes duplicates
+func (rc *RecordCollection) addIntermediatePaths(fields []string) []string {
+	// Create a keys map with our fields to avoid duplicates
 	keys := make(map[string]bool)
+	// Add intermediate records to our map
 	for _, field := range fields {
-		// Inflate our related fields
-		inflatedPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
-		keys[inflatedPath] = true
-		// Add intermediate records to our map
-		exprs := strings.Split(inflatedPath, ExprSep)
+		jsonField := jsonizePath(rc.model, field)
+		keys[jsonField] = true
+		exprs := strings.Split(jsonField, ExprSep)
 		if len(exprs) == 1 {
 			continue
 		}
@@ -110,88 +121,31 @@ func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 	return rc.substituteRelatedInPath(newPath)
 }
 
-// createRelatedRecords creates the records of related fields set in fMap
-// if they do not exist.
-func (rc *RecordCollection) createRelatedRecords(fMap FieldMap) {
-	for _, rec := range rc.Records() {
-		rec.applyContexts()
-		// 1. We substitute our related fields everywhere
-		allFields := rec.substituteRelatedFields(fMap.Keys())
-
-		// 2. We create a new slice with only paths so as to exit early if we have only simple fields
-		sort.Strings(allFields)
-		var fields []string
-		for _, f := range allFields {
-			exprs := strings.Split(f, ExprSep)
-			if len(exprs) <= 1 {
-				// Don't include simple fields
-				continue
-			}
-			fields = append(fields, f)
-		}
-		if len(fields) == 0 {
-			return
-		}
-		// 3. We create a list of paths to records to create, by path length
-		rec.Load(fields...)
-		var (
-			maxLen       int
-			toInvalidate bool
-		)
-		paths := make(map[int]map[string]bool)
-		for _, field := range fields {
-			if rec.env.cache.isInCache(rec.model, rec.ids[0], field, rec.query.ctxArgsSlug()) {
-				// Record exists
-				continue
-			}
-			toInvalidate = true
-			exprs := strings.Split(field, ExprSep)
-			if paths[len(exprs)] == nil {
-				paths[len(exprs)] = make(map[string]bool)
-			}
-			paths[len(exprs)][strings.Join(exprs[:len(exprs)-1], ExprSep)] = true
-			if len(exprs) > maxLen {
-				maxLen = len(exprs)
-			}
-		}
-		if toInvalidate {
-			// invalidate cache in case we have a contexted field set with a new context
-			rec.InvalidateCache()
-		}
-		// 4. We create our records starting by smallest paths
-		for i := 0; i <= maxLen; i++ {
-			if len(paths[i]) == 0 {
-				continue
-			}
-			rec.createRelatedRecordForPaths(paths[i])
-		}
-	}
-}
-
-// createRelatedRecordForPaths creates Records at the given paths, starting from this recordset.
+// createRelatedRecord creates Records at the given path, starting from this recordset.
 // This method does not check whether such a records already exists or not.
-func (rc *RecordCollection) createRelatedRecordForPaths(paths map[string]bool) {
-	log.Debug("Creating related record", "recordset", rc, "paths", paths)
+func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) {
+	log.Debug("Creating related record", "recordset", rc, "path", path, "vals", vals)
 	rc.EnsureOne()
-	rsPaths := map[string]*RecordCollection{"": rc}
-	for path := range paths {
-		fi := rc.model.getRelatedFieldInfo(path)
-		exprs := strings.Split(path, ExprSep)
-		switch fi.fieldType {
-		case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
-			// We do not call "create" directly to have the caller set in the callstack for permissions
-			res := rc.env.Pool(fi.relatedModel.name).Call("Create", FieldMap{})
-			if resRS, ok := res.(RecordSet); ok {
-				rsPaths[strings.Join(exprs[:len(exprs)-1], ExprSep)].Set(fi.name, resRS.Collection())
-				rsPaths[path] = resRS.Collection()
-			}
-		case fieldtype.One2Many, fieldtype.Rev2One:
-			// We do not call "create" directly to have the caller set in the callstack for permissions
-			res := rc.env.Pool(fi.relatedModel.name).Call("Create", FieldMap{
-				fi.jsonReverseFK: rsPaths[strings.Join(exprs[:len(exprs)-1], ExprSep)]})
-			if resRS, ok := res.(RecordSet); ok {
-				rsPaths[path] = resRS.Collection()
-			}
+	fi := rc.model.getRelatedFieldInfo(path)
+	exprs := strings.Split(path, ExprSep)
+	switch fi.fieldType {
+	case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
+		// We do not call "create" directly to have the caller set in the callstack for permissions
+		res := rc.env.Pool(fi.relatedModel.name).Call("Create", vals)
+		if resRS, ok := res.(RecordSet); ok {
+			rc.Set(path, resRS.Collection())
 		}
+	case fieldtype.One2Many, fieldtype.Rev2One:
+		// We do not call "create" directly to have the caller set in the callstack for permissions
+		target := rc
+		if len(exprs) > 1 {
+			target = rc.Get(strings.Join(exprs[:len(exprs)-1], ExprSep)).(RecordSet).Collection()
+			if target.IsEmpty() {
+				log.Panic("Target record does not exist", "recordset", rc, "path", strings.Join(exprs[:len(exprs)-1], ExprSep))
+			}
+			target = target.Records()[0]
+		}
+		vals[fi.jsonReverseFK] = target
+		rc.env.Pool(fi.relatedModel.name).Call("Create", vals)
 	}
 }

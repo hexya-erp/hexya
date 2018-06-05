@@ -34,6 +34,7 @@ func TestCreateRecordSet(t *testing.T) {
 				users := env.Pool("User").Call("Create", userJohnData).(RecordSet).Collection()
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID"), ShouldBeGreaterThan, 0)
+				So(users.Get("Resume").(RecordSet).IsEmpty(), ShouldBeFalse)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Tags and Comments", func() {
 				userJaneProfileData := FieldMap{
@@ -88,6 +89,9 @@ func TestCreateRecordSet(t *testing.T) {
 				tag3 := env.Pool("Tag").Call("Create", FieldMap{
 					"Name": "Jane's",
 				}).(RecordSet).Collection()
+				So(tag1.Len(), ShouldEqual, 1)
+				So(tag2.Len(), ShouldEqual, 1)
+				So(tag3.Len(), ShouldEqual, 1)
 				So(post1.Get("LastTagName"), ShouldBeBlank)
 				post1.Set("Tags", tag1.Union(tag3))
 				post2.Set("Tags", tag2.Union(tag3))
