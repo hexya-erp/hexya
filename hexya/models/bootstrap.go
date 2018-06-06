@@ -335,6 +335,7 @@ func runInit(model *Model) {
 
 // SyncDatabase creates or updates database tables with the data in the model registry
 func SyncDatabase() {
+	log.Info("Updating database schema")
 	adapter := adapters[db.DriverName()]
 	dbTables := adapter.tables()
 	// Create or update sequences

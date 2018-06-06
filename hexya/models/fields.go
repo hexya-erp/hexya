@@ -241,6 +241,18 @@ func (f *Field) isStored() bool {
 	return true
 }
 
+// isSettableDirectly returns true if the given field can be set directly
+func (f *Field) isSettableDirectly() bool {
+	if f.fieldType.IsNonStoredRelationType() {
+		// reverse fields are not stored
+		return false
+	}
+	if f.isComputedField() && f.inverse == "" {
+		return false
+	}
+	return true
+}
+
 // isReadOnly returns true if this field must not be set directly
 // by the user.
 func (f *Field) isReadOnly() bool {

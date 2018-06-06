@@ -25,7 +25,6 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types/dates"
-	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -133,17 +132,17 @@ func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 }
 
 // applyDefaults adds the default value to the given fMap values which
-// are equal to their Go type zero value. If requiredOnly is true, default
-// value is set only if the field is required (and equal to zero value).
+// are not in fMap. If requiredOnly is true, default
+// value is set only if the field is required (and not in fMap).
 func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
 		if fi.defaultFunc == nil {
 			continue
 		}
-		if !fi.isStored() {
+		if !fi.isSettableDirectly() {
 			continue
 		}
-		if typesutils.IsZero((*fMap)[fName]) {
+		if _, ok := (*fMap)[fName]; !ok {
 			if fi.required || !requiredOnly {
 				(*fMap)[fName] = fi.defaultFunc(rc.Env())
 			}
@@ -199,6 +198,9 @@ func (rc *RecordCollection) addContextsFieldsValues(fMap FieldMap) FieldMap {
 // Each method is only executed once, even if it is called by several fields.
 // It panics as soon as one constraint fails.
 func (rc *RecordCollection) checkConstraints() {
+	if rc.env.context.GetBool("skip_check_constraints") {
+		return
+	}
 	methods := make(map[string]bool)
 	for _, fi := range rc.model.fields.registryByJSON {
 		if fi.constraint != "" {

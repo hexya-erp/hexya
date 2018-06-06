@@ -252,9 +252,9 @@ func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View
 		arch:   xmlutils.XMLToElement(fmt.Sprintf(`<%s></%s>`, viewType, viewType)),
 		arches: make(map[string]*etree.Element),
 	}
-	if _, ok := models.Registry.MustGet(model).Fields().Get("Name"); ok {
-		view.Fields = []models.FieldNamer{models.FieldName("Name")}
-		view.arch = xmlutils.XMLToElement(fmt.Sprintf(`<%s><field name="Name"/></%s>`, viewType, viewType))
+	if _, ok := models.Registry.MustGet(model).Fields().Get("name"); ok {
+		view.Fields = []models.FieldNamer{models.FieldName("name")}
+		view.arch = xmlutils.XMLToElement(fmt.Sprintf(`<%s><field name="name"/></%s>`, viewType, viewType))
 	}
 	view.translateArch()
 	return &view

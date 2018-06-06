@@ -83,9 +83,6 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 	if bf.Default == nil {
 		bf.Default = DefaultValue(false)
 	}
-	if bf.Compute == nil || bf.Inverse != nil {
-		bf.Required = true
-	}
 	return genericDeclareField(fc, &bf, name, fieldtype.Boolean, new(bool))
 }
 

@@ -49,9 +49,23 @@ func TestCreateRecordSet(t *testing.T) {
 				So(profile.Len(), ShouldEqual, 1)
 				So(profile.Get("UserName"), ShouldBeBlank)
 
+				tag1 := env.Pool("Tag").Call("Create", FieldMap{
+					"Name": "Trending",
+				}).(RecordSet).Collection()
+				tag2 := env.Pool("Tag").Call("Create", FieldMap{
+					"Name": "Books",
+				}).(RecordSet).Collection()
+				tag3 := env.Pool("Tag").Call("Create", FieldMap{
+					"Name": "Jane's",
+				}).(RecordSet).Collection()
+				So(tag1.Len(), ShouldEqual, 1)
+				So(tag2.Len(), ShouldEqual, 1)
+				So(tag3.Len(), ShouldEqual, 1)
+
 				post1Data := FieldMap{
 					"Title":   "1st Post",
 					"Content": "Content of first post",
+					"Tags":    tag1.Union(tag3),
 				}
 				post1 := env.Pool("Post").Call("Create", post1Data).(RecordSet).Collection()
 				So(post1.Len(), ShouldEqual, 1)
@@ -80,20 +94,7 @@ func TestCreateRecordSet(t *testing.T) {
 				janePosts := userJane.Get("Posts").(RecordSet).Collection()
 				So(janePosts.Len(), ShouldEqual, 2)
 
-				tag1 := env.Pool("Tag").Call("Create", FieldMap{
-					"Name": "Trending",
-				}).(RecordSet).Collection()
-				tag2 := env.Pool("Tag").Call("Create", FieldMap{
-					"Name": "Books",
-				}).(RecordSet).Collection()
-				tag3 := env.Pool("Tag").Call("Create", FieldMap{
-					"Name": "Jane's",
-				}).(RecordSet).Collection()
-				So(tag1.Len(), ShouldEqual, 1)
-				So(tag2.Len(), ShouldEqual, 1)
-				So(tag3.Len(), ShouldEqual, 1)
-				So(post1.Get("LastTagName"), ShouldBeBlank)
-				post1.Set("Tags", tag1.Union(tag3))
+				So(post2.Get("LastTagName"), ShouldBeBlank)
 				post2.Set("Tags", tag2.Union(tag3))
 				So(post1.Get("LastTagName"), ShouldEqual, "Jane's")
 				post1Tags := post1.Get("Tags").(RecordSet).Collection()
