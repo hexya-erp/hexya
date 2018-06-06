@@ -28,13 +28,19 @@ func checkDateTime(dateTime DateTime) {
 
 func TestDates(t *testing.T) {
 	Convey("Testing Date objects", t, func() {
-		date, err1 := ParseDate(DefaultServerDateTimeFormat, "2017-08-01 10:02:57")
-		dateTime, err2 := ParseDateTime(DefaultServerDateTimeFormat, "2017-08-01 10:02:57")
+		date, err1 := ParseDateWithLayout(DefaultServerDateTimeFormat, "2017-08-01 10:02:57")
+		dateTime, err2 := ParseDateTimeWithLayout(DefaultServerDateTimeFormat, "2017-08-01 10:02:57")
 		Convey("Parsing should be correct", func() {
 			So(err1, ShouldBeNil)
 			checkDate(date)
 			So(err2, ShouldBeNil)
 			checkDateTime(dateTime)
+		})
+		Convey("Direct parsing functions should work", func() {
+			So(func() { ParseDate("2017-08-01") }, ShouldNotPanic)
+			So(func() { ParseDateTime("2017-08-01 10:02:57") }, ShouldNotPanic)
+			So(func() { ParseDate("2017-08-01 11:23:32") }, ShouldPanic)
+			So(func() { ParseDateTime("2017-08-01") }, ShouldPanic)
 		})
 		Convey("Marshaling and String should work", func() {
 			So(date.String(), ShouldEqual, "2017-08-01")
@@ -101,32 +107,65 @@ func TestDates(t *testing.T) {
 		Convey("Valuing Date", func() {
 			val, err := date.Value()
 			So(err, ShouldBeNil)
-			t, ok := val.(time.Time)
+			ti, ok := val.(time.Time)
 			So(ok, ShouldBeTrue)
-			So(t.Equal(date.Time), ShouldBeTrue)
+			So(ti.Equal(date.Time), ShouldBeTrue)
 
 		})
 		Convey("Valuing empty Date", func() {
 			val, err := Date{}.Value()
 			So(err, ShouldBeNil)
-			t, ok := val.(time.Time)
+			ti, ok := val.(time.Time)
 			So(ok, ShouldBeTrue)
-			So(t.IsZero(), ShouldBeTrue)
+			So(ti.IsZero(), ShouldBeTrue)
 
 		})
 		Convey("Valuing Datetime", func() {
 			val, err := dateTime.Value()
 			So(err, ShouldBeNil)
-			t, ok := val.(time.Time)
+			ti, ok := val.(time.Time)
 			So(ok, ShouldBeTrue)
-			So(t.Equal(date.Time), ShouldBeTrue)
+			So(ti.Equal(date.Time), ShouldBeTrue)
 		})
 		Convey("Valuing empty Datetime", func() {
 			val, err := DateTime{}.Value()
 			So(err, ShouldBeNil)
-			t, ok := val.(time.Time)
+			ti, ok := val.(time.Time)
 			So(ok, ShouldBeTrue)
-			So(t.IsZero(), ShouldBeTrue)
+			So(ti.IsZero(), ShouldBeTrue)
+		})
+		Convey("Today() and Now() should not panic", func() {
+			So(func() { Today() }, ShouldNotPanic)
+			So(func() { Now() }, ShouldNotPanic)
+		})
+	})
+	Convey("Checking operations and comparisons on Date and DateTime", t, func() {
+		date1 := ParseDate("2017-08-01")
+		dateTime1 := ParseDateTime("2017-08-01 10:34:23")
+		date2 := ParseDate("2017-08-03")
+		dateTime2 := ParseDateTime("2017-08-01 10:43:11")
+		Convey("Comparing dates", func() {
+			So(date2.Greater(date1), ShouldBeTrue)
+			So(date2.GreaterEqual(date1), ShouldBeTrue)
+			So(date2.GreaterEqual(date2), ShouldBeTrue)
+			So(date2.Lower(date1), ShouldBeFalse)
+			So(date2.LowerEqual(date1), ShouldBeFalse)
+			So(date2.LowerEqual(date2), ShouldBeTrue)
+		})
+		Convey("Comparing datetimes", func() {
+			So(dateTime2.Greater(dateTime1), ShouldBeTrue)
+			So(dateTime2.GreaterEqual(dateTime1), ShouldBeTrue)
+			So(dateTime2.GreaterEqual(dateTime2), ShouldBeTrue)
+			So(dateTime2.Lower(dateTime1), ShouldBeFalse)
+			So(dateTime2.LowerEqual(dateTime1), ShouldBeFalse)
+			So(dateTime2.LowerEqual(dateTime2), ShouldBeTrue)
+		})
+		Convey("Adding durations to dates", func() {
+			So(date1.AddDate(0, 2, 3).Equal(ParseDate("2017-10-04")), ShouldBeTrue)
+		})
+		Convey("Adding durations to datetimes", func() {
+			So(dateTime1.AddDate(0, 2, 3).Equal(ParseDateTime("2017-10-04 10:34:23")), ShouldBeTrue)
+			So(dateTime1.Add(2*time.Hour+11*time.Minute).Equal(ParseDateTime("2017-08-01 12:45:23")), ShouldBeTrue)
 		})
 	})
 }
