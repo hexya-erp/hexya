@@ -485,12 +485,12 @@ func TestViews(t *testing.T) {
 		})
 		soSearch := Registry.GetFirstViewForModel("SaleOrder", ViewTypeSearch)
 		So(xmlutils.ElementToXML(soSearch.arch), ShouldEqual, `<search>
-	<field name="Name"/>
+	<field name="name"/>
 </search>
 `)
 		soTree := Registry.GetFirstViewForModel("SaleOrder", ViewTypeTree)
 		So(xmlutils.ElementToXML(soTree.arch), ShouldEqual, `<tree>
-	<field name="Name"/>
+	<field name="name"/>
 </tree>
 `)
 	})
