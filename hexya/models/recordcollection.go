@@ -139,7 +139,7 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 		if fi.defaultFunc == nil {
 			continue
 		}
-		if !fi.isSettableDirectly() {
+		if !fi.isSettable() {
 			continue
 		}
 		if _, ok := (*fMap)[fName]; !ok {

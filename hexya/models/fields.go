@@ -241,12 +241,8 @@ func (f *Field) isStored() bool {
 	return true
 }
 
-// isSettableDirectly returns true if the given field can be set directly
-func (f *Field) isSettableDirectly() bool {
-	if f.fieldType.IsNonStoredRelationType() {
-		// reverse fields are not stored
-		return false
-	}
+// isSettable returns true if the given field can be set directly
+func (f *Field) isSettable() bool {
 	if f.isComputedField() && f.inverse == "" {
 		return false
 	}
