@@ -157,27 +157,6 @@ func (fm FieldMap) FieldMap(fields ...FieldNamer) FieldMap {
 
 var _ FieldMapper = FieldMap{}
 
-// KeySubstitution defines a key substitution in a FieldMap
-type KeySubstitution struct {
-	Orig string
-	New  string
-	Keep bool
-}
-
-// SubstituteKeys changes the column names of the given field map with the
-// given substitutions.
-func (fm *FieldMap) SubstituteKeys(substs []KeySubstitution) {
-	for _, subs := range substs {
-		value, exists := (*fm)[subs.Orig]
-		if exists {
-			if !subs.Keep {
-				delete(*fm, subs.Orig)
-			}
-			(*fm)[subs.New] = value
-		}
-	}
-}
-
 // Copy returns a shallow copy of this FieldMap
 func (fm FieldMap) Copy() FieldMap {
 	res := make(FieldMap, len(fm))

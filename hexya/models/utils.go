@@ -316,6 +316,19 @@ func getGroupCondition(groups []string, vals map[string]interface{}, initialCond
 	return res
 }
 
+// substituteKeys returns a new map with its keys substituted following substMap after changing sqlSep into ExprSep
+func substituteKeys(vals map[string]interface{}, substMap map[string]string) map[string]interface{} {
+	res := make(FieldMap, len(vals))
+	for f, v := range vals {
+		k := strings.Replace(f, sqlSep, ExprSep, -1)
+		if sk, ok := substMap[k]; ok {
+			k = sk
+		}
+		res[k] = v
+	}
+	return res
+}
+
 // serializePredicates returns a list that mimics Odoo domains from the given
 // condition predicates.
 func serializePredicates(predicates []predicate) []interface{} {

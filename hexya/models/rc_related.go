@@ -23,12 +23,19 @@ import (
 // substituteRelatedFields returns a copy of the given fields slice with related fields substituted by their related
 // field path. It also adds the fk and pk fields of all records in the related paths.
 //
+// The second returned value is a map the keys of which are the related field paths, and the values are the
+// corresponding original fields if they exist.
+//
 // This method removes duplicates and change all field names to their json names.
-func (rc *RecordCollection) substituteRelatedFields(fields []string) []string {
+func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, map[string]string) {
+	res := make(map[string]string)
 	for i, field := range fields {
-		fields[i] = jsonizePath(rc.model, rc.substituteRelatedInPath(field))
+		relPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
+		res[relPath] = field
+		fields[i] = relPath
 	}
-	return rc.addIntermediatePaths(fields)
+	fields = rc.addIntermediatePaths(fields)
+	return fields, res
 }
 
 // addIntermediatePaths adds the paths that compose fields and returns a new slice.

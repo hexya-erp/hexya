@@ -604,7 +604,7 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 	fields = filterOnAuthorizedFields(rSet.model, rSet.env.uid, fields, security.Read)
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
 	rSet.applyContexts()
-	subFields := rSet.substituteRelatedFields(fields)
+	subFields, _ := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields)
 	sql, args := rSet.query.selectQuery(dbFields)
@@ -796,7 +796,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 	}
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
 	fields := filterOnAuthorizedFields(rSet.model, rSet.env.uid, convertToStringSlice(fieldNames), security.Read)
-	subFields := rSet.substituteRelatedFields(fields)
+	subFields, substMap := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields, true)
 
@@ -817,6 +817,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 		}
 		cnt := vals["__count"].(int64)
 		delete(vals, "__count")
+		vals = substituteKeys(vals, substMap)
 		line := GroupAggregateRow{
 			Values:    vals,
 			Count:     int(cnt),
