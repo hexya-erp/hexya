@@ -135,6 +135,21 @@ func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 // are not in fMap. If requiredOnly is true, default
 // value is set only if the field is required (and not in fMap).
 func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
+	// 1. Create a map with default values from context
+	ctxDefaults := make(FieldMap)
+	for ctxKey, ctxValue := range rc.env.context.ToMap() {
+		if !strings.HasPrefix(ctxKey, "default_") {
+			continue
+		}
+		fJSON := strings.TrimPrefix(ctxKey, "default_")
+		if _, exists := rc.model.fields.Get(fJSON); !exists {
+			log.Warn("Unknown field", "model", rc.ModelName(), "field", fJSON)
+			continue
+		}
+		ctxDefaults[fJSON] = ctxValue
+	}
+
+	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
 		if fi.defaultFunc == nil {
 			continue
@@ -142,8 +157,14 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 		if !fi.isSettable() {
 			continue
 		}
+
 		if _, ok := (*fMap)[fName]; !ok {
 			if fi.required || !requiredOnly {
+				val, exists := ctxDefaults[fName]
+				if exists {
+					(*fMap)[fName] = val
+					continue
+				}
 				(*fMap)[fName] = fi.defaultFunc(rc.Env())
 			}
 		}
@@ -808,7 +829,6 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 
 // fieldsGroupOperators returns a map of fields to retrieve in a group by query.
 // The returned map has a field as key, and sql aggregate function as value.
-// it also includes 'field_count' for grouped fields
 func (rc *RecordCollection) fieldsGroupOperators(fields []string) map[string]string {
 	groups := make(map[string]bool)
 	for _, g := range rc.query.groups {

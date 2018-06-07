@@ -348,7 +348,7 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 	groupSQL := q.sqlGroupByClause()
 	orderSQL := q.sqlOrderByClause()
 	limitSQL := q.sqlLimitOffsetClause()
-	selQuery := fmt.Sprintf(`SELECT DISTINCT %s FROM %s %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
+	selQuery := fmt.Sprintf(`SELECT %s FROM %s %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
 	selQuery = strutils.Substitute(selQuery, joinsMap)
 	return selQuery, args
 }
@@ -424,6 +424,10 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]string, fields map[string]string) 
 		aggFnct := fields[strings.Join(exprs, ExprSep)]
 		joins := q.generateTableJoins(exprs)
 		lastJoin := joins[len(joins)-1]
+		if aggFnct == "" {
+			fStr[i] = fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
+			continue
+		}
 		fStr[i] = fmt.Sprintf("%s(%s.%s) AS %s", aggFnct, lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
 	}
 	fStr[len(fieldExprs)] = "count(1) AS __count"
@@ -602,6 +606,15 @@ func (q *Query) substituteConditionExprs(substMap map[string][]string) {
 			}
 		}
 	}
+	for i, group := range q.groups {
+		jsonPath := jsonizePath(q.recordSet.model, group)
+		for k, v := range substMap {
+			if jsonPath == k {
+				q.groups[i] = strings.Replace(q.groups[i], group, strings.Join(v, ExprSep), -1)
+				break
+			}
+		}
+	}
 }
 
 // evaluateConditionArgFunctions evaluates all args in the queries that are functions and
@@ -625,7 +638,8 @@ func (q *Query) evaluateConditionArgFunctions(p predicate) interface{} {
 // getAllExpressions returns all expressions used in this query,
 // both in the condition and the order by clause.
 func (q *Query) getAllExpressions() [][]string {
-	return append(q.getOrderByExpressions(), q.cond.getAllExpressions(q.recordSet.model)...)
+	return append(q.getOrderByExpressions(),
+		append(q.getGroupByExpressions(), q.cond.getAllExpressions(q.recordSet.model)...)...)
 }
 
 // getOrderByExpressions returns all expressions used in order by clause of this query.
@@ -640,6 +654,16 @@ func (q *Query) getOrderByExpressions() [][]string {
 		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
 		exprs = append(exprs, oExprs)
+	}
+	return exprs
+}
+
+// getGroupByExpressions returns all expressions used in group by clause of this query.
+func (q *Query) getGroupByExpressions() [][]string {
+	var exprs [][]string
+	for _, group := range q.groups {
+		gExprs := jsonizeExpr(q.recordSet.model, strings.Split(group, ExprSep))
+		exprs = append(exprs, gExprs)
 	}
 	return exprs
 }

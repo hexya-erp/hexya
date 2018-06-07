@@ -17,7 +17,6 @@ package models
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
@@ -273,17 +272,6 @@ func declareRecordSetMethods() {
 			res := make(FieldMap)
 			rc.applyDefaults(&res, false)
 			rc.model.convertValuesToFieldType(&res)
-			for ctxKey, ctxValue := range rc.env.context.ToMap() {
-				if !strings.HasPrefix(ctxKey, "default_") {
-					continue
-				}
-				fJSON := strings.TrimPrefix(ctxKey, "default_")
-				if _, exists := rc.model.fields.Get(fJSON); !exists {
-					log.Warn("Called DefaultGet with unknown field", "model", rc.ModelName(), "field", fJSON)
-					continue
-				}
-				res.Set(fJSON, ctxValue, rc.model)
-			}
 			return res
 		})
 }
