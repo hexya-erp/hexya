@@ -189,15 +189,15 @@ func (q *Query) sqlLimitOffsetClause() string {
 	return res
 }
 
-// sqlOrderByClause returns the sql string for the ORDER BY clause
-// of this Query
-func (q *Query) sqlOrderByClause() string {
-	var fExprs [][]string
+// prepareOrderByExprs returns the 'orders' of this query as an expressions slice on
+// the one side and a slice of directions (ASC or DESC) on the other side.
+func (q *Query) prepareOrderByExprs() ([][]string, []string) {
+	fExprs := make([][]string, len(q.orders)+len(q.ctxOrders))
 	directions := make([]string, len(q.orders)+len(q.ctxOrders))
 	for i, order := range q.orders {
 		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
-		fExprs = append(fExprs, oExprs)
+		fExprs[i] = oExprs
 		if len(fieldOrder) > 1 {
 			directions[i] = fieldOrder[1]
 		}
@@ -205,15 +205,41 @@ func (q *Query) sqlOrderByClause() string {
 	for i, order := range q.ctxOrders {
 		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
-		fExprs = append(fExprs, oExprs)
+		fExprs[len(q.orders)+i] = oExprs
 		if len(fieldOrder) > 1 {
 			directions[len(q.orders)+i] = fieldOrder[1]
 		}
 	}
+	return fExprs, directions
+}
+
+// sqlOrderByClause returns the sql string for the ORDER BY clause
+// of this Query
+func (q *Query) sqlOrderByClause() string {
+	fExprs, directions := q.prepareOrderByExprs()
 	resSlice := make([]string, len(q.orders)+len(q.ctxOrders))
 	for i, field := range fExprs {
 		resSlice[i] = q.joinedFieldExpression(field)
 		resSlice[i] += fmt.Sprintf(" %s", directions[i])
+	}
+	if len(resSlice) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("ORDER BY %s", strings.Join(resSlice, ", "))
+}
+
+// sqlOrderByClauseForGroupBy returns the sql string for the ORDER BY clause
+// of this Query, which should be a group by clause.
+func (q *Query) sqlOrderByClauseForGroupBy(aggFncts map[string]string) string {
+	fExprs, directions := q.prepareOrderByExprs()
+	resSlice := make([]string, len(q.orders)+len(q.ctxOrders))
+	for i, field := range fExprs {
+		aggFnct := aggFncts[strings.Join(field, ExprSep)]
+		if aggFnct == "" {
+			resSlice[i] = fmt.Sprintf("%s %s", q.joinedFieldExpression(field), directions[i])
+			continue
+		}
+		resSlice[i] = fmt.Sprintf("%s(%s) %s", aggFnct, q.joinedFieldExpression(field), directions[i])
 	}
 	if len(resSlice) == 0 {
 		return ""
@@ -325,7 +351,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 //
 // fields keys are a dot-separated expression pointing at the field, either
 // as names or columns (e.g. 'User.Name' or 'user_id.name').
-// fields values are
+// fields values are the SQL aggregate function to use for the field or ""
 func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 	if len(q.groups) == 0 {
 		log.Panic("Calling selectGroupQuery on a query without Group By clause")
@@ -346,7 +372,7 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 	whereSQL, args := q.sqlWhereClause()
 	// Group by clause
 	groupSQL := q.sqlGroupByClause()
-	orderSQL := q.sqlOrderByClause()
+	orderSQL := q.sqlOrderByClauseForGroupBy(fields)
 	limitSQL := q.sqlLimitOffsetClause()
 	selQuery := fmt.Sprintf(`SELECT %s FROM %s %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
 	selQuery = strutils.Substitute(selQuery, joinsMap)
@@ -418,10 +444,10 @@ func (q *Query) fieldsSQL(fieldExprs [][]string) string {
 // in a select query with a GROUP BY clause.
 // Parameter must be with the following format (column names):
 // [['user_id', 'name'] ['id'] ['profile_id', 'age']]
-func (q *Query) fieldsGroupSQL(fieldExprs [][]string, fields map[string]string) string {
+func (q *Query) fieldsGroupSQL(fieldExprs [][]string, aggFncts map[string]string) string {
 	fStr := make([]string, len(fieldExprs)+1)
 	for i, exprs := range fieldExprs {
-		aggFnct := fields[strings.Join(exprs, ExprSep)]
+		aggFnct := aggFncts[strings.Join(exprs, ExprSep)]
 		joins := q.generateTableJoins(exprs)
 		lastJoin := joins[len(joins)-1]
 		if aggFnct == "" {

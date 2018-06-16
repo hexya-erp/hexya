@@ -800,9 +800,8 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields, true)
 
-	if len(rSet.query.orders) == 0 {
-		rSet = rSet.OrderBy(rSet.query.groups...)
-	}
+	rSet = rSet.fixGroupByOrders(subFields...)
+
 	fieldsOperatorMap := rSet.fieldsGroupOperators(dbFields)
 	sql, args := rSet.query.selectGroupQuery(fieldsOperatorMap)
 	var res []GroupAggregateRow
@@ -826,6 +825,35 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 		res = append(res, line)
 	}
 	return res
+}
+
+// fixGroupByOrders adds order by expressions to group by clause to have a correct query.
+// It also adds a default order to the grouped fields if it does not exist.
+func (rc *RecordCollection) fixGroupByOrders(fieldNames ...string) *RecordCollection {
+	rSet := rc
+	orderExprs := rc.query.getOrderByExpressions()
+	groupExprs := rc.query.getGroupByExpressions()
+	groupFields := make(map[string]bool)
+	for _, g := range groupExprs {
+		groupFields[strings.Join(g, ExprSep)] = true
+	}
+	fieldsMap := make(map[string]bool)
+	for _, f := range fieldNames {
+		fieldsMap[f] = true
+	}
+	fmt.Println("groups", groupFields)
+	fmt.Println("fields", fieldsMap)
+	fmt.Println("orders", orderExprs)
+	for _, o := range orderExprs {
+		oName := strings.Join(jsonizeExpr(rc.model, o), ExprSep)
+		if !groupFields[oName] && !fieldsMap[oName] {
+			rSet = rSet.GroupBy(FieldName(oName))
+		}
+	}
+	if len(rc.query.orders) == 0 {
+		rSet = rSet.OrderBy(rSet.query.groups...)
+	}
+	return rSet
 }
 
 // fieldsGroupOperators returns a map of fields to retrieve in a group by query.

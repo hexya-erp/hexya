@@ -316,15 +316,17 @@ func getGroupCondition(groups []string, vals map[string]interface{}, initialCond
 	return res
 }
 
-// substituteKeys returns a new map with its keys substituted following substMap after changing sqlSep into ExprSep
+// substituteKeys returns a new map with its keys substituted following substMap after changing sqlSep into ExprSep.
+// vals keys that are not found in substMap are not returned
 func substituteKeys(vals map[string]interface{}, substMap map[string]string) map[string]interface{} {
-	res := make(FieldMap, len(vals))
+	res := make(FieldMap)
 	for f, v := range vals {
 		k := strings.Replace(f, sqlSep, ExprSep, -1)
-		if sk, ok := substMap[k]; ok {
-			k = sk
+		sk, ok := substMap[k]
+		if !ok {
+			continue
 		}
-		res[k] = v
+		res[sk] = v
 	}
 	return res
 }
