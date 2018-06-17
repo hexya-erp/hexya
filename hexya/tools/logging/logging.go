@@ -63,10 +63,10 @@ func (l *Logger) New(ctx ...interface{}) *Logger {
 // Panic logs as an error the given message and context and then panics.
 func (l *Logger) Panic(msg string, ctx ...interface{}) {
 	pc, _, _, _ := runtime.Caller(1)
-	ctx = append(ctx, "caller", string(function(pc)))
-	l.Error(msg, ctx...)
+	ctxt := append(ctx, "caller", string(function(pc)))
+	l.Error(msg, ctxt...)
 
-	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctx)
+	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctxt)
 	panic(exceptions.UserError{
 		Message: msg,
 		Debug:   fullMsg,
