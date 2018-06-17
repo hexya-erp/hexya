@@ -166,10 +166,29 @@ func declareCRUDMethods() {
 		It panics if rs is not a singleton`,
 		func(rc *RecordCollection, overrides FieldMapper, fieldsToUnset ...FieldNamer) *RecordCollection {
 			rc.EnsureOne()
+			if overrides == nil {
+				overrides = make(FieldMap)
+			}
 
+			// Prevent infinite recursion if we have circular references
+			if !rc.Env().Context().HasKey("__copy_data_seen") {
+				rc = rc.WithContext("__copy_data_seen", map[string]bool{})
+			}
+			seenMap := rc.Env().Context().Get("__copy_data_seen").(map[string]bool)
+			if seenMap[fmt.Sprintf("%s,%d", rc.ModelName(), rc.Ids()[0])] {
+				return rc.env.Pool(rc.ModelName())
+			}
+			seenMap[fmt.Sprintf("%s,%d", rc.ModelName(), rc.Ids()[0])] = true
+			rc = rc.WithContext("__copy_data_seen", seenMap)
+
+			// Create a slice of fields to copy directly
 			var fields []string
 			for _, fi := range rc.model.fields.registryByName {
-				if fi.noCopy || fi.fieldType.IsReverseRelationType() || fi.isComputedField() {
+				if fi.noCopy || fi.isComputedField() {
+					continue
+				}
+				if fi.fieldType == fieldtype.One2One || fi.fieldType.IsReverseRelationType() {
+					// These fields will be copied after duplication
 					continue
 				}
 				fields = append(fields, fi.json)
@@ -185,10 +204,26 @@ func declareCRUDMethods() {
 			fMap.MergeWith(overrides.FieldMap(fieldsToUnset...), rc.model)
 			// Reload original record to prevent cache discrepancies
 			rc.Load()
+
+			// Create our duplicated record
 			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", fMap).(RecordSet).Collection()
+
+			// Duplicate one2one and one2many records
+			for _, fi := range rc.model.fields.registryByName {
+				if _, inOverrides := overrides.FieldMap(fieldsToUnset...).Get(fi.name, rc.model); inOverrides {
+					continue
+				}
+				switch fi.fieldType {
+				case fieldtype.One2One:
+					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
+				case fieldtype.One2Many:
+					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
+						rec.Call("Copy", FieldMap{fi.reverseFK: newRs.Ids()[0]})
+					}
+				}
+			}
 			return newRs
 		})
-
 }
 
 // declareRecordSetMethods declares general RecordSet methods

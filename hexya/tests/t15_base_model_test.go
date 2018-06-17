@@ -28,7 +28,7 @@ func TestBaseModelMethods(t *testing.T) {
 				So(userJaneCopy.Password(), ShouldBeBlank)
 				So(userJaneCopy.Age(), ShouldEqual, 24)
 				So(userJaneCopy.Nums(), ShouldEqual, 2)
-				So(userJaneCopy.Posts().Len(), ShouldEqual, 0)
+				So(userJaneCopy.Posts().Len(), ShouldEqual, 2)
 			})
 			Convey("Sorted", func() {
 				for i := 0; i < 20; i++ {

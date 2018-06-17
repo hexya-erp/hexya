@@ -185,6 +185,8 @@ type RecordSet interface {
 	Len() int
 	// IsEmpty returns true if this RecordSet has no records
 	IsEmpty() bool
+	// Call executes the given method (as string) with the given arguments
+	Call(string, ...interface{}) interface{}
 	// Collection returns the underlying RecordCollection instance
 	Collection() *RecordCollection
 }
