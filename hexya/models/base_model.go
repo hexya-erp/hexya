@@ -17,6 +17,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
@@ -166,8 +167,13 @@ func declareCRUDMethods() {
 		It panics if rs is not a singleton`,
 		func(rc *RecordCollection, overrides FieldMapper, fieldsToUnset ...FieldNamer) *RecordCollection {
 			rc.EnsureOne()
-			if overrides == nil {
-				overrides = make(FieldMap)
+			oVal := reflect.ValueOf(overrides)
+			if oVal.IsNil() {
+				overr := make(FieldMap)
+				for _, f := range fieldsToUnset {
+					overr[f.String()] = nil
+				}
+				overrides = overr
 			}
 
 			// Prevent infinite recursion if we have circular references
