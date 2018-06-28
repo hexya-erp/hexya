@@ -240,9 +240,6 @@ func declareRecordSetMethods() {
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc *RecordCollection) string {
 			if _, nameExists := rc.model.fields.Get("Name"); nameExists {
-				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}, rc.query.ctxArgsSlug(), false) {
-					rc.Load("Name")
-				}
 				switch name := rc.Get("Name").(type) {
 				case string:
 					return name

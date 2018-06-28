@@ -842,9 +842,6 @@ func (rc *RecordCollection) fixGroupByOrders(fieldNames ...string) *RecordCollec
 	for _, f := range fieldNames {
 		fieldsMap[f] = true
 	}
-	fmt.Println("groups", groupFields)
-	fmt.Println("fields", fieldsMap)
-	fmt.Println("orders", orderExprs)
 	for _, o := range orderExprs {
 		oName := strings.Join(jsonizeExpr(rc.model, o), ExprSep)
 		if !groupFields[oName] && !fieldsMap[oName] {
