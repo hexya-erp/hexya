@@ -148,7 +148,7 @@ func allMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         "All",
 		ParamsTypes:  "",
-		ReturnString: fmt.Sprintf("[]%sData", modelData.Name),
+		ReturnString: fmt.Sprintf("[]*%sData", modelData.Name),
 	})
 }
 
@@ -784,14 +784,10 @@ func (s {{ .Name }}Set) First() {{ .Name }}Data {
 
 // All Returns a copy of all records of the RecordCollection.
 // It returns an empty slice if the RecordSet is empty.
-func (s {{ .Name }}Set) All() []{{ .Name }}Data {
+func (s {{ .Name }}Set) All() []*{{ .Name }}Data {
 	var ptrSlice []*{{ .Name }}Data
 	s.RecordCollection.All(&ptrSlice)
-	res := make([]{{ .Name }}Data, len(ptrSlice))
-	for i, ps := range ptrSlice {
-		res[i] = *ps
-	}
-	return res
+	return ptrSlice
 }
 
 // Records returns a slice with all the records of this RecordSet, as singleton

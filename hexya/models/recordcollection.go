@@ -387,7 +387,8 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 			ref, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, rc.query.ctxArgsSlug())
 			if err != nil {
 				// Record does not exist, we create it on the fly instead of updating
-				rc.createRelatedRecord(prefix, vals)
+				nr := rc.createRelatedRecord(prefix, vals)
+				rc.env.cache.setX2MValue(cacheRef{model: rc.model, id: rc.ids[0]}, prefix, nr.Ids()[0], rc.query.ctxArgsSlug())
 				createdPaths[prefix] = true
 				continue
 			}
@@ -413,7 +414,7 @@ func (rc *RecordCollection) loadRelatedRecords(fields []string) {
 		if len(exprs) <= 1 {
 			continue
 		}
-		if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{field}, rc.query.ctxArgsSlug()) {
+		if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{field}, rc.query.ctxArgsSlug(), true) {
 			toLoad = append(toLoad, field)
 		}
 	}
@@ -677,7 +678,7 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 		fMap := make(FieldMap)
 		rc.computeFieldValues(&fMap, fi.json)
 		res = fMap[fi.json]
-	case fi.isRelatedField() && !fi.isStored():
+	case fi.isRelatedField():
 		res, _ = rc.get(fi.relatedPath, false)
 	default:
 		// If value is not in cache we fetch the whole model to speed up later calls to Get,
@@ -717,7 +718,7 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 	rc.Fetch()
 	var dbCalled bool
-	if !rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}, rc.query.ctxArgsSlug()) {
+	if !rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}, rc.query.ctxArgsSlug(), false) {
 		if !all {
 			rc.Load(field)
 		} else {

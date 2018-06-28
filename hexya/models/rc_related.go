@@ -130,7 +130,7 @@ func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 
 // createRelatedRecord creates Records at the given path, starting from this recordset.
 // This method does not check whether such a records already exists or not.
-func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) {
+func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *RecordCollection {
 	log.Debug("Creating related record", "recordset", rc, "path", path, "vals", vals)
 	rc.EnsureOne()
 	fi := rc.model.getRelatedFieldInfo(path)
@@ -139,9 +139,11 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) {
 	case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
 		// We do not call "create" directly to have the caller set in the callstack for permissions
 		res := rc.env.Pool(fi.relatedModel.name).Call("Create", vals)
-		if resRS, ok := res.(RecordSet); ok {
+		resRS, ok := res.(RecordSet)
+		if ok {
 			rc.Set(path, resRS.Collection())
 		}
+		return resRS.Collection()
 	case fieldtype.One2Many, fieldtype.Rev2One:
 		// We do not call "create" directly to have the caller set in the callstack for permissions
 		target := rc
@@ -153,6 +155,7 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) {
 			target = target.Records()[0]
 		}
 		vals[fi.jsonReverseFK] = target
-		rc.env.Pool(fi.relatedModel.name).Call("Create", vals)
+		return rc.env.Pool(fi.relatedModel.name).Call("Create", vals).(RecordSet).Collection()
 	}
+	return rc.env.Pool(rc.ModelName())
 }

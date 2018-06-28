@@ -245,7 +245,7 @@ func (c *cache) invalidateRecord(mi *Model, id int64) {
 
 // removeEntry removes the given entry from cache
 func (c *cache) removeEntry(mi *Model, id int64, fieldName, ctxSlug string) {
-	if !c.checkIfInCache(mi, []int64{id}, []string{fieldName}, ctxSlug) {
+	if !c.checkIfInCache(mi, []int64{id}, []string{fieldName}, ctxSlug, true) {
 		return
 	}
 	c.deleteFieldData(cacheRef{model: mi, id: id}, fieldName)
@@ -310,13 +310,13 @@ func (c *cache) getRecord(model *Model, id int64, ctxSlug string) FieldMap {
 
 // checkIfInCache returns true if all fields given by fieldNames are available
 // in cache for all the records with the given ids in the given model.
-func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string, ctxSlug string) bool {
+func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string, ctxSlug string, strict bool) bool {
 	if len(ids) == 0 {
 		return false
 	}
 	for _, id := range ids {
 		for _, fName := range fieldNames {
-			if !c.isInCache(mi, id, fName, ctxSlug) {
+			if !c.isInCache(mi, id, fName, ctxSlug, strict) {
 				return false
 			}
 		}
@@ -326,8 +326,8 @@ func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string, ctxS
 
 // isInCache returns true if the related record through path and ctxSlug strictly exists
 // (i.e. no default value for context)
-func (c *cache) isInCache(mi *Model, id int64, path string, ctxSlug string) bool {
-	ref, path, err := c.getStrictRelatedRef(mi, id, path, ctxSlug)
+func (c *cache) isInCache(mi *Model, id int64, path string, ctxSlug string, strict bool) bool {
+	ref, path, err := c.getRelatedRefCommon(mi, id, path, ctxSlug, strict)
 	if err != nil {
 		return false
 	}

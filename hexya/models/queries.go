@@ -161,8 +161,16 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		switch p.operator {
 		case operator.Equals:
 			sql = fmt.Sprintf(`%s IS NULL`, field)
+			if !fi.isRelationField() {
+				sql += fmt.Sprintf(` OR %s = ?`, field)
+				args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
+			}
 		case operator.NotEquals:
 			sql = fmt.Sprintf(`%s IS NOT NULL`, field)
+			if !fi.isRelationField() {
+				sql += fmt.Sprintf(` OR %s != ?`, field)
+				args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
+			}
 		default:
 			log.Panic("Null argument can only be used with = and != operators", "operator", p.operator)
 		}

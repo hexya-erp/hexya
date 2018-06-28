@@ -103,7 +103,7 @@ func (fc *FieldsCollection) storedFieldNames(fieldNames ...string) []string {
 				}
 			}
 		}
-		if fi.isStored() && keepField {
+		if (fi.isStored() || fi.isRelatedField()) && keepField {
 			res = append(res, fName)
 		}
 	}
