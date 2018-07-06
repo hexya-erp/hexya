@@ -227,14 +227,23 @@ func (d *postgresAdapter) constraints(pattern string) []string {
 }
 
 // createSequence creates a DB sequence with the given name
-func (d *postgresAdapter) createSequence(name string) {
-	query := fmt.Sprintf("CREATE SEQUENCE %s", name)
+func (d *postgresAdapter) createSequence(name string, increment, start int64) {
+	query := fmt.Sprintf("CREATE SEQUENCE %s INCREMENT BY %d START WITH %d", name, increment, start)
 	dbExecuteNoTx(query)
 }
 
 // dropSequence drops the DB sequence with the given name
 func (d *postgresAdapter) dropSequence(name string) {
 	query := fmt.Sprintf("DROP SEQUENCE IF EXISTS %s", name)
+	dbExecuteNoTx(query)
+}
+
+// alterSequence modifies the DB sequence given by name
+func (d *postgresAdapter) alterSequence(name string, increment, restart int64) {
+	if increment == 0 {
+		log.Panic("Increment must not be zero", "sequenceName", name)
+	}
+	query := fmt.Sprintf(`ALTER SEQUENCE %s INCREMENT BY %d RESTART WITH %d`, name, increment, restart)
 	dbExecuteNoTx(query)
 }
 

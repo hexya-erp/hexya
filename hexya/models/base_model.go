@@ -72,7 +72,7 @@ func declareBaseMixin() {
 }
 
 func declareModelMixin() {
-	idSeq := NewSequence("HexyaExternalID")
+	idSeq := CreateSequence("HexyaExternalID", 1, 1)
 
 	modelMixin := NewMixinModel("ModelMixin")
 	modelMixin.AddFields(map[string]FieldDefinition{

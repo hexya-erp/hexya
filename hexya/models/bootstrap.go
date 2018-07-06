@@ -414,12 +414,14 @@ func buildSQLErrorSubstitutionMap(model *Model) {
 	}
 }
 
-// updateDBSequences synchronizes sequences between the DB
-// and the registry.
+// updateDBSequences creates sequences in the DB from data in the registry.
 func updateDBSequences() {
 	adapter := adapters[db.DriverName()]
-	// Create sequences
+	// Create or alter boot sequences
 	for _, sequence := range Registry.sequences {
+		if !sequence.boot {
+			continue
+		}
 		exists := false
 		for _, dbSeq := range adapter.sequences("%_manseq") {
 			if sequence.JSON == dbSeq {
@@ -427,14 +429,16 @@ func updateDBSequences() {
 			}
 		}
 		if !exists {
-			adapter.createSequence(sequence.JSON)
+			adapter.createSequence(sequence.JSON, sequence.Increment, sequence.Start)
+			continue
 		}
+		adapter.alterSequence(sequence.JSON, sequence.Increment, sequence.Start)
 	}
 	// Drop unused sequences
 	for _, dbSeq := range adapter.sequences("%_manseq") {
 		var sequenceExists bool
 		for _, sequence := range Registry.sequences {
-			if sequence.JSON != dbSeq {
+			if sequence.JSON != dbSeq || !sequence.boot {
 				continue
 			}
 			sequenceExists = true

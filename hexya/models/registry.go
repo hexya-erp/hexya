@@ -569,20 +569,78 @@ func createModel(name string, options Option) *Model {
 }
 
 // A Sequence holds the metadata of a DB sequence
+//
+// There are two types of sequences: those created before bootstrap
+// and those created after. The former will be created and updated at
+// bootstrap and cannot be modified afterwards. The latter will be
+// created, updated or dropped immediately.
 type Sequence struct {
-	Name string
-	JSON string
+	Name      string
+	JSON      string
+	Increment int64
+	Start     int64
+	boot      bool
 }
 
-// NewSequence creates a new Sequence and returns a pointer to it
-func NewSequence(name string) *Sequence {
+// CreateSequence creates a new Sequence in the database and returns a pointer to it
+func CreateSequence(name string, increment, start int64) *Sequence {
+	var boot bool
+	if !Registry.bootstrapped {
+		boot = true
+	}
 	json := fmt.Sprintf("%s_manseq", strutils.SnakeCaseString(name))
 	seq := &Sequence{
-		Name: name,
-		JSON: json,
+		Name:      name,
+		JSON:      json,
+		Increment: increment,
+		Start:     start,
+		boot:      boot,
 	}
+	Registry.Lock()
+	defer Registry.Unlock()
 	Registry.sequences[name] = seq
+	if !boot {
+		// Create the sequence on the fly if we already bootstrapped.
+		// Otherwise, this will be done in Bootstrap
+		adapters[db.DriverName()].createSequence(seq.JSON, seq.Increment, seq.Start)
+	}
 	return seq
+}
+
+// DropSequence drops this sequence and removes it from the database
+func (s *Sequence) Drop() {
+	Registry.Lock()
+	defer Registry.Unlock()
+	delete(Registry.sequences, s.Name)
+	if Registry.bootstrapped {
+		// Drop the sequence on the fly if we already bootstrapped.
+		// Otherwise, this will be done in Bootstrap
+		if s.boot {
+			log.Panic("Boot Sequences cannot be dropped after bootstrap")
+		}
+		adapters[db.DriverName()].dropSequence(s.JSON)
+	}
+}
+
+// Alter alters this sequence by changing next number and/or increment.
+// Set a parameter to 0 to leave it unchanged.
+func (s *Sequence) Alter(increment, restart int64) {
+	var boot bool
+	if !Registry.bootstrapped {
+		boot = true
+	}
+	if s.boot && !boot {
+		log.Panic("Boot Sequences cannot be modified after bootstrap")
+	}
+	if restart > 0 {
+		s.Start = restart
+	}
+	if increment > 0 {
+		s.Increment = increment
+	}
+	if !boot {
+		adapters[db.DriverName()].alterSequence(s.JSON, increment, restart)
+	}
 }
 
 // NextValue returns the next value of this Sequence

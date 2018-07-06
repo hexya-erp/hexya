@@ -78,9 +78,11 @@ type dbAdapter interface {
 	// level to serializable
 	setTransactionIsolation() string
 	// createSequence creates a DB sequence with the given name
-	createSequence(name string)
+	createSequence(name string, increment, start int64)
 	// dropSequence drop the DB sequence with the given name
 	dropSequence(name string)
+	// alterSequence modifies the DB sequence given by name
+	alterSequence(name string, increment, restart int64)
 	// nextSequenceValue returns the next value of the given given sequence
 	nextSequenceValue(name string) int64
 	// sequences returns a list of all sequences matching the given SQL pattern
