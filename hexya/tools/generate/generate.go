@@ -318,7 +318,7 @@ func CreatePool(program *loader.Program, dir string) {
 			depsMap := map[string]bool{ModelsPath: true}
 			mData := modelData{
 				Name:              modelName,
-				SnakeName:         strutils.SnakeCaseString(modelName),
+				SnakeName:         strutils.SnakeCase(modelName),
 				ModelsPackageName: PoolModelPackage,
 				QueryPackageName:  PoolQueryPackage,
 				ModelType:         modelASTData.ModelType,
@@ -434,7 +434,7 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 			relModels[fieldASTData.RelModel] = true
 			typStr = fmt.Sprintf("%sSet", fieldASTData.RelModel)
 		}
-		jsonName := strutils.GetDefaultString(fieldASTData.JSON, strutils.SnakeCaseString(fieldName))
+		jsonName := strutils.GetDefaultString(fieldASTData.JSON, strutils.SnakeCase(fieldName))
 		modelData.Fields = append(modelData.Fields, fieldData{
 			Name:       fieldName,
 			JSON:       jsonName,

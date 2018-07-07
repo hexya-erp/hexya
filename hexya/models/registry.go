@@ -542,7 +542,7 @@ func createModel(name string, options Option) *Model {
 		options:        options,
 		acl:            security.NewAccessControlList(),
 		rulesRegistry:  newRecordRuleRegistry(),
-		tableName:      strutils.SnakeCaseString(name),
+		tableName:      strutils.SnakeCase(name),
 		fields:         newFieldsCollection(),
 		methods:        newMethodsCollection(),
 		sqlConstraints: make(map[string]sqlConstraint),
@@ -588,7 +588,7 @@ func CreateSequence(name string, increment, start int64) *Sequence {
 	if !Registry.bootstrapped {
 		boot = true
 	}
-	json := fmt.Sprintf("%s_manseq", strutils.SnakeCaseString(name))
+	json := fmt.Sprintf("%s_manseq", strutils.SnakeCase(name))
 	seq := &Sequence{
 		Name:      name,
 		JSON:      json,

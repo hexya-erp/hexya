@@ -302,7 +302,7 @@ func checkFieldInfo(fi *Field) {
 // jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
 func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
-	res := strutils.SnakeCaseString(fName)
+	res := strutils.SnakeCase(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"
 	} else if typ.Is2ManyRelationType() {
@@ -333,7 +333,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	newMI := &Model{
 		name:         relModelName,
 		acl:          security.NewAccessControlList(),
-		tableName:    strutils.SnakeCaseString(relModelName),
+		tableName:    strutils.SnakeCase(relModelName),
 		fields:       newFieldsCollection(),
 		methods:      newMethodsCollection(),
 		options:      Many2ManyLinkModel | SystemModel,
@@ -345,7 +345,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	}
 	ourField := &Field{
 		name:             field1,
-		json:             strutils.SnakeCaseString(field1) + "_id",
+		json:             strutils.SnakeCase(field1) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
@@ -363,7 +363,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 
 	theirField := &Field{
 		name:             field2,
-		json:             strutils.SnakeCaseString(field2) + "_id",
+		json:             strutils.SnakeCase(field2) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
@@ -392,7 +392,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		name:          name,
 		acl:           fi.model.acl,
 		rulesRegistry: newRecordRuleRegistry(),
-		tableName:     strutils.SnakeCaseString(name),
+		tableName:     strutils.SnakeCase(name),
 		fields:        newFieldsCollection(),
 		methods:       newMethodsCollection(),
 		options:       ContextsModel | SystemModel,
@@ -449,7 +449,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	for ctName := range contexts {
 		ctField := &Field{
 			name:      ctName,
-			json:      strutils.SnakeCaseString(ctName),
+			json:      strutils.SnakeCase(ctName),
 			acl:       security.NewAccessControlList(),
 			model:     &newModel,
 			noCopy:    true,

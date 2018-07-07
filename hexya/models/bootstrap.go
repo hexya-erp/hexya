@@ -303,7 +303,7 @@ func inflateContexts() {
 			fieldName := fmt.Sprintf("%sHexyaContexts", fi.name)
 			o2mField := &Field{
 				name:             fieldName,
-				json:             strutils.SnakeCaseString(fieldName),
+				json:             strutils.SnakeCase(fieldName),
 				acl:              security.NewAccessControlList(),
 				model:            mi,
 				fieldType:        fieldtype.One2Many,

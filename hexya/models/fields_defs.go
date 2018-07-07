@@ -683,7 +683,7 @@ func getJSONAndString(name string, typ fieldtype.Type, json, str string) (string
 		json = snakeCaseFieldName(name, typ)
 	}
 	if str == "" {
-		str = strutils.TitleString(name)
+		str = strutils.Title(name)
 	}
 	return json, str
 }

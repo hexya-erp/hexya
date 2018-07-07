@@ -24,7 +24,7 @@ var log *logging.Logger
 
 func init() {
 	log = logging.GetLogger("models")
-	sqlx.NameMapper = strutils.SnakeCaseString
+	sqlx.NameMapper = strutils.SnakeCase
 	// DB drivers
 	adapters = make(map[string]dbAdapter)
 	registerDBAdapter("postgres", new(postgresAdapter))
