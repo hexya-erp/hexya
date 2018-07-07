@@ -29,6 +29,7 @@ const (
 	ContextSep = "|"
 )
 
+// A predicate of a condition in the form 'Field = arg'
 type predicate struct {
 	exprs    []string
 	operator operator.Operator
@@ -37,6 +38,42 @@ type predicate struct {
 	isOr     bool
 	isNot    bool
 	isCond   bool
+}
+
+// Field returns the field name of this predicate
+func (p predicate) Field() FieldNamer {
+	return FieldName(strings.Join(p.exprs, ExprSep))
+}
+
+// Operator returns the operator of this predicate
+func (p predicate) Operator() operator.Operator {
+	return p.operator
+}
+
+// Argument returns the argument of this predicate
+func (p predicate) Argument() interface{} {
+	return p.arg
+}
+
+// AlterField changes the field of this predicate
+func (p *predicate) AlterField(f FieldNamer) *predicate {
+	if f == nil || f.String() == "" {
+		log.Panic("AlterField must be called with a field name", "field", f)
+	}
+	p.exprs = strings.Split(f.String(), ExprSep)
+	return p
+}
+
+// AlterOperator changes the operator of this predicate
+func (p *predicate) AlterOperator(op operator.Operator) *predicate {
+	p.operator = op
+	return p
+}
+
+// AlterArgument changes the argument of this predicate
+func (p *predicate) AlterArgument(arg interface{}) *predicate {
+	p.arg = arg
+	return p
 }
 
 // A Condition represents a WHERE clause of an SQL query.
@@ -126,19 +163,26 @@ func (c Condition) Serialize() []interface{} {
 
 // HasField returns true if the given field is in at least one of the
 // the predicates of this condition or of one of its nested conditions.
-//
 func (c Condition) HasField(f *Field) bool {
-	for _, pred := range c.predicates {
+	preds := c.PredicatesWithField(f)
+	return len(preds) > 0
+}
+
+// PredicatesWithField returns all predicates of this condition (including
+// nested conditions) that concern the given field.
+func (c Condition) PredicatesWithField(f *Field) []*predicate {
+	var res []*predicate
+	for i, pred := range c.predicates {
 		if len(pred.exprs) > 0 {
 			if strings.Join(jsonizeExpr(f.model, pred.exprs), ExprSep) == f.json {
-				return true
+				res = append(res, &c.predicates[i])
 			}
 		}
-		if pred.cond != nil && pred.cond.HasField(f) {
-			return true
+		if pred.cond != nil {
+			res = append(res, c.predicates[i].cond.PredicatesWithField(f)...)
 		}
 	}
-	return false
+	return res
 }
 
 // String method for the Condition. Recursively print all predicates.
