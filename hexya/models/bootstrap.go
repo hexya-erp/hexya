@@ -289,7 +289,7 @@ func inflateContexts() {
 			contextsModel := createContextsModel(fi, fi.contexts)
 			// We copy execution permission on CRUD methods to the context model
 			for mName := range unauthorizedMethods {
-				origMeth, exists := mi.methods.get(mName)
+				origMeth, exists := mi.methods.Get(mName)
 				if !exists {
 					continue
 				}
@@ -326,7 +326,7 @@ func inflateContexts() {
 
 // runInit runs the Init function of the given model if it exists
 func runInit(model *Model) {
-	if _, exists := model.methods.get("Init"); exists {
+	if _, exists := model.methods.Get("Init"); exists {
 		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			env.Pool(model.name).Call("Init")
 		})
@@ -683,8 +683,8 @@ func bootStrapMethods() {
 // - to "Create" method to call "Write"
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
-		loadMeth, loadExists := model.methods.get("Load")
-		writeMeth, writeExists := model.methods.get("Write")
+		loadMeth, loadExists := model.methods.Get("Load")
+		writeMeth, writeExists := model.methods.Get("Write")
 		for _, meth := range model.methods.registry {
 			meth.AllowGroup(security.GroupAdmin)
 			if loadExists && unauthorizedMethods[meth.name] {
@@ -715,7 +715,7 @@ func checkFieldMethodsExist() {
 				}
 			}
 			if field.inverse != "" {
-				if _, ok := model.methods.get(field.compute); !ok {
+				if _, ok := model.methods.Get(field.compute); !ok {
 					log.Panic("Inverse method must only be set on computed fields", "model", model.name, "field", field.name, "method", field.inverse)
 				}
 				model.methods.MustGet(field.inverse)

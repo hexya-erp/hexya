@@ -37,7 +37,7 @@ func (rc *RecordCollection) Call(methName string, args ...interface{}) interface
 // CallMulti calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as []interface{}.
 func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
-	methInfo, ok := rc.model.methods.get(methName)
+	methInfo, ok := rc.model.methods.Get(methName)
 	if !ok {
 		log.Panic("Unknown method in model", "method", methName, "model", rc.model.name)
 	}
@@ -89,7 +89,7 @@ func (rc *RecordCollection) Super() *RecordCollection {
 
 // MethodType returns the type of the method given by methName
 func (rc *RecordCollection) MethodType(methName string) reflect.Type {
-	methInfo, ok := rc.model.methods.get(methName)
+	methInfo, ok := rc.model.methods.Get(methName)
 	if !ok {
 		log.Panic("Unknown method in model", "model", rc.model.name, "method", methName)
 	}

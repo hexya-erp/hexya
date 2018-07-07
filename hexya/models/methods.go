@@ -36,8 +36,8 @@ type MethodsCollection struct {
 	bootstrapped bool
 }
 
-// get returns the Method with the given method name.
-func (mc *MethodsCollection) get(methodName string) (*Method, bool) {
+// Get returns the Method with the given method name.
+func (mc *MethodsCollection) Get(methodName string) (*Method, bool) {
 	mi, ok := mc.registry[methodName]
 	if !ok {
 		// We didn't find the method, but maybe it exists in mixins
@@ -56,7 +56,7 @@ func (mc *MethodsCollection) get(methodName string) (*Method, bool) {
 // MustGet returns the Method of the given method. It panics if the
 // method is not found.
 func (mc *MethodsCollection) MustGet(methodName string) *Method {
-	methInfo, exists := mc.get(methodName)
+	methInfo, exists := mc.Get(methodName)
 	if !exists {
 		log.Panic("Unknown method in model", "model", mc.model.name, "method", methodName)
 	}
@@ -320,7 +320,7 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 	if m.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
 	}
-	_, exists := m.methods.get(methodName)
+	_, exists := m.methods.Get(methodName)
 	if exists {
 		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
 	}
@@ -431,7 +431,7 @@ func checkTypesMatch(type1, type2 reflect.Type) bool {
 // it found one, false otherwise.
 func (m *Model) findMethodInMixin(methodName string) (*Method, bool) {
 	for _, mixin := range m.mixins {
-		if method, ok := mixin.methods.get(methodName); ok {
+		if method, ok := mixin.methods.Get(methodName); ok {
 			return method, true
 		}
 		if method, ok := mixin.findMethodInMixin(methodName); ok {
