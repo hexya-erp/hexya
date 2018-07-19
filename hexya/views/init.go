@@ -7,6 +7,7 @@ import (
 	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
+	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 )
 
 const maxInheritanceDepth = 100
@@ -21,6 +22,7 @@ func BootStrap() {
 	if !models.BootStrapped() {
 		log.Panic("Models must be bootstrapped before bootstrapping views")
 	}
+	loadModelViews()
 	// Inherit/Extend views
 	for loop := 0; loop < maxInheritanceDepth; loop++ {
 		// First step: we extend all we can with pure extension views (no ID)
@@ -78,6 +80,15 @@ func BootStrap() {
 	for _, v := range Registry.views {
 		log.Debug("Postprocessing view", "viewID", v.ID, "model", v.Model, "Type", v.Type)
 		v.postProcess()
+	}
+}
+
+// loadModelViews load views that have been defined in the models package during bootstrap
+func loadModelViews() {
+	for _, views := range models.Views {
+		for _, view := range views {
+			LoadFromEtree(xmlutils.XMLToElement(view))
+		}
 	}
 }
 

@@ -420,13 +420,16 @@ func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
 		if fInfo.filter != nil {
 			filter = fInfo.filter.Serialize()
 		}
+		_, translate := fInfo.contexts["lang"]
 		res[fInfo.json] = &FieldInfo{
+			Name:       fInfo.name,
+			JSON:       fInfo.json,
 			Help:       fInfo.help,
 			Searchable: true,
 			Depends:    fInfo.depends,
 			Sortable:   true,
 			Type:       fInfo.fieldType,
-			Store:      fInfo.isStored(),
+			Store:      fInfo.isSettable(),
 			String:     fInfo.description,
 			Relation:   relation,
 			Required:   fInfo.required,
@@ -435,6 +438,7 @@ func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
 			ReadOnly:   fInfo.isReadOnly(),
 			ReverseFK:  fInfo.jsonReverseFK,
 			OnChange:   fInfo.onChange != "",
+			Translate:  translate,
 		}
 	}
 	return res

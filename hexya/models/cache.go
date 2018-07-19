@@ -122,6 +122,14 @@ func (c *cache) setX2MValue(ref cacheRef, jsonName string, id int64, ctxSlug str
 		// We don't add the value if the id is the same as the default context
 		return
 	}
+	if ctxSlug == "" {
+		// We are setting the default value, so we remove any other slug with the same target id
+		for k, v := range c.x2mRelated[ref][jsonName] {
+			if k != "" && v == id {
+				delete(c.x2mRelated[ref][jsonName], k)
+			}
+		}
+	}
 	c.x2mRelated[ref][jsonName][ctxSlug] = id
 }
 

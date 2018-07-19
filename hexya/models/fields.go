@@ -40,6 +40,15 @@ const (
 	Cascade OnDeleteAction = "cascade"
 )
 
+type ctxType int
+
+const (
+	ctxNone = iota
+	ctxValue
+	ctxContext
+	ctxFK
+)
+
 // computeData holds data to recompute another field.
 // - model is a pointer to the Model instance to recompute
 // - fieldName is the name of the field to recompute in model.
@@ -208,6 +217,7 @@ type Field struct {
 	inverse          string
 	filter           *Condition
 	contexts         FieldContexts
+	ctxType          ctxType
 	updates          []map[string]interface{}
 }
 
@@ -426,6 +436,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		relatedModel:     fi.model,
 		index:            true,
 		onDelete:         Cascade,
+		ctxType:          ctxFK,
 		structField: reflect.StructField{
 			Name: "Record",
 			Type: reflect.TypeOf(int64(0)),
@@ -441,6 +452,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	valueField.onChange = ""
 	valueField.constraint = ""
 	valueField.contexts = nil
+	valueField.ctxType = ctxValue
 	if valueField.defaultFunc == nil && valueField.required {
 		valueField.defaultFunc = DefaultValue(reflect.Zero(valueField.structField.Type).Interface())
 	}
@@ -455,6 +467,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 			noCopy:    true,
 			fieldType: fieldtype.Char,
 			index:     true,
+			ctxType:   ctxContext,
 			structField: reflect.StructField{
 				Name: ctName,
 				Type: reflect.TypeOf(""),
@@ -463,7 +476,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		newModel.fields.add(ctField)
 	}
 	Registry.add(&newModel)
-	injectMixInModel(Registry.MustGet("CommonMixin"), &newModel)
+	injectMixInModel(Registry.MustGet("BaseMixin"), &newModel)
 	return &newModel
 }
 

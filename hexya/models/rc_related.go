@@ -145,7 +145,6 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *Rec
 		}
 		return resRS.Collection()
 	case fieldtype.One2Many, fieldtype.Rev2One:
-		// We do not call "create" directly to have the caller set in the callstack for permissions
 		target := rc
 		if len(exprs) > 1 {
 			target = rc.Get(strings.Join(exprs[:len(exprs)-1], ExprSep)).(RecordSet).Collection()
@@ -155,6 +154,7 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *Rec
 			target = target.Records()[0]
 		}
 		vals[fi.jsonReverseFK] = target
+		// We do not call "create" directly to have the caller set in the callstack for permissions
 		return rc.env.Pool(fi.relatedModel.name).Call("Create", vals).(RecordSet).Collection()
 	}
 	return rc.env.Pool(rc.ModelName())

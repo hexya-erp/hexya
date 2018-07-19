@@ -603,6 +603,8 @@ type FieldInfo struct {
 	Domain           interface{}            `json:"domain"`
 	OnChange         bool                   `json:"-"`
 	ReverseFK        string                 `json:"-"`
+	Name             string                 `json:"-"`
+	JSON             string                 `json:"-"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method

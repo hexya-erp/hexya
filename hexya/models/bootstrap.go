@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
@@ -287,6 +288,7 @@ func inflateContexts() {
 				continue
 			}
 			contextsModel := createContextsModel(fi, fi.contexts)
+			createContextsTreeView(fi, fi.contexts)
 			// We copy execution permission on CRUD methods to the context model
 			for mName := range unauthorizedMethods {
 				origMeth, exists := mi.methods.Get(mName)
@@ -322,6 +324,28 @@ func inflateContexts() {
 			fi.unique = false
 		}
 	}
+}
+
+// createContextsTreeView creates an editable tree view for the given context model.
+// The created view is added to the Views map which will be processed by the views package at bootstrap.
+func createContextsTreeView(fi *Field, contexts FieldContexts) {
+	arch := strings.Builder{}
+	arch.WriteString("<tree editable=\"bottom\" create=\"false\" delete=\"false\">\n")
+	for ctx := range contexts {
+		arch.WriteString("	<field name=\"")
+		arch.WriteString(ctx)
+		arch.WriteString("\" readonly=\"1\"/>\n")
+	}
+	arch.WriteString(" <field name=\"")
+	arch.WriteString(fi.json)
+	arch.WriteString("\"/>\n")
+	arch.WriteString("</tree>")
+
+	modelName := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
+	view := fmt.Sprintf(`<view id="%s_hexya_contexts_tree" model="%s">
+%s
+</view>`, strutils.SnakeCase(modelName), modelName, arch.String())
+	Views[fi.model] = append(Views[fi.model], view)
 }
 
 // runInit runs the Init function of the given model if it exists

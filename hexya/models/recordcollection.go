@@ -137,7 +137,7 @@ func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 	// 1. Create a map with default values from context
 	ctxDefaults := make(FieldMap)
-	for ctxKey, ctxValue := range rc.env.context.ToMap() {
+	for ctxKey, ctxVal := range rc.env.context.ToMap() {
 		if !strings.HasPrefix(ctxKey, "default_") {
 			continue
 		}
@@ -146,27 +146,28 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 			log.Warn("Unknown field", "model", rc.ModelName(), "field", fJSON)
 			continue
 		}
-		ctxDefaults[fJSON] = ctxValue
+		ctxDefaults[fJSON] = ctxVal
 	}
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if fi.defaultFunc == nil {
-			continue
-		}
 		if !fi.isSettable() {
 			continue
 		}
 
 		if _, ok := (*fMap)[fName]; !ok {
-			if fi.required || !requiredOnly {
-				val, exists := ctxDefaults[fName]
-				if exists {
-					(*fMap)[fName] = val
-					continue
-				}
-				(*fMap)[fName] = fi.defaultFunc(rc.Env())
+			if !fi.required && requiredOnly {
+				continue
 			}
+			val, exists := ctxDefaults[fName]
+			if exists {
+				(*fMap)[fName] = val
+				continue
+			}
+			if fi.defaultFunc == nil {
+				continue
+			}
+			(*fMap)[fName] = fi.defaultFunc(rc.Env())
 		}
 	}
 }
@@ -181,8 +182,12 @@ func (rc *RecordCollection) applyContexts() *RecordCollection {
 		}
 		for ctxName, ctxFunc := range fi.contexts {
 			path := fmt.Sprintf("%sHexyaContexts%s%s", fi.name, ExprSep, ctxName)
-			ctxCond = ctxCond.AndCond(rc.model.Field(path).Equals(ctxFunc).Or().Field(path).Equals("").Or().Field(path).IsNull())
 			ctxOrders = append(ctxOrders, path)
+			cond := rc.model.Field(path).Equals("").Or().Field(path).IsNull()
+			if !rc.env.context.GetBool("hexya_default_contexts") {
+				cond = cond.Or().Field(path).Equals(ctxFunc)
+			}
+			ctxCond = ctxCond.AndCond(cond)
 		}
 	}
 	rc.query.ctxCond = ctxCond
@@ -373,12 +378,38 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	fields := rc.addIntermediatePaths(fMap.Keys())
 	rc.loadRelatedRecords(fields)
 
-	// Create an update map for each record to update
-	updateMap := make(map[cacheRef]FieldMap)
-	createdPaths := make(map[string]bool)
 	// Ordered fields will show shorter paths before longer paths
 	sort.Strings(fields)
+	// Create default value for contexted field if we do not have one yet
+	rc.loadRelatedRecords(fields)
 	for _, rec := range rc.Records() {
+		for _, path := range fields {
+			if _, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, ""); err == nil {
+				continue
+			}
+			// We have no default value
+			fi := rec.model.getRelatedFieldInfo(path)
+			if fi.ctxType != ctxValue {
+				continue
+			}
+			// This is a contexted field and we have no default value so we create it
+			vals, prefix := rc.relatedRecordMap(fMap, path)
+			//
+			field := strings.TrimPrefix(path, prefix+ExprSep)
+			defVals := FieldMap{
+				"record_id": vals["record_id"],
+				field:       vals[field],
+			}
+			nr := rc.createRelatedRecord(prefix, defVals)
+			rc.env.cache.setX2MValue(cacheRef{model: rc.model, id: rc.ids[0]}, prefix, nr.Ids()[0], "")
+		}
+	}
+
+	// Create an update map for each record to update
+	updateMap := make(map[cacheRef]FieldMap)
+	for _, rec := range rc.Records() {
+		createdPaths := make(map[string]bool)
+		// Create related records
 		for _, path := range fields {
 			vals, prefix := rc.relatedRecordMap(fMap, path)
 			if createdPaths[prefix] {
@@ -398,6 +429,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 			updateMap[ref] = vals
 		}
 	}
+
 	// Make the update for each record
 	for ref, upMap := range updateMap {
 		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})
@@ -407,8 +439,28 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 
 // loadRelatedRecords loads all records pointed at by the given fMap keys
 // relatively to this record collection if they are not already in cache.
+//
+// This method also loads default values for contexted fields
 func (rc *RecordCollection) loadRelatedRecords(fields []string) {
 	var toLoad []string
+
+	// load contexted fields default value
+	if rc.query.ctxArgsSlug() != "" {
+		for _, field := range fields {
+			exprs := strings.Split(field, ExprSep)
+			if len(exprs) <= 1 {
+				continue
+			}
+			if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{field}, "", true) {
+				toLoad = append(toLoad, field)
+			}
+		}
+		if len(toLoad) > 0 {
+			rc.WithContext("hexya_default_contexts", true).Load(toLoad...)
+		}
+	}
+	// Load contexted fields with rc's context
+	toLoad = []string{}
 	for _, field := range fields {
 		exprs := strings.Split(field, ExprSep)
 		if len(exprs) <= 1 {
@@ -718,7 +770,7 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 	rc.Fetch()
 	var dbCalled bool
-	if !rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}, rc.query.ctxArgsSlug(), false) {
+	if !rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}, rc.query.ctxArgsSlug(), true) {
 		if !all {
 			rc.Load(field)
 		} else {

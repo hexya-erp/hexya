@@ -257,11 +257,7 @@ func TestContextedFields(t *testing.T) {
 				So(tagc.Get("DescriptionHexyaContexts").(RecordSet).Len(), ShouldEqual, 1)
 				So(tagc.Get("Description"), ShouldEqual, "Translated description")
 
-				decs.Call("Create", FieldMap{
-					"lang":        "fr_FR",
-					"Description": "Description traduite",
-					"Record":      tagc,
-				}).(RecordSet).Collection()
+				tagc.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
 				So(tagc.Get("DescriptionHexyaContexts").(RecordSet).Len(), ShouldEqual, 2)
 				So(tagc.Get("Description"), ShouldEqual, "Translated description")
 
@@ -290,6 +286,60 @@ func TestContextedFields(t *testing.T) {
 				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "übersetzte Beschreibung")
 				So(tagc.WithContext("lang", "es_ES").Get("Description"), ShouldEqual, "descripción traducida")
 				So(tagc.WithContext("lang", "it_IT").Get("Description"), ShouldEqual, "Translated description")
+			})
+			Convey("Creating a record with a contexted field should also create for default context", func() {
+				tags.WithContext("lang", "fr_FR").Call("Create", FieldMap{
+					"Name":        "Contexted tag 2",
+					"Description": "Description en français",
+				}).(RecordSet).Collection()
+				tag := tags.Search(tags.Model().Field("name").Equals("Contexted tag 2"))
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				So(tag.WithContext("lang", "en_US").Get("Description"), ShouldEqual, "Description en français")
+				So(tag.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description en français")
+				tag.WithContext("lang", "en_US").Set("Description", "Description in English")
+				So(tag.WithContext("lang", "en_US").Get("Description"), ShouldEqual, "Description in English")
+				So(tag.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description en français")
+				So(tag.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "Description en français")
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				thc := decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+			})
+			Convey("Updating in another transaction should not recreate a default value", func() {
+				tag := tags.WithContext("lang", "fr_FR").Search(tags.Model().Field("name").Equals("Contexted tag 2"))
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				thc := decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+
+				tag.Set("Description", "Nouvelle description en français")
+				thc = decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+				So(tag.Get("Description"), ShouldEqual, "Nouvelle description en français")
+			})
+			Convey("Changing language should recreate a default value (new transaction)", func() {
+				tag := tags.WithContext("lang", "es_ES").Search(tags.Model().Field("name").Equals("Contexted tag 2"))
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				thc := decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+
+				tag.Set("Description", "descripción traducida")
+				thc = decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+				So(tag.Get("Description"), ShouldEqual, "descripción traducida")
+			})
+			Convey("Deleting a record with a contexted field should delete all contexts", func() {
+				newTag := tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag 3",
+					"Description": "Description to translate",
+				}).(RecordSet).Collection()
+				So(newTag.Get("Description"), ShouldEqual, "Description to translate")
+				newTag.WithContext("lang", "fr_FR").Set("Description", "Description en français")
+				So(newTag.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description en français")
+				newTag.WithContext("lang", "de_DE").Set("Description", "übersetzte Beschreibung")
+				So(newTag.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "übersetzte Beschreibung")
+				nID := newTag.Ids()[0]
+				newTag.Call("Unlink")
+				dec := decs.Search(decs.Model().Field("Record").Equals(nID).Or().Field("Record").IsNull())
+				So(dec.IsEmpty(), ShouldBeTrue)
 			})
 		}), ShouldBeNil)
 	})

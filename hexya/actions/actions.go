@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/beevik/etree"
@@ -228,6 +229,92 @@ func (a Action) TranslatedName(lang string) string {
 		res = a.Name
 	}
 	return res
+}
+
+// Sanitize makes the necessary updates to action definitions.
+// It is good practice to call Sanitize before sending an action to the client.
+func (a *Action) Sanitize() {
+	switch a.Type {
+	case ActionActWindow:
+		a.sanitizeActWindow()
+	}
+}
+
+// sanitizeActWindow makes the necessary updates to action definitions. In particular:
+// - Add a few default values
+// - Add View to Views if not already present
+// - Add all views that are not specified
+func (a *Action) sanitizeActWindow() {
+	// Set a few default values
+	if a.Target == "" {
+		a.Target = "current"
+	}
+	a.AutoSearch = !a.ManualSearch
+	if a.ActViewType == "" {
+		a.ActViewType = ActionViewTypeForm
+	}
+	a.Help = a.HelpXML.Content
+
+	// Add View to Views if not already present
+	var present bool
+	// Check if view is present in Views
+	for _, view := range a.Views {
+		if !a.View.IsNull() {
+			if view.ID == a.View.ID() {
+				present = true
+				break
+			}
+		}
+	}
+	// Add View if not present in Views
+	if !present && !a.View.IsNull() {
+		vType := views.Registry.GetByID(a.View.ID()).Type
+		newRef := views.ViewTuple{
+			ID:   a.View.ID(),
+			Type: vType,
+		}
+		a.Views = append(a.Views, newRef)
+	}
+
+	// Add views of ViewMode that are not specified
+	modesStr := strings.Split(a.ViewMode, ",")
+	modes := make([]views.ViewType, len(modesStr))
+	for i, v := range modesStr {
+		modes[i] = views.ViewType(strings.TrimSpace(v))
+	}
+modeLoop:
+	for _, mode := range modes {
+		for _, vRef := range a.Views {
+			if vRef.Type == mode {
+				continue modeLoop
+			}
+		}
+		// No view defined for mode, we need to find it.
+		view := views.Registry.GetFirstViewForModel(a.Model, views.ViewType(mode))
+		newRef := views.ViewTuple{
+			ID:   view.ID,
+			Type: view.Type,
+		}
+		a.Views = append(a.Views, newRef)
+	}
+
+	// Fixes
+	a.fixViewModes()
+}
+
+// fixViewModes makes the necessary changes to the given action.
+//
+// For OpenERP historical reasons, tree views are called 'list' when
+// in ActionViewType 'form' and 'tree' when in ActionViewType 'tree'.
+func (a *Action) fixViewModes() {
+	if a.ActViewType == ActionViewTypeForm {
+		for i, v := range a.Views {
+			if v.Type == views.ViewTypeTree {
+				v.Type = views.ViewTypeList
+			}
+			a.Views[i].Type = v.Type
+		}
+	}
 }
 
 // LoadFromEtree reads the action given etree.Element, creates or updates the action

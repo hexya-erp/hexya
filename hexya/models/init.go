@@ -20,7 +20,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var log *logging.Logger
+var (
+	log *logging.Logger
+	// Views is a map to store views created automatically.
+	// It will be processed by the views package and added to the views registry.
+	Views map[*Model][]string
+)
 
 func init() {
 	log = logging.GetLogger("models")
@@ -30,6 +35,7 @@ func init() {
 	registerDBAdapter("postgres", new(postgresAdapter))
 	// model registry
 	Registry = newModelCollection()
+	Views = make(map[*Model][]string)
 	// declare base and common mixins
 	declareCommonMixin()
 	declareBaseMixin()
