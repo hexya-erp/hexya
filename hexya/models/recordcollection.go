@@ -380,31 +380,6 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 
 	// Ordered fields will show shorter paths before longer paths
 	sort.Strings(fields)
-	// Create default value for contexted field if we do not have one yet
-	rc.loadRelatedRecords(fields)
-	for _, rec := range rc.Records() {
-		for _, path := range fields {
-			if _, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, ""); err == nil {
-				continue
-			}
-			// We have no default value
-			fi := rec.model.getRelatedFieldInfo(path)
-			if fi.ctxType != ctxValue {
-				continue
-			}
-			// This is a contexted field and we have no default value so we create it
-			vals, prefix := rc.relatedRecordMap(fMap, path)
-			//
-			field := strings.TrimPrefix(path, prefix+ExprSep)
-			defVals := FieldMap{
-				"record_id": vals["record_id"],
-				field:       vals[field],
-			}
-			nr := rc.createRelatedRecord(prefix, defVals)
-			rc.env.cache.setX2MValue(cacheRef{model: rc.model, id: rc.ids[0]}, prefix, nr.Ids()[0], "")
-		}
-	}
-
 	// Create an update map for each record to update
 	updateMap := make(map[cacheRef]FieldMap)
 	for _, rec := range rc.Records() {
@@ -427,6 +402,31 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 				continue
 			}
 			updateMap[ref] = vals
+		}
+	}
+
+	// Create default value for contexted field if we do not have one yet
+	rc.loadRelatedRecords(fields)
+	for _, rec := range rc.Records() {
+		for _, path := range fields {
+			if _, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, ""); err == nil {
+				continue
+			}
+			// We have no default value
+			fi := rec.model.getRelatedFieldInfo(path)
+			if fi.ctxType != ctxValue {
+				continue
+			}
+			// This is a contexted field and we have no default value so we create it
+			vals, prefix := rc.relatedRecordMap(fMap, path)
+			//
+			field := strings.TrimPrefix(path, prefix+ExprSep)
+			defVals := FieldMap{
+				"record_id": vals["record_id"],
+				field:       vals[field],
+			}
+			nr := rc.createRelatedRecord(prefix, defVals)
+			rc.env.cache.setX2MValue(cacheRef{model: rc.model, id: rc.ids[0]}, prefix, nr.Ids()[0], "")
 		}
 	}
 

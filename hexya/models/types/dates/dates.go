@@ -55,6 +55,10 @@ func (d *Date) Scan(src interface{}) error {
 		d.Time = t
 		return nil
 	case string:
+		if t == "" {
+			*d = Date{}
+			return nil
+		}
 		val, err := ParseDateWithLayout(DefaultServerDateFormat, t)
 		if err != nil {
 			val, err = ParseDateWithLayout(DefaultServerDateTimeFormat, t)
@@ -166,6 +170,10 @@ func (d *DateTime) Scan(src interface{}) error {
 		d.Time = t
 		return nil
 	case string:
+		if t == "" {
+			*d = DateTime{}
+			return nil
+		}
 		val, err := ParseDateTimeWithLayout(DefaultServerDateTimeFormat, t)
 		*d = val
 		return err

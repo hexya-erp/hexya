@@ -15,9 +15,11 @@
 package models
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
+	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
 // substituteRelatedFields returns a copy of the given fields slice with related fields substituted by their related
@@ -137,8 +139,11 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *Rec
 	exprs := strings.Split(path, ExprSep)
 	switch fi.fieldType {
 	case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
-		// We do not call "create" directly to have the caller set in the callstack for permissions
-		res := rc.env.Pool(fi.relatedModel.name).Call("Create", vals)
+		rSet := rc.env.Pool(fi.relatedModel.name)
+		if fi.embed {
+			rSet = rSet.WithContext("default_hexya_external_id", fmt.Sprintf("%s_%s", rc.Get("HexyaExternalID"), strutils.SnakeCase(fi.relatedModel.name)))
+		}
+		res := rSet.Call("Create", vals)
 		resRS, ok := res.(RecordSet)
 		if ok {
 			rc.Set(path, resRS.Collection())
@@ -154,7 +159,6 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *Rec
 			target = target.Records()[0]
 		}
 		vals[fi.jsonReverseFK] = target
-		// We do not call "create" directly to have the caller set in the callstack for permissions
 		return rc.env.Pool(fi.relatedModel.name).Call("Create", vals).(RecordSet).Collection()
 	}
 	return rc.env.Pool(rc.ModelName())
