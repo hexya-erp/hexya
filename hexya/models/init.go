@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	log *logging.Logger
+	log logging.Logger
 	// Views is a map to store views created automatically.
 	// It will be processed by the views package and added to the views registry.
 	Views map[*Model][]string

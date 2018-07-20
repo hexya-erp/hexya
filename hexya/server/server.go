@@ -128,7 +128,7 @@ type JSONRPCError struct {
 }
 
 var hexyaServer *Server
-var log *logging.Logger
+var log logging.Logger
 
 // GetServer return the http server instance
 func GetServer() *Server {

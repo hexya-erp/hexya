@@ -68,7 +68,7 @@ func InitializeTests(moduleName string) {
 	dbName := fmt.Sprintf("%s_%s_tests", prefix, moduleName)
 	debug = os.Getenv("HEXYA_DEBUG")
 
-	viper.Set("LogLevel", "crit")
+	viper.Set("LogLevel", "panic")
 	if debug != "" {
 		viper.Set("LogLevel", "debug")
 		viper.Set("LogStdout", true)

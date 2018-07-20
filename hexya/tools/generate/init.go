@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	log *logging.Logger
+	log logging.Logger
 	// HexyaDir is the directory of the base hexya package
 	HexyaDir string
 	// ModelMixins are the names of the mixins declared in the models package

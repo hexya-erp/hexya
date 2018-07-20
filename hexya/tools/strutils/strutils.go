@@ -23,7 +23,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
-var log *logging.Logger
+var log logging.Logger
 
 func init() {
 	log = logging.GetLogger("strutils")

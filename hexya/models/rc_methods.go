@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/jtolds/gls"
@@ -37,6 +38,8 @@ func (rc *RecordCollection) Call(methName string, args ...interface{}) interface
 // CallMulti calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as []interface{}.
 func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
+	log.Debug("Calling Recordset method", "model", rc.model.name, "method", methName, "ids", rc.ids, "args", args)
+	startTime := time.Now()
 	methInfo, ok := rc.model.methods.Get(methName)
 	if !ok {
 		log.Panic("Unknown method in model", "method", methName, "model", rc.model.name)
@@ -63,6 +66,7 @@ func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []in
 	ctxManager.SetValues(gls.Values{"layers": [2]*methodLayer{methLayer, previousLayer}}, func() {
 		res = rSet.callMulti(methLayer, args...)
 	})
+	log.Debug("Called Recordset method", "model", rc.ModelName(), "method", methName, "ids", rc.ids, "duration", time.Now().Sub(startTime), "args", args)
 	return res
 }
 

@@ -22,7 +22,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
-var log *logging.Logger
+var log logging.Logger
 
 type basicXML struct {
 	XMLName xml.Name

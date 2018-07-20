@@ -27,7 +27,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 )
 
-var log *logging.Logger
+var log logging.Logger
 
 // A Context is a map of objects that is passed along from function to function
 // during a transaction. A Context is read only.

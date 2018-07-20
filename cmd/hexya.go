@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-var log *logging.Logger
+var log logging.Logger
 
 // HexyaCmd is the base 'hexya' command of the commander
 var HexyaCmd = &cobra.Command{
@@ -46,7 +46,7 @@ func init() {
 	HexyaCmd.PersistentFlags().StringSliceP("modules", "m", []string{"github.com/hexya-erp/hexya-base/web"}, "List of module paths to load. Defaults to ['github.com/hexya-erp/hexya-base/web']")
 	viper.BindPFlag("Modules", HexyaCmd.PersistentFlags().Lookup("modules"))
 
-	HexyaCmd.PersistentFlags().StringP("log-level", "L", "info", "Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'crit'")
+	HexyaCmd.PersistentFlags().StringP("log-level", "L", "info", "Log level. Should be one of 'debug', 'info', 'warn', 'error' or 'panic'")
 	viper.BindPFlag("LogLevel", HexyaCmd.PersistentFlags().Lookup("log-level"))
 	HexyaCmd.PersistentFlags().String("log-file", "", "File to which the log will be written")
 	viper.BindPFlag("LogFile", HexyaCmd.PersistentFlags().Lookup("log-file"))

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	log *logging.Logger
+	log logging.Logger
 	// Langs is the list of all loaded languages in the application
 	Langs []string
 )

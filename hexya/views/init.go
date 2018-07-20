@@ -12,7 +12,7 @@ import (
 
 const maxInheritanceDepth = 100
 
-var log *logging.Logger
+var log logging.Logger
 
 // BootStrap makes the necessary updates to view definitions. In particular:
 // - sets the type of the view from the arch root.

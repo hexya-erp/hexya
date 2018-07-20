@@ -16,7 +16,7 @@ import (
 // LessCompilerCommand is the executable lessc to be called to compile less files
 const LessCompilerCommand string = "lessc"
 
-var log *logging.Logger
+var log logging.Logger
 
 // CompileLess reads text/less input from the in Reader and
 // writes compiled text/css to the out Writer

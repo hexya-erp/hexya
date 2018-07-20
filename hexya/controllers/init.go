@@ -8,7 +8,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
-var log *logging.Logger
+var log logging.Logger
 
 // BootStrap creates the actual controllers from the controllers registry.
 // This function must be called before starting the http server.

@@ -8,7 +8,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
-var log *logging.Logger
+var log logging.Logger
 
 // BootStrap actions.
 // This function must be called prior to any access to the actions Registry.

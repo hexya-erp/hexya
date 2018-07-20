@@ -18,95 +18,157 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"runtime"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/hexya/tools/exceptions"
-	"github.com/inconshreveable/log15"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 var (
 	// log is the base logger of the framework
-	log       *Logger
+	log       = &zapLogger{}
 	dunno     = []byte("???")
 	centerDot = []byte("·")
 	dot       = []byte(".")
 	slash     = []byte("/")
 )
 
-func init() {
-	log = NewLogger()
-}
-
 // A Logger writes logs to a handler
-type Logger struct {
-	log15.Logger
+type Logger interface {
+	// Panic logs a error level message then panics
+	Panic(msg string, ctx ...interface{})
+	// Error logs an error level message
+	Error(msg string, ctx ...interface{})
+	// Warn logs a warning level message
+	Warn(msg string, ctx ...interface{})
+	// Info logs an information level message
+	Info(msg string, ctx ...interface{})
+	// Debug logs a debug level message. This may be very verbose
+	Debug(msg string, ctx ...interface{})
+	// New returns a child logger with the given context
+	New(ctx ...interface{}) Logger
+	// Sync the logger cache
+	Sync() error
 }
 
-// NewLogger returns a pointer to a new Logger instance
-func NewLogger(ctx ...interface{}) *Logger {
-	return &Logger{
-		Logger: log15.New(ctx...),
+// zapLogger is an implementation of logger using Uber's zap library
+type zapLogger struct {
+	zap    *zap.SugaredLogger
+	ctx    []interface{}
+	parent *zapLogger
+}
+
+// Panic logs a error level message then panics
+func (l *zapLogger) Panic(msg string, ctx ...interface{}) {
+	if !l.checkParent() {
+		return
+	}
+	l.zap.Panicw(msg, ctx...)
+}
+
+// Error logs an error level message
+func (l *zapLogger) Error(msg string, ctx ...interface{}) {
+	if !l.checkParent() {
+		return
+	}
+	l.zap.Errorw(msg, ctx...)
+}
+
+// Warn logs a warning level message
+func (l *zapLogger) Warn(msg string, ctx ...interface{}) {
+	if !l.checkParent() {
+		return
+	}
+	l.zap.Warnw(msg, ctx...)
+}
+
+// Info logs an information level message
+func (l *zapLogger) Info(msg string, ctx ...interface{}) {
+	if !l.checkParent() {
+		return
+	}
+	l.zap.Infow(msg, ctx...)
+}
+
+// Debug logs a debug level message. This may be very verbose
+func (l *zapLogger) Debug(msg string, ctx ...interface{}) {
+	if !l.checkParent() {
+		return
+	}
+	l.zap.Debugw(msg, ctx...)
+}
+
+// Sync the logger cache
+func (l *zapLogger) Sync() error {
+	if !l.checkParent() {
+		return errors.New("syncing a non-initialized logger")
+	}
+	return l.zap.Sync()
+}
+
+// New returns a child logger with the given context
+func (l *zapLogger) New(ctx ...interface{}) Logger {
+	return &zapLogger{
+		ctx:    ctx,
+		parent: l,
 	}
 }
 
-// New returns a new Logger that has this logger's context plus the given context
-func (l *Logger) New(ctx ...interface{}) *Logger {
-	return &Logger{
-		Logger: l.Logger.New(ctx...),
+// checkParent recursively looks for an ancestor with a valid zap logger backend.
+//
+// If one is found, all children zap loggers are instantiated and checkParent returns true.
+// Otherwise, it returns false.
+func (l *zapLogger) checkParent() bool {
+	if l.zap != nil || l.parent == nil {
+		return true
 	}
-}
-
-// Panic logs as an error the given message and context and then panics.
-func (l *Logger) Panic(msg string, ctx ...interface{}) {
-	pc, _, _, _ := runtime.Caller(1)
-	ctxt := append(ctx, "caller", string(function(pc)))
-	l.Error(msg, ctxt...)
-
-	fullMsg := fmt.Sprintf("%s, %v\n", msg, ctxt)
-	panic(exceptions.UserError{
-		Message: msg,
-		Debug:   fullMsg,
-	})
+	l.parent.checkParent()
+	if l.parent.zap != nil {
+		l.zap = l.parent.zap.With(l.ctx...)
+		return true
+	}
+	return false
 }
 
 // Initialize starts the base logger used by all Hexya components
 func Initialize() {
-	logLevel, err := log15.LvlFromString(viper.GetString("LogLevel"))
+	logConfig := zap.NewProductionConfig()
+	if viper.GetBool("Debug") {
+		logConfig = zap.NewDevelopmentConfig()
+	}
+	logLevel := zap.NewAtomicLevel()
+	err := logLevel.UnmarshalText([]byte(viper.GetString("LogLevel")))
 	if err != nil {
-		log.Warn("Error while reading log level. Falling back to info", "error", err.Error())
-		logLevel = log15.LvlInfo
+		fmt.Printf("error while reading log level. Falling back to info. Error: %s\n", err.Error())
+		logLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
 	}
+	logConfig.Level = logLevel
 
-	stdoutHandler := log15.DiscardHandler()
+	var outputPaths []string
 	if viper.GetBool("LogStdout") {
-		stdoutHandler = log15.StreamHandler(os.Stdout, log15.TerminalFormat())
+		outputPaths = append(outputPaths, "stdout")
 	}
-
-	fileHandler := log15.DiscardHandler()
 	if path := viper.GetString("LogFile"); path != "" {
-		fileHandler = log15.Must.FileHandler(path, log15.LogfmtFormat())
+		outputPaths = append(outputPaths, path)
 	}
+	logConfig.OutputPaths = outputPaths
 
-	log.SetHandler(
-		log15.LvlFilterHandler(
-			logLevel,
-			log15.MultiHandler(
-				stdoutHandler,
-				fileHandler,
-			),
-		),
-	)
+	plainLog, err := logConfig.Build()
+	if err != nil {
+		panic(err)
+	}
+	log.zap = plainLog.Sugar()
+
 	log.Info("Hexya Starting...")
 }
 
 // GetLogger returns a context logger for the given module
-func GetLogger(moduleName string) *Logger {
+func GetLogger(moduleName string) Logger {
 	l := log.New("module", moduleName)
-	l.SetHandler(log15.CallerFuncHandler(l.GetHandler()))
 	return l
 }
 
@@ -119,8 +181,8 @@ func LogPanicData(panicData interface{}) error {
 	log.Error("Hexya panicked", "msg", msg)
 
 	stackTrace := stack(1)
-	log.Error(fmt.Sprintf("Stack trace:\n%s", stackTrace))
-
+	//log.Error(fmt.Sprintf("Stack trace:\n%s", stackTrace))
+	//
 	fullMsg := fmt.Sprintf("%s\n\n%s", msg, stackTrace)
 	return exceptions.UserError{
 		Message: msg,
@@ -193,7 +255,7 @@ func function(pc uintptr) []byte {
 //
 // Requests with errors are logged using log15.Error().
 // Requests without errors are logged using log15.Info().
-func LogForGin(logger *Logger) gin.HandlerFunc {
+func LogForGin(logger Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		// some evil middlewares modify this value
