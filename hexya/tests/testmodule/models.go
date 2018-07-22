@@ -232,9 +232,13 @@ func init() {
 	cv := h.Resume().DeclareModel()
 	cv.AddFields(map[string]models.FieldDefinition{
 		"Education":  models.TextField{},
-		"Experience": models.TextField{},
+		"Experience": models.TextField{Translate: true},
 		"Leisure":    models.TextField{},
 	})
+	cv.Methods().Create().Extend("",
+		func(rs h.ResumeSet, data *h.ResumeData) h.ResumeSet {
+			return rs.Super().Create(data)
+		})
 
 	addressMI := h.AddressMixIn().DeclareMixinModel()
 	addressMI.AddFields(map[string]models.FieldDefinition{

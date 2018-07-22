@@ -228,12 +228,11 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 		}
 
 		// Related field (e.g. User.Profile.Age)
-		resExprs := []string{fi.json}
 		if fi.relatedModel == nil {
 			log.Panic("Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
 		}
 		subFieldName := strings.Join(fieldExprs[1:], ExprSep)
-		subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName})
+		subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName}, dontAddID...)
 		if len(subFieldRes) == 0 {
 			// Our last expr is not stored after all, we don't add anything
 			continue
@@ -243,8 +242,11 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 			// We re-add our first expr as it has been removed above (not stored)
 			res = append(res, fi.json)
 		}
-		resExprs = append(resExprs, subFieldRes[0])
-		res = append(res, strings.Join(resExprs, ExprSep))
+		for _, sfr := range subFieldRes {
+			resExprs := []string{fi.json}
+			resExprs = append(resExprs, sfr)
+			res = append(res, strings.Join(resExprs, ExprSep))
+		}
 	}
 	if len(dontAddID) == 0 || !dontAddID[0] {
 		res = addIDIfNotPresent(res)

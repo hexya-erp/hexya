@@ -75,11 +75,18 @@ func (rc *RecordCollection) addIntermediatePaths(fields []string) []string {
 
 // substituteRelatedFieldsInMap returns a copy of the given FieldMap with related fields
 // substituted by their related field path.
+//
+// This method substitute the first level only (to work with data structs)
 func (rc *RecordCollection) substituteRelatedFieldsInMap(fMap FieldMap) FieldMap {
 	res := make(FieldMap)
 	for field, value := range fMap {
 		// Inflate our related fields
-		inflatedPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
+		fi := rc.model.getRelatedFieldInfo(field)
+		path := field
+		if fi.relatedPath != "" {
+			path = fi.relatedPath
+		}
+		inflatedPath := jsonizePath(rc.model, path)
 		res[inflatedPath] = value
 	}
 	return res

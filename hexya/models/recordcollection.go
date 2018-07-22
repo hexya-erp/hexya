@@ -143,7 +143,6 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 		}
 		fJSON := strings.TrimPrefix(ctxKey, "default_")
 		if _, exists := rc.model.fields.Get(fJSON); !exists {
-			log.Warn("Unknown field", "model", rc.ModelName(), "field", fJSON)
 			continue
 		}
 		ctxDefaults[fJSON] = ctxVal
@@ -196,16 +195,8 @@ func (rc *RecordCollection) applyContexts() *RecordCollection {
 }
 
 // addContextsFieldsValues adds the contexts to the given fMap so that the resulting set can be filtered
-//
-// This method also adds all contexted fields of the model so that they get correctly set
 func (rc *RecordCollection) addContextsFieldsValues(fMap FieldMap) FieldMap {
 	res := make(FieldMap)
-	for f, fInfo := range rc.model.fields.registryByName {
-		if _, ok := fMap.Get(f, rc.model); !ok && fInfo.isContextedField() {
-			res[f] = nil
-		}
-	}
-	rc.model.convertValuesToFieldType(&res)
 	for k, v := range fMap {
 		res[k] = v
 		fi := rc.model.getRelatedFieldInfo(k)
@@ -487,11 +478,9 @@ func (rc *RecordCollection) relatedRecordMap(fMap FieldMap, field string) (Field
 	res := make(FieldMap)
 	for f, v := range fMap {
 		fExprs := strings.Split(f, ExprSep)
-		if len(fExprs) != len(exprs) {
-			continue
-		}
 		if strings.HasPrefix(f, prefix+ExprSep) {
-			res[fExprs[len(fExprs)-1]] = v
+			key := strings.Join(fExprs[len(exprs)-1:], ExprSep)
+			res[key] = v
 		}
 	}
 	return res, prefix
@@ -731,7 +720,7 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 		rc.computeFieldValues(&fMap, fi.json)
 		res = fMap[fi.json]
 	case fi.isRelatedField():
-		res, _ = rc.get(fi.relatedPath, false)
+		res, _ = rc.get(rc.substituteRelatedInPath(fieldName), false)
 	default:
 		// If value is not in cache we fetch the whole model to speed up later calls to Get,
 		// except for the case of non stored relation fields, where we only load the requested field.

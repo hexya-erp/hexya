@@ -300,7 +300,7 @@ func TestModelDeclaration(t *testing.T) {
 		tag.SetDefaultOrder("Name DESC", "ID ASC")
 
 		cv.AddFields(map[string]FieldDefinition{
-			"Education":  TextField{},
+			"Education":  CharField{Translate: true},
 			"Experience": TextField{},
 			"Leisure":    TextField{},
 		})

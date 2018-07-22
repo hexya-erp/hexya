@@ -65,9 +65,14 @@ type zapLogger struct {
 // Panic logs a error level message then panics
 func (l *zapLogger) Panic(msg string, ctx ...interface{}) {
 	if !l.checkParent() {
-		return
+		panic("log.Panic() with non-initialized logger")
 	}
-	l.zap.Panicw(msg, ctx...)
+	l.zap.Errorw(msg, ctx...)
+	panicData := msg + "\n"
+	for i := 0; i < len(ctx); i += 2 {
+		panicData += fmt.Sprintf("\t%v : %v\n", ctx[i], ctx[i+1])
+	}
+	panic(panicData)
 }
 
 // Error logs an error level message

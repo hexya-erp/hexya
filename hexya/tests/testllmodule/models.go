@@ -226,7 +226,7 @@ func declareModels() {
 
 	cv.AddFields(map[string]models.FieldDefinition{
 		"Education":  models.TextField{},
-		"Experience": models.TextField{},
+		"Experience": models.TextField{Translate: true},
 		"Leisure":    models.TextField{},
 	})
 

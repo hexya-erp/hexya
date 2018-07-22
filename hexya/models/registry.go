@@ -347,6 +347,14 @@ func (m *Model) isSystem() bool {
 	return false
 }
 
+// isContext returns true if this is a context model.
+func (m *Model) isContext() bool {
+	if m.options&ContextsModel > 0 {
+		return true
+	}
+	return false
+}
+
 // isSystem returns true if this is a n M2M Link model.
 func (m *Model) isM2MLink() bool {
 	if m.options&Many2ManyLinkModel > 0 {

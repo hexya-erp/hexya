@@ -64,8 +64,9 @@ func initializeTests() {
 	dbArgs.DB = fmt.Sprintf("%s_models_tests", prefix)
 	dbArgs.Debug = os.Getenv("HEXYA_DEBUG")
 
-	viper.Set("LogLevel", "crit")
+	viper.Set("LogLevel", "panic")
 	if dbArgs.Debug != "" {
+		viper.Set("Debug", true)
 		viper.Set("LogLevel", "debug")
 		viper.Set("LogStdout", true)
 	}

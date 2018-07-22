@@ -290,18 +290,6 @@ func inflateContexts() {
 			contextsModel := createContextsModel(fi, fi.contexts)
 			createContextsTreeView(fi, fi.contexts)
 			// We copy execution permission on CRUD methods to the context model
-			for mName := range unauthorizedMethods {
-				origMeth, exists := mi.methods.Get(mName)
-				if !exists {
-					continue
-				}
-				for g := range origMeth.groups {
-					contextsModel.methods.MustGet(mName).groups[g] = true
-				}
-				for cg := range origMeth.groupsCallers {
-					contextsModel.methods.MustGet(mName).groupsCallers[cg] = true
-				}
-			}
 			fieldName := fmt.Sprintf("%sHexyaContexts", fi.name)
 			o2mField := &Field{
 				name:             fieldName,
@@ -705,6 +693,7 @@ func bootStrapMethods() {
 // - the admin group for all methods
 // - to CRUD methods to call "Load"
 // - to "Create" method to call "Write"
+// - to execute CRUD on context models
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
 		loadMeth, loadExists := model.methods.Get("Load")
@@ -717,6 +706,13 @@ func setupSecurity() {
 			if writeExists && meth.name == "Create" {
 				writeMeth.AllowGroup(security.GroupEveryone, meth)
 			}
+		}
+		if model.isContext() {
+			baseModel := model.fields.MustGet("Record").relatedModel
+			model.methods.MustGet("Create").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
+			model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Load"))
+			model.methods.MustGet("Write").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Write"))
+			model.methods.MustGet("Unlink").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Unlink"))
 		}
 	}
 }

@@ -70,6 +70,7 @@ func InitializeTests(moduleName string) {
 
 	viper.Set("LogLevel", "panic")
 	if debug != "" {
+		viper.Set("Debug", true)
 		viper.Set("LogLevel", "debug")
 		viper.Set("LogStdout", true)
 	}

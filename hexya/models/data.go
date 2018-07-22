@@ -85,7 +85,7 @@ func LoadCSVDataFile(fileName string) {
 		}
 	})
 	if err != nil {
-		log.Panic("Error while loading data", "error", err)
+		panic(err)
 	}
 	log.Debug("Data file imported successfully", "fileName", fileName)
 }
