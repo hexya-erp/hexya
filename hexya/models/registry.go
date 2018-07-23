@@ -173,7 +173,10 @@ func (m *Model) getRelatedFieldInfo(path string) *Field {
 // scanToFieldMap scans the db query result r into the given FieldMap.
 // Unlike slqx.MapScan, the returned interface{} values are of the type
 // of the Model fields instead of the database types.
-func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
+//
+// substs is a map for substituting field names in the ColScanner if necessary (typically if length is over 64 chars).
+// Keys are the alias used in the query, and values are '__' separated paths such as "user_id__profile_id__age"
+func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap, substs map[string]string) error {
 	columns, err := r.Columns()
 	if err != nil {
 		return err
@@ -194,7 +197,11 @@ func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 
 	// Step 2: We populate our dest FieldMap with these values
 	for i, dbValue := range dbValues {
-		colName := strings.Replace(columns[i], sqlSep, ExprSep, -1)
+		colName := columns[i]
+		if s, ok := substs[colName]; ok {
+			colName = s
+		}
+		colName = strings.Replace(colName, sqlSep, ExprSep, -1)
 		dbVal := reflect.ValueOf(dbValue).Elem().Interface()
 		(*dest)[colName] = dbVal
 	}

@@ -649,13 +649,13 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 	subFields, _ := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields)
-	sql, args := rSet.query.selectQuery(dbFields)
+	sql, args, substs := rSet.query.selectQuery(dbFields)
 	rows := dbQuery(rSet.env.cr.tx, sql, args...)
 	defer rows.Close()
 	var ids []int64
 	for rows.Next() {
 		line := make(FieldMap)
-		err := rSet.model.scanToFieldMap(rows, &line)
+		err := rSet.model.scanToFieldMap(rows, &line, substs)
 		if err != nil {
 			log.Panic(err.Error(), "model", rSet.ModelName(), "fields", fields)
 		}

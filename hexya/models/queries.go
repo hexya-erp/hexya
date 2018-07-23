@@ -26,6 +26,8 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
+const maxSQLidentifierLength = 63
+
 // An SQLParams is a list of parameters that are passed to the
 // DB server with the query string and that will be used in the
 // placeholders.
@@ -156,7 +158,7 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		sql  string
 		args SQLParams
 	)
-	field := q.joinedFieldExpression(exprs)
+	field, _, _ := q.joinedFieldExpression(exprs, false, 0)
 	if p.arg == nil {
 		switch p.operator {
 		case operator.Equals:
@@ -227,7 +229,7 @@ func (q *Query) sqlOrderByClause() string {
 	fExprs, directions := q.prepareOrderByExprs()
 	resSlice := make([]string, len(q.orders)+len(q.ctxOrders))
 	for i, field := range fExprs {
-		resSlice[i] = q.joinedFieldExpression(field)
+		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
 		resSlice[i] += fmt.Sprintf(" %s", directions[i])
 	}
 	if len(resSlice) == 0 {
@@ -244,10 +246,12 @@ func (q *Query) sqlOrderByClauseForGroupBy(aggFncts map[string]string) string {
 	for i, field := range fExprs {
 		aggFnct := aggFncts[strings.Join(field, ExprSep)]
 		if aggFnct == "" {
-			resSlice[i] = fmt.Sprintf("%s %s", q.joinedFieldExpression(field), directions[i])
+			jfe, _, _ := q.joinedFieldExpression(field, false, 0)
+			resSlice[i] = fmt.Sprintf("%s %s", jfe, directions[i])
 			continue
 		}
-		resSlice[i] = fmt.Sprintf("%s(%s) %s", aggFnct, q.joinedFieldExpression(field), directions[i])
+		jfe, _, _ := q.joinedFieldExpression(field, false, 0)
+		resSlice[i] = fmt.Sprintf("%s(%s) %s", aggFnct, jfe, directions[i])
 	}
 	if len(resSlice) == 0 {
 		return ""
@@ -265,7 +269,7 @@ func (q *Query) sqlGroupByClause() string {
 	}
 	resSlice := make([]string, len(q.groups))
 	for i, field := range fExprs {
-		resSlice[i] = q.joinedFieldExpression(field)
+		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
 	}
 	return fmt.Sprintf("GROUP BY %s", strings.Join(resSlice, ", "))
 }
@@ -314,7 +318,7 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 // countQuery returns the SQL query string and parameters to count
 // the rows pointed at by this Query object.
 func (q *Query) countQuery() (string, SQLParams) {
-	sql, args := q.selectQuery([]string{"id"})
+	sql, args, _ := q.selectQuery([]string{"id"})
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) foo`, sql)
 	return countQuery, args
 }
@@ -328,14 +332,14 @@ func (q *Query) countQuery() (string, SQLParams) {
 // Each field is a dot-separated
 // expression pointing at the field, either as names or columns
 // (e.g. 'User.Name' or 'user_id.name')
-func (q *Query) selectQuery(fields []string) (string, SQLParams) {
+func (q *Query) selectQuery(fields []string) (string, SQLParams, map[string]string) {
 	if len(q.groups) > 0 {
 		log.Panic("Calling selectQuery on a Group By query")
 	}
 	fieldExprs, allExprs := q.selectData(fields)
 	// Build up the query
 	// Fields
-	fieldsSQL := q.fieldsSQL(fieldExprs)
+	fieldsSQL, fieldSubsts := q.fieldsSQL(fieldExprs)
 	// Tables
 	tablesSQL, joinsMap := q.tablesSQL(allExprs)
 	// Where clause and args
@@ -348,7 +352,7 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams) {
 	}
 	selQuery := fmt.Sprintf(`SELECT %s %s FROM %s %s %s %s`, distinct, fieldsSQL, tablesSQL, whereSQL, orderSQL, limitSQL)
 	selQuery = strutils.Substitute(selQuery, joinsMap)
-	return selQuery, args
+	return selQuery, args, fieldSubsts
 }
 
 // selectGroupQuery returns the SQL query string and parameters to retrieve
@@ -440,12 +444,18 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 // fieldsSQL returns the SQL string for the given field expressions
 // parameter must be with the following format (column names):
 // [['user_id', 'name'] ['id'] ['profile_id', 'age']]
-func (q *Query) fieldsSQL(fieldExprs [][]string) string {
+//
+// Second returned field is a map with the aliases used if the nominal "user_id__name"
+// alias type gives a string longer than 64 chars
+func (q *Query) fieldsSQL(fieldExprs [][]string) (string, map[string]string) {
 	fStr := make([]string, len(fieldExprs))
+	substs := make(map[string]string)
 	for i, field := range fieldExprs {
-		fStr[i] = q.joinedFieldExpression(field, true)
+		res, natAlias, realAlias := q.joinedFieldExpression(field, true, i)
+		fStr[i] = res
+		substs[natAlias] = realAlias
 	}
-	return strings.Join(fStr, ", ")
+	return strings.Join(fStr, ", "), substs
 }
 
 // fieldsGroupSQL returns the SQL string for the given field expressions
@@ -469,16 +479,24 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]string, aggFncts map[string]string
 }
 
 // joinedFieldExpression joins the given expressions into a fields sql string
-// ['profile_id' 'user_id' 'name'] => "profiles__users".name
-// ['age'] => "mytable".age
-// If withAlias is true, then returns fields with its alias
-func (q *Query) joinedFieldExpression(exprs []string, withAlias ...bool) string {
+//     ['profile_id' 'user_id' 'name'] => "profiles__users".name
+//     ['age'] => "mytable".age
+//
+// If withAlias is true, then returns fields with its alias. In this case, aliasIndex is used
+// to define aliases when the nominal "profile_id__user_id__name" is longer than 64 chars.
+// Returned second argument is the nominal alias and third argument is the alias actually used.
+func (q *Query) joinedFieldExpression(exprs []string, withAlias bool, aliasIndex int) (string, string, string) {
 	joins := q.generateTableJoins(exprs)
 	lastJoin := joins[len(joins)-1]
-	if len(withAlias) > 0 && withAlias[0] {
-		return fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
+	if withAlias {
+		fAlias := strings.Join(exprs, sqlSep)
+		oldAlias := fAlias
+		if len(fAlias) > maxSQLidentifierLength {
+			fAlias = fmt.Sprintf("F%d", aliasIndex)
+		}
+		return fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr, fAlias), oldAlias, fAlias
 	}
-	return fmt.Sprintf("%s.%s", lastJoin.alias, lastJoin.expr)
+	return fmt.Sprintf("%s.%s", lastJoin.alias, lastJoin.expr), "", ""
 }
 
 // generateTableJoins transforms a list of fields expression into a list of tableJoins
