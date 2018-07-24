@@ -453,7 +453,7 @@ func (q *Query) fieldsSQL(fieldExprs [][]string) (string, map[string]string) {
 	for i, field := range fieldExprs {
 		res, natAlias, realAlias := q.joinedFieldExpression(field, true, i)
 		fStr[i] = res
-		substs[natAlias] = realAlias
+		substs[realAlias] = natAlias
 	}
 	return strings.Join(fStr, ", "), substs
 }
@@ -492,7 +492,7 @@ func (q *Query) joinedFieldExpression(exprs []string, withAlias bool, aliasIndex
 		fAlias := strings.Join(exprs, sqlSep)
 		oldAlias := fAlias
 		if len(fAlias) > maxSQLidentifierLength {
-			fAlias = fmt.Sprintf("F%d", aliasIndex)
+			fAlias = fmt.Sprintf("f%d", aliasIndex)
 		}
 		return fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr, fAlias), oldAlias, fAlias
 	}
