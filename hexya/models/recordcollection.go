@@ -364,6 +364,11 @@ func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
 
 // updateRelatedFields updates related fields of the given fMap.
 func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
+	type rsRef struct {
+		model *Model
+		id    int64
+	}
+
 	rc.Fetch()
 	fMap = rc.substituteRelatedFieldsInMap(fMap)
 	fields := rc.addIntermediatePaths(fMap.Keys())
@@ -372,7 +377,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	// Ordered fields will show shorter paths before longer paths
 	sort.Strings(fields)
 	// Create an update map for each record to update
-	updateMap := make(map[cacheRef]FieldMap)
+	updateMap := make(map[rsRef]FieldMap)
 	for _, rec := range rc.Records() {
 		createdPaths := make(map[string]bool)
 		// Create related records
@@ -381,18 +386,18 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 			if createdPaths[prefix] {
 				continue
 			}
-			ref, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, rc.query.ctxArgsSlug())
+			model, id, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, rc.query.ctxArgsSlug())
 			if err != nil {
 				// Record does not exist, we create it on the fly instead of updating
 				nr := rc.createRelatedRecord(prefix, vals)
-				rc.env.cache.setX2MValue(cacheRef{model: rc.model, id: rc.ids[0]}, prefix, nr.Ids()[0], rc.query.ctxArgsSlug())
+				rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix, nr.Ids()[0], rc.query.ctxArgsSlug())
 				createdPaths[prefix] = true
 				continue
 			}
 			if len(vals) == 0 {
 				continue
 			}
-			updateMap[ref] = vals
+			updateMap[rsRef{model, id}] = vals
 		}
 	}
 
@@ -400,7 +405,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	rc.loadRelatedRecords(fields)
 	for _, rec := range rc.Records() {
 		for _, path := range fields {
-			if _, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, ""); err == nil {
+			if _, _, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, ""); err == nil {
 				continue
 			}
 			// We have no default value
@@ -417,7 +422,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 				field:       vals[field],
 			}
 			nr := rc.createRelatedRecord(prefix, defVals)
-			rc.env.cache.setX2MValue(cacheRef{model: rc.model, id: rc.ids[0]}, prefix, nr.Ids()[0], "")
+			rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix, nr.Ids()[0], "")
 		}
 	}
 
