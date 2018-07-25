@@ -617,14 +617,26 @@ func (rc *RecordCollection) SearchCount() int {
 	return res
 }
 
-// Load query all data of the RecordCollection and store in cache.
+// Load look up fields of the RecordCollection in cache and query the database
+// for missing values which are then stored in cache.
+func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
+	if len(fields) == 0 {
+		fields = rc.model.fields.storedFieldNames()
+	}
+	if rc.env.cache.checkIfInCache(rc.model, rc.ids, fields, rc.query.ctxArgsSlug(), true) {
+		return rc
+	}
+	return rc.ForceLoad(fields...)
+}
+
+// ForceLoad query all data of the RecordCollection and store in cache.
 // fields are the fields to retrieve in the path format,
 // i.e. "User.Profile.Age" or "user_id.profile_id.age".
 //
 // If no fields are given, all DB columns of the RecordCollection's
-// model are retrieved. Non-DB fields must be explicitly given in
-// fields to be retrieved.
-func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
+// model are retrieved as well as related fields. Non-DB fields must
+// be explicitly given in fields to be retrieved.
+func (rc *RecordCollection) ForceLoad(fields ...string) *RecordCollection {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	if rc.query.isEmpty() {
 		// Never load RecordSets without query.

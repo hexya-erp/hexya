@@ -139,7 +139,18 @@ func declareCRUDMethods() {
 		})
 
 	commonMixin.AddMethod("Load",
-		`Load query all data of the RecordCollection and store in cache.
+		`Load looks up cache for fields of the RecordCollection and 
+		query database for missing values.
+		fields are the fields to retrieve in the expression format,
+		i.e. "User.Profile.Age" or "user_id.profile_id.age".
+		If no fields are given, all DB columns of the RecordCollection's
+		model are retrieved.`,
+		func(rc *RecordCollection, fields ...string) *RecordCollection {
+			return rc.Load(fields...)
+		})
+
+	commonMixin.AddMethod("ForceLoad",
+		`ForceLoad query all data of the RecordCollection and store in cache.
 		fields are the fields to retrieve in the expression format,
 		i.e. "User.Profile.Age" or "user_id.profile_id.age".
 		If no fields are given, all DB columns of the RecordCollection's
