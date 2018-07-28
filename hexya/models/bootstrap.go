@@ -226,6 +226,10 @@ func inflateEmbeddings() {
 				continue
 			}
 			for relName, relFI := range fi.relatedModel.fields.registryByName {
+				if relFI.relatedModelName == model.name && relFI.jsonReverseFK != "" && relFI.jsonReverseFK == fi.name {
+					// We do not add reverse fields to our own model
+					continue
+				}
 				newFI := Field{
 					name:        relName,
 					json:        relFI.json,
@@ -697,6 +701,7 @@ func bootStrapMethods() {
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
 		loadMeth, loadExists := model.methods.Get("Load")
+		fetchMeth, fetchExists := model.methods.Get("Fetch")
 		writeMeth, writeExists := model.methods.Get("Write")
 		for _, meth := range model.methods.registry {
 			meth.AllowGroup(security.GroupAdmin)
@@ -707,9 +712,14 @@ func setupSecurity() {
 				writeMeth.AllowGroup(security.GroupEveryone, meth)
 			}
 		}
+		if fetchExists {
+			loadMeth.AllowGroup(security.GroupEveryone, fetchMeth)
+		}
+
 		if model.isContext() {
 			baseModel := model.fields.MustGet("Record").relatedModel
 			model.methods.MustGet("Create").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
+			model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
 			model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Load"))
 			model.methods.MustGet("Write").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Write"))
 			model.methods.MustGet("Unlink").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Unlink"))

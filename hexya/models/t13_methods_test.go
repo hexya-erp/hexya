@@ -209,12 +209,16 @@ func TestEmbeddedModels(t *testing.T) {
 			Convey("Adding a proper resume to Jane", func() {
 				userJane.Get("Resume").(RecordSet).Collection().Set("Experience", "Hexya developer for 10 years")
 				userJane.Get("Resume").(RecordSet).Collection().Set("Leisure", "Music, Sports")
+				userJane.Get("Resume").(RecordSet).Collection().Set("Education", "MIT")
+				userJane.Set("Education", "Berkeley")
 			})
 			Convey("Checking that we can access jane's resume directly", func() {
 				So(userJane.Get("Experience"), ShouldEqual, "Hexya developer for 10 years")
 				So(userJane.Get("Leisure"), ShouldEqual, "Music, Sports")
+				So(userJane.Get("Education"), ShouldEqual, "Berkeley")
 				So(userJane.Get("Resume").(RecordSet).Collection().Get("Experience"), ShouldEqual, "Hexya developer for 10 years")
 				So(userJane.Get("Resume").(RecordSet).Collection().Get("Leisure"), ShouldEqual, "Music, Sports")
+				So(userJane.Get("Resume").(RecordSet).Collection().Get("Education"), ShouldEqual, "MIT")
 			})
 		}), ShouldBeNil)
 	})

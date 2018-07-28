@@ -98,7 +98,7 @@ func TestEnvironment(t *testing.T) {
 			Convey("Loading a RecordSet should populate the cache", func() {
 				userJane.Load()
 				So(env.cache.m2mLinks, ShouldBeEmpty)
-				So(env.cache.data, ShouldHaveLength, 3)
+				So(env.cache.data, ShouldHaveLength, 4)
 				So(env.cache.data, ShouldContainKey, users.model.name)
 				So(env.cache.data[users.model.name], ShouldContainKey, userJane.ids[0])
 				janeEntry := env.cache.data[users.model.name][userJane.ids[0]]

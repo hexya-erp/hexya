@@ -207,6 +207,17 @@ func TestModelDeclaration(t *testing.T) {
 				return rc.Super().Call("WithContext", key, value).(*RecordCollection)
 			})
 
+		post.AddMethod("ComputeTagsNames", "",
+			func(rc *RecordCollection) FieldMap {
+				var res string
+				for _, rec := range rc.Records() {
+					for _, tag := range rec.Get("Tags").(RecordSet).Collection().Records() {
+						res += tag.Get("Name").(string) + " "
+					}
+				}
+				return FieldMap{"TagsNames": res}
+			})
+
 		tag.AddMethod("CheckRate",
 			`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
 			func(rc *RecordCollection) {
@@ -250,6 +261,7 @@ func TestModelDeclaration(t *testing.T) {
 			"IsPremium": BooleanField{},
 			"Nums":      IntegerField{GoType: new(int)},
 			"Size":      FloatField{},
+			"Education": TextField{String: "Educational Background"},
 		})
 		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums > 0) OR (IS_PREMIUM = false))",
 			"Premium users must have positive nums")
@@ -281,6 +293,7 @@ func TestModelDeclaration(t *testing.T) {
 			"Comments":        One2ManyField{RelationModel: Registry.MustGet("Comment"), ReverseFK: "Post"},
 			"LastCommentText": TextField{Related: "Comments.Text"},
 			"LastTagName":     CharField{Related: "Tags.Name"},
+			"TagsNames":       CharField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeTagsNames")},
 		})
 		post.SetDefaultOrder("Title")
 
@@ -300,8 +313,8 @@ func TestModelDeclaration(t *testing.T) {
 		tag.SetDefaultOrder("Name DESC", "ID ASC")
 
 		cv.AddFields(map[string]FieldDefinition{
-			"Education":  CharField{Translate: true},
-			"Experience": TextField{},
+			"Education":  CharField{},
+			"Experience": TextField{Translate: true},
 			"Leisure":    TextField{},
 		})
 

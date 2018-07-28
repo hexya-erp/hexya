@@ -468,7 +468,7 @@ func (rc *RecordCollection) loadRelatedRecords(fields []string) {
 	}
 	// Load related paths if not loaded already
 	if len(toLoad) > 0 {
-		rc.Load(toLoad...)
+		rc.Call("Load", toLoad)
 	}
 }
 
@@ -692,21 +692,42 @@ func (rc *RecordCollection) ForceLoad(fields ...string) *RecordCollection {
 // names in this RecordCollection into the cache. fields of other types given in fields
 // are ignored.
 func (rc *RecordCollection) loadRelationFields(fields []string) {
-	for _, id := range rc.ids {
+	if len(fields) == 0 {
+		return
+	}
+	sort.Strings(fields)
+
+	for _, rec := range rc.Records() {
+		id := rec.ids[0]
 		for _, fieldName := range fields {
+			thisRC := rec
+			exprs := strings.Split(fieldName, ExprSep)
+			if len(exprs) > 1 {
+				prefix := strings.Join(exprs[:len(exprs)-1], ExprSep)
+				// We do not call "Load" directly to have caller method properly set
+				thisRC.Call("Load", []string{prefix})
+				thisRC = thisRC.Get(prefix).(RecordSet).Collection()
+			}
 			fi := rc.model.getRelatedFieldInfo(fieldName)
 			switch fi.fieldType {
 			case fieldtype.One2Many:
-				relRC := rc.env.Pool(fi.relatedModelName).Search(rc.Model().Field(fi.reverseFK).Equals(id)).Fetch()
+				relRC := rc.env.Pool(fi.relatedModelName)
+				// We do not call "Fetch" directly to have caller method properly set
+				relRC = relRC.Search(relRC.Model().Field(fi.reverseFK).Equals(thisRC)).Call("Fetch").(RecordSet).Collection()
 				rc.env.cache.updateEntry(rc.model, id, fieldName, relRC.ids, rc.query.ctxArgsSlug())
 			case fieldtype.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
 				var ids []int64
-				rc.env.cr.Select(&ids, query, id)
+				if thisRC.IsEmpty() {
+					continue
+				}
+				rc.env.cr.Select(&ids, query, thisRC.ids[0])
 				rc.env.cache.updateEntry(rc.model, id, fieldName, ids, rc.query.ctxArgsSlug())
 			case fieldtype.Rev2One:
-				relRC := rc.env.Pool(fi.relatedModelName).Search(rc.Model().Field(fi.reverseFK).Equals(id)).Fetch()
+				relRC := rc.env.Pool(fi.relatedModelName)
+				// We do not call "Fetch" directly to have caller method properly set
+				relRC = relRC.Search(relRC.Model().Field(fi.reverseFK).Equals(thisRC)).Call("Fetch").(RecordSet).Collection()
 				var relID int64
 				if len(relRC.ids) > 0 {
 					relID = relRC.ids[0]
@@ -724,7 +745,7 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 func (rc *RecordCollection) Get(fieldName string) interface{} {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	rc.Fetch()
-	fi := rc.model.fields.MustGet(fieldName)
+	fi := rc.model.getRelatedFieldInfo(fieldName)
 	var res interface{}
 
 	switch {

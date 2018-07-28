@@ -186,6 +186,7 @@ func declareModels() {
 		"IsPremium": models.BooleanField{},
 		"Nums":      models.IntegerField{GoType: new(int)},
 		"Size":      models.FloatField{},
+		"Education": models.TextField{String: "Educational Background"},
 	})
 
 	profile.AddFields(map[string]models.FieldDefinition{
