@@ -238,6 +238,14 @@ func TestModelDeclaration(t *testing.T) {
 		tag.methods.RevokeAllFromGroup(security.GroupEveryone)
 		tag.methods.AllowAllToGroup(security.GroupEveryone)
 
+		cv.AddMethod("ComputeOther",
+			`Dummy compute function`,
+			func(rc *RecordCollection) FieldMap {
+				return FieldMap{
+					"Other": "Other information",
+				}
+			})
+
 		user.AddFields(map[string]FieldDefinition{
 			"Name": CharField{String: "Name", Help: "The user's username", Unique: true,
 				NoCopy: true, OnChange: user.Methods().MustGet("OnChangeName")},
@@ -316,6 +324,7 @@ func TestModelDeclaration(t *testing.T) {
 			"Education":  CharField{},
 			"Experience": TextField{Translate: true},
 			"Leisure":    TextField{},
+			"Other":      CharField{Compute: cv.methods.MustGet("ComputeOther")},
 		})
 
 		addressMI.AddFields(map[string]FieldDefinition{

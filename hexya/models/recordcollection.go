@@ -754,11 +754,17 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 	case rc.IsEmpty():
 		res = reflect.Zero(fi.structField.Type).Interface()
 	case fi.isComputedField() && !fi.isStored():
+		exprs := strings.Split(fieldName, ExprSep)
+		prefix := strings.Join(exprs[:len(exprs)-1], ExprSep)
+		relRC := rc
+		if prefix != "" {
+			relRC = rc.Get(prefix).(RecordSet).Collection()
+		}
 		fMap := make(FieldMap)
-		rc.computeFieldValues(&fMap, fi.json)
+		relRC.computeFieldValues(&fMap, fi.json)
 		res = fMap[fi.json]
 	case fi.isRelatedField():
-		res, _ = rc.get(rc.substituteRelatedInPath(fieldName), false)
+		res = rc.Get(rc.substituteRelatedInPath(fieldName))
 	default:
 		// If value is not in cache we fetch the whole model to speed up later calls to Get,
 		// except for the case of non stored relation fields, where we only load the requested field.

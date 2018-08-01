@@ -81,6 +81,12 @@ func TestComputedNonStoredFields(t *testing.T) {
 				users = users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 				So(users.Get("DisplayName").(string), ShouldEqual, "Jane A. Smith")
 			})
+			Convey("Testing computed field through a related field", func() {
+				users := env.Pool("User")
+				jane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+				So(jane.Get("Other"), ShouldEqual, "Other information")
+				So(jane.Get("Resume").(RecordSet).Collection().Get("Other"), ShouldEqual, "Other information")
+			})
 		}), ShouldBeNil)
 	})
 }

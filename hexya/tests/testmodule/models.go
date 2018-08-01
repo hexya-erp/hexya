@@ -234,10 +234,19 @@ func init() {
 		"Education":  models.TextField{},
 		"Experience": models.TextField{Translate: true},
 		"Leisure":    models.TextField{},
+		"Other":      models.CharField{Compute: h.Resume().Methods().ComputeOther()},
 	})
 	cv.Methods().Create().Extend("",
 		func(rs h.ResumeSet, data *h.ResumeData) h.ResumeSet {
 			return rs.Super().Create(data)
+		})
+
+	cv.Methods().ComputeOther().DeclareMethod(
+		`Dummy compute function`,
+		func(rs h.ResumeSet) *h.ResumeData {
+			return &h.ResumeData{
+				Other: "Other information",
+			}
 		})
 
 	addressMI := h.AddressMixIn().DeclareMixinModel()
