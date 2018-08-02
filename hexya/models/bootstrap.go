@@ -738,7 +738,7 @@ func checkFieldMethodsExist() {
 			if field.constraint != "" {
 				model.methods.MustGet(field.constraint)
 			}
-			if field.compute != "" {
+			if field.compute != "" && field.stored {
 				model.methods.MustGet(field.compute)
 				if len(field.depends) == 0 {
 					log.Warn("Computed fields should have a 'Depends' parameter set", "model", model.name, "field", field.name)

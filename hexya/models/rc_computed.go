@@ -37,10 +37,6 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 			// probably because it was computed with another field
 			continue
 		}
-		if rc.env.cache.checkIfInCache(rc.model, rc.Ids(), []string{fInfo.name}, rc.query.ctxArgsSlug(), false) {
-			(*params)[fInfo.json] = rc.env.cache.get(rc.model, rc.Ids()[0], fInfo.name, rc.query.ctxArgsSlug())
-			continue
-		}
 		newParams := rc.Call(fInfo.compute).(FieldMapper).FieldMap()
 		for k, v := range newParams {
 			key, _ := rc.model.fields.Get(k)

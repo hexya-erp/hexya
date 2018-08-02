@@ -540,6 +540,12 @@ func declareSearchMethods() {
 		func(rc *RecordCollection, test func(rs RecordSet) bool) *RecordCollection {
 			return rc.Filtered(test)
 		})
+
+	commonMixin.AddMethod("GetRecord",
+		` GetRecord returns the Recordset with the given externalID. It panics if the externalID does not exist.`,
+		func(rc *RecordCollection, externalID string) *RecordCollection {
+			return rc.GetRecord(externalID)
+		})
 }
 
 func declareEnvironmentMethods() {

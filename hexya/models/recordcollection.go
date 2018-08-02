@@ -150,7 +150,7 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() {
+		if !fi.isSettable() || fi.isRelatedField() {
 			continue
 		}
 
@@ -1016,6 +1016,15 @@ func (rc *RecordCollection) Len() int {
 // Model returns the Model instance of this RecordCollection
 func (rc *RecordCollection) Model() *Model {
 	return rc.model
+}
+
+// GetRecord returns the Recordset with the given externalID. It panics if the externalID does not exist.
+func (rc *RecordCollection) GetRecord(externalID string) *RecordCollection {
+	res := rc.Search(rc.model.Field("HexyaExternalID").Equals(externalID))
+	if res.IsEmpty() {
+		log.Panic("Unknown external ID", "model", rc.model.name, "externalID", externalID)
+	}
+	return res
 }
 
 // withIdMap adds the given ids to this RecordCollection and returns it too.
