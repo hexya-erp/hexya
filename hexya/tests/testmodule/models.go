@@ -70,7 +70,7 @@ func init() {
 		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
 			Inverse: user.Methods().InverseSetAge(),
 			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-		"Posts":     models.One2ManyField{RelationModel: h.Post(), ReverseFK: "User"},
+		"Posts":     models.One2ManyField{RelationModel: h.Post(), ReverseFK: "User", Copy: true},
 		"PMoney":    models.FloatField{Related: "Profile.Money"},
 		"Resume":    models.Many2OneField{RelationModel: h.Resume(), Embed: true},
 		"LastPost":  models.Many2OneField{RelationModel: h.Post()},

@@ -27,6 +27,21 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 )
 
+// RecordSet identifies a type that holds a set of records of
+// a given model. Dummy interface in types module.
+type RecordSet interface {
+	// ModelName returns the name of the model of this RecordSet
+	ModelName() string
+	// Ids returns the ids in this set of Records
+	Ids() []int64
+	// Len returns the number of records in this RecordSet
+	Len() int
+	// IsEmpty returns true if this RecordSet has no records
+	IsEmpty() bool
+	// Call executes the given method (as string) with the given arguments
+	Call(string, ...interface{}) interface{}
+}
+
 var log logging.Logger
 
 // A Context is a map of objects that is passed along from function to function
@@ -211,6 +226,9 @@ func (c *Context) HasKey(key string) bool {
 // WithKey returns a copy of this context with the given key/value.
 // If key already exists, it is overwritten.
 func (c Context) WithKey(key string, value interface{}) *Context {
+	if _, ok := value.(RecordSet); ok {
+		log.Panic("Recordset passed in Context. Pass ID instead", "key", key, "value", value)
+	}
 	c.values[key] = value
 	return &c
 }
@@ -276,7 +294,7 @@ func (c *Context) Scan(src interface{}) error {
 		c.values = s
 		return nil
 	default:
-		return fmt.Errorf("Invalid type for Context: %T", src)
+		return fmt.Errorf("invalid type for Context: %T", src)
 	}
 	var ctx Context
 	err := json.Unmarshal(data, &ctx)
@@ -295,13 +313,8 @@ var _ json.Marshaler = &Context{}
 var _ json.Unmarshaler = &Context{}
 
 // NewContext returns a new Context instance
-func NewContext(data ...map[string]interface{}) *Context {
-	var values map[string]interface{}
-	if len(data) > 0 {
-		values = data[0]
-	} else {
-		values = make(map[string]interface{})
-	}
+func NewContext() *Context {
+	values := make(map[string]interface{})
 	return &Context{
 		values: values,
 	}

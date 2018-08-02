@@ -409,7 +409,7 @@ type One2ManyField struct {
 	Compute       Methoder
 	Depends       []string
 	Related       string
-	NoCopy        bool
+	Copy          bool
 	RelationModel Modeler
 	ReverseFK     string
 	OnChange      Methoder
@@ -429,6 +429,9 @@ func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
 	fInfo.filter = filter
 	fInfo.relatedModelName = of.RelationModel.Underlying().name
 	fInfo.reverseFK = of.ReverseFK
+	if !of.Copy {
+		fInfo.noCopy = true
+	}
 	return fInfo
 }
 
@@ -501,7 +504,7 @@ type Rev2OneField struct {
 	Compute       Methoder
 	Depends       []string
 	Related       string
-	NoCopy        bool
+	Copy          bool
 	RelationModel Modeler
 	ReverseFK     string
 	OnChange      Methoder
@@ -521,6 +524,9 @@ func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 	fInfo.filter = filter
 	fInfo.relatedModelName = rf.RelationModel.Underlying().name
 	fInfo.reverseFK = rf.ReverseFK
+	if !rf.Copy {
+		fInfo.noCopy = true
+	}
 	return fInfo
 }
 
@@ -648,6 +654,10 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 			return res
 		}
 	}
+	var noCopy bool
+	if noc := val.FieldByName("NoCopy"); noc.IsValid() {
+		noCopy = noc.Bool()
+	}
 	fInfo := &Field{
 		model:       fc.model,
 		acl:         security.NewAccessControlList(),
@@ -664,7 +674,7 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 		inverse:     inverse,
 		depends:     val.FieldByName("Depends").Interface().([]string),
 		relatedPath: val.FieldByName("Related").String(),
-		noCopy:      val.FieldByName("NoCopy").Bool(),
+		noCopy:      noCopy,
 		structField: structField,
 		fieldType:   fieldType,
 		defaultFunc: val.FieldByName("Default").Interface().(func(Environment) interface{}),

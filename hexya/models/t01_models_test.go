@@ -261,7 +261,7 @@ func TestModelDeclaration(t *testing.T) {
 			"Age": IntegerField{Compute: user.Methods().MustGet("ComputeAge"),
 				Inverse: user.Methods().MustGet("InverseSetAge"),
 				Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-			"Posts":     One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User"},
+			"Posts":     One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User", Copy: true},
 			"PMoney":    FloatField{Related: "Profile.Money"},
 			"LastPost":  Many2OneField{RelationModel: Registry.MustGet("Post")},
 			"Resume":    Many2OneField{RelationModel: Registry.MustGet("Resume"), Embed: true},

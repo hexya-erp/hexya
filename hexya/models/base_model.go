@@ -230,6 +230,9 @@ func declareCRUDMethods() {
 				if _, inOverrides := overrides.FieldMap(fieldsToUnset...).Get(fi.name, rc.model); inOverrides {
 					continue
 				}
+				if fi.noCopy {
+					continue
+				}
 				switch fi.fieldType {
 				case fieldtype.One2One:
 					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
