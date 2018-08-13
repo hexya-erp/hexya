@@ -473,8 +473,8 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 }
 
 // Create creates a new record in this model with the given data.
-func (m *Model) Create(env Environment, data interface{}) *RecordCollection {
-	return env.Pool(m.name).Call("Create", data).(RecordSet).Collection()
+func (m *Model) Create(env Environment, data interface{}, fieldsToReset ...FieldNamer) *RecordCollection {
+	return env.Pool(m.name).Call("Create", data, fieldsToReset).(RecordSet).Collection()
 }
 
 // Search searches the database and returns records matching the given condition.

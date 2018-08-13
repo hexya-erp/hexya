@@ -114,7 +114,7 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 		switch p.arg.(type) {
 		case bool:
 			cond.predicates[i].arg = int64(0)
-		case string:
+		case string, ClientEvaluatedString:
 			cond.predicates[i].exprs = addNameSearchToExprs(fi, p.exprs)
 		}
 	}
@@ -123,10 +123,15 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
 func addNameSearchToExprs(fi *Field, exprs []string) []string {
-	_, exists := fi.relatedModel.fields.Get("name")
-	if exists {
-		exprs = append(exprs, "name")
+	relFI, exists := fi.relatedModel.fields.Get("name")
+	if !exists {
+		return exprs
 	}
+	exprsToAppend := []string{"name"}
+	if relFI.isRelatedField() {
+		exprsToAppend = strings.Split(relFI.relatedPath, ExprSep)
+	}
+	exprs = append(exprs, exprsToAppend...)
 	return exprs
 }
 

@@ -80,14 +80,14 @@ func (rc *RecordCollection) clone() *RecordCollection {
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Create")
-func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
+func (rc *RecordCollection) create(data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
 	defer func() {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
 		}
 	}()
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
-	fMap := data.FieldMap()
+	fMap := data.FieldMap(fieldsToReset...)
 	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	rc.applyDefaults(&fMap, true)
 	rc.applyContexts()

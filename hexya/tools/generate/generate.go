@@ -158,16 +158,19 @@ func createMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
-		ParamsTypes:  fmt.Sprintf("*%sData", modelData.Name),
+		ParamsTypes:  fmt.Sprintf("*%sData, ...models.FieldNamer", modelData.Name),
 		ReturnString: returnString,
 	})
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name: name,
 		Doc: fmt.Sprintf(`// Create inserts a %s record in the database from the given data.
-// Returns the created %sSet.`, modelData.Name, modelData.Name),
+// Returns the created %sSet.
+//
+// Only fields with non zero values or fields passed in the 'fieldsToReset' arg are set`,
+			modelData.Name, modelData.Name),
 		ToDeclare:      false,
-		Params:         "data",
-		ParamsWithType: fmt.Sprintf("data *%sData", modelData.Name),
+		Params:         "data, fieldsToReset",
+		ParamsWithType: fmt.Sprintf("data *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -571,9 +574,9 @@ func (m {{ .Name }}Model) NewSet(env models.Environment) {{ .Name }}Set {
 
 // Create creates a new {{ .Name }} record and returns the newly created
 // {{ .Name }}Set instance.
-func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data) {{ .Name }}Set {
+func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data, fieldsToReset ...models.FieldNamer) {{ .Name }}Set {
 	return {{ .Name }}Set{
-		RecordCollection: m.Model.Create(env, data),
+		RecordCollection: m.Model.Create(env, data, fieldsToReset...),
 	}
 }
 

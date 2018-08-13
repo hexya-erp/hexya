@@ -47,6 +47,7 @@ func BootStrap() {
 	createModelLinks()
 	inflateEmbeddings()
 	processUpdates()
+	updateFieldDefs()
 	syncRelatedFieldInfo()
 	inflateContexts()
 	bootStrapMethods()
@@ -79,6 +80,20 @@ func processUpdates() {
 				}
 			}
 			fi.updates = nil
+		}
+	}
+}
+
+// updateFieldDefs updates fields definitions if necessary
+func updateFieldDefs() {
+	for _, model := range Registry.registryByName {
+		for _, fi := range model.fields.registryByName {
+			switch fi.fieldType {
+			case fieldtype.Boolean:
+				if fi.defaultFunc != nil && fi.isSettable() {
+					fi.required = true
+				}
+			}
 		}
 	}
 }

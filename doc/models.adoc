@@ -105,10 +105,13 @@ RecordSet of the type of the related model.
 
 ==== CRUD Methods
 
-`*(Model) Create(env Environment, data *RecordType) RecordSetType*`::
+`*(Model) Create(env Environment, data *RecordType, fieldsToUnset ...models.FieldNamer) RecordSetType*`::
 Insert a new record in the database with the given data and returns the
 inserted Record. Fields which are not given a value are set to the type's zero
-value.
+value or the default value if the field is required.
++
+If you want to set a required field to its Go default value instead of the fields default, add this field
+to the fieldsToUnset slice.
 
 [source,go]
 ----
@@ -138,7 +141,7 @@ fmt.Println(customer.Name())
 
 ----
 
-`*Write(data *RecordType, fieldsToUnset ...models.FieldName) bool*`::
+`*Write(data *RecordType, fieldsToUnset ...models.FieldNamer) bool*`::
 Update records in the database with the given data. Updates are made with a
 single SQL query. Fields in `fieldsToUnset` are first set to their Go zero
 value, then all non-zero values of data are updated.

@@ -117,7 +117,9 @@ func (c Condition) AndNot() *ConditionStart {
 // AndNotCond completes the current condition with an AND NOT clause between
 // brackets : c.AndNot(cond) => (c) AND NOT (cond)
 func (c Condition) AndNotCond(cond *Condition) *Condition {
-	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isNot: true})
+	if !cond.IsEmpty() {
+		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isNot: true})
+	}
 	return &c
 }
 
@@ -152,7 +154,9 @@ func (c Condition) OrNot() *ConditionStart {
 // OrNotCond completes the current condition both with an OR NOT clause between
 // brackets : c.OrNot(cond) => (c) OR NOT (cond)
 func (c Condition) OrNotCond(cond *Condition) *Condition {
-	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true, isNot: true})
+	if !cond.IsEmpty() {
+		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true, isNot: true})
+	}
 	return &c
 }
 
@@ -395,10 +399,10 @@ func (c ConditionField) IsNotNull() *Condition {
 func (c *Condition) IsEmpty() bool {
 	switch {
 	case c == nil:
-		return false
+		return true
 	case len(c.predicates) == 0:
 		return true
-	case len(c.predicates) == 1 && c.predicates[0].cond.IsEmpty():
+	case len(c.predicates) == 1 && c.predicates[0].cond != nil && c.predicates[0].cond.IsEmpty():
 		return true
 	}
 	return false

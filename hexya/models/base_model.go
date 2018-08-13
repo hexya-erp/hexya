@@ -117,8 +117,8 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
-		func(rc *RecordCollection, data FieldMapper) *RecordCollection {
-			return rc.create(data)
+		func(rc *RecordCollection, data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
+			return rc.create(data, fieldsToReset...)
 		})
 
 	commonMixin.AddMethod("Read",
