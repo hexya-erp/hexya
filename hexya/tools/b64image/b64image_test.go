@@ -64,3 +64,31 @@ func TestColorize(t *testing.T) {
 		})
 	})
 }
+
+func TestResize(t *testing.T) {
+	Convey("Testing Resize function", t, func() {
+		imgData, _ := ioutil.ReadFile("testdata/avatar.png")
+		imgString := base64.StdEncoding.EncodeToString(imgData)
+		Convey("Resizing smaller should create a smaller image", func() {
+			smallImg := Resize(imgString, 100, 150, false)
+			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(smallImg))
+			destImg, _, _ := image.Decode(reader)
+			So(destImg.Bounds().Dx(), ShouldEqual, 100)
+			So(destImg.Bounds().Dy(), ShouldEqual, 150)
+		})
+		Convey("Resizing bigger should create a bigger image", func() {
+			bigImg := Resize(imgString, 300, 400, false)
+			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(bigImg))
+			destImg, _, _ := image.Decode(reader)
+			So(destImg.Bounds().Dx(), ShouldEqual, 300)
+			So(destImg.Bounds().Dy(), ShouldEqual, 400)
+		})
+		Convey("Resizing bigger, with avoid, should not create a bigger image", func() {
+			bigImg := Resize(imgString, 300, 400, true)
+			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(bigImg))
+			destImg, _, _ := image.Decode(reader)
+			So(destImg.Bounds().Dx(), ShouldEqual, 180)
+			So(destImg.Bounds().Dy(), ShouldEqual, 180)
+		})
+	})
+}
