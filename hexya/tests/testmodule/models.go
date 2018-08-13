@@ -186,7 +186,7 @@ func init() {
 	})
 
 	h.Post().Methods().Create().Extend("",
-		func(rs h.PostSet, data *h.PostData) h.PostSet {
+		func(rs h.PostSet, data *h.PostData, fieldsToReset ...models.FieldNamer) h.PostSet {
 			res := rs.Super().Create(data)
 			return res
 		})
@@ -237,7 +237,7 @@ func init() {
 		"Other":      models.CharField{Compute: h.Resume().Methods().ComputeOther()},
 	})
 	cv.Methods().Create().Extend("",
-		func(rs h.ResumeSet, data *h.ResumeData) h.ResumeSet {
+		func(rs h.ResumeSet, data *h.ResumeData, fieldsToReset ...models.FieldNamer) h.ResumeSet {
 			return rs.Super().Create(data)
 		})
 

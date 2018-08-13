@@ -191,7 +191,7 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		post.Methods().MustGet("Create").Extend("",
-			func(rc *RecordCollection, data FieldMapper) *RecordCollection {
+			func(rc *RecordCollection, data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
