@@ -137,7 +137,7 @@ func declareModels() {
 		})
 
 	post.Methods().MustGet("Create").Extend("",
-		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+		func(rc *models.RecordCollection, data models.FieldMapper, fieldsToReset ...models.FieldNamer) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(models.RecordSet).Collection()
 			return res
 		})
@@ -211,7 +211,7 @@ func declareModels() {
 	})
 
 	post.Methods().MustGet("Create").Extend("",
-		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+		func(rc *models.RecordCollection, data models.FieldMapper, fieldsToReset ...models.FieldNamer) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(*models.RecordCollection)
 			return res
 		})

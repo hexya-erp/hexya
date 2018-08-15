@@ -22,9 +22,6 @@ import (
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
 // Returned fieldMap keys are field's JSON name
-//
-// This method reads result from cache if available. If not, the computation is carried
-// out and the result is stored in cache.
 func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
 	rc.EnsureOne()
 	for _, fInfo := range rc.model.fields.getComputedFields(fields...) {
@@ -41,7 +38,6 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 		for k, v := range newParams {
 			key, _ := rc.model.fields.Get(k)
 			(*params)[key.json] = v
-			rc.env.cache.updateEntry(rc.model, rc.Ids()[0], fInfo.name, v, rc.query.ctxArgsSlug())
 		}
 	}
 }

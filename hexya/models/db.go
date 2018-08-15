@@ -240,7 +240,7 @@ func logSQLResult(err error, start time.Time, query string, args ...interface{})
 	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(start))
 	if err != nil {
 		// We don't log.Panic to keep db error information in recovery
-		logCtx.Error("Error while executing query", "error", err, "query", query, "args", args)
+		logCtx.Error("Error while executing query", "error", err)
 		panic(err)
 	}
 	logCtx.Debug("Query executed")

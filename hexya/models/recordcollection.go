@@ -847,8 +847,10 @@ func (rc *RecordCollection) First(structPtr interface{}) {
 		fields[i] = typ.Field(i).Name
 	}
 	rc.Load(fields...)
-	fMap := rc.env.cache.getRecord(rc.Model(), rc.ids[0], rc.query.ctxArgsSlug())
-	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Read)
+	fMap := make(FieldMap)
+	for _, f := range fields {
+		fMap[f] = rc.Get(f)
+	}
 	MapToStruct(rc, structPtr, fMap)
 }
 
@@ -865,12 +867,9 @@ func (rc *RecordCollection) All(structSlicePtr interface{}) {
 	structType := sspType.Elem().Elem()
 	val.Elem().Set(reflect.MakeSlice(sspType, rc.Len(), rc.Len()))
 	recs := rc.Records()
-	rc.Load()
 	for i := 0; i < rc.Len(); i++ {
-		fMap := rc.env.cache.getRecord(rc.Model(), recs[i].ids[0], rc.query.ctxArgsSlug())
-		fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Read)
 		newStructPtr := reflect.New(structType).Interface()
-		MapToStruct(rc, newStructPtr, fMap)
+		recs[i].First(newStructPtr)
 		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
 	}
 }

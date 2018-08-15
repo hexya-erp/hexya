@@ -672,7 +672,7 @@ func (q *Query) substituteConditionExprs(substMap map[string][]string) {
 // evaluateConditionArgFunctions evaluates all args in the queries that are functions and
 // substitute it with the result.
 //
-// multi should be true if the operator of the predicate in
+// multi should be true if the operator of the predicate is IN
 func (q *Query) evaluateConditionArgFunctions(p predicate) interface{} {
 	fnctVal := reflect.ValueOf(p.arg)
 	if fnctVal.Kind() != reflect.Func {

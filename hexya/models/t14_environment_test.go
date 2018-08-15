@@ -182,7 +182,7 @@ func TestEnvironment(t *testing.T) {
 				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
 				So(tags.Records()[1].Get("Posts").(RecordSet).Collection().Ids(), ShouldContain, post2.ids[0])
 			})
-			Convey("Check that computed fields are stored and read in cache", func() {
+			Convey("Check that computed fields are not stored in cache", func() {
 				userJane.Load()
 				So(env.cache.data, ShouldContainKey, users.model.name)
 				So(env.cache.data[users.model.name], ShouldContainKey, userJane.ids[0])
@@ -190,9 +190,8 @@ func TestEnvironment(t *testing.T) {
 				So(janeEntry, ShouldContainKey, "id")
 				So(janeEntry, ShouldContainKey, "name")
 				So(janeEntry, ShouldNotContainKey, "decorated_name")
-				decoratedName := userJane.Get("DecoratedName")
-				So(janeEntry, ShouldContainKey, "decorated_name")
-				So(janeEntry["decorated_name"], ShouldEqual, decoratedName)
+				userJane.Get("DecoratedName")
+				So(janeEntry, ShouldNotContainKey, "decorated_name")
 			})
 		}), ShouldBeNil)
 	})

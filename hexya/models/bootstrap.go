@@ -70,13 +70,18 @@ func processUpdates() {
 		for _, fi := range model.fields.registryByName {
 			for _, update := range fi.updates {
 				for property, value := range update {
-					if property == "selection_add" {
+					switch property {
+					case "selection_add":
 						for k, v := range value.(types.Selection) {
 							fi.selection[k] = v
 						}
-						continue
+					case "contexts_add":
+						for k, v := range value.(FieldContexts) {
+							fi.contexts[k] = v
+						}
+					default:
+						fi.setProperty(property, value)
 					}
-					fi.setProperty(property, value)
 				}
 			}
 			fi.updates = nil

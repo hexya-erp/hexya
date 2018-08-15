@@ -918,6 +918,12 @@ func (f *Field) SetContexts(value FieldContexts) *Field {
 	return f
 }
 
+// AddContexts adds the given contexts to the Contexts parameter of this Field
+func (f *Field) AddContexts(value FieldContexts) *Field {
+	f.addUpdate("contexts_add", value)
+	return f
+}
+
 // SetDefault overrides the value of the Default parameter of this Field
 func (f *Field) SetDefault(value func(Environment) interface{}) *Field {
 	f.addUpdate("defaultFunc", value)
