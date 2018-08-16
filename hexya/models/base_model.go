@@ -604,27 +604,30 @@ func ConvertLimitToInt(limit interface{}) int {
 
 // FieldInfo is the exportable field information struct
 type FieldInfo struct {
-	ChangeDefault    bool                   `json:"change_default"`
-	Help             string                 `json:"help"`
-	Searchable       bool                   `json:"searchable"`
-	Views            map[string]interface{} `json:"views"`
-	Required         bool                   `json:"required"`
-	Manual           bool                   `json:"manual"`
-	ReadOnly         bool                   `json:"readonly"`
-	Depends          []string               `json:"depends"`
-	CompanyDependent bool                   `json:"company_dependent"`
-	Sortable         bool                   `json:"sortable"`
-	Translate        bool                   `json:"translate"`
-	Type             fieldtype.Type         `json:"type"`
-	Store            bool                   `json:"store"`
-	String           string                 `json:"string"`
-	Relation         string                 `json:"relation"`
-	Selection        types.Selection        `json:"selection"`
-	Domain           interface{}            `json:"domain"`
-	OnChange         bool                   `json:"-"`
-	ReverseFK        string                 `json:"-"`
-	Name             string                 `json:"-"`
-	JSON             string                 `json:"-"`
+	ChangeDefault    bool                                  `json:"change_default"`
+	Help             string                                `json:"help"`
+	Searchable       bool                                  `json:"searchable"`
+	Views            map[string]interface{}                `json:"views"`
+	Required         bool                                  `json:"required"`
+	Manual           bool                                  `json:"manual"`
+	ReadOnly         bool                                  `json:"readonly"`
+	Depends          []string                              `json:"depends"`
+	CompanyDependent bool                                  `json:"company_dependent"`
+	Sortable         bool                                  `json:"sortable"`
+	Translate        bool                                  `json:"translate"`
+	Type             fieldtype.Type                        `json:"type"`
+	Store            bool                                  `json:"store"`
+	String           string                                `json:"string"`
+	Relation         string                                `json:"relation"`
+	Selection        types.Selection                       `json:"selection"`
+	Domain           interface{}                           `json:"domain"`
+	OnChange         bool                                  `json:"-"`
+	ReverseFK        string                                `json:"-"`
+	Name             string                                `json:"-"`
+	JSON             string                                `json:"-"`
+	ReadOnlyFunc     func(Environment) (bool, Conditioner) `json:"-"`
+	RequiredFunc     func(Environment) (bool, Conditioner) `json:"-"`
+	InvisibleFunc    func(Environment) (bool, Conditioner) `json:"-"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method

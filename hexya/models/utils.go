@@ -261,11 +261,13 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 
 // filterMapOnStoredFields returns a new FieldMap from fMap
 // with only fields keys stored directly in this model.
+//
+// This function also converts all keys to fields JSON names.
 func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
 	newFMap := make(FieldMap)
 	for field, value := range fMap {
 		if fi, ok := mi.fields.Get(field); ok && fi.isStored() {
-			newFMap[field] = value
+			newFMap[fi.json] = value
 		}
 	}
 	return newFMap

@@ -186,17 +186,6 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userTom.Name(), ShouldEqual, "Tom Smith")
 				So(userTom.Email(), ShouldEqual, "tsmith@example.com")
 			})
-			Convey("Removing Create right on Email field", func() {
-				h.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Write)
-				userTomData := h.UserData{
-					Name:  "Tom Smith",
-					Email: "tsmith@example.com",
-				}
-				userTom := h.User().Create(env, &userTomData)
-				So(userTom.Name(), ShouldEqual, "Tom Smith")
-				So(userTom.Email(), ShouldBeBlank)
-				h.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Write)
-			})
 		}), ShouldBeNil)
 	})
 	security.Registry.UnregisterGroup(group1)
@@ -284,19 +273,6 @@ func TestSearchRecordSet(t *testing.T) {
 				So(userJane.Email(), ShouldEqual, "jane.smith@example.com")
 				So(userJane.Age(), ShouldEqual, 23)
 				So(func() { userJane.Profile().Age() }, ShouldPanic)
-			})
-			Convey("Adding field access rights to user 2 and checking access", func() {
-				h.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Read)
-				h.User().Fields().Age().RevokeAccess(security.GroupEveryone, security.Read)
-
-				userJane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
-				So(func() { userJane.Load() }, ShouldNotPanic)
-				So(userJane.Name(), ShouldEqual, "Jane Smith")
-				So(userJane.Email(), ShouldBeBlank)
-				So(userJane.Age(), ShouldEqual, 0)
-
-				h.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Read)
-				h.User().Fields().Age().GrantAccess(security.GroupEveryone, security.Read)
 			})
 			Convey("Checking record rules", func() {
 				users := h.User().NewSet(env).SearchAll()
@@ -572,21 +548,6 @@ func TestUpdateRecordSet(t *testing.T) {
 				jane := h.User().Search(env, q.User().Name().Equals("Jane A. Smith"))
 				So(jane.Len(), ShouldEqual, 1)
 				So(func() { jane.UpdateCity("London") }, ShouldNotPanic)
-			})
-			Convey("Removing Update right on Email field", func() {
-				h.User().Fields().Email().RevokeAccess(security.GroupEveryone, security.Write)
-				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
-				So(john.Len(), ShouldEqual, 1)
-				johnValues := h.UserData{
-					Email: "jsmith3@example.com",
-					Nums:  13,
-				}
-				john.Write(&johnValues)
-				john.Load()
-				So(john.Name(), ShouldEqual, "John Smith")
-				So(john.Email(), ShouldEqual, "jsmith2@example.com")
-				So(john.Nums(), ShouldEqual, 13)
-				h.User().Fields().Email().GrantAccess(security.GroupEveryone, security.Write)
 			})
 			Convey("Checking record rules", func() {
 				userJane := h.User().NewSet(env).SearchAll()

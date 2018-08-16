@@ -733,9 +733,22 @@ Field's help typically displayed as tooltip.
 `Required` bool::
 Defines the field as required (i.e. not null).
 
+`RequiredFunc` func(Environment) (bool, Conditioner)::
+Defines the field as required depending on the returned values of the given function.
++
+If the second parameter is not nil, the condition is passed as is to the client for evaluation.
++
+If the second parameter is nili, then the first returned argument will define if the field is required.
+
 `ReadOnly` bool::
 This field will be shown as read only on all views.
 Note that this does not prevent setting the field by code or through a method.
+
+`ReadOnlyFunc` func(Environment) (bool, string)::
+Dynamic version of `ReadOnly`. Works the same way as `RequiredFunc`.
+
+`InvisibleFunc` func(Environment) (bool, string)::
+Defines if the field should be visible in views. Works the same way as `RequiredFunc`.
 
 `Unique` bool::
 Defines the field as unique in the database table.

@@ -88,7 +88,6 @@ func (rc *RecordCollection) create(data FieldMapper, fieldsToReset ...FieldNamer
 	}()
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
 	fMap := data.FieldMap(fieldsToReset...)
-	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	rc.applyDefaults(&fMap, true)
 	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
@@ -112,7 +111,7 @@ func (rc *RecordCollection) create(data FieldMapper, fieldsToReset ...FieldNamer
 	// compute stored fields
 	rSet.processInverseMethods(fMap)
 	rSet.processTriggers(fMap)
-	rSet.checkConstraints()
+	rSet.CheckConstraints()
 	return rSet
 }
 
@@ -154,19 +153,19 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 			continue
 		}
 
-		if _, ok := (*fMap)[fName]; !ok {
+		if _, ok := fMap.Get(fName, rc.model); !ok {
 			if !fi.required && requiredOnly {
 				continue
 			}
-			val, exists := ctxDefaults[fName]
+			val, exists := ctxDefaults[fi.json]
 			if exists {
-				(*fMap)[fName] = val
+				fMap.Set(fName, val, rc.model)
 				continue
 			}
 			if fi.defaultFunc == nil {
 				continue
 			}
-			(*fMap)[fName] = fi.defaultFunc(rc.Env())
+			fMap.Set(fName, fi.defaultFunc(rc.Env()), rc.model)
 		}
 	}
 }
@@ -210,11 +209,11 @@ func (rc *RecordCollection) addContextsFieldsValues(fMap FieldMap) FieldMap {
 	return res
 }
 
-// checkConstraints executes the constraint method for each field defined
+// CheckConstraints executes the constraint method for each field defined
 // in the given fMap with the corresponding value.
 // Each method is only executed once, even if it is called by several fields.
 // It panics as soon as one constraint fails.
-func (rc *RecordCollection) checkConstraints() {
+func (rc *RecordCollection) CheckConstraints() {
 	if rc.env.context.GetBool("skip_check_constraints") {
 		return
 	}
@@ -268,7 +267,7 @@ func (rc *RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer
 	rSet.updateRelatedFields(fMap)
 	// compute stored fields
 	rSet.processTriggers(fMap)
-	rSet.checkConstraints()
+	rSet.CheckConstraints()
 	return true
 }
 
@@ -294,7 +293,6 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 			panic(rc.substituteSQLErrorMessage(r))
 		}
 	}()
-	fMap = filterMapOnAuthorizedFields(rc.model, fMap, rc.env.uid, security.Write)
 	// update DB
 	if len(fMap) == 2 {
 		_, okWD := fMap["write_date"]
@@ -322,9 +320,6 @@ func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
 	rc.Fetch()
 	for field, value := range fMap {
 		fi := rc.model.getRelatedFieldInfo(field)
-		if !checkFieldPermission(fi, rc.env.uid, security.Write) {
-			continue
-		}
 		switch fi.fieldType {
 		case fieldtype.One2Many:
 			// We take only the first record since updating all records
@@ -636,7 +631,7 @@ func (rc *RecordCollection) Load(fields ...string) *RecordCollection {
 // If no fields are given, all DB columns of the RecordCollection's
 // model are retrieved as well as related fields. Non-DB fields must
 // be explicitly given in fields to be retrieved.
-func (rc *RecordCollection) ForceLoad(fields ...string) *RecordCollection {
+func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	if rc.query.isEmpty() {
 		// Never load RecordSets without query.
@@ -657,10 +652,12 @@ func (rc *RecordCollection) ForceLoad(fields ...string) *RecordCollection {
 		rSet.query.orders = make([]string, len(rSet.model.defaultOrder))
 		copy(rSet.query.orders, rSet.model.defaultOrder)
 	}
+
+	fields := make([]string, len(fieldNames))
+	copy(fields, fieldNames)
 	if len(fields) == 0 {
 		fields = rSet.model.fields.storedFieldNames()
 	}
-	fields = filterOnAuthorizedFields(rSet.model, rSet.env.uid, fields, security.Read)
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
 	rSet.applyContexts()
 	subFields, _ := rSet.substituteRelatedFields(fields)
@@ -749,8 +746,6 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 	var res interface{}
 
 	switch {
-	case !checkFieldPermission(fi, rc.env.uid, security.Read):
-		res = nil
 	case rc.IsEmpty():
 		res = reflect.Zero(fi.structField.Type).Interface()
 	case fi.isComputedField() && !fi.isStored():
@@ -880,7 +875,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 		log.Panic("Trying to get aggregates of a non-grouped query", "model", rc.model)
 	}
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
-	fields := filterOnAuthorizedFields(rSet.model, rSet.env.uid, convertToStringSlice(fieldNames), security.Read)
+	fields := convertToStringSlice(fieldNames)
 	subFields, substMap := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields, true)

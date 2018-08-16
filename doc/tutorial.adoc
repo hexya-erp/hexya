@@ -1537,8 +1537,8 @@ execution permission is granted to groups on a per-method basis. Classical
 CRUD access control is possible by granting execution on `Create`, `Load`,
 `Write` and `Unlink` methods of a model.
 
-It is also possible to restrict access to specific fields on a view or object
-using the field's groups attribute.
+It is also possible to restrict access to specific fields on a view or through
+the `InvisibleFunc` and `ReadOnlyFunc` field attributes.
 
 === Method Execution Control
 
@@ -1620,37 +1620,61 @@ To test our access control,
 
 === Field Access Control
 
-While Method Execution Control is the main security mechanism used in Hexya,
-it is sometimes necessary to limit read or write access for some users to some
-fields. This is done through Field Access Control.
+There is no Field Access Control as such in Hexya, but it is possible to hide fields or set
+them as readonly on views, based on the context.
 
-[NOTE]
-====
-The following rules apply:
+This can be done in two ways:
 
-- If a user without `Read` permission on a field retrieve a record, the value of
-the field will be replaced by its Go zero value.
-- If a user without `Write` permission on a field writes a record, the value of
-the field will not be updated.
-====
+- Through the `invisible`, `readonly` and `attrs` attributes of view definitions.
+- Through the `InvisibleFunc` and `ReadOnlyFunc` field attributes in the field declaration.
+In this case, the result applies to all views.
 
-IMPORTANT: By default, all fields can be accessed for read and write by
-`security.GroupEveryone`, a special group to which all users are automatically
-added. Therefore, to change a field access, you *must* revoke access to this
-group first, or your modifications will have no effect.
+==== View attributes
 
-Let's make the `TakenSeats` readable only by managers:
+`invisible`::
 
-.openacademy/session.go
+Setting the attribute `invisible="1"` to a field node in a view definition will hide the field from the user.
+This is mostly used for technical fields that are needed for client side computation but must not be displayed.
+
+`readonly`::
+
+Setting the attribute `readonly="1"` to a field node, will set it as read only for this view.
+Note that computed fields without inverse method are automatically set as read only.
+
+`groups`::
+
+This attribute can be set to a comma-separated list of security groups IDs.
+If set, the field will be visible only to users of the given groups.
+
+`attrs`::
+
+This attribute is used to have dynamic values of the readonly and invisible attributes.
++
+The value of this attribute must be a Python dictionary whose keys are `invisible`, `readonly` and `required`.
+The value for each key must be an Odoo domain evaluated on client side that defines when the corresponding attribute should be true.
+
+[source,xml]
+----
+(...)
+    <field name="TakenSeats" attrs="{'invisible': [('Seats', '=', False)]}"/>
+(...)
+----
+
+==== Field attributes
+
+Fields have `Required` and `ReadOnly` attributes which, if true, will be set for every view and will override attributes in the views.
+
+Dynamic behaviour can be obtained through the `RequiredFunc`, `ReadOnlyFunc` and `InvisibleFunc` attributes.
+Each of this attribute take as value a function with the following signature:
+
 [source,go]
-----
-func init() {
-    (...)
-    h.OpenAcademySession().Fields().TakenSeats().RevokeAccess(security.GroupEveryone, security.Read|security.Write)
-    h.OpenAcademySession().Fields().TakenSeats().GrantAccess(Manager, security.Read)
-    (...)
-}
-----
+func (Environment) (bool, Conditioner)
+
+If the second argument is not nil, it must be a condition that will override the `attrs` attribute of the view.
+If it is nil, the first argument is used to override the corresponding attribute in the view.
+
+NOTE: These functions are evaluated when the client requests the view definition,
+which may be as little as once a session. The returned condition if any is evaluated at each request by the client.
 
 === Record rules
 

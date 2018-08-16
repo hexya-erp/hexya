@@ -156,13 +156,15 @@ func TestCreateRecordSet(t *testing.T) {
 		}), ShouldBeNil)
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userRobData := FieldMap{
 				"Name":      "Rob Smith",
 				"IsPremium": true,
 			}
 			env.Pool("User").Call("Create", userRobData)
-		}).Error(), ShouldStartWith, "pq: Premium users must have positive nums")
+		})
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldStartWith, "pq: Premium users must have positive nums")
 	})
 	group1 := security.Registry.NewGroup("group1", "Group 1")
 	Convey("Testing access control list on creation (create only)", t, func() {
@@ -226,18 +228,6 @@ func TestCreateRecordSet(t *testing.T) {
 				userTom := env.Pool("User").Call("Create", userTomData).(RecordSet).Collection()
 				So(userTom.Get("Name"), ShouldEqual, "Tom Smith")
 				So(userTom.Get("Email"), ShouldEqual, "tsmith@example.com")
-			})
-			Convey("Removing Create right on Email field", func() {
-				userModel.fields.MustGet("Email").RevokeAccess(security.GroupEveryone, security.Write)
-				userTomData := FieldMap{
-					"Name":  "Tom Smith",
-					"Email": "tsmith@example.com",
-				}
-				userTom := env.Pool("User").Call("Create", userTomData).(RecordSet).Collection()
-				So(userTom.Get("Name"), ShouldEqual, "Tom Smith")
-				So(userTom.Get("Email").(string), ShouldBeBlank)
-
-				userModel.fields.MustGet("Email").GrantAccess(security.GroupEveryone, security.Write)
 			})
 			Convey("Checking that we can create tags", func() {
 				tagData := FieldMap{
@@ -353,19 +343,6 @@ func TestSearchRecordSet(t *testing.T) {
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(func() { userJane.Load() }, ShouldNotPanic)
 				So(func() { userJane.Get("Profile").(RecordSet).Collection().Get("Age") }, ShouldPanic)
-			})
-			Convey("Adding field access rights to user 2 and checking access", func() {
-				userModel.fields.MustGet("Email").RevokeAccess(security.GroupEveryone, security.Read)
-				userModel.fields.MustGet("Age").RevokeAccess(security.GroupEveryone, security.Read)
-
-				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
-				So(func() { userJane.Load() }, ShouldNotPanic)
-				So(userJane.Get("Name").(string), ShouldEqual, "Jane Smith")
-				So(userJane.Get("Email").(string), ShouldBeBlank)
-				So(userJane.Get("Age"), ShouldEqual, 0)
-
-				userModel.fields.MustGet("Email").GrantAccess(security.GroupEveryone, security.Read)
-				userModel.fields.MustGet("Age").GrantAccess(security.GroupEveryone, security.Read)
 			})
 			Convey("Checking record rules", func() {
 				users := env.Pool("User").SearchAll()
@@ -536,7 +513,7 @@ func TestGroupedQueries(t *testing.T) {
 	Convey("Testing grouped queries", t, func() {
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Simple grouped query on the whole table", func() {
-				groupedUsers := env.Pool("User").Call("GroupBy", []FieldNamer{FieldName("IsStaff")}).(RecordSet).Collection().Call("Aggregates", []FieldNamer{FieldName("IsStaff"), FieldName("Nums")}).([]GroupAggregateRow)
+				groupedUsers := env.Pool("User").SearchAll().Call("GroupBy", []FieldNamer{FieldName("IsStaff")}).(RecordSet).Collection().Call("Aggregates", []FieldNamer{FieldName("IsStaff"), FieldName("Nums")}).([]GroupAggregateRow)
 				So(len(groupedUsers), ShouldEqual, 2)
 				So(groupedUsers[0].Values, ShouldContainKey, "IsStaff")
 				So(groupedUsers[0].Values, ShouldContainKey, "Nums")
@@ -714,21 +691,6 @@ func TestUpdateRecordSet(t *testing.T) {
 				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane A. Smith"))
 				So(jane.Len(), ShouldEqual, 1)
 				So(func() { jane.Call("UpdateCity", "London") }, ShouldNotPanic)
-			})
-			Convey("Removing Update right on Email field", func() {
-				userModel.fields.MustGet("Email").RevokeAccess(security.GroupEveryone, security.Write)
-				john := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
-				So(john.Len(), ShouldEqual, 1)
-				johnValues := FieldMap{
-					"Email": "jsmith3@example.com",
-					"Nums":  13,
-				}
-				john.Call("Write", johnValues)
-				john.Load()
-				So(john.Get("Name"), ShouldEqual, "John Smith")
-				So(john.Get("Email"), ShouldEqual, "jsmith2@example.com")
-				So(john.Get("Nums"), ShouldEqual, 13)
-				userModel.fields.MustGet("Email").GrantAccess(security.GroupEveryone, security.Write)
 			})
 			Convey("Checking record rules", func() {
 				userJane := env.Pool("User").SearchAll()

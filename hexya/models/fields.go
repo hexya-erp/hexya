@@ -189,6 +189,9 @@ type Field struct {
 	stored           bool
 	required         bool
 	readOnly         bool
+	requiredFunc     func(Environment) (bool, Conditioner)
+	readOnlyFunc     func(Environment) (bool, Conditioner)
+	invisibleFunc    func(Environment) (bool, Conditioner)
 	unique           bool
 	index            bool
 	compute          string

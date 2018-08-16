@@ -15,7 +15,6 @@
 package models
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/tools/typesutils"
 )
 
@@ -25,10 +24,6 @@ import (
 func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...string) {
 	rc.EnsureOne()
 	for _, fInfo := range rc.model.fields.getComputedFields(fields...) {
-		if !checkFieldPermission(fInfo, rc.env.uid, security.Read) {
-			// We do not have the access rights on this field, so we skip it.
-			continue
-		}
 		if _, exists := (*params)[fInfo.name]; exists {
 			// We already have the value we need in params
 			// probably because it was computed with another field
