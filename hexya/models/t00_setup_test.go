@@ -64,8 +64,9 @@ func initializeTests() {
 	dbArgs.DB = fmt.Sprintf("%s_models_tests", prefix)
 	dbArgs.Debug = os.Getenv("HEXYA_DEBUG")
 
-	viper.Set("LogLevel", "crit")
+	viper.Set("LogLevel", "panic")
 	if dbArgs.Debug != "" {
+		viper.Set("Debug", true)
 		viper.Set("LogLevel", "debug")
 		viper.Set("LogStdout", true)
 	}
@@ -89,6 +90,6 @@ func tearDownTests() {
 	DBClose()
 	fmt.Printf("Tearing down database for models\n")
 	admDB := sqlx.MustConnect(dbArgs.Driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", dbArgs.User, dbArgs.Password))
-	admDB.MustExec(fmt.Sprintf("DROP DATABASE %s", dbArgs.DB))
+	//admDB.MustExec(fmt.Sprintf("DROP DATABASE %s", dbArgs.DB))
 	admDB.Close()
 }

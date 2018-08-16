@@ -16,10 +16,13 @@ package models
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
 // A modelCouple holds a model and one of its mixin
@@ -40,18 +43,20 @@ func BootStrap() {
 	Registry.Lock()
 	defer Registry.Unlock()
 
-	Registry.bootstrapped = true
-
 	inflateMixIns()
 	createModelLinks()
 	inflateEmbeddings()
 	processUpdates()
+	updateFieldDefs()
 	syncRelatedFieldInfo()
+	inflateContexts()
 	bootStrapMethods()
 	processDepends()
 	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
+
+	Registry.bootstrapped = true
 }
 
 // BootStrapped returns true if the models have been bootstrapped
@@ -65,16 +70,35 @@ func processUpdates() {
 		for _, fi := range model.fields.registryByName {
 			for _, update := range fi.updates {
 				for property, value := range update {
-					if property == "selection_add" {
+					switch property {
+					case "selection_add":
 						for k, v := range value.(types.Selection) {
 							fi.selection[k] = v
 						}
-						continue
+					case "contexts_add":
+						for k, v := range value.(FieldContexts) {
+							fi.contexts[k] = v
+						}
+					default:
+						fi.setProperty(property, value)
 					}
-					fi.setProperty(property, value)
 				}
 			}
 			fi.updates = nil
+		}
+	}
+}
+
+// updateFieldDefs updates fields definitions if necessary
+func updateFieldDefs() {
+	for _, model := range Registry.registryByName {
+		for _, fi := range model.fields.registryByName {
+			switch fi.fieldType {
+			case fieldtype.Boolean:
+				if fi.defaultFunc != nil && fi.isSettable() {
+					fi.required = true
+				}
+			}
 		}
 	}
 }
@@ -222,6 +246,10 @@ func inflateEmbeddings() {
 				continue
 			}
 			for relName, relFI := range fi.relatedModel.fields.registryByName {
+				if relFI.relatedModelName == model.name && relFI.jsonReverseFK != "" && relFI.jsonReverseFK == fi.name {
+					// We do not add reverse fields to our own model
+					continue
+				}
 				newFI := Field{
 					name:        relName,
 					json:        relFI.json,
@@ -270,14 +298,71 @@ func syncRelatedFieldInfo() {
 			newFI.constraint = ""
 			newFI.inverse = ""
 			newFI.depends = nil
+			newFI.contexts = nil
 			*fi = newFI
 		}
 	}
 }
 
+// inflateContexts creates the field value tables for fields with contexts.
+func inflateContexts() {
+	for _, mi := range Registry.registryByName {
+		for _, fi := range mi.fields.registryByName {
+			if !fi.isContextedField() {
+				continue
+			}
+			contextsModel := createContextsModel(fi, fi.contexts)
+			createContextsTreeView(fi, fi.contexts)
+			// We copy execution permission on CRUD methods to the context model
+			fieldName := fmt.Sprintf("%sHexyaContexts", fi.name)
+			o2mField := &Field{
+				name:             fieldName,
+				json:             strutils.SnakeCase(fieldName),
+				acl:              security.NewAccessControlList(),
+				model:            mi,
+				fieldType:        fieldtype.One2Many,
+				relatedModelName: contextsModel.name,
+				relatedModel:     contextsModel,
+				reverseFK:        "Record",
+				jsonReverseFK:    "record_id",
+				structField: reflect.StructField{
+					Name: fieldName,
+					Type: reflect.TypeOf([]int64{}),
+				},
+			}
+			mi.fields.add(o2mField)
+			fi.relatedPath = fmt.Sprintf("%s%s%s", fieldName, ExprSep, fi.name)
+			fi.index = false
+			fi.unique = false
+		}
+	}
+}
+
+// createContextsTreeView creates an editable tree view for the given context model.
+// The created view is added to the Views map which will be processed by the views package at bootstrap.
+func createContextsTreeView(fi *Field, contexts FieldContexts) {
+	arch := strings.Builder{}
+	arch.WriteString("<tree editable=\"bottom\" create=\"false\" delete=\"false\">\n")
+	for ctx := range contexts {
+		arch.WriteString("	<field name=\"")
+		arch.WriteString(ctx)
+		arch.WriteString("\" readonly=\"1\"/>\n")
+	}
+	arch.WriteString(" <field name=\"")
+	arch.WriteString(fi.json)
+	arch.WriteString("\"/>\n")
+	arch.WriteString("</tree>")
+
+	modelName := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
+	view := fmt.Sprintf(`<view id="%s_hexya_contexts_tree" model="%s">
+%s
+</view>`, strutils.SnakeCase(modelName), modelName, arch.String())
+	Views[fi.model] = append(Views[fi.model], view)
+}
+
 // runInit runs the Init function of the given model if it exists
 func runInit(model *Model) {
-	if _, exists := model.methods.get("Init"); exists {
+	if _, exists := model.methods.Get("Init"); exists {
 		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			env.Pool(model.name).Call("Init")
 		})
@@ -286,6 +371,7 @@ func runInit(model *Model) {
 
 // SyncDatabase creates or updates database tables with the data in the model registry
 func SyncDatabase() {
+	log.Info("Updating database schema")
 	adapter := adapters[db.DriverName()]
 	dbTables := adapter.tables()
 	// Create or update sequences
@@ -349,8 +435,8 @@ func SyncDatabase() {
 // buildSQLErrorSubstitutionMap populates the sqlErrors map of the
 // model with the appropriate error message substitution
 func buildSQLErrorSubstitutionMap(model *Model) {
-	for sqlConstraintName, sqlConstraint := range model.sqlConstraints {
-		model.sqlErrors[sqlConstraintName] = sqlConstraint.errorString
+	for sqlConstrName, sqlConstr := range model.sqlConstraints {
+		model.sqlErrors[sqlConstrName] = sqlConstr.errorString
 	}
 	for _, field := range model.fields.registryByJSON {
 		if field.unique {
@@ -364,12 +450,14 @@ func buildSQLErrorSubstitutionMap(model *Model) {
 	}
 }
 
-// updateDBSequences synchronizes sequences between the DB
-// and the registry.
+// updateDBSequences creates sequences in the DB from data in the registry.
 func updateDBSequences() {
 	adapter := adapters[db.DriverName()]
-	// Create sequences
+	// Create or alter boot sequences
 	for _, sequence := range Registry.sequences {
+		if !sequence.boot {
+			continue
+		}
 		exists := false
 		for _, dbSeq := range adapter.sequences("%_manseq") {
 			if sequence.JSON == dbSeq {
@@ -377,14 +465,16 @@ func updateDBSequences() {
 			}
 		}
 		if !exists {
-			adapter.createSequence(sequence.JSON)
+			adapter.createSequence(sequence.JSON, sequence.Increment, sequence.Start)
+			continue
 		}
+		adapter.alterSequence(sequence.JSON, sequence.Increment, sequence.Start)
 	}
 	// Drop unused sequences
 	for _, dbSeq := range adapter.sequences("%_manseq") {
 		var sequenceExists bool
 		for _, sequence := range Registry.sequences {
-			if sequence.JSON != dbSeq {
+			if sequence.JSON != dbSeq || !sequence.boot {
 				continue
 			}
 			sequenceExists = true
@@ -625,14 +715,34 @@ func bootStrapMethods() {
 
 // setupSecurity adds execution permission to:
 // - the admin group for all methods
-// - all methods of a model for groups that have been granted all rights
+// - to CRUD methods to call "Load"
+// - to "Create" method to call "Write"
+// - to execute CRUD on context models
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
+		loadMeth, loadExists := model.methods.Get("Load")
+		fetchMeth, fetchExists := model.methods.Get("Fetch")
+		writeMeth, writeExists := model.methods.Get("Write")
 		for _, meth := range model.methods.registry {
-			meth.groups[security.GroupAdmin] = true
-			for group := range model.methods.powerGroups {
-				meth.groups[group] = true
+			meth.AllowGroup(security.GroupAdmin)
+			if loadExists && unauthorizedMethods[meth.name] {
+				loadMeth.AllowGroup(security.GroupEveryone, meth)
 			}
+			if writeExists && meth.name == "Create" {
+				writeMeth.AllowGroup(security.GroupEveryone, meth)
+			}
+		}
+		if fetchExists {
+			loadMeth.AllowGroup(security.GroupEveryone, fetchMeth)
+		}
+
+		if model.isContext() {
+			baseModel := model.fields.MustGet("Record").relatedModel
+			model.methods.MustGet("Create").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
+			model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
+			model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Load"))
+			model.methods.MustGet("Write").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Write"))
+			model.methods.MustGet("Unlink").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Unlink"))
 		}
 	}
 }
@@ -648,14 +758,14 @@ func checkFieldMethodsExist() {
 			if field.constraint != "" {
 				model.methods.MustGet(field.constraint)
 			}
-			if field.compute != "" {
+			if field.compute != "" && field.stored {
 				model.methods.MustGet(field.compute)
 				if len(field.depends) == 0 {
 					log.Warn("Computed fields should have a 'Depends' parameter set", "model", model.name, "field", field.name)
 				}
 			}
 			if field.inverse != "" {
-				if _, ok := model.methods.get(field.compute); !ok {
+				if _, ok := model.methods.Get(field.compute); !ok {
 					log.Panic("Inverse method must only be set on computed fields", "model", model.name, "field", field.name, "method", field.inverse)
 				}
 				model.methods.MustGet(field.inverse)

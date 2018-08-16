@@ -21,7 +21,6 @@ import "fmt"
 type tableJoin struct {
 	tableName  string
 	joined     bool
-	innerJoin  bool
 	field      string
 	otherTable *tableJoin
 	otherField string
@@ -31,15 +30,9 @@ type tableJoin struct {
 
 // sqlString returns the sql string for the tableJoin Clause
 func (t tableJoin) sqlString() string {
-	var joinStr string
 	if !t.joined {
 		return fmt.Sprintf("%s %s ", t.tableName, t.alias)
 	}
-	joinType := "LEFT "
-	if t.innerJoin {
-		joinType = "INNER "
-	}
-	joinStr = joinType + "JOIN "
-	return fmt.Sprintf("%s%s %s ON %s.%s=%s.%s ", joinStr, t.tableName, t.alias, t.otherTable.alias, t.otherField,
-		t.alias, t.field)
+	return fmt.Sprintf("LEFT JOIN %s %s ON %s.%s=%s.%s ", t.tableName, t.alias, t.otherTable.alias,
+		t.otherField, t.alias, t.field)
 }

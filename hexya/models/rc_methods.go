@@ -15,13 +15,12 @@
 package models
 
 import (
+	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/hexya-erp/hexya/hexya/models/security"
-	"github.com/jtolds/gls"
 )
-
-var ctxManager = gls.NewContextManager()
 
 // Call calls the given method name methName on the given RecordCollection
 // with the given arguments and returns (only) the first result as interface{}.
@@ -36,32 +35,37 @@ func (rc *RecordCollection) Call(methName string, args ...interface{}) interface
 // CallMulti calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as []interface{}.
 func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
-	methInfo, ok := rc.model.methods.get(methName)
+	log.Debug("Calling Recordset method", "model", rc.model.name, "method", methName, "ids", rc.ids, "args", args)
+	startTime := time.Now()
+	methInfo, ok := rc.model.methods.Get(methName)
 	if !ok {
 		log.Panic("Unknown method in model", "method", methName, "model", rc.model.name)
 	}
 
 	methLayer := methInfo.topLayer
-	var previousLayer *methodLayer
-	layers, ok := ctxManager.GetValue("layers")
-	if ok {
-		previousLayer = layers.([2]*methodLayer)[0]
-	}
 	if rc.env.super {
 		if !ok {
 			log.Panic("Missing layer", "method", methName, "model", rc.model.name)
 		}
-		methLayer = methInfo.getNextLayer(layers.([2]*methodLayer)[0])
+		methLayer = methInfo.getNextLayer(rc.env.currentLayer)
 	}
 
 	newEnv := rc.Env()
 	newEnv.super = false
 	rSet := rc.WithEnv(newEnv)
-
-	var res []interface{}
-	ctxManager.SetValues(gls.Values{"layers": [2]*methodLayer{methLayer, previousLayer}}, func() {
-		res = rSet.callMulti(methLayer, args...)
-	})
+	rSet.env.currentLayer = methLayer
+	if rc.env.currentLayer != nil && rc.env.currentLayer.method != methInfo {
+		rSet.env.previousMethod = rc.env.currentLayer.method
+	}
+	res := rSet.callMulti(methLayer, args...)
+	for i, r := range res {
+		switch r.(type) {
+		case RecordSet:
+			res[i].(RecordSet).Collection().env.currentLayer = rc.env.currentLayer
+			res[i].(RecordSet).Collection().env.previousMethod = rc.env.previousMethod
+		}
+	}
+	log.Debug("Called Recordset method", "model", rc.ModelName(), "method", methName, "ids", rc.ids, "duration", time.Now().Sub(startTime), "args", args)
 	return res
 }
 
@@ -88,7 +92,7 @@ func (rc *RecordCollection) Super() *RecordCollection {
 
 // MethodType returns the type of the method given by methName
 func (rc *RecordCollection) MethodType(methName string) reflect.Type {
-	methInfo, ok := rc.model.methods.get(methName)
+	methInfo, ok := rc.model.methods.Get(methName)
 	if !ok {
 		log.Panic("Unknown method in model", "model", rc.model.name, "method", methName)
 	}
@@ -119,13 +123,11 @@ func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...interface{
 // If dontPanic is false, this function will panic, otherwise it returns true
 // if the user has the execution permission and false otherwise.
 func (rc *RecordCollection) CheckExecutionPermission(method *Method, dontPanic ...bool) bool {
-	var caller *Method
-	layers, ok := ctxManager.GetValue("layers")
-	if ok {
-		if methLayer := layers.([2]*methodLayer)[1]; methLayer != nil {
-			caller = methLayer.method
-		}
+	caller := rc.env.previousMethod
+	if rc.env.currentLayer != nil && rc.env.currentLayer.method != method {
+		caller = rc.env.currentLayer.method
 	}
+
 	if caller == method {
 		// We are calling Super on the same method, so it's ok
 		return true
@@ -145,7 +147,9 @@ func (rc *RecordCollection) CheckExecutionPermission(method *Method, dontPanic .
 	if len(dontPanic) > 0 && dontPanic[0] {
 		return false
 	}
-	log.Panic("You are not allowed to execute this method", "model", rc.ModelName(), "method", method.name, "uid", rc.env.uid)
+	log.Panic("You are not allowed to execute this method", "model", rc.ModelName(),
+		"method", fmt.Sprintf("%s.%s()", method.model.name, method.name), "uid", rc.env.uid,
+		"methodCaller", fmt.Sprintf("%s.%s()", caller.model.name, caller.name))
 	// Unreachable
 	return false
 }

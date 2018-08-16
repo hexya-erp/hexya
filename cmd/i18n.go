@@ -248,7 +248,7 @@ func getOrCreateMessage(messages map[messageRef]po.Message, msgRef messageRef, v
 func addDescriptionToMessages(lang string, model string, field string, fieldASTData generate.FieldASTData, messages map[messageRef]po.Message) map[messageRef]po.Message {
 	description := fieldASTData.Description
 	if description == "" {
-		description = strutils.TitleString(fieldASTData.Name)
+		description = strutils.Title(fieldASTData.Name)
 	}
 	descTranslated := i18n.TranslateFieldDescription(lang, model, field, "")
 	msgRef := messageRef{msgId: description}

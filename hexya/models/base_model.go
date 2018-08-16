@@ -17,12 +17,11 @@ package models
 import (
 	"database/sql"
 	"fmt"
-	"strings"
+	"reflect"
 
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/operator"
-	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 )
@@ -37,6 +36,8 @@ const (
 	// Many2ManyLinkModel is a model that abstracts the link
 	// table of a many2many relationship
 	Many2ManyLinkModel
+	// ContextsModel is a model for holding fields values that depend on contexts
+	ContextsModel
 	// ManualModel is a model whose table is not automatically generated in the
 	// database. Such models include SQL views and materialized SQL views.
 	ManualModel
@@ -71,7 +72,7 @@ func declareBaseMixin() {
 }
 
 func declareModelMixin() {
-	idSeq := NewSequence("HexyaExternalID")
+	idSeq := CreateSequence("HexyaExternalID", 1, 1)
 
 	modelMixin := NewMixinModel("ModelMixin")
 	modelMixin.AddFields(map[string]FieldDefinition{
@@ -99,13 +100,13 @@ func declareBaseComputeMethods() {
 				return FieldMap{"LastUpdate": rc.Get("CreateDate").(dates.DateTime)}
 			}
 			return FieldMap{"LastUpdate": dates.Now()}
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	model.AddMethod("ComputeDisplayName",
 		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
 		func(rc *RecordCollection) FieldMap {
 			return FieldMap{"DisplayName": rc.Call("NameGet")}
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 }
 
@@ -116,8 +117,8 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
-		func(rc *RecordCollection, data FieldMapper) *RecordCollection {
-			return rc.create(data)
+		func(rc *RecordCollection, data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
+			return rc.create(data, fieldsToReset...)
 		})
 
 	commonMixin.AddMethod("Read",
@@ -135,10 +136,21 @@ func declareCRUDMethods() {
 				res = append(res, fData)
 			}
 			return res
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Load",
-		`Load query all data of the RecordCollection and store in cache.
+		`Load looks up cache for fields of the RecordCollection and 
+		query database for missing values.
+		fields are the fields to retrieve in the expression format,
+		i.e. "User.Profile.Age" or "user_id.profile_id.age".
+		If no fields are given, all DB columns of the RecordCollection's
+		model are retrieved.`,
+		func(rc *RecordCollection, fields ...string) *RecordCollection {
+			return rc.Load(fields...)
+		})
+
+	commonMixin.AddMethod("ForceLoad",
+		`ForceLoad query all data of the RecordCollection and store in cache.
 		fields are the fields to retrieve in the expression format,
 		i.e. "User.Profile.Age" or "user_id.profile_id.age".
 		If no fields are given, all DB columns of the RecordCollection's
@@ -166,10 +178,34 @@ func declareCRUDMethods() {
 		It panics if rs is not a singleton`,
 		func(rc *RecordCollection, overrides FieldMapper, fieldsToUnset ...FieldNamer) *RecordCollection {
 			rc.EnsureOne()
+			oVal := reflect.ValueOf(overrides)
+			if oVal.IsNil() {
+				overr := make(FieldMap)
+				for _, f := range fieldsToUnset {
+					overr[f.String()] = nil
+				}
+				overrides = overr
+			}
 
+			// Prevent infinite recursion if we have circular references
+			if !rc.Env().Context().HasKey("__copy_data_seen") {
+				rc = rc.WithContext("__copy_data_seen", map[string]bool{})
+			}
+			seenMap := rc.Env().Context().Get("__copy_data_seen").(map[string]bool)
+			if seenMap[fmt.Sprintf("%s,%d", rc.ModelName(), rc.Ids()[0])] {
+				return rc.env.Pool(rc.ModelName())
+			}
+			seenMap[fmt.Sprintf("%s,%d", rc.ModelName(), rc.Ids()[0])] = true
+			rc = rc.WithContext("__copy_data_seen", seenMap)
+
+			// Create a slice of fields to copy directly
 			var fields []string
 			for _, fi := range rc.model.fields.registryByName {
-				if fi.noCopy || fi.fieldType.IsReverseRelationType() || fi.isComputedField() {
+				if fi.noCopy || fi.isComputedField() {
+					continue
+				}
+				if fi.fieldType == fieldtype.One2One || fi.fieldType.IsReverseRelationType() {
+					// These fields will be copied after duplication
 					continue
 				}
 				fields = append(fields, fi.json)
@@ -180,15 +216,34 @@ func declareCRUDMethods() {
 			rc.env.cache.invalidateRecord(rc.model, rc.Get("id").(int64))
 			rc.Load(fields...)
 
-			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64))
+			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64), rc.query.ctxArgsSlug())
 			fMap.RemovePK()
 			fMap.MergeWith(overrides.FieldMap(fieldsToUnset...), rc.model)
 			// Reload original record to prevent cache discrepancies
 			rc.Load()
+
+			// Create our duplicated record
 			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", fMap).(RecordSet).Collection()
+
+			// Duplicate one2one and one2many records
+			for _, fi := range rc.model.fields.registryByName {
+				if _, inOverrides := overrides.FieldMap(fieldsToUnset...).Get(fi.name, rc.model); inOverrides {
+					continue
+				}
+				if fi.noCopy {
+					continue
+				}
+				switch fi.fieldType {
+				case fieldtype.One2One:
+					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
+				case fieldtype.One2Many:
+					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
+						rec.Call("Copy", FieldMap{fi.reverseFK: newRs.Ids()[0]})
+					}
+				}
+			}
 			return newRs
 		})
-
 }
 
 // declareRecordSetMethods declares general RecordSet methods
@@ -199,9 +254,6 @@ func declareRecordSetMethods() {
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc *RecordCollection) string {
 			if _, nameExists := rc.model.fields.Get("Name"); nameExists {
-				if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{"Name"}) {
-					rc.Load("Name")
-				}
 				switch name := rc.Get("Name").(type) {
 				case string:
 					return name
@@ -212,7 +264,7 @@ func declareRecordSetMethods() {
 				}
 			}
 			return rc.String()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SearchByName",
 		`SearchByName searches for records that have a display name matching the given
@@ -241,12 +293,7 @@ func declareRecordSetMethods() {
 
 		The result map is indexed by the fields JSON names.`,
 		func(rc *RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
-			// Create our fields list
-			var fields []FieldNamer
-			for _, f := range args.Fields {
-				fields = append(fields, f)
-			}
-
+			fields := convertToFieldNamerSlice(args.Fields)
 			// Get the field informations
 			res := rc.model.FieldsGet(fields...)
 
@@ -258,7 +305,7 @@ func declareRecordSetMethods() {
 				res[fieldName].Selection = i18n.Registry.TranslateFieldSelection(lang, rc.model.name, fieldName, fInfo.Selection)
 			}
 			return res
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("FieldGet",
 		`FieldGet returns the definition of the given field.
@@ -269,7 +316,7 @@ func declareRecordSetMethods() {
 			}
 			fJSON := rc.model.JSONizeFieldName(field.String())
 			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[fJSON]
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
@@ -277,19 +324,8 @@ func declareRecordSetMethods() {
 			res := make(FieldMap)
 			rc.applyDefaults(&res, false)
 			rc.model.convertValuesToFieldType(&res)
-			for ctxKey, ctxValue := range rc.env.context.ToMap() {
-				if !strings.HasPrefix(ctxKey, "default_") {
-					continue
-				}
-				fJSON := strings.TrimPrefix(ctxKey, "default_")
-				if _, exists := rc.model.fields.Get(fJSON); !exists {
-					log.Warn("Called DefaultGet with unknown field", "model", rc.ModelName(), "field", fJSON)
-					continue
-				}
-				res.Set(fJSON, ctxValue, rc.model)
-			}
 			return res
-		}).AllowGroup(security.GroupEveryone)
+		})
 }
 
 func declareRecordSetSpecificMethods() {
@@ -324,7 +360,7 @@ func declareRecordSetSpecificMethods() {
 				}
 			}
 			return true
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Onchange",
 		`Onchange returns the values that must be modified according to each field's Onchange
@@ -352,7 +388,7 @@ func declareRecordSetSpecificMethods() {
 						continue
 					}
 					env.cache.invalidateRecord(rs.model, rsID)
-					env.cache.addRecord(rs.model, rsID, values)
+					env.cache.addRecord(rs.model, rsID, values, rs.query.ctxArgsSlug())
 					res := rs.CallMulti(fi.onChange)
 					fields = res[1].([]FieldNamer)
 					resMap := res[0].(FieldMapper).FieldMap(fields...)
@@ -365,7 +401,7 @@ func declareRecordSetSpecificMethods() {
 			return OnchangeResult{
 				Value: retValues,
 			}
-		}).AllowGroup(security.GroupEveryone)
+		})
 }
 
 func declareSearchMethods() {
@@ -376,20 +412,20 @@ func declareSearchMethods() {
 		additional given Condition`,
 		func(rc *RecordCollection, cond Conditioner) *RecordCollection {
 			return rc.Search(cond.Underlying())
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Browse",
 		`Browse returns a new RecordSet with only the records with the given ids.
 		Note that this function is just a shorcut for Search on a list of ids.`,
 		func(rc *RecordCollection, ids []int64) *RecordCollection {
 			return rc.Call("Search", rc.Model().Field("ID").In(ids)).(RecordSet).Collection()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SearchCount",
 		`SearchCount fetch from the database the number of records that match the RecordSet conditions`,
 		func(rc *RecordCollection) int {
 			return rc.SearchCount()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Fetch",
 		`Fetch query the database with the current filter and returns a RecordSet
@@ -398,38 +434,38 @@ func declareSearchMethods() {
 		Fetch is lazy and only return ids. Use Load() instead if you want to fetch all fields.`,
 		func(rc *RecordCollection) *RecordCollection {
 			return rc.Fetch()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SearchAll",
 		`SearchAll returns a RecordSet with all items of the table, regardless of the
 		current RecordSet query. It is mainly meant to be used on an empty RecordSet`,
 		func(rc *RecordCollection) *RecordCollection {
 			return rc.SearchAll()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
 		func(rc *RecordCollection, exprs ...FieldNamer) *RecordCollection {
 			return rc.GroupBy(exprs...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Aggregates",
 		`Aggregates returns the result of this RecordSet query, which must by a grouped query.`,
 		func(rc *RecordCollection, exprs ...FieldNamer) []GroupAggregateRow {
 			return rc.Aggregates(exprs...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Limit",
 		`Limit returns a new RecordSet with only the first 'limit' records.`,
 		func(rc *RecordCollection, limit int) *RecordCollection {
 			return rc.Limit(limit)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Offset",
 		`Offset returns a new RecordSet with only the records starting at offset`,
 		func(rc *RecordCollection, offset int) *RecordCollection {
 			return rc.Offset(offset)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("OrderBy",
 		`OrderBy returns a new RecordSet ordered by the given ORDER BY expressions.
@@ -438,14 +474,14 @@ func declareSearchMethods() {
 		rs.OrderBy("Company", "Name desc")`,
 		func(rc *RecordCollection, exprs ...string) *RecordCollection {
 			return rc.OrderBy(exprs...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Union",
 		`Union returns a new RecordSet that is the union of this RecordSet and the given
 		"other" RecordSet. The result is guaranteed to be a set of unique records.`,
 		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Union(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Subtract",
 		`Subtract returns a RecordSet with the Records that are in this
@@ -453,27 +489,27 @@ func declareSearchMethods() {
 		The result is guaranteed to be a set of unique records.`,
 		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Subtract(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Intersect",
 		`Intersect returns a new RecordCollection with only the records that are both
 		in this RecordCollection and in the other RecordSet.`,
 		func(rc *RecordCollection, other RecordSet) *RecordCollection {
 			return rc.Intersect(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("CartesianProduct",
 		`CartesianProduct returns the cartesian product of this RecordCollection with others.`,
 		func(rc *RecordCollection, other ...RecordSet) []*RecordCollection {
 			return rc.CartesianProduct(other...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Equals",
 		`Equals returns true if this RecordSet is the same as other
 		i.e. they are of the same model and have the same ids`,
 		func(rc *RecordCollection, other RecordSet) bool {
 			return rc.Equals(other)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Sorted",
 		`Sorted returns a new RecordCollection sorted according to the given less function.
@@ -481,21 +517,21 @@ func declareSearchMethods() {
 		The less function should return true if rs1 < rs2`,
 		func(rc *RecordCollection, less func(rs1 RecordSet, rs2 RecordSet) bool) *RecordCollection {
 			return rc.Sorted(less)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SortedDefault",
 		`SortedDefault returns a new record set with the same records as rc but sorted according
 		to the default order of this model`,
 		func(rc *RecordCollection) *RecordCollection {
 			return rc.SortedDefault()
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("SortedByField",
 		`SortedByField returns a new record set with the same records as rc but sorted by the given field.
 		If reverse is true, the sort is done in reversed order`,
 		func(rc *RecordCollection, namer FieldNamer, reverse bool) *RecordCollection {
 			return rc.SortedByField(namer, reverse)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Filtered",
 		`Filtered returns a new record set with only the elements of this record set
@@ -506,7 +542,13 @@ func declareSearchMethods() {
 		to search the database directly with the filter condition.`,
 		func(rc *RecordCollection, test func(rs RecordSet) bool) *RecordCollection {
 			return rc.Filtered(test)
-		}).AllowGroup(security.GroupEveryone)
+		})
+
+	commonMixin.AddMethod("GetRecord",
+		` GetRecord returns the Recordset with the given externalID. It panics if the externalID does not exist.`,
+		func(rc *RecordCollection, externalID string) *RecordCollection {
+			return rc.GetRecord(externalID)
+		})
 }
 
 func declareEnvironmentMethods() {
@@ -516,7 +558,7 @@ func declareEnvironmentMethods() {
 		`WithEnv returns a copy of the current RecordSet with the given Environment.`,
 		func(rc *RecordCollection, env Environment) *RecordCollection {
 			return rc.WithEnv(env)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("WithContext",
 		`WithContext returns a copy of the current RecordSet with
@@ -525,7 +567,7 @@ func declareEnvironmentMethods() {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			return rc.WithContext(key, value)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("WithNewContext",
 		`WithNewContext returns a copy of the current RecordSet with its context
@@ -534,7 +576,7 @@ func declareEnvironmentMethods() {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			return rc.WithNewContext(context)
-		}).AllowGroup(security.GroupEveryone)
+		})
 
 	commonMixin.AddMethod("Sudo",
 		`Sudo returns a new RecordSet with the given userID
@@ -543,7 +585,7 @@ func declareEnvironmentMethods() {
 			// Because this method returns an env with the same callstack as inside this layer,
 			// we need to remove ourselves from the callstack.
 			return rc.Sudo(userID...)
-		}).AllowGroup(security.GroupEveryone)
+		})
 }
 
 // ConvertLimitToInt converts the given limit as interface{} to an int
@@ -562,25 +604,30 @@ func ConvertLimitToInt(limit interface{}) int {
 
 // FieldInfo is the exportable field information struct
 type FieldInfo struct {
-	ChangeDefault    bool                   `json:"change_default"`
-	Help             string                 `json:"help"`
-	Searchable       bool                   `json:"searchable"`
-	Views            map[string]interface{} `json:"views"`
-	Required         bool                   `json:"required"`
-	Manual           bool                   `json:"manual"`
-	ReadOnly         bool                   `json:"readonly"`
-	Depends          []string               `json:"depends"`
-	CompanyDependent bool                   `json:"company_dependent"`
-	Sortable         bool                   `json:"sortable"`
-	Translate        bool                   `json:"translate"`
-	Type             fieldtype.Type         `json:"type"`
-	Store            bool                   `json:"store"`
-	String           string                 `json:"string"`
-	Relation         string                 `json:"relation"`
-	Selection        types.Selection        `json:"selection"`
-	Domain           interface{}            `json:"domain"`
-	OnChange         bool                   `json:"-"`
-	ReverseFK        string                 `json:"-"`
+	ChangeDefault    bool                                  `json:"change_default"`
+	Help             string                                `json:"help"`
+	Searchable       bool                                  `json:"searchable"`
+	Views            map[string]interface{}                `json:"views"`
+	Required         bool                                  `json:"required"`
+	Manual           bool                                  `json:"manual"`
+	ReadOnly         bool                                  `json:"readonly"`
+	Depends          []string                              `json:"depends"`
+	CompanyDependent bool                                  `json:"company_dependent"`
+	Sortable         bool                                  `json:"sortable"`
+	Translate        bool                                  `json:"translate"`
+	Type             fieldtype.Type                        `json:"type"`
+	Store            bool                                  `json:"store"`
+	String           string                                `json:"string"`
+	Relation         string                                `json:"relation"`
+	Selection        types.Selection                       `json:"selection"`
+	Domain           interface{}                           `json:"domain"`
+	OnChange         bool                                  `json:"-"`
+	ReverseFK        string                                `json:"-"`
+	Name             string                                `json:"-"`
+	JSON             string                                `json:"-"`
+	ReadOnlyFunc     func(Environment) (bool, Conditioner) `json:"-"`
+	RequiredFunc     func(Environment) (bool, Conditioner) `json:"-"`
+	InvisibleFunc    func(Environment) (bool, Conditioner) `json:"-"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method

@@ -80,6 +80,7 @@ func generateAndRunFile(projectDir, fileName string, tmpl *template.Template) {
 func StartServer(config map[string]interface{}) {
 	setupConfig(config)
 	setupLogger()
+	defer log.Sync()
 	setupDebug()
 	server.PreInit()
 	connectToDB()

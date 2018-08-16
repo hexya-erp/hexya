@@ -22,12 +22,14 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/operator"
 )
 
-// ExprSep define the expression separation
+// Expression separation symbols
 const (
-	ExprSep = "."
-	sqlSep  = "__"
+	ExprSep    = "."
+	sqlSep     = "__"
+	ContextSep = "|"
 )
 
+// A predicate of a condition in the form 'Field = arg'
 type predicate struct {
 	exprs    []string
 	operator operator.Operator
@@ -36,6 +38,42 @@ type predicate struct {
 	isOr     bool
 	isNot    bool
 	isCond   bool
+}
+
+// Field returns the field name of this predicate
+func (p predicate) Field() FieldNamer {
+	return FieldName(strings.Join(p.exprs, ExprSep))
+}
+
+// Operator returns the operator of this predicate
+func (p predicate) Operator() operator.Operator {
+	return p.operator
+}
+
+// Argument returns the argument of this predicate
+func (p predicate) Argument() interface{} {
+	return p.arg
+}
+
+// AlterField changes the field of this predicate
+func (p *predicate) AlterField(f FieldNamer) *predicate {
+	if f == nil || f.String() == "" {
+		log.Panic("AlterField must be called with a field name", "field", f)
+	}
+	p.exprs = strings.Split(f.String(), ExprSep)
+	return p
+}
+
+// AlterOperator changes the operator of this predicate
+func (p *predicate) AlterOperator(op operator.Operator) *predicate {
+	p.operator = op
+	return p
+}
+
+// AlterArgument changes the argument of this predicate
+func (p *predicate) AlterArgument(arg interface{}) *predicate {
+	p.arg = arg
+	return p
 }
 
 // A Condition represents a WHERE clause of an SQL query.
@@ -79,7 +117,9 @@ func (c Condition) AndNot() *ConditionStart {
 // AndNotCond completes the current condition with an AND NOT clause between
 // brackets : c.AndNot(cond) => (c) AND NOT (cond)
 func (c Condition) AndNotCond(cond *Condition) *Condition {
-	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isNot: true})
+	if !cond.IsEmpty() {
+		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isNot: true})
+	}
 	return &c
 }
 
@@ -114,7 +154,9 @@ func (c Condition) OrNot() *ConditionStart {
 // OrNotCond completes the current condition both with an OR NOT clause between
 // brackets : c.OrNot(cond) => (c) OR NOT (cond)
 func (c Condition) OrNotCond(cond *Condition) *Condition {
-	c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true, isNot: true})
+	if !cond.IsEmpty() {
+		c.predicates = append(c.predicates, predicate{cond: cond, isCond: true, isOr: true, isNot: true})
+	}
 	return &c
 }
 
@@ -125,19 +167,26 @@ func (c Condition) Serialize() []interface{} {
 
 // HasField returns true if the given field is in at least one of the
 // the predicates of this condition or of one of its nested conditions.
-//
 func (c Condition) HasField(f *Field) bool {
-	for _, pred := range c.predicates {
+	preds := c.PredicatesWithField(f)
+	return len(preds) > 0
+}
+
+// PredicatesWithField returns all predicates of this condition (including
+// nested conditions) that concern the given field.
+func (c Condition) PredicatesWithField(f *Field) []*predicate {
+	var res []*predicate
+	for i, pred := range c.predicates {
 		if len(pred.exprs) > 0 {
 			if strings.Join(jsonizeExpr(f.model, pred.exprs), ExprSep) == f.json {
-				return true
+				res = append(res, &c.predicates[i])
 			}
 		}
-		if pred.cond != nil && pred.cond.HasField(f) {
-			return true
+		if pred.cond != nil {
+			res = append(res, c.predicates[i].cond.PredicatesWithField(f)...)
 		}
 	}
-	return false
+	return res
 }
 
 // String method for the Condition. Recursively print all predicates.
@@ -350,10 +399,10 @@ func (c ConditionField) IsNotNull() *Condition {
 func (c *Condition) IsEmpty() bool {
 	switch {
 	case c == nil:
-		return false
+		return true
 	case len(c.predicates) == 0:
 		return true
-	case len(c.predicates) == 1 && c.predicates[0].cond.IsEmpty():
+	case len(c.predicates) == 1 && c.predicates[0].cond != nil && c.predicates[0].cond.IsEmpty():
 		return true
 	}
 	return false
@@ -408,29 +457,6 @@ func (c *Condition) substituteChildOfOperator(rc *RecordCollection) {
 		rc.Env().Cr().Select(&parentIds, adapters[db.DriverName()].childrenIdsQuery(recModel.tableName), p.arg)
 		c.predicates[i].operator = operator.In
 		c.predicates[i].arg = parentIds
-	}
-}
-
-// evaluateArgFunctions recursively evaluates all args in the queries that are
-// functions and substitute it with the result.
-func (c *Condition) evaluateArgFunctions(rc *RecordCollection) {
-	for i, p := range c.predicates {
-		if p.cond != nil {
-			p.cond.evaluateArgFunctions(rc)
-		}
-
-		fnctVal := reflect.ValueOf(p.arg)
-		if fnctVal.Kind() != reflect.Func {
-			continue
-		}
-
-		firstArgType := fnctVal.Type().In(0)
-		if !firstArgType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
-			continue
-		}
-		argValue := reflect.ValueOf(rc.Collection())
-		res := fnctVal.Call([]reflect.Value{argValue})
-		c.predicates[i].arg = sanitizeArgs(res[0].Interface(), p.operator.IsMulti())
 	}
 }
 

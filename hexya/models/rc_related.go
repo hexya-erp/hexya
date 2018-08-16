@@ -14,23 +14,46 @@
 
 package models
 
-import "strings"
+import (
+	"fmt"
+	"strings"
 
-// substituteRelatedFields returns :
-// - a copy of the given fields slice with related fields substituted by their related
+	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
+	"github.com/hexya-erp/hexya/hexya/tools/strutils"
+)
+
+// substituteRelatedFields returns a copy of the given fields slice with related fields substituted by their related
 // field path. It also adds the fk and pk fields of all records in the related paths.
-// - a new RecordCollection with substitution of related fields in the query.
+//
+// The second returned value is a map the keys of which are the related field paths, and the values are the
+// corresponding original fields if they exist.
 //
 // This method removes duplicates and change all field names to their json names.
-func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, *RecordCollection) {
-	// Create a keys map with our fields
+func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, map[string]string) {
+	res := make(map[string]string)
+	for i, field := range fields {
+		relPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
+		res[relPath] = field
+		fields[i] = relPath
+	}
+	fields = rc.addIntermediatePaths(fields)
+	return fields, res
+}
+
+// addIntermediatePaths adds the paths that compose fields and returns a new slice.
+//
+// e.g. given [User.Address.Country Note Partner.Age] will return
+// [User User.Address User.address.country Note Partner Partner.Age]
+//
+// This method removes duplicates
+func (rc *RecordCollection) addIntermediatePaths(fields []string) []string {
+	// Create a keys map with our fields to avoid duplicates
 	keys := make(map[string]bool)
+	// Add intermediate records to our map
 	for _, field := range fields {
-		// Inflate our related fields
-		inflatedPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
-		keys[inflatedPath] = true
-		// Add intermediate records to our map
-		exprs := strings.Split(inflatedPath, ExprSep)
+		jsonField := jsonizePath(rc.model, field)
+		keys[jsonField] = true
+		exprs := strings.Split(jsonField, ExprSep)
 		if len(exprs) == 1 {
 			continue
 		}
@@ -47,7 +70,31 @@ func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, 
 		res[i] = key
 		i++
 	}
+	return res
+}
 
+// substituteRelatedFieldsInMap returns a copy of the given FieldMap with related fields
+// substituted by their related field path.
+//
+// This method substitute the first level only (to work with data structs)
+func (rc *RecordCollection) substituteRelatedFieldsInMap(fMap FieldMap) FieldMap {
+	res := make(FieldMap)
+	for field, value := range fMap {
+		// Inflate our related fields
+		fi := rc.model.getRelatedFieldInfo(field)
+		path := field
+		if fi.relatedPath != "" {
+			path = fi.relatedPath
+		}
+		inflatedPath := jsonizePath(rc.model, path)
+		res[inflatedPath] = value
+	}
+	return res
+}
+
+// substituteRelatedInQuery returns a new RecordCollection with related fields
+// substituted in the query.
+func (rc *RecordCollection) substituteRelatedInQuery() *RecordCollection {
 	// Substitute in RecordCollection query
 	substs := make(map[string][]string)
 	queryExprs := rc.query.getAllExpressions()
@@ -74,7 +121,7 @@ func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, 
 	}
 	rc.query.substituteConditionExprs(substs)
 
-	return res, rc
+	return rc
 }
 
 // substituteRelatedInPath recursively substitutes path for its related value.
@@ -88,4 +135,38 @@ func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 	newPath := strings.Join(exprs[:len(exprs)-1], ExprSep) + ExprSep + fi.relatedPath
 	newPath = strings.TrimLeft(newPath, ExprSep)
 	return rc.substituteRelatedInPath(newPath)
+}
+
+// createRelatedRecord creates Records at the given path, starting from this recordset.
+// This method does not check whether such a records already exists or not.
+func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *RecordCollection {
+	log.Debug("Creating related record", "recordset", rc, "path", path, "vals", vals)
+	rc.EnsureOne()
+	fi := rc.model.getRelatedFieldInfo(path)
+	exprs := strings.Split(path, ExprSep)
+	switch fi.fieldType {
+	case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
+		rSet := rc.env.Pool(fi.relatedModel.name)
+		if fi.embed {
+			rSet = rSet.WithContext("default_hexya_external_id", fmt.Sprintf("%s_%s", rc.Get("HexyaExternalID"), strutils.SnakeCase(fi.relatedModel.name)))
+		}
+		res := rSet.Call("Create", vals)
+		resRS, ok := res.(RecordSet)
+		if ok {
+			rc.Set(path, resRS.Collection())
+		}
+		return resRS.Collection()
+	case fieldtype.One2Many, fieldtype.Rev2One:
+		target := rc
+		if len(exprs) > 1 {
+			target = rc.Get(strings.Join(exprs[:len(exprs)-1], ExprSep)).(RecordSet).Collection()
+			if target.IsEmpty() {
+				log.Panic("Target record does not exist", "recordset", rc, "path", strings.Join(exprs[:len(exprs)-1], ExprSep))
+			}
+			target = target.Records()[0]
+		}
+		vals[fi.jsonReverseFK] = target
+		return rc.env.Pool(fi.relatedModel.name).Call("Create", vals).(RecordSet).Collection()
+	}
+	return rc.env.Pool(rc.ModelName())
 }

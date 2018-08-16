@@ -68,14 +68,16 @@ func InitializeTests(moduleName string) {
 	dbName := fmt.Sprintf("%s_%s_tests", prefix, moduleName)
 	debug = os.Getenv("HEXYA_DEBUG")
 
-	viper.Set("LogLevel", "crit")
+	viper.Set("LogLevel", "panic")
 	if debug != "" {
+		viper.Set("Debug", true)
 		viper.Set("LogLevel", "debug")
 		viper.Set("LogStdout", true)
 	}
 	logging.Initialize()
 
 	db := sqlx.MustConnect(driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", user, password))
+	db.MustExec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
 	db.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbName))
 	db.Close()
 

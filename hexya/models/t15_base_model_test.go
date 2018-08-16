@@ -28,7 +28,6 @@ func TestBaseModelMethods(t *testing.T) {
 					"Nums":    1,
 				})
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newUser.Get("WriteDate").(dates.DateTime).IsZero(), ShouldBeTrue)
 				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {
@@ -55,15 +54,20 @@ func TestBaseModelMethods(t *testing.T) {
 				So(allCount, ShouldEqual, 3)
 			})
 			Convey("Copy", func() {
+				newProfile := userJane.Get("Profile").(RecordSet).Collection().Call("Copy", FieldMap{})
 				userJane.Call("Write", FieldMap{"Password": "Jane's Password"})
-				userJaneCopy := userJane.Call("Copy", FieldMap{"Name": "Jane's Copy", "Email2": "js@example.com"}).(RecordSet).Collection()
+				userJaneCopy := userJane.Call("Copy", FieldMap{
+					"Name":    "Jane's Copy",
+					"Email2":  "js@example.com",
+					"Profile": newProfile,
+				}).(RecordSet).Collection()
 				So(userJaneCopy.Get("Name"), ShouldEqual, "Jane's Copy")
 				So(userJaneCopy.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				So(userJaneCopy.Get("Email2"), ShouldEqual, "js@example.com")
 				So(userJaneCopy.Get("Password"), ShouldBeBlank)
 				So(userJaneCopy.Get("Age"), ShouldEqual, 24)
 				So(userJaneCopy.Get("Nums"), ShouldEqual, 2)
-				So(userJaneCopy.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 0)
+				So(userJaneCopy.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 2)
 			})
 			Convey("FieldGet and FieldsGet", func() {
 				fInfo := userJane.Call("FieldGet", FieldName("Name")).(*FieldInfo)
@@ -71,7 +75,7 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fInfo.Help, ShouldEqual, "The user's username")
 				So(fInfo.Type, ShouldEqual, fieldtype.Char)
 				fInfos := userJane.Call("FieldsGet", FieldsGetArgs{}).(map[string]*FieldInfo)
-				So(fInfos, ShouldHaveLength, 30)
+				So(fInfos, ShouldHaveLength, 31)
 			})
 			Convey("NameGet", func() {
 				So(userJane.Get("DisplayName"), ShouldEqual, "Jane A. Smith")

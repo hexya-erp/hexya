@@ -12,7 +12,7 @@ import (
 
 func TestDataLoading(t *testing.T) {
 	Convey("Testing CSV data loading into database", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userObj := env.Pool("User")
 			Convey("Simple import of users - no update", func() {
 				LoadCSVDataFile("testdata/User.csv")
@@ -101,6 +101,11 @@ func TestDataLoading(t *testing.T) {
 				So(userKen.Get("Nums").(int), ShouldEqual, 10)
 				So(userKen.Get("IsStaff").(bool), ShouldEqual, false)
 				So(userKen.Get("Size").(float64), ShouldEqual, 1.76)
+			})
+			Convey("Test with contexted on embedded field", func() {
+				LoadCSVDataFile("testdata/013User.csv")
+				user := userObj.Search(userObj.Model().Field("Email").Equals("peter@hexya.io"))
+				So(user.Get("Education"), ShouldEqual, "Hexya University")
 			})
 			Convey("Checking imports with foreign keys", func() {
 				LoadCSVDataFile("testdata/010-Tag.csv")

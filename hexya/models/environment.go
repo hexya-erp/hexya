@@ -30,12 +30,14 @@ const DBSerializationMaxRetries uint8 = 5
 // - the current context (for storing arbitrary metadata).
 // The Environment also stores caches.
 type Environment struct {
-	cr      *Cursor
-	uid     int64
-	context *types.Context
-	cache   *cache
-	super   bool
-	retries uint8
+	cr             *Cursor
+	uid            int64
+	context        *types.Context
+	cache          *cache
+	super          bool
+	currentLayer   *methodLayer
+	previousMethod *Method
+	retries        uint8
 }
 
 // Cr returns a pointer to the Cursor of the Environment

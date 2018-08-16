@@ -14,7 +14,10 @@
 
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // FieldMap is a map of interface{} specifically used for holding model
 // fields values.
@@ -26,6 +29,16 @@ func (fm FieldMap) Keys() (res []string) {
 		res = append(res, k)
 	}
 	return
+}
+
+// OrderedKeys returns the keys of this FieldMap ordered.
+//
+// This has the convenient side effect of having shorter paths come before longer paths,
+// which is particularly useful when creating or updating related records.
+func (fm FieldMap) OrderedKeys() []string {
+	keys := fm.Keys()
+	sort.Strings(keys)
+	return keys
 }
 
 // FieldNames returns the FieldMap keys as a slice of FieldNamer.
@@ -144,27 +157,6 @@ func (fm FieldMap) FieldMap(fields ...FieldNamer) FieldMap {
 
 var _ FieldMapper = FieldMap{}
 
-// KeySubstitution defines a key substitution in a FieldMap
-type KeySubstitution struct {
-	Orig string
-	New  string
-	Keep bool
-}
-
-// SubstituteKeys changes the column names of the given field map with the
-// given substitutions.
-func (fm *FieldMap) SubstituteKeys(substs []KeySubstitution) {
-	for _, subs := range substs {
-		value, exists := (*fm)[subs.Orig]
-		if exists {
-			if !subs.Keep {
-				delete(*fm, subs.Orig)
-			}
-			(*fm)[subs.New] = value
-		}
-	}
-}
-
 // Copy returns a shallow copy of this FieldMap
 func (fm FieldMap) Copy() FieldMap {
 	res := make(FieldMap, len(fm))
@@ -193,6 +185,8 @@ type RecordSet interface {
 	Len() int
 	// IsEmpty returns true if this RecordSet has no records
 	IsEmpty() bool
+	// Call executes the given method (as string) with the given arguments
+	Call(string, ...interface{}) interface{}
 	// Collection returns the underlying RecordCollection instance
 	Collection() *RecordCollection
 }
@@ -228,6 +222,13 @@ type GroupAggregateRow struct {
 	Count     int
 	Condition *Condition
 }
+
+// FieldContexts define the different contexts for a field, that will define different
+// values for this field.
+//
+// The key is a context name and the value is a function that returns the context
+// value for the given recordset.
+type FieldContexts map[string]func(RecordSet) string
 
 // A FieldMapper is an object that can convert itself into a FieldMap
 type FieldMapper interface {

@@ -32,6 +32,7 @@ func TestModelDeclaration(t *testing.T) {
 		post := NewModel("Post")
 		tag := NewModel("Tag")
 		cv := NewModel("Resume")
+		comment := NewModel("Comment")
 		addressMI := NewMixinModel("AddressMixIn")
 		activeMI := NewMixinModel("ActiveMixIn")
 		viewModel := NewManualModel("UserView")
@@ -190,7 +191,7 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		post.Methods().MustGet("Create").Extend("",
-			func(rc *RecordCollection, data FieldMapper) *RecordCollection {
+			func(rc *RecordCollection, data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
@@ -204,6 +205,17 @@ func TestModelDeclaration(t *testing.T) {
 		post.Methods().MustGet("WithContext").Extend("",
 			func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
 				return rc.Super().Call("WithContext", key, value).(*RecordCollection)
+			})
+
+		post.AddMethod("ComputeTagsNames", "",
+			func(rc *RecordCollection) FieldMap {
+				var res string
+				for _, rec := range rc.Records() {
+					for _, tag := range rec.Get("Tags").(RecordSet).Collection().Records() {
+						res += tag.Get("Name").(string) + " "
+					}
+				}
+				return FieldMap{"TagsNames": res}
 			})
 
 		tag.AddMethod("CheckRate",
@@ -226,6 +238,14 @@ func TestModelDeclaration(t *testing.T) {
 		tag.methods.RevokeAllFromGroup(security.GroupEveryone)
 		tag.methods.AllowAllToGroup(security.GroupEveryone)
 
+		cv.AddMethod("ComputeOther",
+			`Dummy compute function`,
+			func(rc *RecordCollection) FieldMap {
+				return FieldMap{
+					"Other": "Other information",
+				}
+			})
+
 		user.AddFields(map[string]FieldDefinition{
 			"Name": CharField{String: "Name", Help: "The user's username", Unique: true,
 				NoCopy: true, OnChange: user.Methods().MustGet("OnChangeName")},
@@ -236,12 +256,12 @@ func TestModelDeclaration(t *testing.T) {
 				Default: DefaultValue(int16(12)), ReadOnly: true},
 			"IsStaff":  BooleanField{},
 			"IsActive": BooleanField{},
-			"Profile": Many2OneField{RelationModel: Registry.MustGet("Profile"),
+			"Profile": One2OneField{RelationModel: Registry.MustGet("Profile"),
 				OnDelete: Restrict, Required: true},
 			"Age": IntegerField{Compute: user.Methods().MustGet("ComputeAge"),
 				Inverse: user.Methods().MustGet("InverseSetAge"),
 				Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-			"Posts":     One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User"},
+			"Posts":     One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User", Copy: true},
 			"PMoney":    FloatField{Related: "Profile.Money"},
 			"LastPost":  Many2OneField{RelationModel: Registry.MustGet("Post")},
 			"Resume":    Many2OneField{RelationModel: Registry.MustGet("Resume"), Embed: true},
@@ -249,6 +269,7 @@ func TestModelDeclaration(t *testing.T) {
 			"IsPremium": BooleanField{},
 			"Nums":      IntegerField{GoType: new(int)},
 			"Size":      FloatField{},
+			"Education": TextField{String: "Educational Background"},
 		})
 		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums > 0) OR (IS_PREMIUM = false))",
 			"Premium users must have positive nums")
@@ -257,43 +278,53 @@ func TestModelDeclaration(t *testing.T) {
 			"Age":      IntegerField{GoType: new(int16)},
 			"Gender":   SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
 			"Money":    FloatField{},
-			"User":     Many2OneField{RelationModel: Registry.MustGet("User")},
-			"BestPost": One2OneField{RelationModel: Registry.MustGet("Post")},
+			"User":     Rev2OneField{RelationModel: Registry.MustGet("User"), ReverseFK: "Profile"},
+			"BestPost": Many2OneField{RelationModel: Registry.MustGet("Post")},
 			"City":     CharField{},
 			"Country":  CharField{},
+			"UserName": CharField{Related: "User.Name"},
 		})
 
 		post.AddFields(map[string]FieldDefinition{
-			"User":            Many2OneField{RelationModel: Registry.MustGet("User")},
-			"Title":           CharField{Required: true},
-			"Content":         HTMLField{Required: true},
-			"Tags":            Many2ManyField{RelationModel: Registry.MustGet("Tag")},
-			"BestPostProfile": Rev2OneField{RelationModel: Registry.MustGet("Profile"), ReverseFK: "BestPost"},
-			"Abstract":        TextField{},
-			"Attachment":      BinaryField{},
-			"Read":            BooleanField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeRead")},
-			"LastRead":        DateField{},
+			"User":       Many2OneField{RelationModel: Registry.MustGet("User")},
+			"Title":      CharField{Required: true},
+			"Content":    HTMLField{Required: true},
+			"Tags":       Many2ManyField{RelationModel: Registry.MustGet("Tag")},
+			"Abstract":   TextField{},
+			"Attachment": BinaryField{},
+			"Read":       BooleanField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeRead")},
+			"LastRead":   DateField{},
 			"Visibility": SelectionField{Selection: types.Selection{
 				"invisible": "Invisible",
 				"visible":   "Visible",
 			}},
+			"Comments":        One2ManyField{RelationModel: Registry.MustGet("Comment"), ReverseFK: "Post"},
+			"LastCommentText": TextField{Related: "Comments.Text"},
+			"LastTagName":     CharField{Related: "Tags.Name"},
+			"TagsNames":       CharField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeTagsNames")},
 		})
 		post.SetDefaultOrder("Title")
+
+		comment.AddFields(map[string]FieldDefinition{
+			"Post": Many2OneField{RelationModel: Registry.MustGet("Post")},
+			"Text": TextField{},
+		})
 
 		tag.AddFields(map[string]FieldDefinition{
 			"Name":        CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
 			"BestPost":    Many2OneField{RelationModel: Registry.MustGet("Post")},
 			"Posts":       Many2ManyField{RelationModel: Registry.MustGet("Post")},
 			"Parent":      Many2OneField{RelationModel: Registry.MustGet("Tag")},
-			"Description": CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
+			"Description": CharField{Constraint: tag.Methods().MustGet("CheckNameDescription"), Translate: true},
 			"Rate":        FloatField{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
 		})
 		tag.SetDefaultOrder("Name DESC", "ID ASC")
 
 		cv.AddFields(map[string]FieldDefinition{
-			"Education":  TextField{},
-			"Experience": TextField{},
+			"Education":  CharField{},
+			"Experience": TextField{Translate: true},
 			"Leisure":    TextField{},
+			"Other":      CharField{Compute: cv.methods.MustGet("ComputeOther")},
 		})
 
 		addressMI.AddFields(map[string]FieldDefinition{
@@ -366,8 +397,6 @@ func TestFieldModification(t *testing.T) {
 		checkUpdates(numsField, "stored", true)
 		numsField.SetStored(false)
 		checkUpdates(numsField, "stored", false)
-		numsField.SetTranslate(true)
-		checkUpdates(numsField, "translate", true)
 		numsField.SetUnique(true)
 		checkUpdates(numsField, "unique", true)
 		numsField.SetUnique(false)
@@ -375,6 +404,10 @@ func TestFieldModification(t *testing.T) {
 		nameField := Registry.MustGet("User").Fields().MustGet("Name")
 		nameField.SetSize(127)
 		checkUpdates(nameField, "size", 127)
+		nameField.SetTranslate(true)
+		checkUpdates(nameField, "translate", true)
+		nameField.SetTranslate(false)
+		checkUpdates(nameField, "translate", false)
 		nameField.SetOnchange(nil)
 		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("OnChangeName"))
 		nameField.SetConstraint(Registry.MustGet("User").Methods().MustGet("UpdateCity"))

@@ -137,7 +137,7 @@ func declareModels() {
 		})
 
 	post.Methods().MustGet("Create").Extend("",
-		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+		func(rc *models.RecordCollection, data models.FieldMapper, fieldsToReset ...models.FieldNamer) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(models.RecordSet).Collection()
 			return res
 		})
@@ -186,6 +186,7 @@ func declareModels() {
 		"IsPremium": models.BooleanField{},
 		"Nums":      models.IntegerField{GoType: new(int)},
 		"Size":      models.FloatField{},
+		"Education": models.TextField{String: "Educational Background"},
 	})
 
 	profile.AddFields(map[string]models.FieldDefinition{
@@ -210,7 +211,7 @@ func declareModels() {
 	})
 
 	post.Methods().MustGet("Create").Extend("",
-		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+		func(rc *models.RecordCollection, data models.FieldMapper, fieldsToReset ...models.FieldNamer) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(*models.RecordCollection)
 			return res
 		})
@@ -226,7 +227,7 @@ func declareModels() {
 
 	cv.AddFields(map[string]models.FieldDefinition{
 		"Education":  models.TextField{},
-		"Experience": models.TextField{},
+		"Experience": models.TextField{Translate: true},
 		"Leisure":    models.TextField{},
 	})
 

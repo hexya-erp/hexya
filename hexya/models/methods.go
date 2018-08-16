@@ -21,16 +21,23 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/security"
 )
 
+// unauthorizedMethods lists methods that should not be given execution permission by default
+var unauthorizedMethods = map[string]bool{
+	"Load":   true,
+	"Create": true,
+	"Write":  true,
+	"Unlink": true,
+}
+
 // A MethodsCollection is a collection of methods for use in a model
 type MethodsCollection struct {
 	model        *Model
 	registry     map[string]*Method
-	powerGroups  map[*security.Group]bool
 	bootstrapped bool
 }
 
-// get returns the Method with the given method name.
-func (mc *MethodsCollection) get(methodName string) (*Method, bool) {
+// Get returns the Method with the given method name.
+func (mc *MethodsCollection) Get(methodName string) (*Method, bool) {
 	mi, ok := mc.registry[methodName]
 	if !ok {
 		// We didn't find the method, but maybe it exists in mixins
@@ -49,7 +56,7 @@ func (mc *MethodsCollection) get(methodName string) (*Method, bool) {
 // MustGet returns the Method of the given method. It panics if the
 // method is not found.
 func (mc *MethodsCollection) MustGet(methodName string) *Method {
-	methInfo, exists := mc.get(methodName)
+	methInfo, exists := mc.Get(methodName)
 	if !exists {
 		log.Panic("Unknown method in model", "model", mc.model.name, "method", methodName)
 	}
@@ -61,25 +68,24 @@ func (mc *MethodsCollection) set(methodName string, methInfo *Method) {
 	mc.registry[methodName] = methInfo
 }
 
-// AllowAllToGroup grants the given group access to all the methods of this collection
-// This method must be called before bootstrap, or will have no effect.
+// AllowAllToGroup grants the given group access to all the CRUD methods of this collection
 func (mc *MethodsCollection) AllowAllToGroup(group *security.Group) {
-	mc.powerGroups[group] = true
+	for mName := range unauthorizedMethods {
+		mc.MustGet(mName).AllowGroup(group)
+	}
 }
 
-// RevokeAllFromGroup revokes permissions on all methods given by AllowAllToGroup
-// It simply removes the group from the groups allowed on every method, but does
-// not change any specific permission granted on a per method basis.
-// This method must be called before bootstrap, or will have no effect.
+// RevokeAllFromGroup revokes permissions on all CRUD methods given by AllowAllToGroup
 func (mc *MethodsCollection) RevokeAllFromGroup(group *security.Group) {
-	delete(mc.powerGroups, group)
+	for mName := range unauthorizedMethods {
+		mc.MustGet(mName).RevokeGroup(group)
+	}
 }
 
 // newMethodsCollection returns a pointer to a new MethodsCollection
 func newMethodsCollection() *MethodsCollection {
 	mc := MethodsCollection{
-		registry:    make(map[string]*Method),
-		powerGroups: make(map[*security.Group]bool),
+		registry: make(map[string]*Method),
 	}
 	return &mc
 }
@@ -314,7 +320,7 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 	if m.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
 	}
-	_, exists := m.methods.get(methodName)
+	_, exists := m.methods.Get(methodName)
 	if exists {
 		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
 	}
@@ -326,6 +332,9 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 		groupsCallers: make(map[callerGroup]bool),
 	}
 	m.methods.set(methodName, meth)
+	if !unauthorizedMethods[meth.name] {
+		meth.AllowGroup(security.GroupEveryone)
+	}
 	return meth
 }
 
@@ -422,7 +431,7 @@ func checkTypesMatch(type1, type2 reflect.Type) bool {
 // it found one, false otherwise.
 func (m *Model) findMethodInMixin(methodName string) (*Method, bool) {
 	for _, mixin := range m.mixins {
-		if method, ok := mixin.methods.get(methodName); ok {
+		if method, ok := mixin.methods.Get(methodName); ok {
 			return method, true
 		}
 		if method, ok := mixin.findMethodInMixin(methodName); ok {

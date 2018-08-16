@@ -80,8 +80,14 @@ only when called from `SetToShipped()`.
 
 === Defining Method Execution Permissions
 
-By default, only members of `security.AdminGroup` are allowed to execute a
-method. Other groups should be manually added to allowed groups.
+By default:
+
+- CRUD methods can only be executed by members of `security.AdminGroup`.
+Other groups should be manually added to allowed groups.
+- Other methods can be executed by anybody.
+To restrict execution, you should first revoke execution permission from `security.GroupEveryone` before granting permission to the desired groups.
+
+Two methods control execution permissions:
 
 `*(*Method) AllowGroup(group *security.Group, callers ...*Method) *Method*`::
 Grant the execution permission on the method to the given group. If callers
@@ -103,64 +109,20 @@ h.Users().Methods().SayHello().DeclareMethod(
     func(rs h.UsersSet) {
         return "Hello"
     }).
+    RevokeGroup(security.GroupEveryone).
     AllowGroup(sale.GroupSalesman).
     AllowGroup(stock.GroupPicker, h.Users().Methods().Create())
     // Pickers can say hello only from the 'Create' method
 ----
 
 `*(*MethodCollection) AllowAllToGroup(group *security.Group)*`::
-This is a helper method to grant access to all methods of a model at once:
+This is a helper method to grant access to all CRUD methods of a model at once:
 
 [source,go]
 h.Users().Methods().AllowAllToGroup(GroupERPManager)
 
 `*(*MethodCollection) RevokeAllFromGroup(group *security.Group)*`::
-Revokes permissions on all methods given by AllowAllToGroup.
-It simply removes the group from the groups allowed on every method, but does
-not change any specific permission granted on a per method basis.
-
-== Field Access Control (FAC)
-
-=== Rationale
-
-While MEC is the main security mechanism used in Hexya, it is sometimes necessary
-to limit read or write access for some users to some fields. This is
-particularly true in the user interface.
-
-This is done through Field Access Control. The following rules apply:
-
-- If a user without `Read` permission on a field retrieve a record, the value of
-the field will be replaced by its Go zero value.
-- If a user without `Write` permission on a field writes a record, the value of
-the field will not be updated.
-- Clients *should* make this behaviour explicit in their UI by removing non
-readable fields and marking as read only fields without `Write` permission.
-
-=== Defining Field Access Permissions
-
-Two permissions are applicable to fields: `security.Read` and
-`security.Write`.
-
-By default, `security.GroupEveryone` is granted `security.Read` and
-`security.Write` permissions on all fields.
-
-Field permissions can be modified with the following methods:
-
-`*(*Field) GrantAccess(group *security.Group, perm security.Permission) *Field*`::
-Grant the given `perm` to the given `group` on this field.
-
-`*(*Field) RevokeAccess(group *security.Group, perm security.Permission) *Field*`::
-Revoke the given `perm` to the given `group` on this field if it has been
-granted previously, otherwise does nothing.
-
-NOTE: These methods return a pointer to the receiver so that they can be
-chained.
-
-[source,go]
-salesManager := security.Registry.GetGroup("sale_manager")
-h.Partner().Fields().Phone().
-    RevokeAccess(security.GroupEveryOne, security.Read).
-    AllowAccess(salesManager, security.Read)
+Revokes permissions on all CRUD methods for the given group.
 
 == Record Rules (RR)
 

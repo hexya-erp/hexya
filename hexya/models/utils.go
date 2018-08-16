@@ -114,7 +114,7 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 		switch p.arg.(type) {
 		case bool:
 			cond.predicates[i].arg = int64(0)
-		case string:
+		case string, ClientEvaluatedString:
 			cond.predicates[i].exprs = addNameSearchToExprs(fi, p.exprs)
 		}
 	}
@@ -123,10 +123,15 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
 func addNameSearchToExprs(fi *Field, exprs []string) []string {
-	_, exists := fi.relatedModel.fields.Get("name")
-	if exists {
-		exprs = append(exprs, "name")
+	relFI, exists := fi.relatedModel.fields.Get("name")
+	if !exists {
+		return exprs
 	}
+	exprsToAppend := []string{"name"}
+	if relFI.isRelatedField() {
+		exprsToAppend = strings.Split(relFI.relatedPath, ExprSep)
+	}
+	exprs = append(exprs, exprsToAppend...)
 	return exprs
 }
 
@@ -211,7 +216,7 @@ func nestMap(fMap FieldMap) FieldMap {
 	return res
 }
 
-// filterOnDBFields returns the given fields slice with only stored fields
+// filterOnDBFields returns the given fields slice with only stored fields.
 // This function also adds the "id" field to the list if not present unless dontAddID is true
 func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 	var res []string
@@ -219,23 +224,32 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 	for _, field := range fields {
 		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
 		fi := mi.fields.MustGet(fieldExprs[0])
-		var resExprs []string
-		if fi.isStored() {
-			resExprs = append(resExprs, fi.json)
-		}
-		if len(fieldExprs) > 1 {
-			// Related field (e.g. User.Profile.Age)
-			if fi.relatedModel != nil {
-				subFieldName := strings.Join(fieldExprs[1:], ExprSep)
-				subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName})
-				if len(subFieldRes) > 0 {
-					resExprs = append(resExprs, subFieldRes[0])
-				}
-			} else {
-				log.Panic("Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
+		// Single field
+		if len(fieldExprs) == 1 {
+			if fi.isStored() {
+				res = append(res, fi.json)
 			}
+			continue
 		}
-		if len(resExprs) > 0 {
+
+		// Related field (e.g. User.Profile.Age)
+		if fi.relatedModel == nil {
+			log.Panic("Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
+		}
+		subFieldName := strings.Join(fieldExprs[1:], ExprSep)
+		subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName}, dontAddID...)
+		if len(subFieldRes) == 0 {
+			// Our last expr is not stored after all, we don't add anything
+			continue
+		}
+
+		if !fi.isStored() {
+			// We re-add our first expr as it has been removed above (not stored)
+			res = append(res, fi.json)
+		}
+		for _, sfr := range subFieldRes {
+			resExprs := []string{fi.json}
+			resExprs = append(resExprs, sfr)
 			res = append(res, strings.Join(resExprs, ExprSep))
 		}
 	}
@@ -246,12 +260,14 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 }
 
 // filterMapOnStoredFields returns a new FieldMap from fMap
-// with only stored fields keys.
+// with only fields keys stored directly in this model.
+//
+// This function also converts all keys to fields JSON names.
 func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
 	newFMap := make(FieldMap)
 	for field, value := range fMap {
-		if fi := mi.getRelatedFieldInfo(field); fi.isStored() {
-			newFMap[field] = value
+		if fi, ok := mi.fields.Get(field); ok && fi.isStored() {
+			newFMap[fi.json] = value
 		}
 	}
 	return newFMap
@@ -290,12 +306,36 @@ func ConvertToFieldNameSlice(fields []string) []FieldNamer {
 	return res
 }
 
+// convertToFieldNamerSlice converts the given FieldName fields slice into a slice of FieldNamers
+func convertToFieldNamerSlice(fields []FieldName) []FieldNamer {
+	res := make([]FieldNamer, len(fields))
+	for i, v := range fields {
+		res[i] = v
+	}
+	return res
+}
+
 // getGroupCondition returns the condition to retrieve the individual aggregated rows in vals
 // knowing that they were grouped by groups and that we had the given initial condition
 func getGroupCondition(groups []string, vals map[string]interface{}, initialCondition *Condition) *Condition {
 	res := initialCondition
 	for _, group := range groups {
 		res = res.And().Field(group).Equals(vals[group])
+	}
+	return res
+}
+
+// substituteKeys returns a new map with its keys substituted following substMap after changing sqlSep into ExprSep.
+// vals keys that are not found in substMap are not returned
+func substituteKeys(vals map[string]interface{}, substMap map[string]string) map[string]interface{} {
+	res := make(FieldMap)
+	for f, v := range vals {
+		k := strings.Replace(f, sqlSep, ExprSep, -1)
+		sk, ok := substMap[k]
+		if !ok {
+			continue
+		}
+		res[sk] = v
 	}
 	return res
 }

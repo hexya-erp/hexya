@@ -81,6 +81,12 @@ func TestComputedNonStoredFields(t *testing.T) {
 				users = users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 				So(users.Get("DisplayName").(string), ShouldEqual, "Jane A. Smith")
 			})
+			Convey("Testing computed field through a related field", func() {
+				users := env.Pool("User")
+				jane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+				So(jane.Get("Other"), ShouldEqual, "Other information")
+				So(jane.Get("Resume").(RecordSet).Collection().Get("Other"), ShouldEqual, "Other information")
+			})
 		}), ShouldBeNil)
 	})
 }
@@ -209,12 +215,16 @@ func TestEmbeddedModels(t *testing.T) {
 			Convey("Adding a proper resume to Jane", func() {
 				userJane.Get("Resume").(RecordSet).Collection().Set("Experience", "Hexya developer for 10 years")
 				userJane.Get("Resume").(RecordSet).Collection().Set("Leisure", "Music, Sports")
+				userJane.Get("Resume").(RecordSet).Collection().Set("Education", "MIT")
+				userJane.Set("Education", "Berkeley")
 			})
 			Convey("Checking that we can access jane's resume directly", func() {
 				So(userJane.Get("Experience"), ShouldEqual, "Hexya developer for 10 years")
 				So(userJane.Get("Leisure"), ShouldEqual, "Music, Sports")
+				So(userJane.Get("Education"), ShouldEqual, "Berkeley")
 				So(userJane.Get("Resume").(RecordSet).Collection().Get("Experience"), ShouldEqual, "Hexya developer for 10 years")
 				So(userJane.Get("Resume").(RecordSet).Collection().Get("Leisure"), ShouldEqual, "Music, Sports")
+				So(userJane.Get("Resume").(RecordSet).Collection().Get("Education"), ShouldEqual, "MIT")
 			})
 		}), ShouldBeNil)
 	})
@@ -238,6 +248,108 @@ func TestMixedInModels(t *testing.T) {
 				janeProfile.Set("Active", true)
 				So(janeProfile.Get("Active").(bool), ShouldEqual, true)
 				So(janeProfile.Call("IsActivated").(bool), ShouldEqual, true)
+			})
+		}), ShouldBeNil)
+	})
+}
+
+func TestContextedFields(t *testing.T) {
+	Convey("Testing contexted fields", t, func() {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			tags := env.Pool("Tag")
+			decs := env.Pool("TagHexyaDescription")
+			var tagc *RecordCollection
+			Convey("Creating record with a single contexted field", func() {
+				tagc = tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Translated description",
+				}).(RecordSet).Collection()
+				So(tagc.Get("DescriptionHexyaContexts").(RecordSet).Len(), ShouldEqual, 1)
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+
+				tagc.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
+				So(tagc.Get("DescriptionHexyaContexts").(RecordSet).Len(), ShouldEqual, 2)
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+
+				newTag := tags.WithContext("lang", "fr_FR").Search(tags.Model().Field("name").Equals("Contexted tag"))
+				newTag.Load("description")
+				So(newTag.Get("Description"), ShouldEqual, "Description traduite")
+
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description traduite")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "Translated description")
+
+				tagc.WithContext("lang", "fr_FR").Set("Description", "Nouvelle traduction")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Nouvelle traduction")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "Translated description")
+
+				tagc.WithContext("lang", "de_DE").Set("Description", "übersetzte Beschreibung")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Nouvelle traduction")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "übersetzte Beschreibung")
+
+				tagc.WithContext("lang", "es_ES").Set("Description", "descripción traducida")
+				So(tagc.Get("Description"), ShouldEqual, "Translated description")
+				So(tagc.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Nouvelle traduction")
+				So(tagc.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "übersetzte Beschreibung")
+				So(tagc.WithContext("lang", "es_ES").Get("Description"), ShouldEqual, "descripción traducida")
+				So(tagc.WithContext("lang", "it_IT").Get("Description"), ShouldEqual, "Translated description")
+			})
+			Convey("Creating a record with a contexted field should also create for default context", func() {
+				tags.WithContext("lang", "fr_FR").Call("Create", FieldMap{
+					"Name":        "Contexted tag 2",
+					"Description": "Description en français",
+				}).(RecordSet).Collection()
+				tag := tags.Search(tags.Model().Field("name").Equals("Contexted tag 2"))
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				So(tag.WithContext("lang", "en_US").Get("Description"), ShouldEqual, "Description en français")
+				So(tag.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description en français")
+				tag.WithContext("lang", "en_US").Set("Description", "Description in English")
+				So(tag.WithContext("lang", "en_US").Get("Description"), ShouldEqual, "Description in English")
+				So(tag.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description en français")
+				So(tag.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "Description en français")
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				thc := decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+			})
+			Convey("Updating in another transaction should not recreate a default value", func() {
+				tag := tags.WithContext("lang", "fr_FR").Search(tags.Model().Field("name").Equals("Contexted tag 2"))
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				thc := decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+
+				tag.Set("Description", "Nouvelle description en français")
+				thc = decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+				So(tag.Get("Description"), ShouldEqual, "Nouvelle description en français")
+			})
+			Convey("Changing language should recreate a default value (new transaction)", func() {
+				tag := tags.WithContext("lang", "es_ES").Search(tags.Model().Field("name").Equals("Contexted tag 2"))
+				So(tag.Get("Description"), ShouldEqual, "Description en français")
+				thc := decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+
+				tag.Set("Description", "descripción traducida")
+				thc = decs.Search(decs.Model().Field("Record").Equals(tag.Ids()[0]).And().Field("lang").Equals(""))
+				So(thc.Len(), ShouldEqual, 1)
+				So(tag.Get("Description"), ShouldEqual, "descripción traducida")
+			})
+			Convey("Deleting a record with a contexted field should delete all contexts", func() {
+				newTag := tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag 3",
+					"Description": "Description to translate",
+				}).(RecordSet).Collection()
+				So(newTag.Get("Description"), ShouldEqual, "Description to translate")
+				newTag.WithContext("lang", "fr_FR").Set("Description", "Description en français")
+				So(newTag.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description en français")
+				newTag.WithContext("lang", "de_DE").Set("Description", "übersetzte Beschreibung")
+				So(newTag.WithContext("lang", "de_DE").Get("Description"), ShouldEqual, "übersetzte Beschreibung")
+				nID := newTag.Ids()[0]
+				newTag.Call("Unlink")
+				dec := decs.Search(decs.Model().Field("Record").Equals(nID).Or().Field("Record").IsNull())
+				So(dec.IsEmpty(), ShouldBeTrue)
 			})
 		}), ShouldBeNil)
 	})

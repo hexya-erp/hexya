@@ -23,15 +23,15 @@ import (
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
-var log *logging.Logger
+var log logging.Logger
 
 func init() {
 	log = logging.GetLogger("strutils")
 }
 
-// SnakeCaseString convert the given string to snake case following the Golang format:
+// SnakeCase convert the given string to snake case following the Golang format:
 // acronyms are converted to lower-case and preceded by an underscore.
-func SnakeCaseString(in string) string {
+func SnakeCase(in string) string {
 	runes := []rune(in)
 	length := len(runes)
 
@@ -46,9 +46,10 @@ func SnakeCaseString(in string) string {
 	return string(out)
 }
 
-// TitleString convert the given camelCase string to a title string.
+// Title convert the given camelCase string to a title string.
 // eg. MyHTMLData => My HTML Data
-func TitleString(in string) string {
+func Title(in string) string {
+
 	runes := []rune(in)
 	length := len(runes)
 

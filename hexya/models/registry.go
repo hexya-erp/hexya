@@ -173,7 +173,10 @@ func (m *Model) getRelatedFieldInfo(path string) *Field {
 // scanToFieldMap scans the db query result r into the given FieldMap.
 // Unlike slqx.MapScan, the returned interface{} values are of the type
 // of the Model fields instead of the database types.
-func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
+//
+// substs is a map for substituting field names in the ColScanner if necessary (typically if length is over 64 chars).
+// Keys are the alias used in the query, and values are '__' separated paths such as "user_id__profile_id__age"
+func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap, substs map[string]string) error {
 	columns, err := r.Columns()
 	if err != nil {
 		return err
@@ -192,9 +195,13 @@ func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap) error {
 		return err
 	}
 
-	// Step 2: We populate our FieldMap with these values
+	// Step 2: We populate our dest FieldMap with these values
 	for i, dbValue := range dbValues {
-		colName := strings.Replace(columns[i], sqlSep, ExprSep, -1)
+		colName := columns[i]
+		if s, ok := substs[colName]; ok {
+			colName = s
+		}
+		colName = strings.Replace(colName, sqlSep, ExprSep, -1)
 		dbVal := reflect.ValueOf(dbValue).Elem().Interface()
 		(*dest)[colName] = dbVal
 	}
@@ -347,6 +354,14 @@ func (m *Model) isSystem() bool {
 	return false
 }
 
+// isContext returns true if this is a context model.
+func (m *Model) isContext() bool {
+	if m.options&ContextsModel > 0 {
+		return true
+	}
+	return false
+}
+
 // isSystem returns true if this is a n M2M Link model.
 func (m *Model) isM2MLink() bool {
 	if m.options&Many2ManyLinkModel > 0 {
@@ -420,13 +435,16 @@ func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
 		if fInfo.filter != nil {
 			filter = fInfo.filter.Serialize()
 		}
+		_, translate := fInfo.contexts["lang"]
 		res[fInfo.json] = &FieldInfo{
+			Name:       fInfo.name,
+			JSON:       fInfo.json,
 			Help:       fInfo.help,
 			Searchable: true,
 			Depends:    fInfo.depends,
 			Sortable:   true,
 			Type:       fInfo.fieldType,
-			Store:      fInfo.isStored(),
+			Store:      fInfo.isSettable(),
 			String:     fInfo.description,
 			Relation:   relation,
 			Required:   fInfo.required,
@@ -435,6 +453,7 @@ func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
 			ReadOnly:   fInfo.isReadOnly(),
 			ReverseFK:  fInfo.jsonReverseFK,
 			OnChange:   fInfo.onChange != "",
+			Translate:  translate,
 		}
 	}
 	return res
@@ -454,8 +473,8 @@ func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
 }
 
 // Create creates a new record in this model with the given data.
-func (m *Model) Create(env Environment, data interface{}) *RecordCollection {
-	return env.Pool(m.name).Call("Create", data).(RecordSet).Collection()
+func (m *Model) Create(env Environment, data interface{}, fieldsToReset ...FieldNamer) *RecordCollection {
+	return env.Pool(m.name).Call("Create", data, fieldsToReset).(RecordSet).Collection()
 }
 
 // Search searches the database and returns records matching the given condition.
@@ -542,7 +561,7 @@ func createModel(name string, options Option) *Model {
 		options:        options,
 		acl:            security.NewAccessControlList(),
 		rulesRegistry:  newRecordRuleRegistry(),
-		tableName:      strutils.SnakeCaseString(name),
+		tableName:      strutils.SnakeCase(name),
 		fields:         newFieldsCollection(),
 		methods:        newMethodsCollection(),
 		sqlConstraints: make(map[string]sqlConstraint),
@@ -569,20 +588,78 @@ func createModel(name string, options Option) *Model {
 }
 
 // A Sequence holds the metadata of a DB sequence
+//
+// There are two types of sequences: those created before bootstrap
+// and those created after. The former will be created and updated at
+// bootstrap and cannot be modified afterwards. The latter will be
+// created, updated or dropped immediately.
 type Sequence struct {
-	Name string
-	JSON string
+	Name      string
+	JSON      string
+	Increment int64
+	Start     int64
+	boot      bool
 }
 
-// NewSequence creates a new Sequence and returns a pointer to it
-func NewSequence(name string) *Sequence {
-	json := fmt.Sprintf("%s_manseq", strutils.SnakeCaseString(name))
-	seq := &Sequence{
-		Name: name,
-		JSON: json,
+// CreateSequence creates a new Sequence in the database and returns a pointer to it
+func CreateSequence(name string, increment, start int64) *Sequence {
+	var boot bool
+	if !Registry.bootstrapped {
+		boot = true
 	}
+	json := fmt.Sprintf("%s_manseq", strutils.SnakeCase(name))
+	seq := &Sequence{
+		Name:      name,
+		JSON:      json,
+		Increment: increment,
+		Start:     start,
+		boot:      boot,
+	}
+	Registry.Lock()
+	defer Registry.Unlock()
 	Registry.sequences[name] = seq
+	if !boot {
+		// Create the sequence on the fly if we already bootstrapped.
+		// Otherwise, this will be done in Bootstrap
+		adapters[db.DriverName()].createSequence(seq.JSON, seq.Increment, seq.Start)
+	}
 	return seq
+}
+
+// DropSequence drops this sequence and removes it from the database
+func (s *Sequence) Drop() {
+	Registry.Lock()
+	defer Registry.Unlock()
+	delete(Registry.sequences, s.Name)
+	if Registry.bootstrapped {
+		// Drop the sequence on the fly if we already bootstrapped.
+		// Otherwise, this will be done in Bootstrap
+		if s.boot {
+			log.Panic("Boot Sequences cannot be dropped after bootstrap")
+		}
+		adapters[db.DriverName()].dropSequence(s.JSON)
+	}
+}
+
+// Alter alters this sequence by changing next number and/or increment.
+// Set a parameter to 0 to leave it unchanged.
+func (s *Sequence) Alter(increment, restart int64) {
+	var boot bool
+	if !Registry.bootstrapped {
+		boot = true
+	}
+	if s.boot && !boot {
+		log.Panic("Boot Sequences cannot be modified after bootstrap")
+	}
+	if restart > 0 {
+		s.Start = restart
+	}
+	if increment > 0 {
+		s.Increment = increment
+	}
+	if !boot {
+		adapters[db.DriverName()].alterSequence(s.JSON, increment, restart)
+	}
 }
 
 // NextValue returns the next value of this Sequence

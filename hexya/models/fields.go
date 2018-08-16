@@ -40,6 +40,15 @@ const (
 	Cascade OnDeleteAction = "cascade"
 )
 
+type ctxType int
+
+const (
+	ctxNone = iota
+	ctxValue
+	ctxContext
+	ctxFK
+)
+
 // computeData holds data to recompute another field.
 // - model is a pointer to the Model instance to recompute
 // - fieldName is the name of the field to recompute in model.
@@ -103,7 +112,7 @@ func (fc *FieldsCollection) storedFieldNames(fieldNames ...string) []string {
 				}
 			}
 		}
-		if fi.isStored() && keepField {
+		if (fi.isStored() || fi.isRelatedField()) && keepField {
 			res = append(res, fName)
 		}
 	}
@@ -180,6 +189,9 @@ type Field struct {
 	stored           bool
 	required         bool
 	readOnly         bool
+	requiredFunc     func(Environment) (bool, Conditioner)
+	readOnlyFunc     func(Environment) (bool, Conditioner)
+	invisibleFunc    func(Environment) (bool, Conditioner)
 	unique           bool
 	index            bool
 	compute          string
@@ -207,7 +219,8 @@ type Field struct {
 	constraint       string
 	inverse          string
 	filter           *Condition
-	translate        bool
+	contexts         FieldContexts
+	ctxType          ctxType
 	updates          []map[string]interface{}
 }
 
@@ -241,6 +254,14 @@ func (f *Field) isStored() bool {
 	return true
 }
 
+// isSettable returns true if the given field can be set directly
+func (f *Field) isSettable() bool {
+	if f.isComputedField() && f.inverse == "" {
+		return false
+	}
+	return true
+}
+
 // isReadOnly returns true if this field must not be set directly
 // by the user.
 func (f *Field) isReadOnly() bool {
@@ -252,6 +273,14 @@ func (f *Field) isReadOnly() bool {
 		fInfo = f.model.getRelatedFieldInfo(fInfo.relatedPath)
 	}
 	if fInfo.compute != "" && fInfo.inverse == "" {
+		return true
+	}
+	return false
+}
+
+// isContextedField returns true if the value of this field depends on contexts
+func (f *Field) isContextedField() bool {
+	if f.contexts != nil && len(f.contexts) > 0 {
 		return true
 	}
 	return false
@@ -286,7 +315,7 @@ func checkFieldInfo(fi *Field) {
 // jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
 func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
-	res := strutils.SnakeCaseString(fName)
+	res := strutils.SnakeCase(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"
 	} else if typ.Is2ManyRelationType() {
@@ -317,10 +346,10 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	newMI := &Model{
 		name:         relModelName,
 		acl:          security.NewAccessControlList(),
-		tableName:    strutils.SnakeCaseString(relModelName),
+		tableName:    strutils.SnakeCase(relModelName),
 		fields:       newFieldsCollection(),
 		methods:      newMethodsCollection(),
-		options:      Many2ManyLinkModel,
+		options:      Many2ManyLinkModel | SystemModel,
 		sqlErrors:    make(map[string]string),
 		defaultOrder: []string{"id"},
 	}
@@ -329,7 +358,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	}
 	ourField := &Field{
 		name:             field1,
-		json:             strutils.SnakeCaseString(field1) + "_id",
+		json:             strutils.SnakeCase(field1) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
@@ -347,7 +376,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 
 	theirField := &Field{
 		name:             field2,
-		json:             strutils.SnakeCaseString(field2) + "_id",
+		json:             strutils.SnakeCase(field2) + "_id",
 		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
@@ -364,6 +393,94 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	newMI.fields.add(theirField)
 	Registry.add(newMI)
 	return newMI, ourField, theirField
+}
+
+// createContextsModel creates a new contexts model for holding field values that depends on contexts
+func createContextsModel(fi *Field, contexts FieldContexts) *Model {
+	if !fi.isStored() {
+		log.Panic("You cannot add contexts to non stored fields", "model", fi.model.name, "field", fi.name)
+	}
+	name := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
+	newModel := Model{
+		name:          name,
+		acl:           fi.model.acl,
+		rulesRegistry: newRecordRuleRegistry(),
+		tableName:     strutils.SnakeCase(name),
+		fields:        newFieldsCollection(),
+		methods:       newMethodsCollection(),
+		options:       ContextsModel | SystemModel,
+		sqlErrors:     make(map[string]string),
+		defaultOrder:  []string{"id"},
+	}
+	pkField := &Field{
+		name:      "ID",
+		json:      "id",
+		acl:       security.NewAccessControlList(),
+		model:     &newModel,
+		required:  true,
+		noCopy:    true,
+		fieldType: fieldtype.Integer,
+		structField: reflect.TypeOf(
+			struct {
+				ID int64
+			}{},
+		).Field(0),
+	}
+	newModel.fields.add(pkField)
+	fkField := &Field{
+		name:             "Record",
+		json:             "record_id",
+		acl:              security.NewAccessControlList(),
+		model:            &newModel,
+		required:         true,
+		noCopy:           true,
+		fieldType:        fieldtype.Many2One,
+		relatedModelName: fi.model.name,
+		relatedModel:     fi.model,
+		index:            true,
+		onDelete:         Cascade,
+		ctxType:          ctxFK,
+		structField: reflect.StructField{
+			Name: "Record",
+			Type: reflect.TypeOf(int64(0)),
+		},
+	}
+	newModel.fields.add(fkField)
+	valueField := *fi
+	valueField.model = &newModel
+	valueField.acl = security.NewAccessControlList()
+	valueField.compute = ""
+	valueField.embed = false
+	valueField.stored = false
+	valueField.onChange = ""
+	valueField.constraint = ""
+	valueField.contexts = nil
+	valueField.ctxType = ctxValue
+	if valueField.defaultFunc == nil && valueField.required {
+		valueField.defaultFunc = DefaultValue(reflect.Zero(valueField.structField.Type).Interface())
+	}
+	newModel.fields.add(&valueField)
+
+	for ctName := range contexts {
+		ctField := &Field{
+			name:      ctName,
+			json:      strutils.SnakeCase(ctName),
+			acl:       security.NewAccessControlList(),
+			model:     &newModel,
+			noCopy:    true,
+			fieldType: fieldtype.Char,
+			index:     true,
+			ctxType:   ctxContext,
+			structField: reflect.StructField{
+				Name: ctName,
+				Type: reflect.TypeOf(""),
+			},
+		}
+		newModel.fields.add(ctField)
+	}
+	Registry.add(&newModel)
+	injectMixInModel(Registry.MustGet("BaseMixin"), &newModel)
+	return &newModel
 }
 
 // processDepends populates the dependencies of each Field from the depends strings of

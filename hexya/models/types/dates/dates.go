@@ -55,14 +55,18 @@ func (d *Date) Scan(src interface{}) error {
 		d.Time = t
 		return nil
 	case string:
-		val, err := ParseDate(DefaultServerDateFormat, t)
+		if t == "" {
+			*d = Date{}
+			return nil
+		}
+		val, err := ParseDateWithLayout(DefaultServerDateFormat, t)
 		if err != nil {
-			val, err = ParseDate(DefaultServerDateTimeFormat, t)
+			val, err = ParseDateWithLayout(DefaultServerDateTimeFormat, t)
 		}
 		*d = val
 		return err
 	}
-	return fmt.Errorf("Date data is not time.Time but %T", src)
+	return fmt.Errorf("date data is not time.Time but %T", src)
 }
 
 var _ driver.Valuer = Date{}
@@ -93,10 +97,10 @@ func (d Date) LowerEqual(other Date) bool {
 	return d.Sub(other.Time) <= 0
 }
 
-// AddDate adds the given year, month or days to the current date
-func (d Date) AddDate(year, month, day int) Date {
+// AddDate adds the given years, months or days to the current date
+func (d Date) AddDate(years, months, days int) Date {
 	return Date{
-		Time: d.Time.AddDate(year, month, day),
+		Time: d.Time.AddDate(years, months, days),
 	}
 }
 
@@ -106,8 +110,20 @@ func Today() Date {
 }
 
 // ParseDate returns a date from the given string value
+// that is formatted with the default YYYY-MM-DD format.
+//
+// It panics in case the parsing cannot be done.
+func ParseDate(value string) Date {
+	d, err := ParseDateWithLayout(DefaultServerDateFormat, value)
+	if err != nil {
+		panic(err)
+	}
+	return d
+}
+
+// ParseDateWithLayout returns a date from the given string value
 // that is formatted with layout.
-func ParseDate(layout, value string) (Date, error) {
+func ParseDateWithLayout(layout, value string) (Date, error) {
 	t, err := time.Parse(layout, value)
 	return Date{Time: t}, err
 }
@@ -154,7 +170,11 @@ func (d *DateTime) Scan(src interface{}) error {
 		d.Time = t
 		return nil
 	case string:
-		val, err := ParseDateTime(DefaultServerDateTimeFormat, t)
+		if t == "" {
+			*d = DateTime{}
+			return nil
+		}
+		val, err := ParseDateTimeWithLayout(DefaultServerDateTimeFormat, t)
 		*d = val
 		return err
 	}
@@ -167,8 +187,20 @@ func Now() DateTime {
 }
 
 // ParseDateTime returns a datetime from the given string value
+// that is formatted with the default YYYY-MM-DD HH:MM:SSformat.
+//
+// It panics in case the parsing cannot be done.
+func ParseDateTime(value string) DateTime {
+	dt, err := ParseDateTimeWithLayout(DefaultServerDateTimeFormat, value)
+	if err != nil {
+		panic(err)
+	}
+	return dt
+}
+
+// ParseDateTimeWithLayout returns a datetime from the given string value
 // that is formatted with layout.
-func ParseDateTime(layout, value string) (DateTime, error) {
+func ParseDateTimeWithLayout(layout, value string) (DateTime, error) {
 	t, err := time.Parse(layout, value)
 	return DateTime{Time: t}, err
 }
@@ -208,9 +240,9 @@ func (d DateTime) Add(duration time.Duration) DateTime {
 	}
 }
 
-// AddDate adds the given year, month or days to the current DateTime
-func (d DateTime) AddDate(year, month, day int) DateTime {
+// AddDate adds the given years, months or days to the current DateTime
+func (d DateTime) AddDate(years, months, days int) DateTime {
 	return DateTime{
-		Time: d.Time.AddDate(year, month, day),
+		Time: d.Time.AddDate(years, months, days),
 	}
 }

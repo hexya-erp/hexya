@@ -6,6 +6,7 @@ package models
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -15,6 +16,27 @@ type TestFieldMap FieldMap
 
 func (f TestFieldMap) FieldMap(...FieldNamer) FieldMap {
 	return FieldMap(f)
+}
+
+func unBootStrap() {
+	Registry.bootstrapped = false
+	for _, mi := range Registry.registryByName {
+		if mi.options&ContextsModel > 0 {
+			delete(Registry.registryByName, mi.name)
+			delete(Registry.registryByTableName, mi.tableName)
+			continue
+		}
+		for _, fi := range mi.fields.registryByName {
+			if fi.contexts != nil && len(fi.contexts) > 0 {
+				fi.relatedPath = ""
+				continue
+			}
+			if strings.HasSuffix(fi.name, "HexyaContexts") {
+				delete(mi.fields.registryByName, fi.name)
+				delete(mi.fields.registryByJSON, fi.json)
+			}
+		}
+	}
 }
 
 func TestIllegalMethods(t *testing.T) {
@@ -144,7 +166,7 @@ func TestBootStrap(t *testing.T) {
 			So(testAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
 		})
 		Convey("Applying DB modifications", func() {
-			Registry.bootstrapped = false
+			unBootStrap()
 			contentField := Registry.MustGet("Post").Fields().MustGet("Content")
 			contentField.SetRequired(false)
 			profileField := Registry.MustGet("User").Fields().MustGet("Profile")

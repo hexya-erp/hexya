@@ -66,11 +66,11 @@ func init() {
 			Default: models.DefaultValue(int16(12))},
 		"IsStaff":  models.BooleanField{},
 		"IsActive": models.BooleanField{},
-		"Profile":  models.Many2OneField{RelationModel: h.Profile()},
+		"Profile":  models.One2OneField{RelationModel: h.Profile()},
 		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
 			Inverse: user.Methods().InverseSetAge(),
 			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-		"Posts":     models.One2ManyField{RelationModel: h.Post(), ReverseFK: "User"},
+		"Posts":     models.One2ManyField{RelationModel: h.Post(), ReverseFK: "User", Copy: true},
 		"PMoney":    models.FloatField{Related: "Profile.Money"},
 		"Resume":    models.Many2OneField{RelationModel: h.Resume(), Embed: true},
 		"LastPost":  models.Many2OneField{RelationModel: h.Post()},
@@ -164,9 +164,10 @@ func init() {
 		"Age":      models.IntegerField{GoType: new(int16)},
 		"Gender":   models.SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
 		"Money":    models.FloatField{},
-		"User":     models.Many2OneField{RelationModel: h.User()},
-		"BestPost": models.One2OneField{RelationModel: h.Post()},
+		"User":     models.Rev2OneField{RelationModel: h.User(), ReverseFK: "Profile"},
+		"BestPost": models.Many2OneField{RelationModel: h.Post()},
 		"Country":  models.CharField{},
+		"UserName": models.CharField{Related: "User.Name"},
 	})
 	profile.Fields().Zip().SetString("Zip Code")
 
@@ -176,14 +177,16 @@ func init() {
 		"Title":           models.CharField{Required: true},
 		"Content":         models.HTMLField{},
 		"Tags":            models.Many2ManyField{RelationModel: h.Tag()},
-		"BestPostProfile": models.Rev2OneField{RelationModel: h.Profile(), ReverseFK: "BestPost"},
 		"Abstract":        models.TextField{},
 		"Attachment":      models.BinaryField{},
 		"LastRead":        models.DateField{},
+		"Comments":        models.One2ManyField{RelationModel: h.Comment(), ReverseFK: "Post"},
+		"LastCommentText": models.TextField{Related: "Comments.Text"},
+		"LastTagName":     models.CharField{Related: "Tags.Name"},
 	})
 
 	h.Post().Methods().Create().Extend("",
-		func(rs h.PostSet, data *h.PostData) h.PostSet {
+		func(rs h.PostSet, data *h.PostData, fieldsToReset ...models.FieldNamer) h.PostSet {
 			res := rs.Super().Create(data)
 			return res
 		})
@@ -193,6 +196,12 @@ func init() {
 			res := rs.Super().Search(cond)
 			return res
 		})
+
+	comment := h.Comment().DeclareModel()
+	comment.AddFields(map[string]models.FieldDefinition{
+		"Post": models.Many2OneField{RelationModel: h.Post()},
+		"Text": models.TextField{},
+	})
 
 	tag := h.Tag().DeclareModel()
 	tag.AddFields(map[string]models.FieldDefinition{
@@ -223,9 +232,22 @@ func init() {
 	cv := h.Resume().DeclareModel()
 	cv.AddFields(map[string]models.FieldDefinition{
 		"Education":  models.TextField{},
-		"Experience": models.TextField{},
+		"Experience": models.TextField{Translate: true},
 		"Leisure":    models.TextField{},
+		"Other":      models.CharField{Compute: h.Resume().Methods().ComputeOther()},
 	})
+	cv.Methods().Create().Extend("",
+		func(rs h.ResumeSet, data *h.ResumeData, fieldsToReset ...models.FieldNamer) h.ResumeSet {
+			return rs.Super().Create(data)
+		})
+
+	cv.Methods().ComputeOther().DeclareMethod(
+		`Dummy compute function`,
+		func(rs h.ResumeSet) *h.ResumeData {
+			return &h.ResumeData{
+				Other: "Other information",
+			}
+		})
 
 	addressMI := h.AddressMixIn().DeclareMixinModel()
 	addressMI.AddFields(map[string]models.FieldDefinition{

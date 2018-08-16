@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
@@ -107,6 +108,7 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 	"CartesianProduct": cartesianProductMethodHandler,
 	"Sorted":           sortedMethodHandler,
 	"Filtered":         filteredMethodHandler,
+	"Aggregates":       aggregatesMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
@@ -146,7 +148,7 @@ func allMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         "All",
 		ParamsTypes:  "",
-		ReturnString: fmt.Sprintf("[]%sData", modelData.Name),
+		ReturnString: fmt.Sprintf("[]*%sData", modelData.Name),
 	})
 }
 
@@ -156,16 +158,19 @@ func createMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
-		ParamsTypes:  fmt.Sprintf("*%sData", modelData.Name),
+		ParamsTypes:  fmt.Sprintf("*%sData, ...models.FieldNamer", modelData.Name),
 		ReturnString: returnString,
 	})
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name: name,
 		Doc: fmt.Sprintf(`// Create inserts a %s record in the database from the given data.
-// Returns the created %sSet.`, modelData.Name, modelData.Name),
+// Returns the created %sSet.
+//
+// Only fields with non zero values or fields passed in the 'fieldsToReset' arg are set`,
+			modelData.Name, modelData.Name),
 		ToDeclare:      false,
-		Params:         "data",
-		ParamsWithType: fmt.Sprintf("data *%sData", modelData.Name),
+		Params:         "data, fieldsToReset",
+		ParamsWithType: fmt.Sprintf("data *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -284,6 +289,15 @@ func filteredMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	})
 }
 
+// aggregatesMethodHandler returns the specific methodData for the Aggregates method.
+func aggregatesMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         "Aggregates",
+		ParamsTypes:  "...models.FieldNamer",
+		ReturnString: fmt.Sprintf("[]%sGroupAggregateRow", modelData.Name),
+	})
+}
+
 // createTypeIdent creates a string from the given type that
 // can be used inside an identifier.
 func createTypeIdent(typStr string) string {
@@ -300,35 +314,41 @@ func createTypeIdent(typStr string) string {
 // The generated package will be put in the given dir.
 func CreatePool(program *loader.Program, dir string) {
 	modelsASTData := GetModelsASTData(program)
-	for modelName, modelASTData := range modelsASTData {
-		depsMap := map[string]bool{ModelsPath: true}
-		mData := modelData{
-			Name:              modelName,
-			SnakeName:         strutils.SnakeCaseString(modelName),
-			ModelsPackageName: PoolModelPackage,
-			QueryPackageName:  PoolQueryPackage,
-			ModelType:         modelASTData.ModelType,
-			IsModelMixin:      modelASTData.IsModelMixin,
-			ConditionFuncs:    []string{"And", "AndNot", "Or", "OrNot"},
-		}
-		// Add fields
-		addFieldsToModelData(modelASTData, &mData, &depsMap)
-		// Add field types
-		addFieldTypesToModelData(&mData)
-		// Add methods
-		addMethodsToModelData(modelsASTData, &mData, &depsMap)
-		// Setting imports
-		var deps []string
-		for dep := range depsMap {
-			if dep == "" {
-				continue
+	wg := sync.WaitGroup{}
+	wg.Add(len(modelsASTData))
+	for mName, mASTData := range modelsASTData {
+		go func(modelName string, modelASTData ModelASTData) {
+			depsMap := map[string]bool{ModelsPath: true}
+			mData := modelData{
+				Name:              modelName,
+				SnakeName:         strutils.SnakeCase(modelName),
+				ModelsPackageName: PoolModelPackage,
+				QueryPackageName:  PoolQueryPackage,
+				ModelType:         modelASTData.ModelType,
+				IsModelMixin:      modelASTData.IsModelMixin,
+				ConditionFuncs:    []string{"And", "AndNot", "Or", "OrNot"},
 			}
-			deps = append(deps, dep)
-		}
-		mData.Deps = deps
-		// Writing to file
-		createPoolFiles(dir, &mData)
+			// Add fields
+			addFieldsToModelData(modelASTData, &mData, &depsMap)
+			// Add field types
+			addFieldTypesToModelData(&mData)
+			// Add methods
+			addMethodsToModelData(modelsASTData, &mData, &depsMap)
+			// Setting imports
+			var deps []string
+			for dep := range depsMap {
+				if dep == "" {
+					continue
+				}
+				deps = append(deps, dep)
+			}
+			mData.Deps = deps
+			// Writing to file
+			createPoolFiles(dir, &mData)
+			wg.Done()
+		}(mName, mASTData)
 	}
+	wg.Wait()
 }
 
 // addMethodsToModelData extracts data from modelsASTData to populate methods in modelData
@@ -417,7 +437,7 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 			relModels[fieldASTData.RelModel] = true
 			typStr = fmt.Sprintf("%sSet", fieldASTData.RelModel)
 		}
-		jsonName := strutils.GetDefaultString(fieldASTData.JSON, strutils.SnakeCaseString(fieldName))
+		jsonName := strutils.GetDefaultString(fieldASTData.JSON, strutils.SnakeCase(fieldName))
 		modelData.Fields = append(modelData.Fields, fieldData{
 			Name:       fieldName,
 			JSON:       jsonName,
@@ -554,9 +574,9 @@ func (m {{ .Name }}Model) NewSet(env models.Environment) {{ .Name }}Set {
 
 // Create creates a new {{ .Name }} record and returns the newly created
 // {{ .Name }}Set instance.
-func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data) {{ .Name }}Set {
+func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data, fieldsToReset ...models.FieldNamer) {{ .Name }}Set {
 	return {{ .Name }}Set{
-		RecordCollection: m.Model.Create(env, data),
+		RecordCollection: m.Model.Create(env, data, fieldsToReset...),
 	}
 }
 
@@ -735,6 +755,16 @@ func (d {{ .Name }}Data) Remove(rs {{ .Name }}Set, field models.FieldNamer, fiel
 var _ models.FieldMapper = {{ .Name }}Data{}
 var _ models.FieldMapper = new({{ .Name }}Data)
 
+// A {{ .Name }}GroupAggregateRow holds a row of results of a query with a group by clause
+// - Values holds the values of the actual query
+// - Count is the number of lines aggregated into this one
+// - Condition can be used to query the aggregated rows separately if needed
+type {{ .Name }}GroupAggregateRow struct {
+	Values    *{{ .Name }}Data
+	Count     int
+	Condition {{ $.QueryPackageName }}.{{ .Name }}Condition
+}
+
 // ------- RECORD SET ---------
 
 // {{ .Name }}Set is an autogenerated type to handle {{ .Name }} objects.
@@ -757,14 +787,10 @@ func (s {{ .Name }}Set) First() {{ .Name }}Data {
 
 // All Returns a copy of all records of the RecordCollection.
 // It returns an empty slice if the RecordSet is empty.
-func (s {{ .Name }}Set) All() []{{ .Name }}Data {
+func (s {{ .Name }}Set) All() []*{{ .Name }}Data {
 	var ptrSlice []*{{ .Name }}Data
 	s.RecordCollection.All(&ptrSlice)
-	res := make([]{{ .Name }}Data, len(ptrSlice))
-	for i, ps := range ptrSlice {
-		res[i] = *ps
-	}
-	return res
+	return ptrSlice
 }
 
 // Records returns a slice with all the records of this RecordSet, as singleton
@@ -821,6 +847,23 @@ func (s {{ .Name}}Set) Filtered(test func(rs {{ .Name}}Set) bool) {{ .Name}}Set 
 	return {{ .Name }}Set{
 		RecordCollection: res,
 	}
+}
+
+// Aggregates returns the result of this {{ .Name }}Set query, which must by a grouped query.
+func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldNamer) []{{ .Name }}GroupAggregateRow {
+	lines := s.RecordCollection.Aggregates(fieldNames...)
+	res := make([]{{ .Name }}GroupAggregateRow, len(lines))
+	for i, l := range lines {
+		ds, _ := s.DataStruct(l.Values)
+		res[i] = {{ .Name }}GroupAggregateRow {
+			Values:    ds, 
+			Count:     l.Count,
+			Condition: {{ $.QueryPackageName }}.{{ .Name }}Condition {
+				Condition: l.Condition,
+			},
+		}
+	}
+	return res
 }
 
 // Model returns an instance of {{ .Name }}Model

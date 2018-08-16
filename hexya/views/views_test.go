@@ -378,7 +378,7 @@ func TestViews(t *testing.T) {
 	<field name="user_name"/>
 	<field name="age" on_change="1"/>
 	<field name="category_ids"/>
-	<field name="groups"/>
+	<field name="groups_ids"/>
 </form>
 `)
 		So(view.SubViews, ShouldHaveLength, 2)
@@ -435,7 +435,7 @@ func TestViews(t *testing.T) {
 	<field required="1" name="user_name"/>
 	<field name="age" on_change="1"/>
 	<field name="category_ids"/>
-	<field name="groups"/>
+	<field name="groups_ids"/>
 </form>
 `)
 		So(view.SubViews, ShouldHaveLength, 2)
@@ -485,12 +485,12 @@ func TestViews(t *testing.T) {
 		})
 		soSearch := Registry.GetFirstViewForModel("SaleOrder", ViewTypeSearch)
 		So(xmlutils.ElementToXML(soSearch.arch), ShouldEqual, `<search>
-	<field name="Name"/>
+	<field name="name"/>
 </search>
 `)
 		soTree := Registry.GetFirstViewForModel("SaleOrder", ViewTypeTree)
 		So(xmlutils.ElementToXML(soTree.arch), ShouldEqual, `<tree>
-	<field name="Name"/>
+	<field name="name"/>
 </tree>
 `)
 	})
