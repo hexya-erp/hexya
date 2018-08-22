@@ -46,7 +46,7 @@ func (s *Server) Group(relativePath string, handlers ...HandlerFunc) *RouterGrou
 // It is a shortcut for http.ListenAndServe(addr, router)
 // Note: this method will block the calling goroutine indefinitely unless an error happens.
 func (s *Server) Run(addr string) (err error) {
-	defer func() { log.Error("HTTP server stopped", err) }()
+	defer func() { log.Error("HTTP server stopped", "error", err) }()
 
 	log.Info("Hexya is up and running HTTP", "address", addr)
 	err = http.ListenAndServe(addr, s)
