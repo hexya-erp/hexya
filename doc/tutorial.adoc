@@ -17,28 +17,24 @@ $ cd $GOPATH/src/github.com/hexya-erp/hexya-demo
 $ mkdir openacademy
 ----
 
-Now we also need to declare our new module inside the `config/project.go` file.
-Edit the file to make it look as follow:
+Now we also need to declare our new module inside the `hexya.toml` file.
+Change the `Modules` key to look like this:
 
-.config/project.go
-[source,go]
+[source,toml]
 ----
-package project
-
-// Import here anonymously all hexya addons you need in your application
-import (
-	// Import webclient module
-	_ "github.com/hexya-erp/hexya-base/web"
-	_ "github.com/hexya-erp/hexya-demo/openacademy"
-)
-
-NOTE: We highly recommend that you use a Go IDE or editor with autocompletion
-to benefit from the static typing of the Hexya framework.
-
+Modules = [
+    "github.com/hexya-erp/hexya-demo/openacademy",
+    "github.com/hexya-erp/hexya-base/web"
+]
 ----
 
-NOTE: All file paths in this tutorial are relative to the
+[NOTE]
+====
+All file paths in this tutorial are relative to the
 `$GOPATH/src/github.com/hexya-erp/hexya-demo` directory.
+
+However, `hexya` commands should be run inside the `github.com/hexya-erp/hexya-demo`
+====
 
 == Start/Stop the Hexya server
 
@@ -126,6 +122,9 @@ The declared `PreInit` and `PostInit` functions allows to execute some code at s
 - `PreInit` is run after all models are declared and configuration is loaded but before bootstrapping.
 - `PostInit` is run after the models, views and controllers are bootstrapped.
 We leave them as empty functions for the moment.
+
+NOTE: We highly recommend that you use a Go IDE or editor with autocompletion
+to benefit from the static typing of the Hexya framework.
 
 == Object-Relational Mapping
 
