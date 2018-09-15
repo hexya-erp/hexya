@@ -127,7 +127,7 @@ func (p *Message) readMsgIdPlural(r *lineReader) (err error) {
 		return
 	}
 	p.MsgIdPlural, err = p.readString(r)
-	return nil
+	return
 }
 
 func (p *Message) readMsgStrOrPlural(r *lineReader) (err error) {
@@ -149,7 +149,7 @@ func (p *Message) readMsgStrOrPlural(r *lineReader) (err error) {
 	} else {
 		p.MsgStr, err = p.readString(r)
 	}
-	return nil
+	return
 }
 
 func (p *Message) readString(r *lineReader) (msg string, err error) {

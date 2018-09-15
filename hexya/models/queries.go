@@ -85,7 +85,7 @@ func (q *Query) sqlWhereClause(noExtraCond ...bool) (string, SQLParams) {
 		return "", SQLParams{}
 	}
 	resSQL := "WHERE "
-	resArgs := SQLParams{}
+	var resArgs SQLParams
 	switch {
 	case extraSQL == "" || noExtra:
 		resSQL += sql

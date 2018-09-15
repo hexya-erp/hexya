@@ -626,7 +626,7 @@ func CreateSequence(name string, increment, start int64) *Sequence {
 	return seq
 }
 
-// DropSequence drops this sequence and removes it from the database
+// Drop this sequence and removes it from the database
 func (s *Sequence) Drop() {
 	Registry.Lock()
 	defer Registry.Unlock()

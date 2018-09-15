@@ -45,7 +45,6 @@ func (rc *RecordCollection) String() string {
 	idsStr := make([]string, len(rc.Ids()))
 	for i, id := range rc.Ids() {
 		idsStr[i] = strconv.Itoa(int(id))
-		i++
 	}
 	rsIds := strings.Join(idsStr, ",")
 	return fmt.Sprintf("%s(%s)", rc.model.name, rsIds)

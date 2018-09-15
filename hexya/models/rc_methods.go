@@ -61,6 +61,7 @@ func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []in
 	for i, r := range res {
 		switch r.(type) {
 		case RecordSet:
+			// Reset the current layer and previous method to this method context and not the called one.
 			res[i].(RecordSet).Collection().env.currentLayer = rc.env.currentLayer
 			res[i].(RecordSet).Collection().env.previousMethod = rc.env.previousMethod
 		}
