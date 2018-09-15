@@ -41,21 +41,20 @@ const (
 	Models
 )
 
-// TODO: Remove package variable and pass the fileset as function argument
-var currentFileSet *token.FileSet
-
 // A ModuleInfo is a wrapper around loader.Package with additional data to
 // describe a module.
 type ModuleInfo struct {
 	loader.PackageInfo
 	ModType PackageType
+	FSet    *token.FileSet
 }
 
 // NewModuleInfo returns a pointer to a new moduleInfo instance
-func NewModuleInfo(pack *loader.PackageInfo, modType PackageType) *ModuleInfo {
+func NewModuleInfo(pack *loader.PackageInfo, modType PackageType, fSet *token.FileSet) *ModuleInfo {
 	return &ModuleInfo{
 		PackageInfo: *pack,
 		ModType:     modType,
+		FSet:        fSet,
 	}
 }
 
@@ -64,7 +63,6 @@ func NewModuleInfo(pack *loader.PackageInfo, modType PackageType) *ModuleInfo {
 // - A package that is in a subdirectory of a package
 // Also returns the 'hexya/models' package since all models are initialized there
 func GetModulePackages(program *loader.Program) []*ModuleInfo {
-	currentFileSet = program.Fset
 	modules := make(map[string]*ModuleInfo)
 
 	// We add to the modulePaths all packages which define a MODULE_NAME constant
@@ -72,11 +70,11 @@ func GetModulePackages(program *loader.Program) []*ModuleInfo {
 	for _, pack := range program.AllPackages {
 		obj := pack.Pkg.Scope().Lookup("MODULE_NAME")
 		if obj != nil {
-			modules[pack.Pkg.Path()] = NewModuleInfo(pack, Base)
+			modules[pack.Pkg.Path()] = NewModuleInfo(pack, Base, program.Fset)
 			continue
 		}
 		if pack.Pkg.Path() == ModelsPath {
-			modules[pack.Pkg.Path()] = NewModuleInfo(pack, Models)
+			modules[pack.Pkg.Path()] = NewModuleInfo(pack, Models, program.Fset)
 		}
 	}
 
@@ -84,7 +82,7 @@ func GetModulePackages(program *loader.Program) []*ModuleInfo {
 	for _, pack := range program.AllPackages {
 		for _, module := range modules {
 			if strings.HasPrefix(pack.Pkg.Path(), module.Pkg.Path()+"/") && pack.Pkg.Path() != module.Pkg.Path() {
-				modules[pack.Pkg.Path()] = NewModuleInfo(pack, Subs)
+				modules[pack.Pkg.Path()] = NewModuleInfo(pack, Subs, program.Fset)
 			}
 		}
 	}
@@ -199,11 +197,11 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo, validate bool) map[strin
 					case fnctName == "AddMethod":
 						parseAddMethod(node, modInfo, &modelsData)
 					case fnctName == "InheritModel":
-						parseMixInModel(node, &modelsData)
+						parseMixInModel(node, modInfo, &modelsData)
 					case fnctName == "AddFields":
 						parseAddFields(node, modInfo, &modelsData)
 					case strutils.StartsAndEndsWith(fnctName, "Declare", "Model"):
-						parseDeclareModel(node, &modelsData)
+						parseDeclareModel(node, modInfo, &modelsData)
 					case strutils.StartsAndEndsWith(fnctName, "New", "Model"):
 						parseNewModel(node, &modelsData)
 					}
@@ -264,16 +262,16 @@ func inflateMixins(modelName string, modelsData *map[string]ModelASTData) {
 }
 
 // parseMixInModel updates the mixin tree with the given node which is a InheritModel function
-func parseMixInModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
+func parseMixInModel(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
 	fNode := node.Fun.(*ast.SelectorExpr)
-	modelName, err := extractModel(fNode.X)
+	modelName, err := extractModel(fNode.X, modInfo)
 	if err != nil {
 		if _, ok := err.(generalMixinError); ok {
 			return
 		}
 		log.Panic("Unable to extract model while visiting AST", "error", err)
 	}
-	mixinModel, err := extractModel(node.Args[0])
+	mixinModel, err := extractModel(node.Args[0], modInfo)
 	if err != nil {
 		log.Panic("Unable to extract mixin model while visiting AST", "error", err)
 	}
@@ -284,9 +282,9 @@ func parseMixInModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
 }
 
 // parseDeclareModel parses the given node which is a DeclareXXXModel function
-func parseDeclareModel(node *ast.CallExpr, modelsData *map[string]ModelASTData) {
+func parseDeclareModel(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
 	fName, _ := ExtractFunctionName(node)
-	modelName, err := extractModelNameFromFunc(node.Fun.(*ast.SelectorExpr).X.(*ast.CallExpr))
+	modelName, err := extractModelNameFromFunc(node.Fun.(*ast.SelectorExpr).X.(*ast.CallExpr), modInfo)
 	if err != nil {
 		log.Panic("Unable to find model name in DeclareModel", "error", err)
 	}
@@ -343,7 +341,7 @@ func ExtractFunctionName(node *ast.CallExpr) (string, error) {
 // parseAddFields parses the given node which is an AddFields function
 func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
 	fNode := node.Fun.(*ast.SelectorExpr)
-	modelName, err := extractModel(fNode.X)
+	modelName, err := extractModel(fNode.X, modInfo)
 	if err != nil {
 		log.Panic("Unable to extract model while visiting AST", "error", err)
 	}
@@ -405,7 +403,7 @@ func parseFieldAttribute(fElem *ast.KeyValueExpr, fData FieldASTData, modInfo *M
 	case "Selection":
 		fData.Selection = extractSelection(fElem.Value)
 	case "RelationModel":
-		modName, err := extractModel(fElem.Value)
+		modName, err := extractModel(fElem.Value, modInfo)
 		if err != nil {
 			log.Panic("Unable to parse RelationModel", "field", fData.Name, "error", err)
 		}
@@ -440,7 +438,7 @@ func extractSelection(expr ast.Expr) map[string]string {
 // parseAddMethod parses the given node which is an AddMethod function
 func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
 	fNode := node.Fun.(*ast.SelectorExpr)
-	modelName, err := extractModel(fNode.X)
+	modelName, err := extractModel(fNode.X, modInfo)
 	if err != nil {
 		log.Panic("Unable to extract model while visiting AST", "error", err)
 	}
@@ -470,7 +468,7 @@ func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 // parseDeclareMethod parses the given node which is a DeclareMethod function
 func parseDeclareMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
 	fNode := node.Fun.(*ast.SelectorExpr)
-	modelName, err := extractModel(fNode.X)
+	modelName, err := extractModel(fNode.X, modInfo)
 	if err != nil {
 		log.Panic("Unable to extract model while visiting AST", "error", err)
 	}
@@ -512,7 +510,7 @@ var _ error = generalMixinError{}
 // extractModel returns the string name of the model of the given ident variable
 // ident must point to the expr which represents a model
 // Returns an error if it cannot determine the model
-func extractModel(ident ast.Expr) (string, error) {
+func extractModel(ident ast.Expr, modInfo *ModuleInfo) (string, error) {
 	switch idt := ident.(type) {
 	case *ast.Ident:
 		// Method is called on an identifier without selector such as
@@ -538,17 +536,17 @@ func extractModel(ident ast.Expr) (string, error) {
 					// This is a call from inside a NewXXXXModel function
 					return "", generalMixinError{}
 				default:
-					return extractModelNameFromFunc(rd)
+					return extractModelNameFromFunc(rd, modInfo)
 				}
 			case *ast.Ident:
 				// The assignment is another identifier, we go to the declaration of this new ident.
-				return extractModel(rd)
+				return extractModel(rd, modInfo)
 			default:
-				return "", fmt.Errorf("unmanaged type %T at %s for %s", rd, currentFileSet.Position(rd.Pos()), idt.Name)
+				return "", fmt.Errorf("unmanaged type %T at %s for %s", rd, modInfo.FSet.Position(rd.Pos()), idt.Name)
 			}
 		}
 	case *ast.CallExpr:
-		return extractModelNameFromFunc(idt)
+		return extractModelNameFromFunc(idt, modInfo)
 	default:
 		return "", fmt.Errorf("unmanaged call. ident: %s (%T)", idt, idt)
 	}
@@ -557,7 +555,7 @@ func extractModel(ident ast.Expr) (string, error) {
 
 // extractModelNameFromFunc extracts the model name from a h.ModelName()
 // expression or an error if this is not a pool function.
-func extractModelNameFromFunc(ce *ast.CallExpr) (string, error) {
+func extractModelNameFromFunc(ce *ast.CallExpr, modInfo *ModuleInfo) (string, error) {
 	switch ft := ce.Fun.(type) {
 	case *ast.Ident:
 		// func is called without selector, then it is not from pool
@@ -566,11 +564,11 @@ func extractModelNameFromFunc(ce *ast.CallExpr) (string, error) {
 		switch ftt := ft.X.(type) {
 		case *ast.Ident:
 			if ftt.Name != PoolModelPackage && ftt.Name != "Registry" {
-				return extractModel(ftt)
+				return extractModel(ftt, modInfo)
 			}
 			return ft.Sel.Name, nil
 		case *ast.CallExpr:
-			return extractModel(ftt)
+			return extractModel(ftt, modInfo)
 		default:
 			return "", fmt.Errorf("selector is of not managed type: %T", ftt)
 		}
@@ -608,7 +606,7 @@ func getTypeData(typ ast.Expr, modInfo *ModuleInfo) TypeData {
 	if strings.HasSuffix(typStr, "invalid type") {
 		// Maybe this is a pool type that is not yet defined
 		byts := bytes.Buffer{}
-		printer.Fprint(&byts, currentFileSet, typ)
+		printer.Fprint(&byts, modInfo.FSet, typ)
 		typStr = strings.Replace(byts.String(), PoolModelPackage+".", "", 1)
 	}
 	importPath := computeExportPath(modInfo.TypeOf(typ))
