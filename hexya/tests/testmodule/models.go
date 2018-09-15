@@ -26,6 +26,16 @@ import (
 	"github.com/hexya-erp/hexya/pool/q"
 )
 
+// IsStaffHelp exported
+var IsStaffHelp = "This is a var help message"
+
+const (
+	isStaffString        = "Is Staff"
+	isPremiumDescription = "This is a const description string"
+)
+
+const isPremiumString = isPremiumDescription
+
 func init() {
 	user := h.User().DeclareModel()
 
@@ -56,6 +66,8 @@ func init() {
 			return &res
 		})
 
+	var isPremiumHelp = "This the IsPremium Help message"
+
 	user.AddFields(map[string]models.FieldDefinition{
 		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
 			NoCopy: true, OnChange: user.Methods().OnChangeName()},
@@ -64,7 +76,7 @@ func init() {
 		"Password":      models.CharField{NoCopy: true},
 		"Status": models.IntegerField{JSON: "status_json", GoType: new(int16),
 			Default: models.DefaultValue(int16(12))},
-		"IsStaff":  models.BooleanField{},
+		"IsStaff":  models.BooleanField{String: isStaffString, Help: IsStaffHelp},
 		"IsActive": models.BooleanField{},
 		"Profile":  models.One2OneField{RelationModel: h.Profile()},
 		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
@@ -75,7 +87,7 @@ func init() {
 		"Resume":    models.Many2OneField{RelationModel: h.Resume(), Embed: true},
 		"LastPost":  models.Many2OneField{RelationModel: h.Post()},
 		"Email2":    models.CharField{},
-		"IsPremium": models.BooleanField{},
+		"IsPremium": models.BooleanField{String: isPremiumString, Help: isPremiumHelp},
 		"Nums":      models.IntegerField{GoType: new(int)},
 		"Size":      models.FloatField{},
 		"Education": models.TextField{String: "Educational Background"},

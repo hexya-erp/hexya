@@ -395,11 +395,11 @@ func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 func parseFieldAttribute(fElem *ast.KeyValueExpr, fData FieldASTData, modInfo *ModuleInfo) FieldASTData {
 	switch fElem.Key.(*ast.Ident).Name {
 	case "JSON":
-		fData.JSON = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+		fData.JSON = parseStringValue(fElem.Value)
 	case "Help":
-		fData.Help = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+		fData.Help = parseStringValue(fElem.Value)
 	case "String":
-		fData.Description = strings.Trim(fElem.Value.(*ast.BasicLit).Value, "\"`")
+		fData.Description = parseStringValue(fElem.Value)
 	case "Selection":
 		fData.Selection = extractSelection(fElem.Value)
 	case "RelationModel":
@@ -417,6 +417,21 @@ func parseFieldAttribute(fElem *ast.KeyValueExpr, fData FieldASTData, modInfo *M
 		}
 	}
 	return fData
+}
+
+// parseStringValue returns the value of a string expr which can be a literal
+// or an identifier for a string.
+func parseStringValue(expr ast.Expr) string {
+	var str string
+	switch v := expr.(type) {
+	case *ast.BasicLit:
+		str = v.Value
+	case *ast.Ident:
+		fmt.Printf("v: %T => %v\n", v, v)
+		fmt.Printf("%#v\n", v.Obj.Decl.(*ast.ValueSpec).Values[0])
+		str = parseStringValue(v.Obj.Decl.(*ast.ValueSpec).Values[0])
+	}
+	return strings.Trim(str, "\"`")
 }
 
 // extractSelection returns a map with the keys and values of the Selection
