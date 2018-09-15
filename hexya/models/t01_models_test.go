@@ -145,6 +145,16 @@ func TestModelDeclaration(t *testing.T) {
 				return FieldMap{}
 			})
 
+		user.AddMethod("EndlessRecursion", "Endless recursive method for tests",
+			func(rc *RecordCollection) string {
+				return rc.Call("EndlessRecursion2").(string)
+			})
+
+		user.AddMethod("EndlessRecursion2", "Endless recursive method for tests",
+			func(rc *RecordCollection) string {
+				return rc.Call("EndlessRecursion").(string)
+			})
+
 		activeMI.AddMethod("IsActivated", "",
 			func(rc *RecordCollection) bool {
 				return rc.Get("Active").(bool)
