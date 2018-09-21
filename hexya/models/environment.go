@@ -24,6 +24,10 @@ import (
 // be retried.
 const DBSerializationMaxRetries uint8 = 5
 
+// maxRecursionDepth is the maximum allowed number of nested calls
+// during a transation.
+const maxRecursionDepth uint8 = 100
+
 // An Environment stores various contextual data used by the models:
 // - the database cursor (current open transaction),
 // - the current user ID (for access rights checking)
@@ -38,6 +42,7 @@ type Environment struct {
 	currentLayer   *methodLayer
 	previousMethod *Method
 	retries        uint8
+	recursions     uint8
 }
 
 // Cr returns a pointer to the Cursor of the Environment
@@ -73,10 +78,17 @@ func (env Environment) rollback() {
 	env.Cr().tx.Rollback()
 }
 
+// checkRecursion panics if the recursion depth limit is reached
+func (env Environment) checkRecursion() {
+	if env.recursions > maxRecursionDepth {
+		log.Panic("Max recursion depth exceeded")
+	}
+}
+
 // newEnvironment returns a new Environment for the given user ID
 //
-// WARNING: Callers to newEnvironment should ensure to either call Commit()
-// or Rollback() on the returned Environment after operation to release
+// WARNING: Callers to newEnvironment should ensure to either call commit()
+// or rollback() on the returned Environment after operation to release
 // the database connection.
 func newEnvironment(uid int64) Environment {
 	env := Environment{

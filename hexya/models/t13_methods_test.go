@@ -354,3 +354,24 @@ func TestContextedFields(t *testing.T) {
 		}), ShouldBeNil)
 	})
 }
+
+func TestRecursionProtection(t *testing.T) {
+	Convey("Testing protection against recursion", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			Convey("Endless recursive method calls should panic", func() {
+				So(func() { env.Pool("User").Call("EndlessRecursion") }, ShouldPanic)
+			})
+			Convey("Loop calls should not trigger recursion protection", func() {
+				So(func() {
+					for i := 0; i < int(maxRecursionDepth)+10; i++ {
+						env.Pool("Profile").Call("SayHello")
+					}
+				}, ShouldNotPanic)
+			})
+			Convey("Recursion should be triggered exactly at the max recursion depth", func() {
+				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2-1, "Hi!") }, ShouldNotPanic)
+				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2, "Hi!") }, ShouldPanic)
+			})
+		}), ShouldBeNil)
+	})
+}
