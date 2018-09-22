@@ -353,6 +353,32 @@ func TestContextedFields(t *testing.T) {
 			})
 		}), ShouldBeNil)
 	})
+	Convey("Testing contexted group by queries", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			tags := env.Pool("Tag")
+			tags.SearchAll().Call("Unlink")
+			Convey("Simple group by query", func() {
+				tag1 := tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Translated description",
+				}).(RecordSet).Collection()
+				tag1.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
+				tag2 := tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Translated description",
+				}).(RecordSet).Collection()
+				tag2.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
+				tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Other description",
+				}).(RecordSet).Collection()
+				gbq := tags.WithContext("lang", "fr_FR").SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
+				So(gbq, ShouldHaveLength, 2)
+				So(gbq[0].Count, ShouldEqual, 2)
+				So(gbq[1].Count, ShouldEqual, 1)
+			})
+		}), ShouldBeNil)
+	})
 }
 
 func TestRecursionProtection(t *testing.T) {
