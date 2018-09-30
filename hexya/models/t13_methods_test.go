@@ -374,8 +374,35 @@ func TestContextedFields(t *testing.T) {
 				}).(RecordSet).Collection()
 				gbq := tags.WithContext("lang", "fr_FR").SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
 				So(gbq, ShouldHaveLength, 2)
-				So(gbq[0].Count, ShouldEqual, 2)
-				So(gbq[1].Count, ShouldEqual, 1)
+				So(gbq[0].Values, ShouldContainKey, "Description")
+				So(gbq[0].Values["Description"], ShouldBeIn, []string{"Other description", "Description traduite"})
+				switch gbq[0].Values["Description"] {
+				case "Description traduite":
+					So(gbq[0].Count, ShouldEqual, 2)
+					So(gbq[1].Count, ShouldEqual, 1)
+					So(gbq[1].Values["Description"], ShouldEqual, "Other description")
+				case "Other description":
+					So(gbq[0].Count, ShouldEqual, 1)
+					So(gbq[1].Count, ShouldEqual, 2)
+					So(gbq[1].Values["Description"], ShouldEqual, "Description traduite")
+				default:
+					t.FailNow()
+				}
+				gbq = tags.SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
+				So(gbq[0].Values, ShouldContainKey, "Description")
+				So(gbq[0].Values["Description"], ShouldBeIn, []string{"Other description", "Translated description"})
+				switch gbq[0].Values["Description"] {
+				case "Translated description":
+					So(gbq[0].Count, ShouldEqual, 2)
+					So(gbq[1].Count, ShouldEqual, 1)
+					So(gbq[1].Values["Description"], ShouldEqual, "Other description")
+				case "Other description":
+					So(gbq[0].Count, ShouldEqual, 1)
+					So(gbq[1].Count, ShouldEqual, 2)
+					So(gbq[1].Values["Description"], ShouldEqual, "Translated description")
+				default:
+					t.FailNow()
+				}
 			})
 		}), ShouldBeNil)
 	})
