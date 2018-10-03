@@ -110,6 +110,11 @@ type Method struct {
 	groupsCallers map[callerGroup]bool
 }
 
+// GetMethodType returns the methodType of a Method
+func (m *Method) GetMethodType() reflect.Type {
+	return m.methodType
+}
+
 // addMethodLayer adds the given layer to this Method.
 func (m *Method) addMethodLayer(val reflect.Value, doc string) {
 	m.Lock()
