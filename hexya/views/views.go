@@ -245,16 +245,26 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 
 // defaultViewForModel returns a default view for the given model and type
 func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View {
+	xmlStr := fmt.Sprintf(`<%s></%s>`, viewType, viewType)
+	arch, err := xmlutils.XMLToElement(xmlStr)
+	if err != nil {
+		log.Panic("unable to create default view", "error", err, "view", xmlStr)
+	}
 	view := View{
 		Model:  model,
 		Type:   viewType,
 		Fields: []models.FieldNamer{},
-		arch:   xmlutils.XMLToElement(fmt.Sprintf(`<%s></%s>`, viewType, viewType)),
+		arch:   arch,
 		arches: make(map[string]*etree.Element),
 	}
 	if _, ok := models.Registry.MustGet(model).Fields().Get("name"); ok {
+		xmlStr = fmt.Sprintf(`<%s><field name="name"/></%s>`, viewType, viewType)
+		arch, err = xmlutils.XMLToElement(xmlStr)
+		if err != nil {
+			log.Panic("unable to create default view", "error", err, "view", xmlStr)
+		}
 		view.Fields = []models.FieldNamer{models.FieldName("name")}
-		view.arch = xmlutils.XMLToElement(fmt.Sprintf(`<%s><field name="name"/></%s>`, viewType, viewType))
+		view.arch = arch
 	}
 	view.translateArch()
 	return &view
@@ -274,9 +284,12 @@ func (vc *Collection) GetAllViewsForModel(model string) []*View {
 // LoadFromEtree loads the given view given as Element
 // into this collection.
 func (vc *Collection) LoadFromEtree(element *etree.Element) {
-	xmlBytes := []byte(xmlutils.ElementToXML(element))
+	xmlBytes, err := xmlutils.ElementToXML(element)
+	if err != nil {
+		log.Panic("Unable to convert element to XML", "error", err)
+	}
 	var viewXML ViewXML
-	if err := xml.Unmarshal(xmlBytes, &viewXML); err != nil {
+	if err = xml.Unmarshal(xmlBytes, &viewXML); err != nil {
 		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
 	if viewXML.InheritID != "" {
@@ -300,7 +313,10 @@ func (vc *Collection) createNewViewFromXML(viewXML *ViewXML) {
 		name = viewXML.Name
 	}
 
-	arch := xmlutils.XMLToElement(viewXML.Arch)
+	arch, err := xmlutils.XMLToElement(viewXML.Arch)
+	if err != nil {
+		log.Panic("unable to create view from XML", "error", err, "view", viewXML.Arch)
+	}
 	view := View{
 		ID:          viewXML.ID,
 		Name:        name,

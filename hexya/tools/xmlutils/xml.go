@@ -24,10 +24,7 @@ import (
 	"io/ioutil"
 
 	"github.com/beevik/etree"
-	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
-
-var log logging.Logger
 
 type basicXML struct {
 	XMLName xml.Name
@@ -69,7 +66,8 @@ func ApplyExtensions(base *etree.Element, specs *etree.Document) (*etree.Element
 	for _, spec := range specs.ChildElements() {
 		xpath, err := getInheritXPathFromSpec(spec)
 		if err != nil {
-			return nil, fmt.Errorf("error in spec %s: %s", ElementToXML(spec), err)
+			specBytes, _ := ElementToXML(spec)
+			return nil, fmt.Errorf("error in spec %s: %s", string(specBytes), err)
 		}
 		nodeToModify := baseElem.Parent().FindElement(xpath)
 		if nodeToModify == nil {
@@ -78,7 +76,8 @@ func ApplyExtensions(base *etree.Element, specs *etree.Document) (*etree.Element
 		nextNode := FindNextSibling(nodeToModify)
 		modifyAction := spec.SelectAttr("position")
 		if modifyAction == nil {
-			return nil, fmt.Errorf("spec should include 'position' attribute : %s", ElementToXML(spec))
+			specBytes, _ := ElementToXML(spec)
+			return nil, fmt.Errorf("spec should include 'position' attribute : %s", string(specBytes))
 		}
 		switch modifyAction.Value {
 		case "before":
@@ -127,8 +126,4 @@ func getInheritXPathFromSpec(spec *etree.Element) (string, error) {
 		}
 	}
 	return fmt.Sprintf("//%s%s", spec.Tag, attrStr), nil
-}
-
-func init() {
-	log = logging.GetLogger("xmlutils")
 }

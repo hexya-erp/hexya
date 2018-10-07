@@ -98,13 +98,14 @@ var (
 
 func TestApplyExtensions(t *testing.T) {
 	Convey("Testing ApplyExtensions", t, func() {
-		baseElem := XMLToElement(baseXML)
+		baseElem, _ := XMLToElement(baseXML)
 		specDoc := etree.NewDocument()
 		Convey("Correct XML Extension spec", func() {
 			specDoc.ReadFromString(specs)
 			res, err := ApplyExtensions(baseElem, specDoc)
 			So(err, ShouldBeNil)
-			So(ElementToXML(res), ShouldEqual, `<form>
+			xml, _ := ElementToXML(res)
+			So(string(xml), ShouldEqual, `<form>
 	<h2>
 		<field name="Name"/>
 	</h2>
@@ -155,7 +156,7 @@ func TestApplyExtensions(t *testing.T) {
 
 func TestHasParentTag(t *testing.T) {
 	Convey("Checking parent tag", t, func() {
-		baseElem := XMLToElement(baseXML)
+		baseElem, _ := XMLToElement(baseXML)
 		field := baseElem.FindElement("//field[@name='Function']")
 		So(HasParentTag(field, "group"), ShouldBeTrue)
 		So(HasParentTag(field, "form"), ShouldBeTrue)

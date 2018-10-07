@@ -89,7 +89,7 @@ func (ar *ActionRef) Scan(src interface{}) error {
 	case []byte:
 		*ar = MakeActionRef(string(s))
 	default:
-		return fmt.Errorf("Invalid type for ActionRef: %T", src)
+		return fmt.Errorf("invalid type for ActionRef: %T", src)
 	}
 	return nil
 }
@@ -174,9 +174,12 @@ func (ar *Collection) GetActionLinksForModel(modelName string) []*Action {
 // LoadFromEtree reads the action given etree.Element, creates or updates the action
 // and adds it to the given Collection if it not already.
 func (ar *Collection) LoadFromEtree(element *etree.Element) {
-	xmlBytes := []byte(xmlutils.ElementToXML(element))
+	xmlBytes, err := xmlutils.ElementToXML(element)
+	if err != nil {
+		log.Panic("unable to convert element to XML", "error", err)
+	}
 	var action Action
-	if err := xml.Unmarshal(xmlBytes, &action); err != nil {
+	if err = xml.Unmarshal(xmlBytes, &action); err != nil {
 		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
 	ar.Add(&action)

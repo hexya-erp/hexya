@@ -14,28 +14,32 @@
 
 package xmlutils
 
-import "github.com/beevik/etree"
+import (
+	"fmt"
 
-// ElementToXML returns the XML string of the given element and
+	"github.com/beevik/etree"
+)
+
+// ElementToXML returns the XML bytes of the given element and
 // all its children.
-func ElementToXML(element *etree.Element) string {
+func ElementToXML(element *etree.Element) ([]byte, error) {
 	doc := etree.NewDocument()
 	doc.SetRoot(element.Copy())
 	doc.IndentTabs()
-	xmlStr, err := doc.WriteToString()
+	xml, err := doc.WriteToBytes()
 	if err != nil {
-		log.Panic("Unable to marshal element", "error", err, "element", element)
+		return nil, fmt.Errorf("unable to marshal element: %s", err)
 	}
-	return xmlStr
+	return xml, nil
 }
 
 // XMLToElement parses the given xml string and returns the root node
-func XMLToElement(xmlStr string) *etree.Element {
+func XMLToElement(xmlStr string) (*etree.Element, error) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(xmlStr); err != nil {
-		log.Panic("Unable to parse XML", "error", err, "xml", xmlStr)
+		return nil, fmt.Errorf("unable to parse XML: %s", err)
 	}
-	return doc.Root()
+	return doc.Root(), nil
 }
 
 // FindNextSibling returns the next sibling of the given element
