@@ -73,7 +73,7 @@ func ApplyExtensions(base *etree.Element, specs *etree.Document) (*etree.Element
 		if nodeToModify == nil {
 			return nil, fmt.Errorf("node not found in parent view: %s", xpath)
 		}
-		nextNode := FindNextSibling(nodeToModify)
+		nextNode := NextSibling(nodeToModify)
 		modifyAction := spec.SelectAttr("position")
 		if modifyAction == nil {
 			specBytes, _ := ElementToXML(spec)

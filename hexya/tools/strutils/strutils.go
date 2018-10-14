@@ -110,3 +110,13 @@ func Substitute(str string, mapping map[string]string) string {
 	}
 	return str
 }
+
+// DictToJSON sanitizes a python dict string representation to valid JSON.
+func DictToJSON(dict string) string {
+	dict = strings.Replace(dict, "'", "\"", -1)
+	dict = strings.Replace(dict, "False", "false", -1)
+	dict = strings.Replace(dict, "True", "true", -1)
+	dict = strings.Replace(dict, "(", "[", -1)
+	dict = strings.Replace(dict, ")", "]", -1)
+	return dict
+}

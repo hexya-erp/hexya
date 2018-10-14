@@ -33,27 +33,49 @@ func ElementToXML(element *etree.Element) ([]byte, error) {
 	return xml, nil
 }
 
-// XMLToElement parses the given xml string and returns the root node
-func XMLToElement(xmlStr string) (*etree.Element, error) {
+// XMLToDocument parses the given xml string and returns an etree.Document
+func XMLToDocument(xmlStr string) (*etree.Document, error) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromString(xmlStr); err != nil {
 		return nil, fmt.Errorf("unable to parse XML: %s", err)
 	}
-	return doc.Root(), nil
+	return doc, nil
 }
 
-// FindNextSibling returns the next sibling of the given element
-func FindNextSibling(element *etree.Element) *etree.Element {
+// XMLToElement parses the given xml string and returns the root node
+func XMLToElement(xmlStr string) (*etree.Element, error) {
+	doc, err := XMLToDocument(xmlStr)
+	return doc.Root(), err
+}
+
+// NextSibling returns the next sibling of the given token or nil if this
+// is the last token of its parent
+func NextSibling(token etree.Token) etree.Token {
 	var found bool
-	for _, el := range element.Parent().ChildElements() {
+	for _, el := range token.Parent().Child {
 		if found {
 			return el
 		}
-		if el == element {
+		if el == token {
 			found = true
 		}
 	}
 	return nil
+}
+
+// PreviousSibling returns the previous sibling of the given token.
+// If this is the first token of its parent, return this token.
+func PreviousSibling(token etree.Token) etree.Token {
+	var found bool
+	for i := len(token.Parent().Child) - 1; i >= 0; i-- {
+		if found {
+			return token.Parent().Child[i]
+		}
+		if token.Parent().Child[i] == token {
+			found = true
+		}
+	}
+	return token
 }
 
 // HasParentTag returns true if this element has at least

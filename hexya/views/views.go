@@ -494,8 +494,8 @@ func (v *View) translateArch() {
 // updateViewFromXML updates this view with the given XML
 // viewXML must have an InheritID
 func (v *View) updateViewFromXML(viewXML *ViewXML) {
-	specDoc := etree.NewDocument()
-	if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
+	specDoc, err := xmlutils.XMLToDocument(viewXML.Arch)
+	if err != nil {
 		log.Panic("Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
 	}
 	newArch, err := xmlutils.ApplyExtensions(v.arch, specDoc)
