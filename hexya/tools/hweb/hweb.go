@@ -183,9 +183,6 @@ func transpileConditionals(elts []*etree.Element) error {
 				if len(lastLoop) == 0 {
 					return errors.New("t-elif found without t-if")
 				}
-				if loopClosed {
-					return errors.New("t-elif found after t-else")
-				}
 				isLoopTag = true
 				lastLoop = append(lastLoop, &loopElem{
 					attr: attr,

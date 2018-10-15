@@ -15,6 +15,7 @@ var template1 = `
 	<child1 t-att-tag="id or 42">
 		<child2 t-att="{'a': &quot;aVal&quot;, 'b'': 234}"/>
 		<child3 t-att="['c', 'dVal']"/>
+		<child4 t-att="('e', 'fVal')"/>
 	</child1>
 </root>
 <root2 t-attf-class="titi_{{ value }}">
@@ -34,6 +35,7 @@ func TestTranspileAttributes(t *testing.T) {
 	<child1 tag="{{ id or 42 }}">
 		<child2 a="aVal" b="234"/>
 		<child3 c="dVal"/>
+		<child4 e="fVal"/>
 	</child1>
 </root>
 <root2 class="titi_{{ value }}">
@@ -76,7 +78,8 @@ func TestTranspileOutput(t *testing.T) {
 	})
 }
 
-var template3 = `
+var (
+	template3 = `
 <root>
 	<child1>
 		<t t-if="cond1 or cond2">
@@ -94,6 +97,11 @@ var template3 = `
 </root>
 <r t-if="cond7" otherAttr="sth">Bonjour</r>
 <t t-else=""><p>Bye</p>`
+	template31 = `
+<t t-elif="cond">Foo</t>`
+	template32 = `
+<t t-else="">Bar</t>`
+)
 
 func TestTranspileConditionals(t *testing.T) {
 	Convey("Testing conditionals", t, func() {
@@ -123,9 +131,24 @@ func TestTranspileConditionals(t *testing.T) {
 {% if cond7 %}<r otherAttr="sth">Bonjour</r>
 {% else %}<p>Bye</p>{% endif %}`)
 	})
+	Convey("Wrong if/elif/else order should fail", t, func() {
+		doc, err := xmlutils.XMLToDocument(template31)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileConditionals(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileConditionals(doc.ChildElements()).Error(), ShouldEqual, "t-elif found without t-if")
+		doc, err = xmlutils.XMLToDocument(template32)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileConditionals(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileConditionals(doc.ChildElements()).Error(), ShouldEqual, "t-else found without t-if")
+	})
 }
 
-var template4 = `
+var (
+	template4 = `
 <root>
 	<child1>
 		<t t-foreach="[1, 2, 3]" t-as="i">
@@ -142,6 +165,12 @@ var template4 = `
 	<p>Bye</p>
 </t>
 `
+	template41 = `
+<t t-foreach="lines">
+Foo
+</t>
+`
+)
 
 func TestTranspileLoops(t *testing.T) {
 	Convey("Testing loops", t, func() {
@@ -170,9 +199,18 @@ func TestTranspileLoops(t *testing.T) {
 {% endfor %}
 `)
 	})
+	Convey("t-foreach without t-as should fail", t, func() {
+		doc, err := xmlutils.XMLToDocument(template41)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileLoops(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileLoops(doc.ChildElements()).Error(), ShouldEqual, "t-foreach without t-as")
+	})
 }
 
-var template5 = `
+var (
+	template5 = `
 <root>
 	<child1>
 		<t t-set="var1" t-value="my_value"/>
@@ -183,6 +221,11 @@ var template5 = `
 </root>
 <t t-set="var3" t-value="other_value"/>
 `
+	template51 = `
+<p t-set="foo" t-value="booh"/>`
+	template52 = `
+<t t-set="bar"/>`
+)
 
 func TestTranspileVariables(t *testing.T) {
 	Convey("Testing setting variables", t, func() {
@@ -205,9 +248,25 @@ func TestTranspileVariables(t *testing.T) {
 {% set var3 = other_value %}
 `)
 	})
+	Convey("Wrong t-set tags should fail", t, func() {
+		doc, err := xmlutils.XMLToDocument(template51)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileVariables(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileVariables(doc.ChildElements()).Error(), ShouldEqual, "t-set attribute set on non 't' XML tag")
+
+		doc, err = xmlutils.XMLToDocument(template52)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileVariables(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileVariables(doc.ChildElements()).Error(), ShouldEqual, "t-set without t-value nor body")
+	})
 }
 
-var template6 = `
+var (
+	template6 = `
 <t t-set="var1" t-value="valueOuter"/>
 <t t-call="subtemplate">
 	<div>foo</div>
@@ -219,6 +278,9 @@ var template6 = `
 	</t>
 </t>
 `
+	template61 = `
+<p t-call="foo"/>`
+)
 
 func TestTranspileCalls(t *testing.T) {
 	Convey("Testing subtemplate calls", t, func() {
@@ -260,6 +322,14 @@ func TestTranspileCalls(t *testing.T) {
 {% endwith %}
 `)
 
+	})
+	Convey("t-call on non t tag should fail", t, func() {
+		doc, err := xmlutils.XMLToDocument(template61)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileCalls(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileCalls(doc.ChildElements()).Error(), ShouldEqual, "t-call attribute set on non 't' XML tag")
 	})
 }
 
@@ -308,5 +378,26 @@ func TestToPongo(t *testing.T) {
 	{% endfor %}
 </div>
 `)
+	})
+	Convey("Malformed templates should fail", t, func() {
+		_, err := ToPongo([]byte("<a"))
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "unable to parse XML: XML syntax error on line 1: unexpected EOF")
+
+		_, err = ToPongo([]byte(template31))
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "t-elif found without t-if")
+
+		_, err = ToPongo([]byte(template41))
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "t-foreach without t-as")
+
+		_, err = ToPongo([]byte(template51))
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "t-set attribute set on non 't' XML tag")
+
+		_, err = ToPongo([]byte(template61))
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "t-call attribute set on non 't' XML tag")
 	})
 }
