@@ -372,7 +372,6 @@ func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 		case *ast.CompositeLit:
 			fieldParams = fd.Elts
 		}
-
 		fData := FieldASTData{
 			Name: fieldName,
 			Type: TypeData{
@@ -441,6 +440,8 @@ func extractSelection(expr ast.Expr) map[string]string {
 	switch e := expr.(type) {
 	case *ast.CompositeLit:
 		for _, elt := range e.Elts {
+			//spew.Dump(elt)
+			//fmt.Printf("\n\n")
 			elem := elt.(*ast.KeyValueExpr)
 			key := elem.Key.(*ast.BasicLit).Value
 			value := strings.Trim(elem.Value.(*ast.BasicLit).Value, "\"`")

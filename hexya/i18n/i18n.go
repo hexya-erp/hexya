@@ -6,8 +6,19 @@ package i18n
 import (
 	"strings"
 
+	"encoding/csv"
+	"os"
+
+	"path/filepath"
+
+	"sort"
+
+	"fmt"
+
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/tools/po"
+	"github.com/rayman520/GoRayUtils"
 )
 
 const fieldSep string = "."
@@ -22,6 +33,7 @@ type TranslationsCollection struct {
 	fieldSelection   map[selectionRef]string
 	resource         map[resourceRef]string
 	code             map[codeRef]string
+	custom           map[customRef]string
 }
 
 // TranslateFieldDescription returns the translation for the given model field
@@ -88,6 +100,18 @@ func (tc *TranslationsCollection) TranslateCode(lang, context, src string) strin
 	return val
 }
 
+// TranslateCustom returns the translation for the given src of the given custom po string
+// in the given lang. If no translation is found or if the translation is the
+// empty string src is returned.
+func (tc *TranslationsCollection) TranslateCustom(lang, id, moduleName string) string {
+	key := customRef{lang: lang, id: id, module: moduleName}
+	val, ok := tc.custom[key]
+	if !ok || val == "" {
+		return id
+	}
+	return val
+}
+
 // LoadPOFile load the file with the given filename into the TranslationsCollection.
 // This function can be called several times to iteratively load translations.
 // It panics in case of errors in the PO file.
@@ -136,9 +160,16 @@ func (tc *TranslationsCollection) LoadPOFile(fileName string) {
 				// #. resource:my_view_id
 				viewID := strings.Replace(tokens[1], " ", "", -1)
 				tc.resource[resourceRef{lang: lang, viewID: viewID, source: msg.MsgId}] = msg.MsgStr
-			default:
+			case "code":
+				// #. code:
 				// Translating code. Context may be given as msgctxt
 				tc.code[codeRef{lang: lang, context: msg.MsgContext, source: msg.MsgId}] = msg.MsgStr
+			default:
+				//unknown tag, may be a custom one
+				moduleNameSpl := strings.Split(fileName, "/i18n")
+				moduleNameSpl = strings.Split(moduleNameSpl[len(moduleNameSpl)-1], "/")
+				moduleName := moduleNameSpl[len(moduleNameSpl)-2]
+				tc.custom[customRef{lang: lang, id: msg.MsgId, module: moduleName}] = msg.MsgStr
 			}
 		}
 	}
@@ -181,6 +212,10 @@ func TranslateCode(lang, context, src string) string {
 	return Registry.TranslateCode(lang, context, src)
 }
 
+func TranslateCustom(lang, id, moduleName string) string {
+	return Registry.TranslateCustom(lang, id, moduleName)
+}
+
 // A fieldRef references a field in the translation maps
 type fieldRef struct {
 	lang  string
@@ -210,6 +245,12 @@ type codeRef struct {
 	source  string
 }
 
+type customRef struct {
+	lang   string
+	id     string
+	module string
+}
+
 // A Translation holds all the translations for a given language
 type Translation struct {
 	language string
@@ -223,6 +264,7 @@ func NewTranslationsCollection() *TranslationsCollection {
 		fieldSelection:   make(map[selectionRef]string),
 		resource:         make(map[resourceRef]string),
 		code:             make(map[codeRef]string),
+		custom:           make(map[customRef]string),
 	}
 }
 
@@ -232,4 +274,141 @@ func NewTranslationsCollection() *TranslationsCollection {
 // It panics in case of errors in the PO file.
 func LoadPOFile(fileName string) {
 	Registry.LoadPOFile(fileName)
+}
+
+func loadLangParametersMap() map[string]LangParameters {
+	out := make(map[string]LangParameters)
+	path := "github.com/hexya-erp/hexya/hexya/i18n/data/langParameters.csv"
+	r, err := os.Open(path)
+	if err != nil {
+		log.Panic("langParameters.csv Not found", "path", path)
+	}
+	reader := csv.NewReader(r)
+	content, err := reader.ReadAll()
+	if err != nil {
+		log.Panic("Error while parsing csv file", "path", path, "err", err)
+	}
+	for _, line := range content[1:] {
+		direction := LangDirectionLTR
+		if line[4] == "Right-to-Left" {
+			direction = LangDirectionRTL
+		}
+		out[line[3]] = LangParameters{
+			Name:         line[1],
+			Direction:    direction,
+			DateFormat:   line[8],
+			TimeFormat:   line[9],
+			ThousandsSep: line[7],
+			DecimalPoint: line[6],
+			Grouping:     line[5],
+		}
+	}
+	return out
+}
+
+// LangParametersMap contains all LangParameters loaded from data file
+var langParametersMap map[string]LangParameters
+
+// GetLangParameters returns a LangParameters struct describing a language's rules
+// at first call, the data file containing all languages parameters is read
+// if the language is not loaded, it returns a LangParameters similar to English (en_US)
+func GetLangParameters(lang string) LangParameters {
+	if langParametersMap == nil {
+		langParametersMap = loadLangParametersMap()
+	}
+	out, ok := langParametersMap[lang]
+	if !ok {
+		return LangParameters{
+			Name:         fmt.Sprintf("UNKNOWN_LOCALE (%s)", lang),
+			Direction:    LangDirectionLTR,
+			DateFormat:   `%m/%d/%Y`,
+			TimeFormat:   `%H:%M:%S`,
+			ThousandsSep: `,`,
+			DecimalPoint: `.`,
+			Grouping:     `[3,0]`,
+		}
+	}
+	return out
+}
+
+type message map[string]string
+type modulemap map[string][]message
+type langmap map[string]modulemap
+type fullmap map[string]langmap
+
+var langModuleTranslationsMap fullmap
+
+func loadLangModuleTranslationsMap() fullmap {
+	out := make(fullmap)
+	for key, entry := range Registry.custom {
+		if out[key.lang] == nil {
+			out[key.lang] = make(langmap)
+		}
+		if out[key.lang][key.module] == nil {
+			out[key.lang][key.module] = make(modulemap)
+		}
+		msg := make(message)
+		msg["id"] = key.id
+		msg["string"] = entry
+		out[key.lang][key.module]["messages"] = append(out[key.lang][key.module]["messages"], msg)
+	}
+	return out
+}
+
+func ListModuleTranslations(lang string) langmap {
+	if langModuleTranslationsMap == nil {
+		langModuleTranslationsMap = loadLangModuleTranslationsMap()
+	}
+	return langModuleTranslationsMap[lang]
+}
+
+var AllLanguageList []string
+
+func getLanguageListInFolder(out []string, path string) []string {
+	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if info.IsDir() && p != path {
+			return filepath.SkipDir
+		}
+		if strings.HasPrefix(p, ".po") {
+			value := strings.TrimSuffix(filepath.Base(p), ".po")
+			if !rayUtils.IsContainedInStringArray(value, out) {
+				out = append(out, value)
+			}
+		}
+		return nil
+	})
+	return out
+}
+
+func GetAllLanguageList() []string {
+	if AllLanguageList == nil {
+		out := []string{`af`, `am`, `ar`, `bg`, `bs`, `ca`, `cs`, `da`, `de`, `el`, `en_AU`, `en_GB`, `es`, `es_AR`,
+			`es_BO`, `es_CL`, `es_CO`, `es_CR`, `es_DO`, `es_EC`, `es_PA`, `es_PE`, `es_PY`, `es_VE`, `et`, `eu`,
+			`fa`, `fi`, `fo`, `fr`, `fr_BE`, `fr_CA`, `gl`, `gu`, `he`, `hr`, `hu`, `hy`, `id`, `is`, `it`, `ja`, `ka`,
+			`kab`, `km`, `ko`, `lo`, `lt`, `lv`, `mk`, `mn`, `nb`, `ne`, `nl`, `nl_BE`, `pl`, `pt`, `pt_BR`, `ro`, `ru`,
+			`sk`, `sl`, `sq`, `sr`, `sr@latin`, `sv`, `ta`, `th`, `tr`, `uk`, `vi`, `zh_CN`, `zh_TW`}
+		path := filepath.Join(os.Getenv("GOPATH"), "src", generate.HexyaPath, "server/i18n/")
+		symlinks, err := filepath.Glob(path + "*")
+		if err != nil {
+			log.Error("Could not find any glob match", "path", path+"*", "error", err)
+			symlinks = nil
+		}
+		for _, link := range symlinks {
+			fi, _ := os.Lstat(link)
+			if fi.Mode()&os.ModeSymlink != 0 {
+				path, err := os.Readlink(link)
+				if err != nil {
+					log.Warn("Could not read symlink", `link`, link, `err`, err)
+					continue
+				}
+				out = getLanguageListInFolder(out, path)
+			}
+		}
+		sort.Slice(out, func(i, j int) bool {
+			cmp := strings.Compare(out[i], out[j])
+			return cmp < 0
+		})
+		AllLanguageList = out
+	}
+	return AllLanguageList
 }
