@@ -198,6 +198,7 @@ func NewCollection() *Collection {
 // Add adds the given view to our Collection
 func (vc *Collection) Add(v *View) {
 	vc.Lock()
+	defer vc.Unlock()
 	var index int8
 	for i, view := range vc.orderedViews[v.Model] {
 		index = int8(i)
@@ -205,7 +206,6 @@ func (vc *Collection) Add(v *View) {
 			break
 		}
 	}
-	defer vc.Unlock()
 	vc.views[v.ID] = v
 	if index == int8(len(vc.orderedViews)-1) {
 		vc.orderedViews[v.Model] = append(vc.orderedViews[v.Model], v)

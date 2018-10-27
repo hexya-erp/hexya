@@ -113,7 +113,7 @@ var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
 var _ json.Marshaler = &ActionRef{}
 
-// An Collection is a collection of actions
+// A Collection is a collection of actions
 type Collection struct {
 	sync.RWMutex
 	actions map[string]*Action

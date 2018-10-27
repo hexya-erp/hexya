@@ -33,6 +33,20 @@ func ElementToXML(element *etree.Element) ([]byte, error) {
 	return xml, nil
 }
 
+// ElementToXMLNoIndent returns the XML bytes of the given element and
+// all its children, without indenting the result.
+//
+// Use this function when the XML is HTML that needs to keep <tag></tag> syntax
+func ElementToXMLNoIndent(element *etree.Element) ([]byte, error) {
+	doc := etree.NewDocument()
+	doc.SetRoot(element.Copy())
+	xml, err := doc.WriteToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal element: %s", err)
+	}
+	return xml, nil
+}
+
 // XMLToDocument parses the given xml string and returns an etree.Document
 func XMLToDocument(xmlStr string) (*etree.Document, error) {
 	doc := etree.NewDocument()

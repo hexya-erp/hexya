@@ -6,12 +6,14 @@
 package hweb
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/beevik/etree"
-	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 )
 
@@ -21,8 +23,11 @@ func ToPongo(src []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	doc.InsertChild(doc.Child[0], &etree.CharData{Data: "{% set _1 = _0 %}"})
 	transpileOutput(doc.ChildElements())
-	transpileAttributes(doc.ChildElements())
+	if err = transpileAttributes(doc.ChildElements()); err != nil {
+		return nil, err
+	}
 	if err = transpileConditionals(doc.ChildElements()); err != nil {
 		return nil, err
 	}
@@ -41,7 +46,34 @@ func ToPongo(src []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	res = unescapeXMLEntities(res)
 	return res, nil
+}
+
+// escapeXMLEntities mark xml entities as __[entity]__ so that they can be
+// unescaped after XML rendering to valid pongo with unescapeXMLEntities.
+//
+// This function should be called on text in Pongo2 tags
+func escapeXMLEntities(src string) string {
+	res := strings.Replace(src, ">", "&gt;", -1)
+	res = strings.Replace(res, "<", "&lt;", -1)
+	res = strings.Replace(res, "\"", "&quot;", -1)
+	res = strings.Replace(res, "'", "&apos;", -1)
+	res = strings.Replace(res, "&gt;", "__&gt;__", -1)
+	res = strings.Replace(res, "&lt;", "__&lt;__", -1)
+	res = strings.Replace(res, "&quot;", "__&quot;__", -1)
+	res = strings.Replace(res, "&apos;", "__&apos;__", -1)
+	return res
+}
+
+// unescapeXMLEntities takes marked entities (as __[entity]__) and
+// replace them with the real character.
+func unescapeXMLEntities(src []byte) []byte {
+	res := bytes.Replace(src, []byte("__&amp;gt;__"), []byte(">"), -1)
+	res = bytes.Replace(res, []byte("__&amp;lt;__"), []byte("<"), -1)
+	res = bytes.Replace(res, []byte("__&amp;quot;__"), []byte("\""), -1)
+	res = bytes.Replace(res, []byte("__&amp;apos;__"), []byte("'"), -1)
+	return res
 }
 
 // replaceTag replaces the given xml tag in its parents children by the given
@@ -90,7 +122,7 @@ func transpileOutput(elts []*etree.Element) {
 			}
 			val := attr.Value
 			if val == "0" {
-				val = "_0"
+				val = "_1"
 			}
 			text := fmt.Sprintf(format, val)
 			switch elt.Tag {
@@ -108,47 +140,59 @@ func transpileOutput(elts []*etree.Element) {
 
 // transpileAttributes modifies dynamic attributes of all given elements,
 // i.e. t-att, t-att-xxx, t-attf-yyy
-func transpileAttributes(elts []*etree.Element) {
+func transpileAttributes(elts []*etree.Element) error {
 	for _, elt := range elts {
-		for _, attr := range elt.Attr {
+		attrs := make([]etree.Attr, len(elt.Attr))
+		copy(attrs, elt.Attr)
+		for _, attr := range attrs {
 			switch {
 			case strings.HasPrefix(attr.Key, "t-att-"):
 				newKey := strings.TrimPrefix(attr.Key, "t-att-")
-				elt.CreateAttr(newKey, fmt.Sprintf("{{ %s }}", attr.Value))
+				var attrValue string
+				if attr.Value != "" {
+					attrValue = fmt.Sprintf("{{ %s }}", escapeXMLEntities(attr.Value))
+				}
+				elt.CreateAttr(newKey, attrValue)
 				elt.RemoveAttr(attr.Key)
 			case strings.HasPrefix(attr.Key, "t-attf-"):
 				newKey := strings.TrimPrefix(attr.Key, "t-attf-")
-				elt.CreateAttr(newKey, attr.Value)
+				elt.CreateAttr(newKey, escapeXMLEntities(attr.Value))
 				elt.RemoveAttr(attr.Key)
 			case attr.Key == "t-att":
-				var pair []string
-				switch {
-				case strutils.StartsAndEndsWith(attr.Value, "{", "}"):
-					pairs := strings.Split(strings.Trim(attr.Value, "{}"), ",")
-					elt.RemoveAttr(attr.Key)
-					for _, pair := range pairs {
-						toks := strings.Split(pair, ":")
-						key := strings.Trim(strings.TrimSpace(toks[0]), "'\"")
-						val := strings.Trim(strings.TrimSpace(toks[1]), "'\"")
-						elt.CreateAttr(key, val)
-					}
-				case strutils.StartsAndEndsWith(attr.Value, "[", "]"):
-					pair = strings.Split(strings.Trim(attr.Value, "[]"), ",")
-					fallthrough
-				case strutils.StartsAndEndsWith(attr.Value, "(", ")"):
-					if pair == nil {
-						pair = strings.Split(strings.Trim(attr.Value, "()"), ",")
-					}
-					elt.RemoveAttr(attr.Key)
-					key := strings.Trim(strings.TrimSpace(pair[0]), "'\"")
-					val := strings.Trim(strings.TrimSpace(pair[1]), "'\"")
-
-					elt.CreateAttr(key, val)
+				var data interface{}
+				err := json.Unmarshal([]byte(attr.Value), &data)
+				if err != nil {
+					return fmt.Errorf("unable to unmarshal %s: %s", attr.Value, err.Error())
 				}
+				switch d := data.(type) {
+				case []interface{}:
+					if len(d)%2 != 0 {
+						return fmt.Errorf("attribute list %s should have an even number of values", attr.Value)
+					}
+					for i := 0; i < len(d); i += 2 {
+						elt.CreateAttr(fmt.Sprintf("%s", d[i]), fmt.Sprintf("%v", d[i+1]))
+					}
+				case map[string]interface{}:
+					// We sort keys to have be deterministic
+					var keys []string
+					for k := range d {
+						keys = append(keys, k)
+					}
+					sort.Strings(keys)
+					for _, k := range keys {
+						elt.CreateAttr(k, fmt.Sprintf("%v", d[k]))
+					}
+				default:
+					return fmt.Errorf("unable to manage attribute %s with value %s", attr.Key, attr.Value)
+				}
+				elt.RemoveAttr(attr.Key)
 			}
 		}
-		transpileAttributes(elt.ChildElements())
+		if err := transpileAttributes(elt.ChildElements()); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // transpileConditionals extracts all elements of elts with t-if, t-elif, t-else
@@ -216,13 +260,15 @@ func transpileConditionals(elts []*etree.Element) error {
 		lastTag := loop[len(loop)-1]
 		endCD := etree.NewCharData("{% endif %}")
 		lastTag.elem.Parent().InsertChild(xmlutils.NextSibling(lastTag.elem), endCD)
+
 		for i := 0; i < len(loop); i++ {
+			cond := escapeXMLEntities(loop[i].attr.Value)
 			var dir string
 			switch loop[i].attr.Key {
 			case "t-if":
-				dir = fmt.Sprintf("{%% if %s %%}", loop[i].attr.Value)
+				dir = fmt.Sprintf("{%% if %s %%}", cond)
 			case "t-elif":
-				dir = fmt.Sprintf("{%% elif %s %%}", loop[i].attr.Value)
+				dir = fmt.Sprintf("{%% elif %s %%}", cond)
 			case "t-else":
 				dir = "{% else %}"
 			}
@@ -267,7 +313,7 @@ func transpileVariables(elts []*etree.Element) error {
 		val := elt.SelectAttrValue("t-value", "")
 		switch {
 		case val != "":
-			replaceTag(elt, []string{}, fmt.Sprintf("{%% set %s = %s %%}", fea.Value, val))
+			replaceTag(elt, []string{}, fmt.Sprintf("{%% set %s = %s %%}", fea.Value, escapeXMLEntities(val)))
 		case len(elt.Child) > 0:
 			endCD := etree.NewCharData("{% endmacro %}")
 			elt.Parent().InsertChild(xmlutils.NextSibling(elt), endCD)
@@ -292,15 +338,30 @@ func transpileCalls(elts []*etree.Element) error {
 		if elt.Tag != "t" {
 			return errors.New("t-call attribute set on non 't' XML tag")
 		}
-		endWithCD := etree.NewCharData(fmt.Sprintf("{%% include \"%s\" %%}\n{%% endwith %%}", fea.Value))
-		elt.Parent().InsertChild(xmlutils.NextSibling(elt), endWithCD)
 		beginWithCD := etree.NewCharData("{% with _0 = null %}")
 		elt.Parent().InsertChild(elt, beginWithCD)
+		vars := make(map[string]string)
 		for _, child := range elt.ChildElements() {
 			if child.SelectAttr("t-set") != nil {
+				if child.SelectAttr("t-value") != nil {
+					vars[child.SelectAttrValue("t-set", "")] = child.SelectAttrValue("t-value", "")
+					elt.RemoveChild(child)
+					continue
+				}
 				extractToParent(child)
 			}
 		}
+		var withs []string
+		for k, v := range vars {
+			withs = append(withs, fmt.Sprintf("%s = %s", k, v))
+		}
+		with := strings.Join(withs, " ")
+		if with != "" {
+			with = "with " + with
+		}
+		// We set a __hexya_template_name variable in order to lazy load the template (avoids infinite recursion)
+		endWithCD := etree.NewCharData(fmt.Sprintf("{%% set __hexya_template_name = \"%s\" %%}{%% include __hexya_template_name %s %%}\n{%% endwith %%}", fea.Value, with))
+		elt.Parent().InsertChild(xmlutils.NextSibling(elt), endWithCD)
 		endCD := etree.NewCharData("{% endmacro %}")
 		elt.Parent().InsertChild(xmlutils.NextSibling(elt), endCD)
 		replaceTag(elt, []string{}, "{% macro _0() %}")

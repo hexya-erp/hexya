@@ -12,14 +12,22 @@ import (
 
 var template1 = `
 <root t-attf-class="toto_{{ name }}">
-	<child1 t-att-tag="id or 42">
-		<child2 t-att="{'a': &quot;aVal&quot;, 'b'': 234}"/>
-		<child3 t-att="['c', 'dVal']"/>
-		<child4 t-att="('e', 'fVal')"/>
+	<child1 t-att-tag="id | default:42">
+		<child2 t-att="{&quot;a&quot;: &quot;aVal&quot;, &quot;b&quot;: 234}"/>
+		<child3 t-att="[&quot;c&quot;, &quot;dVal&quot;]"/>
 	</child1>
 </root>
-<root2 t-attf-class="titi_{{ value }}">
+<root2 t-attf-class="titi_{{ value }}" t-att-attr="hi">
 </root2>`
+var template11 = `
+<tag t-att="(&quot;a&quot;, &quot;b&quot;)"/>
+`
+var template12 = `
+<tag t-att="[&quot;a&quot;]"/>
+`
+var template13 = `
+<tag t-att="&quot;a&quot;"/>
+`
 
 func TestTranspileAttributes(t *testing.T) {
 	Convey("Testing attribute transpilation", t, func() {
@@ -27,19 +35,38 @@ func TestTranspileAttributes(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		So(func() { transpileAttributes(doc.ChildElements()) }, ShouldNotPanic)
+		So(transpileAttributes(doc.ChildElements()), ShouldBeNil)
 		resXML, err := doc.WriteToString()
 		So(err, ShouldBeNil)
 		So(string(resXML), ShouldEqual, `
 <root class="toto_{{ name }}">
-	<child1 tag="{{ id or 42 }}">
+	<child1 tag="{{ id | default:42 }}">
 		<child2 a="aVal" b="234"/>
 		<child3 c="dVal"/>
-		<child4 e="fVal"/>
 	</child1>
 </root>
-<root2 class="titi_{{ value }}">
+<root2 class="titi_{{ value }}" attr="{{ hi }}">
 </root2>`)
+	})
+	Convey("Invalid values should fail", t, func() {
+		doc, err := xmlutils.XMLToDocument(template11)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `unable to unmarshal ("a", "b"): invalid character '(' looking for beginning of value`)
+		doc, err = xmlutils.XMLToDocument(template12)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `attribute list ["a"] should have an even number of values`)
+		doc, err = xmlutils.XMLToDocument(template13)
+		if err != nil {
+			panic(err)
+		}
+		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
+		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `unable to manage attribute t-att with value "a"`)
 	})
 }
 
@@ -74,7 +101,7 @@ func TestTranspileOutput(t *testing.T) {
 <root2>
 	{{ 42 }}
 </root2>
-<h2>{{ _0|safe }}</h2>`)
+<h2>{{ _1|safe }}</h2>`)
 	})
 }
 
@@ -294,7 +321,7 @@ func TestTranspileCalls(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(string(resXML), ShouldEqual, `
 <t t-set="var1" t-value="valueOuter"/>
-{% with _0 = null %}<t t-set="var1" t-value="valueInner"/><t t-set="var2">
+{% with _0 = null %}<t t-set="var2">
 		<h1>Baz</h1>
 		<t t-set="var4" t-value="value4"/>
 	</t>{% macro _0() %}
@@ -302,7 +329,7 @@ func TestTranspileCalls(t *testing.T) {
 	
 	<span>Bar</span>
 	
-{% endmacro %}{% include "subtemplate" %}
+{% endmacro %}{% set __hexya_template_name = "subtemplate" %}{% include __hexya_template_name with var1 = valueInner %}
 {% endwith %}
 `)
 		So(transpileVariables(doc.ChildElements()), ShouldBeNil)
@@ -310,7 +337,7 @@ func TestTranspileCalls(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(string(resXML), ShouldEqual, `
 {% set var1 = valueOuter %}
-{% with _0 = null %}{% set var1 = valueInner %}{% macro var2() %}
+{% with _0 = null %}{% macro var2() %}
 		<h1>Baz</h1>
 		{% set var4 = value4 %}
 	{% endmacro %}{% macro _0() %}
@@ -318,7 +345,7 @@ func TestTranspileCalls(t *testing.T) {
 	
 	<span>Bar</span>
 	
-{% endmacro %}{% include "subtemplate" %}
+{% endmacro %}{% set __hexya_template_name = "subtemplate" %}{% include __hexya_template_name with var1 = valueInner %}
 {% endwith %}
 `)
 
@@ -357,7 +384,7 @@ func TestToPongo(t *testing.T) {
 	Convey("Global ToPongo test", t, func() {
 		res, err := ToPongo([]byte(template7))
 		So(err, ShouldBeNil)
-		So(string(res), ShouldEqual, `
+		So(string(res), ShouldEqual, `{% set _1 = _0 %}
 <a class="o_sub_menu_logo" href="/web{% if debug %}?debug{ %endif %}">
 	<span class="oe_logo_edit">Edit Company data</span>
 	<img src="/web/binary/company_logo"/>
@@ -368,10 +395,10 @@ func TestToPongo(t *testing.T) {
 			{% for menu in menu.children %}
 				<div class="oe_secondary_menu_section" data-menu-xmlid="{{ menu.xmlid }}">
 					{% if menu.children %}{{ menu.name }}{% endif %}
-					{% if not menu.children %}{% with _0 = null %}{% macro _0() %}{% endmacro %}{% include "web.menu_link" %}
+					{% if not menu.children %}{% with _0 = null %}{% macro _0() %}{% endmacro %}{% set __hexya_template_name = "web.menu_link" %}{% include __hexya_template_name  %}
 {% endwith %}{% endif %}
 				</div>
-				{% with _0 = null %}{% macro _0() %}{% endmacro %}{% include "web.menu_secondary_submenu" %}
+				{% with _0 = null %}{% macro _0() %}{% endmacro %}{% set __hexya_template_name = "web.menu_secondary_submenu" %}{% include __hexya_template_name  %}
 {% endwith %}
 			{% endfor %}
 		</div>
