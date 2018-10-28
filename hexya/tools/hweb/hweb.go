@@ -14,8 +14,36 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
+	"github.com/flosch/pongo2"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 )
+
+// TemplateSet allows you to create your own group of templates with their own
+// global context (which is shared among all members of the set) and their own
+// configuration.
+// It's useful for a separation of different kind of templates
+// (e. g. web templates vs. mail templates).
+type TemplateSet = pongo2.TemplateSet
+
+// A Template to be rendered with server's c.HTML()
+type Template = pongo2.Template
+
+// The Context with which to render a HWeb template
+type Context = pongo2.Context
+
+// NewSet can be used to create sets with different kind of templates
+// (e. g. web from mail templates), with different globals or
+// other configurations.
+func NewSet(name string, loader pongo2.TemplateLoader) *TemplateSet {
+	return pongo2.NewSet(name, loader)
+}
+
+// Must panics, if a Template couldn't successfully parsed. This is how you
+// would use it:
+//     var baseTemplate = pongo2.Must(pongo2.FromFile("templates/base.html"))
+func Must(tpl *Template, err error) *Template {
+	return pongo2.Must(tpl, err)
+}
 
 // ToPongo transpiles the HWeb src template to Pongo2 template
 func ToPongo(src []byte) ([]byte, error) {

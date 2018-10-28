@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"path"
-
-	"github.com/flosch/pongo2"
 )
 
 // Abs calculates the path to a given template. Whenever a path must be resolved
@@ -29,5 +27,3 @@ func (tc *Collection) Get(pth string) (io.Reader, error) {
 	}
 	return bytes.NewBuffer(template.Content(lang)), nil
 }
-
-var _ pongo2.TemplateLoader = new(Collection)

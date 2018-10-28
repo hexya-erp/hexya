@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/beevik/etree"
-	"github.com/flosch/pongo2"
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/tools/hweb"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
@@ -87,7 +86,7 @@ func (tc *Collection) createNewTemplateFromXML(templateXML *TemplateXML) {
 
 // A Template holds information of a HWeb template
 type Template struct {
-	*pongo2.Template
+	*hweb.Template
 	ID              string
 	Priority        uint8
 	Page            bool

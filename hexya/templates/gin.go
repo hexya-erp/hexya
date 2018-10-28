@@ -6,8 +6,8 @@ package templates
 import (
 	"net/http"
 
-	"github.com/flosch/pongo2"
 	"github.com/gin-gonic/gin/render"
+	"github.com/hexya-erp/hexya/hexya/tools/hweb"
 )
 
 // Registry is the templates set of the application
@@ -15,7 +15,7 @@ var Registry *TemplateSet
 
 // A TemplateSet is a set of pongo2 templates
 type TemplateSet struct {
-	*pongo2.TemplateSet
+	*hweb.TemplateSet
 	collection *Collection
 }
 
@@ -23,7 +23,7 @@ type TemplateSet struct {
 func NewTemplateSet() *TemplateSet {
 	coll := newCollection()
 	res := TemplateSet{
-		TemplateSet: pongo2.NewSet("-", coll),
+		TemplateSet: hweb.NewSet("-", coll),
 		collection:  coll,
 	}
 	return &res
@@ -31,10 +31,10 @@ func NewTemplateSet() *TemplateSet {
 
 // Instance returns the TemplateRenderer given by its name with the given data
 func (ts *TemplateSet) Instance(name string, data interface{}) render.Render {
-	template := pongo2.Must(ts.FromCache(name))
+	template := hweb.Must(ts.FromCache(name))
 	return TemplateRenderer{
 		Template: template,
-		Data:     data.(pongo2.Context),
+		Data:     data.(hweb.Context),
 	}
 }
 
@@ -42,8 +42,8 @@ var _ render.HTMLRender = new(TemplateSet)
 
 // A TemplateRenderer can render a template with the given data
 type TemplateRenderer struct {
-	Template *pongo2.Template
-	Data     pongo2.Context
+	Template *hweb.Template
+	Data     hweb.Context
 }
 
 // Render this TemplateRenderer to the given ResponseWriter
