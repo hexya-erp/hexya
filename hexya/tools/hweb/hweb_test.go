@@ -13,20 +13,12 @@ import (
 var template1 = `
 <root t-attf-class="toto_{{ name }}">
 	<child1 t-att-tag="id | default:42">
-		<child2 t-att="{&quot;a&quot;: &quot;aVal&quot;, &quot;b&quot;: 234}"/>
-		<child3 t-att="[&quot;c&quot;, &quot;dVal&quot;]"/>
 	</child1>
 </root>
 <root2 t-attf-class="titi_{{ value }}" t-att-attr="hi">
 </root2>`
 var template11 = `
 <tag t-att="(&quot;a&quot;, &quot;b&quot;)"/>
-`
-var template12 = `
-<tag t-att="[&quot;a&quot;]"/>
-`
-var template13 = `
-<tag t-att="&quot;a&quot;"/>
 `
 
 func TestTranspileAttributes(t *testing.T) {
@@ -41,8 +33,6 @@ func TestTranspileAttributes(t *testing.T) {
 		So(string(resXML), ShouldEqual, `
 <root class="toto_{{ name }}">
 	<child1 tag="{{ id | default:42 }}">
-		<child2 a="aVal" b="234"/>
-		<child3 c="dVal"/>
 	</child1>
 </root>
 <root2 class="titi_{{ value }}" attr="{{ hi }}">
@@ -54,19 +44,7 @@ func TestTranspileAttributes(t *testing.T) {
 			panic(err)
 		}
 		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `unable to unmarshal ("a", "b"): invalid character '(' looking for beginning of value`)
-		doc, err = xmlutils.XMLToDocument(template12)
-		if err != nil {
-			panic(err)
-		}
-		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `attribute list ["a"] should have an even number of values`)
-		doc, err = xmlutils.XMLToDocument(template13)
-		if err != nil {
-			panic(err)
-		}
-		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `unable to manage attribute t-att with value "a"`)
+		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `hweb does not manage t-att attributes (t-att with value ("a", "b"))`)
 	})
 }
 

@@ -7,10 +7,8 @@ package hweb
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/beevik/etree"
@@ -187,33 +185,7 @@ func transpileAttributes(elts []*etree.Element) error {
 				elt.CreateAttr(newKey, escapeXMLEntities(attr.Value))
 				elt.RemoveAttr(attr.Key)
 			case attr.Key == "t-att":
-				var data interface{}
-				err := json.Unmarshal([]byte(attr.Value), &data)
-				if err != nil {
-					return fmt.Errorf("unable to unmarshal %s: %s", attr.Value, err.Error())
-				}
-				switch d := data.(type) {
-				case []interface{}:
-					if len(d)%2 != 0 {
-						return fmt.Errorf("attribute list %s should have an even number of values", attr.Value)
-					}
-					for i := 0; i < len(d); i += 2 {
-						elt.CreateAttr(fmt.Sprintf("%s", d[i]), fmt.Sprintf("%v", d[i+1]))
-					}
-				case map[string]interface{}:
-					// We sort keys to have be deterministic
-					var keys []string
-					for k := range d {
-						keys = append(keys, k)
-					}
-					sort.Strings(keys)
-					for _, k := range keys {
-						elt.CreateAttr(k, fmt.Sprintf("%v", d[k]))
-					}
-				default:
-					return fmt.Errorf("unable to manage attribute %s with value %s", attr.Key, attr.Value)
-				}
-				elt.RemoveAttr(attr.Key)
+				return fmt.Errorf("hweb does not manage t-att attributes (%s with value %s)", attr.Key, attr.Value)
 			}
 		}
 		if err := transpileAttributes(elt.ChildElements()); err != nil {
