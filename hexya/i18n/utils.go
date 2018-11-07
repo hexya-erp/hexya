@@ -9,9 +9,9 @@ type LangDirection string
 
 const (
 	// LangDirectionLTR defines a language written from left to right
-	LangDirectionLTR string = "ltr"
+	LangDirectionLTR LangDirection = "ltr"
 	// LangDirectionRTL defines a language written from right to left
-	LangDirectionRTL string = "rtl"
+	LangDirectionRTL LangDirection = "rtl"
 )
 
 // LangParameters defines the parameters of a language locale

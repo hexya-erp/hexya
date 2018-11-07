@@ -42,7 +42,7 @@ in the i18n directory of the module.`,
 	},
 }
 
-// generateAndRunFile creates the startup file of the translation update and runs it.
+// generateAndUpdatePOFile creates the startup file of the translation update and runs it.
 func generateAndUpdatePOFiles(moduleDir string, langs []string, tmpl *template.Template) {
 	fmt.Println("Please wait, Po Update is starting ...")
 	moduleDir, _ = filepath.Abs(moduleDir)

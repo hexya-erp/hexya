@@ -98,10 +98,11 @@ func UpdatePOFiles(config map[string]interface{}) {
 				MimeVersion:             "1.0",
 			},
 		}
-		err = file.Save(fmt.Sprintf("%s/%s.po", i18nDir, lang))
+		poFileName := lang + ".po"
+		err = file.Save(filepath.Join(i18nDir, poFileName))
 		if err != nil {
-			i18nDir = os.Getenv("GOPATH") + "/src/" + i18nDir
-			err2 := file.Save(fmt.Sprintf("%s/%s.po", i18nDir, lang))
+			i18nDir = filepath.Join(strings.TrimSuffix(generate.HexyaDir, generate.HexyaPath), i18nDir)
+			err2 := file.Save(filepath.Join(i18nDir, poFileName))
 			if err2 != nil {
 				log.Panic("Error while saving PO file", "error", err, "error", err2)
 			}
@@ -182,7 +183,7 @@ func followsRules(str string, set *RuleSet) bool {
 func executeCustomPoFuncs(messages MessageMap, lang, moduleName string) MessageMap {
 	for key, val := range poUpdateDatas {
 		if val != nil {
-			path := generate.HexyaDir + "/hexya/server/static/" + moduleName
+			path := filepath.Join(generate.HexyaDir, "hexya/server/static", moduleName)
 			fi, err := os.Lstat(path)
 			if err != nil {
 				return messages
