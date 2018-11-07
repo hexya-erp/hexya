@@ -5,6 +5,7 @@ package i18n
 
 // A LangDirection defines the direction of a language
 // either left-to-right or right-to-left
+type LangDirection string
 
 const (
 	// LangDirectionLTR defines a language written from left to right

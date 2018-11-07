@@ -4,21 +4,17 @@
 package i18n
 
 import (
-	"strings"
-
 	"encoding/csv"
-	"os"
-
-	"path/filepath"
-
-	"sort"
-
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/tools/po"
-	"github.com/rayman520/GoRayUtils"
+	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 )
 
 const fieldSep string = "."
@@ -276,9 +272,11 @@ func LoadPOFile(fileName string) {
 	Registry.LoadPOFile(fileName)
 }
 
+// loadLangParametersMap returns a map containing all required language informations.
+// Those informations are read from data file in <HexPath>/hexya/i18n/data/langParameters.csv
 func loadLangParametersMap() map[string]LangParameters {
 	out := make(map[string]LangParameters)
-	path := "github.com/hexya-erp/hexya/hexya/i18n/data/langParameters.csv"
+	path := generate.HexyaPath + "/hexya/i18n/data/langParameters.csv"
 	r, err := os.Open(path)
 	if err != nil {
 		log.Panic("langParameters.csv Not found", "path", path)
@@ -364,14 +362,15 @@ func ListModuleTranslations(lang string) langmap {
 
 var AllLanguageList []string
 
+// getLanguageListInFolder appends to a slice all language codes read in the given folder
 func getLanguageListInFolder(out []string, path string) []string {
 	filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
 		if info.IsDir() && p != path {
 			return filepath.SkipDir
 		}
-		if strings.HasPrefix(p, ".po") {
+		if strings.HasSuffix(p, ".po") {
 			value := strings.TrimSuffix(filepath.Base(p), ".po")
-			if !rayUtils.IsContainedInStringArray(value, out) {
+			if !strutils.IsInStringSlice(value, out) {
 				out = append(out, value)
 			}
 		}
@@ -380,6 +379,7 @@ func getLanguageListInFolder(out []string, path string) []string {
 	return out
 }
 
+// GetAllLanguageList returns a slice containing all known language codes
 func GetAllLanguageList() []string {
 	if AllLanguageList == nil {
 		out := []string{`af`, `am`, `ar`, `bg`, `bs`, `ca`, `cs`, `da`, `de`, `el`, `en_AU`, `en_GB`, `es`, `es_AR`,
@@ -387,7 +387,7 @@ func GetAllLanguageList() []string {
 			`fa`, `fi`, `fo`, `fr`, `fr_BE`, `fr_CA`, `gl`, `gu`, `he`, `hr`, `hu`, `hy`, `id`, `is`, `it`, `ja`, `ka`,
 			`kab`, `km`, `ko`, `lo`, `lt`, `lv`, `mk`, `mn`, `nb`, `ne`, `nl`, `nl_BE`, `pl`, `pt`, `pt_BR`, `ro`, `ru`,
 			`sk`, `sl`, `sq`, `sr`, `sr@latin`, `sv`, `ta`, `th`, `tr`, `uk`, `vi`, `zh_CN`, `zh_TW`}
-		path := filepath.Join(os.Getenv("GOPATH"), "src", generate.HexyaPath, "server/i18n/")
+		path := filepath.Join(generate.HexyaDir, "server/i18n/")
 		symlinks, err := filepath.Glob(path + "*")
 		if err != nil {
 			log.Error("Could not find any glob match", "path", path+"*", "error", err)

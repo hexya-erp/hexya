@@ -110,8 +110,8 @@ type Method struct {
 	groupsCallers map[callerGroup]bool
 }
 
-// GetMethodType returns the methodType of a Method
-func (m *Method) GetMethodType() reflect.Type {
+// MethodType returns the methodType of a Method
+func (m *Method) MethodType() reflect.Type {
 	return m.methodType
 }
 
@@ -461,4 +461,9 @@ func (m *Method) checkMethodAndFnctType(fnct interface{}) {
 		log.Panic("Function must have a `RecordSet` as first argument to be used as method.",
 			"model", m.model.name, "method", m.name, "type", funcType.In(0))
 	}
+}
+
+// Name returns the name of the method
+func (m *Method) Name() string {
+	return m.name
 }
