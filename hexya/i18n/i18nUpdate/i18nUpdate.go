@@ -1,4 +1,4 @@
-package i18n
+package i18nUpdate
 
 import (
 	"fmt"
@@ -10,8 +10,11 @@ import (
 	"regexp"
 	"strings"
 
+	"log"
+
 	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/actions"
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/menus"
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/hexya/server"
@@ -44,7 +47,7 @@ func UpdatePOFiles(config map[string]interface{}) {
 	modulePath := config["modulePath"].(string)
 	langs := config["langs"].([]string)
 	if langs[0] == "ALL" {
-		langs = append(GetAllLanguageList(), langs[1:]...)
+		langs = append(i18n.GetAllLanguageList(), langs[1:]...)
 	}
 	i18nDir := filepath.Join(moduleDir, "i18n")
 	server.LoadModuleTranslations(i18nDir, langs)
@@ -232,7 +235,7 @@ func addCodeToMessages(lang string, moduleDir string, messages map[MessageRef]po
 					return true
 				}
 				strArg := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
-				codeTrans := TranslateCode(lang, "", strArg)
+				codeTrans := i18n.TranslateCode(lang, "", strArg)
 				if codeTrans == strArg {
 					codeTrans = ""
 				}
@@ -294,7 +297,7 @@ func addResourceItemsToMessages(lang string, resourcesDir string, messages map[M
 // updateMessagesWithResourceTranslation returns the message map updated with a message
 // corresponding to the given ID and source
 func updateMessagesWithResourceTranslation(lang, id, source string, messages map[MessageRef]po.Message) map[MessageRef]po.Message {
-	nameTrans := TranslateResourceItem(lang, id, source)
+	nameTrans := i18n.TranslateResourceItem(lang, id, source)
 	if nameTrans == source {
 		nameTrans = ""
 	}
@@ -311,7 +314,7 @@ func addSelectionToMessages(lang string, model string, field string, fieldASTDat
 		return messages
 	}
 	selection := types.Selection(fieldASTData.Selection)
-	selTranslated := TranslateFieldSelection(lang, model, field, selection)
+	selTranslated := i18n.TranslateFieldSelection(lang, model, field, selection)
 	for k, v := range selection {
 		transValue := selTranslated[k]
 		if transValue == v {
@@ -348,7 +351,7 @@ func addDescriptionToMessages(lang string, model string, field string, fieldASTD
 	if description == "" {
 		description = strutils.Title(fieldASTData.Name)
 	}
-	descTranslated := TranslateFieldDescription(lang, model, field, "")
+	descTranslated := i18n.TranslateFieldDescription(lang, model, field, "")
 	msgRef := MessageRef{MsgId: description}
 	msg := GetOrCreateMessage(messages, msgRef, descTranslated)
 	msg.ExtractedComment += fmt.Sprintf("field:%s.%s\n", model, field)
@@ -362,7 +365,7 @@ func addHelpToMessages(lang string, model string, field string, fieldASTData gen
 	if help == "" {
 		return messages
 	}
-	helpTranslated := TranslateFieldHelp(lang, model, field, "")
+	helpTranslated := i18n.TranslateFieldHelp(lang, model, field, "")
 	msgRef := MessageRef{MsgId: help}
 	msg := GetOrCreateMessage(messages, msgRef, helpTranslated)
 	msg.ExtractedComment += fmt.Sprintf("help:%s.%s\n", model, field)
