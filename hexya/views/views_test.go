@@ -20,6 +20,7 @@ import (
 	"encoding/xml"
 	"testing"
 
+	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 	. "github.com/smartystreets/goconvey/convey"
@@ -156,9 +157,25 @@ var viewDef10 = `
 </view>
 `
 
+func elementToXMLString(elt *etree.Element) string {
+	xml, err := xmlutils.ElementToXML(elt)
+	if err != nil {
+		panic(err)
+	}
+	return string(xml)
+}
+
+func loadView(xml string) {
+	elt, err := xmlutils.XMLToElement(xml)
+	if err != nil {
+		panic(err)
+	}
+	LoadFromEtree(elt)
+}
+
 func TestViews(t *testing.T) {
 	Convey("Creating View 1", t, func() {
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
+		loadView(viewDef1)
 		So(len(Registry.views), ShouldEqual, 1)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		view := Registry.GetByID("my_id")
@@ -166,7 +183,7 @@ func TestViews(t *testing.T) {
 		So(view.Name, ShouldEqual, "My View")
 		So(view.Model, ShouldEqual, "User")
 		So(view.Priority, ShouldEqual, 16)
-		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
+		So(elementToXMLString(view.Arch("")), ShouldEqual,
 			`<form>
 	<group>
 		<field name="UserName"/>
@@ -178,8 +195,8 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Creating View 2", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
+		loadView(viewDef1)
+		loadView(viewDef2)
 		So(len(Registry.views), ShouldEqual, 2)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view := Registry.GetByID("my_other_id")
@@ -187,7 +204,7 @@ func TestViews(t *testing.T) {
 		So(view.Name, ShouldEqual, "my.other.id")
 		So(view.Model, ShouldEqual, "Partner")
 		So(view.Priority, ShouldEqual, 12)
-		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
+		So(elementToXMLString(view.Arch("")), ShouldEqual,
 			`<form>
 	<h1>
 		<field name="Name"/>
@@ -241,15 +258,15 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Inheriting View 2", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
 		BootStrap()
 		So(len(Registry.views), ShouldEqual, 2)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view1 := Registry.GetByID("my_id")
-		So(xmlutils.ElementToXML(view1.Arch("")), ShouldEqual,
+		So(elementToXMLString(view1.Arch("")), ShouldEqual,
 			`<form>
 	<group>
 		<field name="user_name"/>
@@ -259,7 +276,7 @@ func TestViews(t *testing.T) {
 </form>
 `)
 		view2 := Registry.GetByID("my_other_id")
-		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
+		So(elementToXMLString(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h1>
 		<field name="name"/>
@@ -277,16 +294,16 @@ func TestViews(t *testing.T) {
 	})
 	Convey("More inheritance on View 2", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
+		loadView(viewDef4)
 		BootStrap()
 		So(len(Registry.views), ShouldEqual, 2)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
-		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
+		So(elementToXMLString(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="name"/>
@@ -308,17 +325,17 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Modifying inherited modifications on View 2", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
+		loadView(viewDef4)
+		loadView(viewDef5)
 		BootStrap()
 		So(len(Registry.views), ShouldEqual, 2)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
-		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
+		So(elementToXMLString(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="name"/>
@@ -340,12 +357,12 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Bootstrapping views", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef6))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
+		loadView(viewDef4)
+		loadView(viewDef5)
+		loadView(viewDef6)
 		BootStrap()
 		view1 := Registry.GetByID("my_id")
 		view2 := Registry.GetByID("my_other_id")
@@ -359,13 +376,13 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Testing embedded views", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef6))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef7))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
+		loadView(viewDef4)
+		loadView(viewDef5)
+		loadView(viewDef6)
+		loadView(viewDef7)
 		BootStrap()
 		So(len(Registry.views), ShouldEqual, 4)
 		So(Registry.GetByID("embedded_form"), ShouldNotBeNil)
@@ -373,7 +390,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
 		view := Registry.GetByID("embedded_form")
 		So(view.ID, ShouldEqual, "embedded_form")
-		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
+		So(elementToXMLString(view.Arch("")), ShouldEqual,
 			`<form>
 	<field name="user_name"/>
 	<field name="age" on_change="1"/>
@@ -388,7 +405,7 @@ func TestViews(t *testing.T) {
 		So(viewCategories, ShouldHaveLength, 2)
 		viewCategoriesForm := viewCategories[ViewTypeForm]
 		So(viewCategoriesForm.ID, ShouldEqual, "embedded_form_childview_Categories_1")
-		So(xmlutils.ElementToXML(viewCategoriesForm.Arch("")), ShouldEqual, `<form>
+		So(elementToXMLString(viewCategoriesForm.Arch("")), ShouldEqual, `<form>
 	<h1>This is my form</h1>
 	<field name="name"/>
 	<field name="color"/>
@@ -397,7 +414,7 @@ func TestViews(t *testing.T) {
 `)
 		viewCategoriesTree := viewCategories[ViewTypeTree]
 		So(viewCategoriesTree.ID, ShouldEqual, "embedded_form_childview_Categories_0")
-		So(xmlutils.ElementToXML(viewCategoriesTree.Arch("")), ShouldEqual, `<tree>
+		So(elementToXMLString(viewCategoriesTree.Arch("")), ShouldEqual, `<tree>
 	<field name="name"/>
 	<field name="color"/>
 </tree>
@@ -407,7 +424,7 @@ func TestViews(t *testing.T) {
 		So(viewGroups, ShouldHaveLength, 1)
 		viewGroupsTree := viewGroups[ViewTypeTree]
 		So(viewGroupsTree.ID, ShouldEqual, "embedded_form_childview_Groups_0")
-		So(xmlutils.ElementToXML(viewGroupsTree.Arch("")), ShouldEqual, `<tree>
+		So(elementToXMLString(viewGroupsTree.Arch("")), ShouldEqual, `<tree>
 	<field name="name"/>
 	<field name="active"/>
 </tree>
@@ -415,14 +432,14 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Inheriting embedded views", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef6))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef7))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef71))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
+		loadView(viewDef4)
+		loadView(viewDef5)
+		loadView(viewDef6)
+		loadView(viewDef7)
+		loadView(viewDef71)
 		BootStrap()
 		So(len(Registry.views), ShouldEqual, 4)
 		So(Registry.GetByID("embedded_form"), ShouldNotBeNil)
@@ -430,7 +447,7 @@ func TestViews(t *testing.T) {
 		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
 		view := Registry.GetByID("embedded_form")
 		So(view.ID, ShouldEqual, "embedded_form")
-		So(xmlutils.ElementToXML(view.Arch("")), ShouldEqual,
+		So(elementToXMLString(view.Arch("")), ShouldEqual,
 			`<form>
 	<field required="1" name="user_name"/>
 	<field name="age" on_change="1"/>
@@ -445,7 +462,7 @@ func TestViews(t *testing.T) {
 		So(viewCategories, ShouldHaveLength, 2)
 		viewCategoriesForm := viewCategories[ViewTypeForm]
 		So(viewCategoriesForm.ID, ShouldEqual, "embedded_form_childview_Categories_1")
-		So(xmlutils.ElementToXML(viewCategoriesForm.Arch("")), ShouldEqual, `<form>
+		So(elementToXMLString(viewCategoriesForm.Arch("")), ShouldEqual, `<form>
 	<h1>This is my form</h1>
 	<field readonly="1" name="name"/>
 	<field name="color"/>
@@ -454,7 +471,7 @@ func TestViews(t *testing.T) {
 `)
 		viewCategoriesTree := viewCategories[ViewTypeTree]
 		So(viewCategoriesTree.ID, ShouldEqual, "embedded_form_childview_Categories_0")
-		So(xmlutils.ElementToXML(viewCategoriesTree.Arch("")), ShouldEqual, `<tree>
+		So(elementToXMLString(viewCategoriesTree.Arch("")), ShouldEqual, `<tree>
 	<field name="name"/>
 	<field name="color"/>
 </tree>
@@ -464,7 +481,7 @@ func TestViews(t *testing.T) {
 		So(viewGroups, ShouldHaveLength, 1)
 		viewGroupsTree := viewGroups[ViewTypeTree]
 		So(viewGroupsTree.ID, ShouldEqual, "embedded_form_childview_Groups_0")
-		So(xmlutils.ElementToXML(viewGroupsTree.Arch("")), ShouldEqual, `<tree>
+		So(elementToXMLString(viewGroupsTree.Arch("")), ShouldEqual, `<tree>
 	<field name="name"/>
 	<field name="active"/>
 </tree>
@@ -484,32 +501,32 @@ func TestViews(t *testing.T) {
 			"Name": models.CharField{},
 		})
 		soSearch := Registry.GetFirstViewForModel("SaleOrder", ViewTypeSearch)
-		So(xmlutils.ElementToXML(soSearch.arch), ShouldEqual, `<search>
+		So(elementToXMLString(soSearch.arch), ShouldEqual, `<search>
 	<field name="name"/>
 </search>
 `)
 		soTree := Registry.GetFirstViewForModel("SaleOrder", ViewTypeTree)
-		So(xmlutils.ElementToXML(soTree.arch), ShouldEqual, `<tree>
+		So(elementToXMLString(soTree.arch), ShouldEqual, `<tree>
 	<field name="name"/>
 </tree>
 `)
 	})
 	Convey("Create new base view from inheritance", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef6))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef7))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef8))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
+		loadView(viewDef4)
+		loadView(viewDef5)
+		loadView(viewDef6)
+		loadView(viewDef7)
+		loadView(viewDef8)
 		BootStrap()
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
 		newView := Registry.GetByID("new_base_view")
-		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
+		So(elementToXMLString(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="name"/>
@@ -528,7 +545,7 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
-		So(xmlutils.ElementToXML(newView.Arch("")), ShouldEqual,
+		So(elementToXMLString(newView.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="name"/>
@@ -551,21 +568,21 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Inheriting new base view from inheritance", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef1))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef2))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef3))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef4))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef5))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef6))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef7))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef8))
-		LoadFromEtree(xmlutils.XMLToElement(viewDef9))
+		loadView(viewDef1)
+		loadView(viewDef2)
+		loadView(viewDef3)
+		loadView(viewDef4)
+		loadView(viewDef5)
+		loadView(viewDef6)
+		loadView(viewDef7)
+		loadView(viewDef8)
+		loadView(viewDef9)
 		BootStrap()
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
 		newView := Registry.GetByID("new_base_view")
-		So(xmlutils.ElementToXML(view2.Arch("")), ShouldEqual,
+		So(elementToXMLString(view2.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="name"/>
@@ -584,7 +601,7 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
-		So(xmlutils.ElementToXML(newView.Arch("")), ShouldEqual,
+		So(elementToXMLString(newView.Arch("")), ShouldEqual,
 			`<form>
 	<h2>
 		<field name="name"/>
@@ -689,11 +706,11 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Testing search view sanitizing", t, func() {
 		Registry = NewCollection()
-		LoadFromEtree(xmlutils.XMLToElement(viewDef10))
+		loadView(viewDef10)
 		BootStrap()
 		So(Registry.GetByID("search_view"), ShouldNotBeNil)
 		searchView := Registry.GetByID("search_view")
-		So(xmlutils.ElementToXML(searchView.Arch("")), ShouldEqual,
+		So(elementToXMLString(searchView.Arch("")), ShouldEqual,
 			`<search>
 	<field name="user_name" domain="[]"/>
 </search>

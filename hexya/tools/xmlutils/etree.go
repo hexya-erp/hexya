@@ -14,42 +14,82 @@
 
 package xmlutils
 
-import "github.com/beevik/etree"
+import (
+	"fmt"
 
-// ElementToXML returns the XML string of the given element and
+	"github.com/beevik/etree"
+)
+
+// ElementToXML returns the XML bytes of the given element and
 // all its children.
-func ElementToXML(element *etree.Element) string {
+func ElementToXML(element *etree.Element) ([]byte, error) {
 	doc := etree.NewDocument()
 	doc.SetRoot(element.Copy())
 	doc.IndentTabs()
-	xmlStr, err := doc.WriteToString()
+	xml, err := doc.WriteToBytes()
 	if err != nil {
-		log.Panic("Unable to marshal element", "error", err, "element", element)
+		return nil, fmt.Errorf("unable to marshal element: %s", err)
 	}
-	return xmlStr
+	return xml, nil
+}
+
+// ElementToXMLNoIndent returns the XML bytes of the given element and
+// all its children, without indenting the result.
+//
+// Use this function when the XML is HTML that needs to keep <tag></tag> syntax
+func ElementToXMLNoIndent(element *etree.Element) ([]byte, error) {
+	doc := etree.NewDocument()
+	doc.SetRoot(element.Copy())
+	xml, err := doc.WriteToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal element: %s", err)
+	}
+	return xml, nil
+}
+
+// XMLToDocument parses the given xml string and returns an etree.Document
+func XMLToDocument(xmlStr string) (*etree.Document, error) {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(xmlStr); err != nil {
+		return nil, fmt.Errorf("unable to parse XML: %s", err)
+	}
+	return doc, nil
 }
 
 // XMLToElement parses the given xml string and returns the root node
-func XMLToElement(xmlStr string) *etree.Element {
-	doc := etree.NewDocument()
-	if err := doc.ReadFromString(xmlStr); err != nil {
-		log.Panic("Unable to parse XML", "error", err, "xml", xmlStr)
-	}
-	return doc.Root()
+func XMLToElement(xmlStr string) (*etree.Element, error) {
+	doc, err := XMLToDocument(xmlStr)
+	return doc.Root(), err
 }
 
-// FindNextSibling returns the next sibling of the given element
-func FindNextSibling(element *etree.Element) *etree.Element {
+// NextSibling returns the next sibling of the given token or nil if this
+// is the last token of its parent
+func NextSibling(token etree.Token) etree.Token {
 	var found bool
-	for _, el := range element.Parent().ChildElements() {
+	for _, el := range token.Parent().Child {
 		if found {
 			return el
 		}
-		if el == element {
+		if el == token {
 			found = true
 		}
 	}
 	return nil
+}
+
+// PreviousSibling returns the previous sibling of the given token.
+// If this is the first token of its parent, return this token.
+func PreviousSibling(token etree.Token) etree.Token {
+	var found bool
+	for i := len(token.Parent().Child) - 1; i >= 0; i-- {
+		if found {
+			return token.Parent().Child[i]
+		}
+		if token.Parent().Child[i] == token {
+			found = true
+		}
+	}
+	return token
 }
 
 // HasParentTag returns true if this element has at least

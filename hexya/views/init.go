@@ -87,7 +87,11 @@ func BootStrap() {
 func loadModelViews() {
 	for _, views := range models.Views {
 		for _, view := range views {
-			LoadFromEtree(xmlutils.XMLToElement(view))
+			elt, err := xmlutils.XMLToElement(view)
+			if err != nil {
+				log.Panic("error while loading view", "error", err, "view", view)
+			}
+			LoadFromEtree(elt)
 		}
 	}
 }

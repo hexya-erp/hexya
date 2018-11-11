@@ -100,6 +100,7 @@ type Menu struct {
 	Action           *actions.Action
 	HasChildren      bool
 	HasAction        bool
+	WebIcon          string
 	names            map[string]string
 }
 
@@ -128,6 +129,7 @@ func AddMenuToMapFromEtree(element *etree.Element, mMap map[string]*Menu) map[st
 		ActionID: element.SelectAttrValue("action", ""),
 		Name:     element.SelectAttrValue("name", ""),
 		ParentID: element.SelectAttrValue("parent", ""),
+		WebIcon:  element.SelectAttrValue("web_icon", ""),
 		Sequence: uint8(seq),
 	}
 	mMap[menu.ID] = &menu

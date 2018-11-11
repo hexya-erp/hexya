@@ -25,6 +25,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/menus"
 	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/hexya/templates"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/views"
 )
@@ -152,6 +153,8 @@ func loadXMLResourceFile(fileName string) {
 				actions.LoadFromEtree(object)
 			case "menuitem":
 				menus.LoadFromEtree(object)
+			case "template":
+				templates.LoadFromEtree(object)
 			default:
 				log.Panic("Unknown XML tag", "filename", fileName, "tag", object.Tag)
 			}

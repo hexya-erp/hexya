@@ -49,7 +49,7 @@ This command must be rerun after each source code modification, including module
 	},
 }
 
-var symlinkDirs = []string{"static", "templates", "data", "demo", "resources", "i18n"}
+var symlinkDirs = []string{"static", "data", "demo", "resources", "i18n"}
 
 var (
 	generateEmptyPool bool

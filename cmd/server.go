@@ -29,6 +29,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/menus"
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/server"
+	"github.com/hexya-erp/hexya/hexya/templates"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/tools/hexCron"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
@@ -90,6 +91,7 @@ func StartServer(config map[string]interface{}) {
 	server.LoadTranslations(i18n.Langs)
 	server.LoadInternalResources()
 	views.BootStrap()
+	templates.BootStrap()
 	actions.BootStrap()
 	controllers.BootStrap()
 	menus.BootStrap()
