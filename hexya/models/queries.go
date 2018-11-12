@@ -53,6 +53,7 @@ type Query struct {
 	offset     int
 	noDistinct bool
 	groups     []string
+	ctxGroups  []string
 	orders     []string
 	ctxOrders  []string
 }
@@ -73,12 +74,8 @@ func (q Query) clone(rc *RecordCollection) *Query {
 // sqlWhereClause returns the sql string and parameters corresponding to the
 // WHERE clause of this Query
 //
-// If noExtraCond is set, the extra conditions are not included
-func (q *Query) sqlWhereClause(noExtraCond ...bool) (string, SQLParams) {
-	var noExtra bool
-	if len(noExtraCond) > 0 {
-		noExtra = noExtraCond[0]
-	}
+// If withCtx is set, the extra conditions are included
+func (q *Query) sqlWhereClause(withCtx bool) (string, SQLParams) {
 	sql, args := q.conditionSQLClause(q.cond)
 	extraSQL, extraArgs := q.conditionSQLClause(q.ctxCond)
 	if sql == "" && extraSQL == "" {
@@ -87,7 +84,7 @@ func (q *Query) sqlWhereClause(noExtraCond ...bool) (string, SQLParams) {
 	resSQL := "WHERE "
 	var resArgs SQLParams
 	switch {
-	case extraSQL == "" || noExtra:
+	case extraSQL == "" || !withCtx:
 		resSQL += sql
 		resArgs = args
 	case sql == "":
@@ -202,8 +199,8 @@ func (q *Query) sqlLimitOffsetClause() string {
 // prepareOrderByExprs returns the 'orders' of this query as an expressions slice on
 // the one side and a slice of directions (ASC or DESC) on the other side.
 func (q *Query) prepareOrderByExprs() ([][]string, []string) {
-	fExprs := make([][]string, len(q.orders)+len(q.ctxOrders))
-	directions := make([]string, len(q.orders)+len(q.ctxOrders))
+	fExprs := make([][]string, len(q.orders))
+	directions := make([]string, len(q.orders))
 	for i, order := range q.orders {
 		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
@@ -212,12 +209,32 @@ func (q *Query) prepareOrderByExprs() ([][]string, []string) {
 			directions[i] = fieldOrder[1]
 		}
 	}
+	ctxExprs, ctxDirs := q.prepareCtxOrderByExprs(false)
+	fExprs = append(fExprs, ctxExprs...)
+	directions = append(directions, ctxDirs...)
+	return fExprs, directions
+}
+
+// prepareCtxOrderByExprs returns the 'ctxOrders' of this query as an expressions slice on
+// the one side and a slice of directions (ASC or DESC) on the other side.
+//
+// if inv is true, the orders are inverted
+func (q *Query) prepareCtxOrderByExprs(inv bool) ([][]string, []string) {
+	fExprs := make([][]string, len(q.ctxOrders))
+	directions := make([]string, len(q.ctxOrders))
 	for i, order := range q.ctxOrders {
 		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
-		fExprs[len(q.orders)+i] = oExprs
+		fExprs[i] = oExprs
 		if len(fieldOrder) > 1 {
-			directions[len(q.orders)+i] = fieldOrder[1]
+			directions[i] = fieldOrder[1]
+		}
+		if inv {
+			if strings.TrimSpace(strings.ToUpper(directions[i])) == "DESC" {
+				directions[i] = "ASC"
+			} else {
+				directions[i] = "DESC"
+			}
 		}
 	}
 	return fExprs, directions
@@ -228,6 +245,21 @@ func (q *Query) prepareOrderByExprs() ([][]string, []string) {
 func (q *Query) sqlOrderByClause() string {
 	fExprs, directions := q.prepareOrderByExprs()
 	resSlice := make([]string, len(q.orders)+len(q.ctxOrders))
+	for i, field := range fExprs {
+		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
+		resSlice[i] += fmt.Sprintf(" %s", directions[i])
+	}
+	if len(resSlice) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("ORDER BY %s", strings.Join(resSlice, ", "))
+}
+
+// sqlCtxOrderByClause returns the sql string for the ORDER BY clause of the ctx fields
+// of this Query with inversed order.
+func (q *Query) sqlCtxOrderBy() string {
+	fExprs, directions := q.prepareCtxOrderByExprs(true)
+	resSlice := make([]string, len(q.ctxOrders))
 	for i, field := range fExprs {
 		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
 		resSlice[i] += fmt.Sprintf(" %s", directions[i])
@@ -260,7 +292,7 @@ func (q *Query) sqlOrderByClauseForGroupBy(aggFncts map[string]string) string {
 }
 
 // sqlGroupByClause returns the sql string for the GROUP BY clause
-// of this Query
+// of this Query (without the GROUP BY keywords)
 func (q *Query) sqlGroupByClause() string {
 	var fExprs [][]string
 	for _, group := range q.groups {
@@ -271,14 +303,34 @@ func (q *Query) sqlGroupByClause() string {
 	for i, field := range fExprs {
 		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
 	}
-	return fmt.Sprintf("GROUP BY %s", strings.Join(resSlice, ", "))
+	res := strings.Join(resSlice, ", ")
+	ctxStr := strings.TrimSpace(q.sqlCtxGroupByClause())
+	if ctxStr != "" {
+		res = fmt.Sprintf("%s, %s", res, ctxStr)
+	}
+	return res
+}
+
+// sqlCtxGroupByClause returns the sql string for the GROUP BY clause
+// of contexted fields for this Query (without the GROUP BY keywords)
+func (q *Query) sqlCtxGroupByClause() string {
+	var fExprs [][]string
+	for _, group := range q.ctxGroups {
+		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(group, ExprSep))
+		fExprs = append(fExprs, oExprs)
+	}
+	resSlice := make([]string, len(q.ctxGroups))
+	for i, field := range fExprs {
+		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
+	}
+	return strings.Join(resSlice, ", ")
 }
 
 // deleteQuery returns the SQL query string and parameters to unlink
 // the rows pointed at by this Query object.
 func (q *Query) deleteQuery() (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
-	sql, args := q.sqlWhereClause(true)
+	sql, args := q.sqlWhereClause(false)
 	delQuery := fmt.Sprintf(`DELETE FROM %s %s`, adapter.quoteTableName(q.recordSet.model.tableName), sql)
 	return delQuery, args
 }
@@ -336,14 +388,14 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams, map[string]stri
 	if len(q.groups) > 0 {
 		log.Panic("Calling selectQuery on a Group By query")
 	}
-	fieldExprs, allExprs := q.selectData(fields)
+	fieldExprs, allExprs := q.selectData(fields, true)
 	// Build up the query
 	// Fields
 	fieldsSQL, fieldSubsts := q.fieldsSQL(fieldExprs)
 	// Tables
 	tablesSQL, joinsMap := q.tablesSQL(allExprs)
 	// Where clause and args
-	whereSQL, args := q.sqlWhereClause()
+	whereSQL, args := q.sqlWhereClause(true)
 	orderSQL := q.sqlOrderByClause()
 	limitSQL := q.sqlLimitOffsetClause()
 	var distinct string
@@ -374,19 +426,19 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 		fieldsList[i] = f
 		i++
 	}
-	fieldExprs, allExprs := q.selectData(fieldsList)
+	fieldExprs, allExprs := q.selectData(fieldsList, false)
 	// Build up the query
 	// Fields
 	fieldsSQL := q.fieldsGroupSQL(fieldExprs, fields)
 	// Tables
 	tablesSQL, joinsMap := q.tablesSQL(allExprs)
 	// Where clause and args
-	whereSQL, args := q.sqlWhereClause()
+	whereSQL, args := q.sqlWhereClause(true)
 	// Group by clause
 	groupSQL := q.sqlGroupByClause()
 	orderSQL := q.sqlOrderByClauseForGroupBy(fields)
 	limitSQL := q.sqlLimitOffsetClause()
-	selQuery := fmt.Sprintf(`SELECT %s FROM %s %s %s %s %s`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
+	selQuery := fmt.Sprintf(`WITH group_query as (SELECT %s FROM %s %s GROUP BY %s %s %s) SELECT * FROM group_query WHERE __rank = 1`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
 	selQuery = strutils.Substitute(selQuery, joinsMap)
 	return selQuery, args
 }
@@ -394,7 +446,7 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 // selectData returns for this query:
 // - Expressions defined by the given fields and that must appear in the field list of the select clause.
 // - All expressions that also include expressions used in the where clause.
-func (q *Query) selectData(fields []string) ([][]string, [][]string) {
+func (q *Query) selectData(fields []string, withCtx bool) ([][]string, [][]string) {
 	q.substituteChildOfPredicates()
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
@@ -402,7 +454,7 @@ func (q *Query) selectData(fields []string) ([][]string, [][]string) {
 		fieldExprs[i] = jsonizeExpr(q.recordSet.model, strings.Split(f, ExprSep))
 	}
 	// Add 'order by' exprs
-	fieldExprs = append(fieldExprs, q.getOrderByExpressions()...)
+	fieldExprs = append(fieldExprs, q.getOrderByExpressions(withCtx)...)
 	// Then given by condition
 	allExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
 	return fieldExprs, allExprs
@@ -435,7 +487,7 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	}
 	tableName := adapter.quoteTableName(q.recordSet.model.tableName)
 	updates := strings.Join(cols, ", ")
-	whereSQL, args := q.sqlWhereClause(true)
+	whereSQL, args := q.sqlWhereClause(false)
 	sql = fmt.Sprintf("UPDATE %s SET %s %s", tableName, updates, whereSQL)
 	vals = append(vals, args...)
 	return sql, vals
@@ -463,7 +515,7 @@ func (q *Query) fieldsSQL(fieldExprs [][]string) (string, map[string]string) {
 // Parameter must be with the following format (column names):
 // [['user_id', 'name'] ['id'] ['profile_id', 'age']]
 func (q *Query) fieldsGroupSQL(fieldExprs [][]string, aggFncts map[string]string) string {
-	fStr := make([]string, len(fieldExprs)+1)
+	fStr := make([]string, len(fieldExprs)+2)
 	for i, exprs := range fieldExprs {
 		aggFnct := aggFncts[strings.Join(exprs, ExprSep)]
 		joins := q.generateTableJoins(exprs)
@@ -475,6 +527,8 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]string, aggFncts map[string]string
 		fStr[i] = fmt.Sprintf("%s(%s.%s) AS %s", aggFnct, lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
 	}
 	fStr[len(fieldExprs)] = "count(1) AS __count"
+	curTable := q.generateTableJoins([]string{"id"})[0]
+	fStr[len(fieldExprs)+1] = fmt.Sprintf("rank() OVER (PARTITION BY min(%s.id) %s) AS __rank", curTable.alias, q.sqlCtxOrderBy())
 	return strings.Join(fStr, ", ")
 }
 
@@ -690,18 +744,29 @@ func (q *Query) evaluateConditionArgFunctions(p predicate) interface{} {
 // getAllExpressions returns all expressions used in this query,
 // both in the condition and the order by clause.
 func (q *Query) getAllExpressions() [][]string {
-	return append(q.getOrderByExpressions(),
+	return append(q.getOrderByExpressions(true),
 		append(q.getGroupByExpressions(), q.cond.getAllExpressions(q.recordSet.model)...)...)
 }
 
 // getOrderByExpressions returns all expressions used in order by clause of this query.
-func (q *Query) getOrderByExpressions() [][]string {
+//
+// If withCtx is true, ctxOrder expressions are also returned
+func (q *Query) getOrderByExpressions(withCtx bool) [][]string {
 	var exprs [][]string
 	for _, order := range q.orders {
 		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
 		exprs = append(exprs, oExprs)
 	}
+	if withCtx {
+		exprs = append(exprs, q.getCtxOrderByExpressions()...)
+	}
+	return exprs
+}
+
+// getOrderByExpressions returns expressions used in context order by clause of this query.
+func (q *Query) getCtxOrderByExpressions() [][]string {
+	var exprs [][]string
 	for _, order := range q.ctxOrders {
 		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
 		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))

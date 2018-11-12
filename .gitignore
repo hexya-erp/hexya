@@ -76,8 +76,8 @@ _testmain.go
 pool/
 /hexya/server/static/
 /hexya/server/templates/
-/hexya/server/views/
 /hexya/server/data/
+/hexya/server/demo/
 /coverage.txt
 /xsd/
 /hexya/server/resources/

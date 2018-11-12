@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/hexya/tools/exceptions"
+	"github.com/hexya-erp/hexya/hexya/tools/hweb"
 )
 
 // The Context allows to pass data across controller layers
@@ -104,4 +105,11 @@ func (c *Context) HTTPGet(uri string) (*http.Response, error) {
 	})
 	client := http.Client{}
 	return client.Do(req)
+}
+
+// HTML renders the HTTP template specified by its file name.
+// It also updates the HTTP code and sets the Content-Type as "text/html".
+// See http://golang.org/doc/articles/wiki/
+func (c *Context) HTML(code int, name string, context hweb.Context) {
+	c.Context.HTML(code, name, context)
 }

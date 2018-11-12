@@ -20,7 +20,7 @@ func TestBaseModelMethods(t *testing.T) {
 			userModel := Registry.MustGet("User")
 			userJane := userModel.Search(env, userModel.Field("Email").Equals("jane.smith@example.com"))
 			Convey("LastUpdate", func() {
-				So(userJane.Get("LastUpdate").(dates.DateTime).Sub(userJane.Get("WriteDate").(dates.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
+				So(userJane.Get("LastUpdate").(dates.DateTime).Sub(userJane.Get("WriteDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
 				newUser := userModel.Create(env, FieldMap{
 					"Name":    "Alex Smith",
 					"Email":   "jsmith@example.com",
@@ -28,7 +28,7 @@ func TestBaseModelMethods(t *testing.T) {
 					"Nums":    1,
 				})
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime).Time), ShouldBeLessThanOrEqualTo, 1*time.Second)
+				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {
 				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordSet).Collection()

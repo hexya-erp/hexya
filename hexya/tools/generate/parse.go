@@ -426,8 +426,6 @@ func parseStringValue(expr ast.Expr) string {
 	case *ast.BasicLit:
 		str = v.Value
 	case *ast.Ident:
-		fmt.Printf("v: %T => %v\n", v, v)
-		fmt.Printf("%#v\n", v.Obj.Decl.(*ast.ValueSpec).Values[0])
 		str = parseStringValue(v.Obj.Decl.(*ast.ValueSpec).Values[0])
 	}
 	return strings.Trim(str, "\"`")

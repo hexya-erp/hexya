@@ -22,7 +22,7 @@ import (
 
 	"github.com/gin-gonic/contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/hexya-erp/hexya/hexya/tools/generate"
+	"github.com/hexya-erp/hexya/hexya/templates"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/acme/autocert"
@@ -145,6 +145,7 @@ func init() {
 	hexyaServer.Use(gin.Recovery())
 	hexyaServer.Use(sessions.Sessions("hexya-session", store))
 	hexyaServer.Use(logging.LogForGin(log))
+	hexyaServer.HTMLRender = templates.Registry
 }
 
 // PreInit runs all actions that need to be done after we get the configuration,
@@ -168,10 +169,8 @@ func PreInitModules() {
 // This is typically all actions that need to be done after bootstrapping the models.
 // This function:
 // - runs successively all PostInit() func of all modules,
-// - loads html templates from all modules.
 func PostInit() {
 	PostInitModules()
-	hexyaServer.LoadHTMLGlob(generate.HexyaDir + "/hexya/server/templates/**/*.html")
 }
 
 // PostInitModules calls successively all PostInit functions of all installed modules

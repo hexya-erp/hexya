@@ -198,6 +198,7 @@ func NewCollection() *Collection {
 // Add adds the given view to our Collection
 func (vc *Collection) Add(v *View) {
 	vc.Lock()
+	defer vc.Unlock()
 	var index int8
 	for i, view := range vc.orderedViews[v.Model] {
 		index = int8(i)
@@ -205,7 +206,6 @@ func (vc *Collection) Add(v *View) {
 			break
 		}
 	}
-	defer vc.Unlock()
 	vc.views[v.ID] = v
 	if index == int8(len(vc.orderedViews)-1) {
 		vc.orderedViews[v.Model] = append(vc.orderedViews[v.Model], v)
@@ -245,16 +245,26 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 
 // defaultViewForModel returns a default view for the given model and type
 func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View {
+	xmlStr := fmt.Sprintf(`<%s></%s>`, viewType, viewType)
+	arch, err := xmlutils.XMLToElement(xmlStr)
+	if err != nil {
+		log.Panic("unable to create default view", "error", err, "view", xmlStr)
+	}
 	view := View{
 		Model:  model,
 		Type:   viewType,
 		Fields: []models.FieldNamer{},
-		arch:   xmlutils.XMLToElement(fmt.Sprintf(`<%s></%s>`, viewType, viewType)),
+		arch:   arch,
 		arches: make(map[string]*etree.Element),
 	}
 	if _, ok := models.Registry.MustGet(model).Fields().Get("name"); ok {
+		xmlStr = fmt.Sprintf(`<%s><field name="name"/></%s>`, viewType, viewType)
+		arch, err = xmlutils.XMLToElement(xmlStr)
+		if err != nil {
+			log.Panic("unable to create default view", "error", err, "view", xmlStr)
+		}
 		view.Fields = []models.FieldNamer{models.FieldName("name")}
-		view.arch = xmlutils.XMLToElement(fmt.Sprintf(`<%s><field name="name"/></%s>`, viewType, viewType))
+		view.arch = arch
 	}
 	view.translateArch()
 	return &view
@@ -274,9 +284,12 @@ func (vc *Collection) GetAllViewsForModel(model string) []*View {
 // LoadFromEtree loads the given view given as Element
 // into this collection.
 func (vc *Collection) LoadFromEtree(element *etree.Element) {
-	xmlBytes := []byte(xmlutils.ElementToXML(element))
+	xmlBytes, err := xmlutils.ElementToXML(element)
+	if err != nil {
+		log.Panic("Unable to convert element to XML", "error", err)
+	}
 	var viewXML ViewXML
-	if err := xml.Unmarshal(xmlBytes, &viewXML); err != nil {
+	if err = xml.Unmarshal(xmlBytes, &viewXML); err != nil {
 		log.Panic("Unable to unmarshal element", "error", err, "bytes", string(xmlBytes))
 	}
 	if viewXML.InheritID != "" {
@@ -300,7 +313,10 @@ func (vc *Collection) createNewViewFromXML(viewXML *ViewXML) {
 		name = viewXML.Name
 	}
 
-	arch := xmlutils.XMLToElement(viewXML.Arch)
+	arch, err := xmlutils.XMLToElement(viewXML.Arch)
+	if err != nil {
+		log.Panic("unable to create view from XML", "error", err, "view", viewXML.Arch)
+	}
 	view := View{
 		ID:          viewXML.ID,
 		Name:        name,
@@ -478,49 +494,15 @@ func (v *View) translateArch() {
 // updateViewFromXML updates this view with the given XML
 // viewXML must have an InheritID
 func (v *View) updateViewFromXML(viewXML *ViewXML) {
-	baseElem := xmlutils.CopyElement(v.arch)
-	specDoc := etree.NewDocument()
-	if err := specDoc.ReadFromString(viewXML.Arch); err != nil {
+	specDoc, err := xmlutils.XMLToDocument(viewXML.Arch)
+	if err != nil {
 		log.Panic("Unable to read inheritance specs", "error", err, "arch", viewXML.Arch)
 	}
-	for _, spec := range specDoc.ChildElements() {
-		xpath := getInheritXPathFromSpec(spec)
-		nodeToModify := baseElem.Parent().FindElement(xpath)
-		if nodeToModify == nil {
-			log.Panic("Node not found in parent view", "xpath", xpath, "spec", xmlutils.ElementToXML(spec), "view", v.ID, "arch", v.arch)
-		}
-		nextNode := xmlutils.FindNextSibling(nodeToModify)
-		modifyAction := spec.SelectAttr("position")
-		if modifyAction == nil {
-			log.Panic("Spec should include 'position' attribute", "xpath", xpath, "spec", xmlutils.ElementToXML(spec), "view", v.ID)
-		}
-		switch modifyAction.Value {
-		case "before":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nodeToModify, node)
-			}
-		case "after":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nextNode, node)
-			}
-		case "replace":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nodeToModify, node)
-			}
-			nodeToModify.Parent().RemoveChild(nodeToModify)
-		case "inside":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.AddChild(node)
-			}
-		case "attributes":
-			for _, node := range spec.FindElements("./attribute") {
-				attrName := node.SelectAttr("name").Value
-				nodeToModify.RemoveAttr(attrName)
-				nodeToModify.CreateAttr(attrName, node.Text())
-			}
-		}
+	newArch, err := xmlutils.ApplyExtensions(v.arch, specDoc)
+	if err != nil {
+		log.Panic("Error while applying view extension specs", "error", err, "specView", viewXML.ID, "specs", viewXML.Arch, "view", v.ID, "arch", v.arch)
 	}
-	v.arch = baseElem
+	v.arch = newArch
 }
 
 // A TranslatableAttribute is a reference to an attribute in a
@@ -562,24 +544,4 @@ type ViewXML struct {
 // and adds it to the view registry if it not already.
 func LoadFromEtree(element *etree.Element) {
 	Registry.LoadFromEtree(element)
-}
-
-// getInheritXPathFromSpec returns an XPath string that is suitable for
-// searching the base view and find the node to modify.
-func getInheritXPathFromSpec(spec *etree.Element) string {
-	if spec.Tag == "xpath" {
-		// We have an xpath expression, we take it
-		return spec.SelectAttr("expr").Value
-	}
-	if len(spec.Attr) < 1 || len(spec.Attr) > 2 {
-		log.Panic("Invalid view inherit spec", "spec", xmlutils.ElementToXML(spec))
-	}
-	var attrStr string
-	for _, attr := range spec.Attr {
-		if attr.Key != "position" {
-			attrStr = fmt.Sprintf("[@%s='%s']", attr.Key, attr.Value)
-			break
-		}
-	}
-	return fmt.Sprintf("//%s%s", spec.Tag, attrStr)
 }
