@@ -17,9 +17,10 @@ package strutils
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"unicode"
+
+	"strconv"
 
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
@@ -120,6 +121,7 @@ func DictToJSON(dict string) string {
 	dict = strings.Replace(dict, "(", "[", -1)
 	dict = strings.Replace(dict, ")", "]", -1)
 	return dict
+}
 
 // IsInStringSlice returns true if the givien string is an entry in the slice
 func IsInStringSlice(str string, sl []string) bool {
