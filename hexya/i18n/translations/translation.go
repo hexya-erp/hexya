@@ -1,4 +1,7 @@
-package translation
+// Copyright 2018 NDP Systèmes. All Rights Reserved.
+// See LICENSE file for full licensing details.
+
+package translations
 
 import (
 	"fmt"
@@ -24,18 +27,18 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
-var poUpdateDatas map[string]poUpdateFunc
-
-var poRuleSets map[string]*RuleSet
-
-var log logging.Logger
+var (
+	poUpdateFuncs map[string]poUpdateFunc
+	poRuleSets    map[string]*RuleSet
+	log           logging.Logger
+)
 
 type poUpdateFunc func(MessageMap, string, string, string) MessageMap
 
 // RuleSet contains the rules defining the files targeted by the custom i18n-Update methods
 type RuleSet struct {
 	Inherit []*RuleSet
-	Ruleset [][]string
+	Rules   [][]string
 }
 
 // MessageMap is a map with all po-related informations
@@ -83,10 +86,7 @@ func UpdatePOFiles(config map[string]interface{}) {
 		fmt.Printf(".")
 		messages = addResourceItemsToMessages(lang, filepath.Join(moduleDir, "resources"), messages)
 		messages = addCodeToMessages(lang, moduleDir, messages)
-
-		moduleName := filepath.Base(moduleDir)
-
-		messages = executeCustomPoFuncs(messages, lang, moduleName)
+		messages = executeCustomPoFuncs(lang, moduleDir, messages)
 
 		msgs := make([]po.Message, len(messages))
 		i := 0
@@ -124,23 +124,16 @@ type MessageRef struct {
 	msgCtxt string
 }
 
-// Dummy type for typesafe registering
-type registerer int
-
-func Register() registerer {
-	return 0
-}
-
-// Func registers the given method for the given key in the poMethods bundle
-func (r registerer) Func(key string, f poUpdateFunc) {
-	if poUpdateDatas == nil {
-		poUpdateDatas = make(map[string]poUpdateFunc)
+// RegisterFunc registers the given method for the given key in the poMethods bundle
+func RegisterFunc(key string, f poUpdateFunc) {
+	if poUpdateFuncs == nil {
+		poUpdateFuncs = make(map[string]poUpdateFunc)
 	}
-	poUpdateDatas[key] = f
+	poUpdateFuncs[key] = f
 }
 
-// RuleSet registers the given RuleSet for the given key in the poRuleSet bundle
-func (r registerer) RuleSet(key string, rules *RuleSet) {
+// RegisterRuleSet registers the given RuleSet for the given key in the poRuleSet bundle
+func RegisterRuleSet(key string, rules *RuleSet) {
 	if poRuleSets == nil {
 		poRuleSets = make(map[string]*RuleSet)
 	}
@@ -152,7 +145,7 @@ func GetPoUpdateRuleSet(key string) *RuleSet {
 	return poRuleSets[key]
 }
 
-//followRule returns true if the given path follows a full rule
+// followRule returns true if the given path follows a full rule
 func followsRule(str string, set []string) bool {
 	for _, ruleLine := range set {
 		excludeMode := false
@@ -184,7 +177,7 @@ func followsRules(str string, set *RuleSet) bool {
 		}
 	}
 	if followsInherit {
-		for _, rule := range set.Ruleset {
+		for _, rule := range set.Rules {
 			if followsRule(str, rule) {
 				return true
 			}
@@ -194,28 +187,16 @@ func followsRules(str string, set *RuleSet) bool {
 }
 
 // executeCustomPoFuncs executes all methods registered by Hexya modules
-func executeCustomPoFuncs(messages MessageMap, lang, moduleName string) MessageMap {
-	for key, val := range poUpdateDatas {
-		if val != nil {
-			path := filepath.Join(generate.HexyaDir, "hexya/server/static", moduleName)
-			fi, err := os.Lstat(path)
-			if err != nil {
-				return messages
-			}
-			if fi.Mode()&os.ModeSymlink != 0 {
-				absPath, err2 := os.Readlink(path)
-				if err2 != nil {
-					return messages
+func executeCustomPoFuncs(lang, moduleDir string, messages MessageMap) MessageMap {
+	moduleName := filepath.Base(moduleDir)
+	for key, poFnct := range poUpdateFuncs {
+		if poFnct != nil {
+			filepath.Walk(moduleDir, func(path2 string, info os.FileInfo, err error) error {
+				if info != nil && !info.IsDir() && followsRules(path2, poRuleSets[key]) {
+					messages = poFnct(messages, lang, path2, moduleName)
 				}
-				filepath.Walk(absPath, func(path2 string, info os.FileInfo, err3 error) error {
-					goDir := strings.TrimSuffix(generate.HexyaDir, generate.HexyaPath)
-					path2 = strings.TrimPrefix(path2, goDir)
-					if info != nil && !info.IsDir() && followsRules(path2, poRuleSets[key]) {
-						messages = val(messages, lang, path, moduleName)
-					}
-					return err3
-				})
-			}
+				return err
+			})
 		}
 	}
 	return messages
@@ -224,7 +205,7 @@ func executeCustomPoFuncs(messages MessageMap, lang, moduleName string) MessageM
 // addCodeToMessages adds to the given messages map the translatable fields of the code
 // defined in go files inside the given resourcesDir and sub directories.
 // This extracts strings given as argument to T().
-func addCodeToMessages(lang string, moduleDir string, messages map[MessageRef]po.Message) map[MessageRef]po.Message {
+func addCodeToMessages(lang string, moduleDir string, messages MessageMap) MessageMap {
 	fSet := token.NewFileSet()
 	goFiles, err := filepath.Glob(fmt.Sprintf("%s/**.go", moduleDir))
 	if err != nil {
@@ -263,7 +244,7 @@ func addCodeToMessages(lang string, moduleDir string, messages map[MessageRef]po
 
 // addResourceItemsToMessages adds to the given messages map the translatable fields of the views
 // defined in XML files inside the given resourcesDir
-func addResourceItemsToMessages(lang string, resourcesDir string, messages map[MessageRef]po.Message) map[MessageRef]po.Message {
+func addResourceItemsToMessages(lang string, resourcesDir string, messages MessageMap) MessageMap {
 	xmlFiles, err := filepath.Glob(fmt.Sprintf("%s/*.xml", resourcesDir))
 	if err != nil {
 		log.Panic("Unable to scan directory for xml files", "dir", resourcesDir, "error", err)
@@ -307,7 +288,7 @@ func addResourceItemsToMessages(lang string, resourcesDir string, messages map[M
 
 // updateMessagesWithResourceTranslation returns the message map updated with a message
 // corresponding to the given ID and source
-func updateMessagesWithResourceTranslation(lang, id, source string, messages map[MessageRef]po.Message) map[MessageRef]po.Message {
+func updateMessagesWithResourceTranslation(lang, id, source string, messages MessageMap) MessageMap {
 	nameTrans := i18n.TranslateResourceItem(lang, id, source)
 	if nameTrans == source {
 		nameTrans = ""
@@ -320,7 +301,7 @@ func updateMessagesWithResourceTranslation(lang, id, source string, messages map
 }
 
 // addSelectionToMessages adds to the given messages map the selections for the given model and field
-func addSelectionToMessages(lang string, model string, field string, fieldASTData generate.FieldASTData, messages map[MessageRef]po.Message) map[MessageRef]po.Message {
+func addSelectionToMessages(lang string, model string, field string, fieldASTData generate.FieldASTData, messages MessageMap) MessageMap {
 	if len(fieldASTData.Selection) == 0 {
 		return messages
 	}
@@ -343,7 +324,7 @@ func addSelectionToMessages(lang string, model string, field string, fieldASTDat
 // If it does not exist, then it is created with the given value.
 // If value is not empty and the original msg translation is empty, then
 // it is updated with value.
-func GetOrCreateMessage(messages map[MessageRef]po.Message, msgRef MessageRef, value string) po.Message {
+func GetOrCreateMessage(messages MessageMap, msgRef MessageRef, value string) po.Message {
 	msg, ok := messages[msgRef]
 	if !ok {
 		msg = po.Message{
@@ -357,7 +338,7 @@ func GetOrCreateMessage(messages map[MessageRef]po.Message, msgRef MessageRef, v
 }
 
 // addDescriptionToMessages adds to the given messages map the description translation for the given model and field
-func addDescriptionToMessages(lang string, model string, field string, fieldASTData generate.FieldASTData, messages map[MessageRef]po.Message) map[MessageRef]po.Message {
+func addDescriptionToMessages(lang string, model string, field string, fieldASTData generate.FieldASTData, messages MessageMap) MessageMap {
 	description := fieldASTData.Description
 	if description == "" {
 		description = strutils.Title(fieldASTData.Name)
@@ -371,7 +352,7 @@ func addDescriptionToMessages(lang string, model string, field string, fieldASTD
 }
 
 // addHelpToMessages adds to the given messages map the help translation for the given model and field
-func addHelpToMessages(lang string, model string, field string, fieldASTData generate.FieldASTData, messages map[MessageRef]po.Message) map[MessageRef]po.Message {
+func addHelpToMessages(lang string, model string, field string, fieldASTData generate.FieldASTData, messages MessageMap) MessageMap {
 	help := fieldASTData.Help
 	if help == "" {
 		return messages

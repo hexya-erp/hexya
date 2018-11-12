@@ -44,7 +44,7 @@ in the i18n directory of the module.`,
 
 // generateAndUpdatePOFile creates the startup file of the translation update and runs it.
 func generateAndUpdatePOFiles(moduleDir string, langs []string, tmpl *template.Template) {
-	fmt.Println("Please wait, Po Update is starting ...")
+	fmt.Println("Please wait, Hexya is starting ...")
 	moduleDir, _ = filepath.Abs(moduleDir)
 	importPack, err := build.ImportDir(moduleDir, 0)
 	if err != nil {
@@ -62,13 +62,13 @@ func generateAndUpdatePOFiles(moduleDir string, langs []string, tmpl *template.T
 		Imports: []string{modulePath},
 		Config:  fmt.Sprintf("%#v", conf),
 	}
-	startFileName := filepath.Join(os.TempDir(), startFileNameI18n)
-	generate.CreateFileFromTemplate(startFileName, tmpl, tmplData)
-	cmd := exec.Command("go", "run", startFileName)
+	fileName := filepath.Join(os.TempDir(), startFileNameI18n)
+	generate.CreateFileFromTemplate(fileName, tmpl, tmplData)
+	cmd := exec.Command("go", "run", fileName)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Run()
-	os.Remove(startFileName)
+	os.Remove(fileName)
 }
 
 func init() {
@@ -84,13 +84,15 @@ var startFileTemplateI18n = template.Must(template.New("").Parse(`
 package main
 
 import (
-	"github.com/hexya-erp/hexya/cmd"
+	"fmt"
+
+	"github.com/hexya-erp/hexya/hexya/i18n/translations"
 {{ range .Imports }}	_ "{{ . }}"
 {{ end }}
 )
 
 func main() {
 	fmt.Println("Starting translation")
-	i18n.UpdatePOFiles({{ .Config }})
+	translations.UpdatePOFiles({{ .Config }})
 }
 `))

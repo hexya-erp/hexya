@@ -208,6 +208,7 @@ func TranslateCode(lang, context, src string) string {
 	return Registry.TranslateCode(lang, context, src)
 }
 
+// TranslateCustom returns the custom translation for the given id
 func TranslateCustom(lang, id, moduleName string) string {
 	return Registry.TranslateCustom(lang, id, moduleName)
 }
@@ -241,6 +242,7 @@ type codeRef struct {
 	source  string
 }
 
+// A customRef references a custom translated text
 type customRef struct {
 	lang   string
 	id     string
@@ -329,34 +331,48 @@ func GetLangParameters(lang string) LangParameters {
 	return out
 }
 
-type message map[string]string
-type modulemap map[string][]message
-type langmap map[string]modulemap
-type fullmap map[string]langmap
+// A CustomMessage holds the custom translation string for the given ID
+type CustomMessage struct {
+	ID     string `json:"id"`
+	String string `json:"string"`
+}
 
-var langModuleTranslationsMap fullmap
+// A ModuleCustomMessageList is the list of all custom translations of a module
+type ModuleCustomMessageList struct {
+	Messages []CustomMessage `json:"messages"`
+}
 
-func loadLangModuleTranslationsMap() fullmap {
-	out := make(fullmap)
+// A LangCustomMap holds custom translations for all modules for a given language
+type LangCustomMap map[string]ModuleCustomMessageList
+
+// A CustomTranslationsMap holds all custom translations for all modules and all languages
+type CustomTranslationsMap map[string]LangCustomMap
+
+// langModuleTranslationsMap is the memory cache for custom translations
+var langModuleTranslationsMap CustomTranslationsMap
+
+// loadCustomTranslationsMap populates a CustomTranslationsMap for this application.
+func loadCustomTranslationsMap() CustomTranslationsMap {
+	out := make(CustomTranslationsMap)
 	for key, entry := range Registry.custom {
 		if out[key.lang] == nil {
-			out[key.lang] = make(langmap)
+			out[key.lang] = make(LangCustomMap)
 		}
-		if out[key.lang][key.module] == nil {
-			out[key.lang][key.module] = make(modulemap)
+		msg := CustomMessage{
+			ID:     key.id,
+			String: entry,
 		}
-		msg := make(message)
-		msg["id"] = key.id
-		msg["string"] = entry
-		out[key.lang][key.module]["messages"] = append(out[key.lang][key.module]["messages"], msg)
+		list := out[key.lang][key.module]
+		list.Messages = append(list.Messages, msg)
+		out[key.lang][key.module] = list
 	}
 	return out
 }
 
-// ListModuleTranslation retuns a map containing all translations of a module for the given language
-func ListModuleTranslations(lang string) langmap {
+// ListModuleTranslations returns a map containing all custom translations of a module for the given language
+func ListModuleTranslations(lang string) LangCustomMap {
 	if langModuleTranslationsMap == nil {
-		langModuleTranslationsMap = loadLangModuleTranslationsMap()
+		langModuleTranslationsMap = loadCustomTranslationsMap()
 	}
 	return langModuleTranslationsMap[lang]
 }
@@ -397,7 +413,7 @@ func GetAllLanguageList() []string {
 		for _, link := range symlinks {
 			fi, _ := os.Lstat(link)
 			if fi.Mode()&os.ModeSymlink != 0 {
-				path, err := os.Readlink(link)
+				path, err = os.Readlink(link)
 				if err != nil {
 					log.Warn("Could not read symlink", `link`, link, `err`, err)
 					continue
