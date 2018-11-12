@@ -16,6 +16,7 @@ const (
 
 // LangParameters defines the parameters of a language locale
 type LangParameters struct {
+	Name         string        `json:"name"`
 	DateFormat   string        `json:"date_format"`
 	Direction    LangDirection `json:"lang_direction"`
 	ThousandsSep string        `json:"thousands_sep"`

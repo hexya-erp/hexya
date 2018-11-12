@@ -17,6 +17,11 @@ var (
 // BootStrap initializes available languages
 func BootStrap() {
 	Langs = viper.GetStringSlice("Server.Languages")
+	for i, lang := range Langs {
+		if lang == "ALL" {
+			Langs = append(Langs[:i], append(GetAllLanguageList(), Langs[i+1:]...)...)
+		}
+	}
 }
 
 func init() {

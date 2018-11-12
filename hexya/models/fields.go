@@ -204,6 +204,7 @@ type Field struct {
 	m2mOurField      *Field
 	m2mTheirField    *Field
 	selection        types.Selection
+	selectionFunc    func() types.Selection
 	fieldType        fieldtype.Type
 	groupOperator    string
 	size             int

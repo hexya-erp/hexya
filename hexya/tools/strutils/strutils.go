@@ -20,6 +20,8 @@ import (
 	"strings"
 	"unicode"
 
+	"strconv"
+
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
 
@@ -119,4 +121,26 @@ func DictToJSON(dict string) string {
 	dict = strings.Replace(dict, "(", "[", -1)
 	dict = strings.Replace(dict, ")", "]", -1)
 	return dict
+}
+
+// IsInStringSlice returns true if the givien string is an entry in the slice
+func IsInStringSlice(str string, sl []string) bool {
+	for _, entry := range sl {
+		if entry == str {
+			return true
+		}
+	}
+	return false
+}
+
+// MakeUnique returns an unique string in reference of the given pool
+// its made of the base string plus a number if it exists within the pool
+func MakeUnique(str string, pool []string) string {
+	var nb int
+	tested := str
+	for tested == "" || IsInStringSlice(tested, pool) {
+		nb++
+		tested = str + strconv.Itoa(nb)
+	}
+	return tested
 }

@@ -589,6 +589,7 @@ type SelectionField struct {
 	Related       string
 	NoCopy        bool
 	Selection     types.Selection
+	SelectionFunc func() types.Selection
 	OnChange      Methoder
 	Constraint    Methoder
 	Inverse       Methoder
@@ -600,6 +601,7 @@ type SelectionField struct {
 func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field {
 	fInfo := genericDeclareField(fc, &sf, name, fieldtype.Selection, new(string))
 	fInfo.selection = sf.Selection
+	fInfo.selectionFunc = sf.SelectionFunc
 	return fInfo
 }
 

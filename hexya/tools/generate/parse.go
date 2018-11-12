@@ -372,7 +372,6 @@ func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 		case *ast.CompositeLit:
 			fieldParams = fd.Elts
 		}
-
 		fData := FieldASTData{
 			Name: fieldName,
 			Type: TypeData{
