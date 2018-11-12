@@ -30,7 +30,6 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/server"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
-	"github.com/hexya-erp/hexya/hexya/tools/hexCron"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/hexya-erp/hexya/hexya/views"
 	"github.com/spf13/cobra"
@@ -93,7 +92,6 @@ func StartServer(config map[string]interface{}) {
 	actions.BootStrap()
 	controllers.BootStrap()
 	menus.BootStrap()
-	hexCron.BootStrap()
 	server.PostInit()
 	srv := server.GetServer()
 	address := fmt.Sprintf("%s:%s", viper.GetString("Server.Interface"), viper.GetString("Server.Port"))

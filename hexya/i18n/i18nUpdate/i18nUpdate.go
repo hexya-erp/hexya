@@ -1,4 +1,4 @@
-package i18nUpdate
+package translation
 
 import (
 	"fmt"
@@ -10,8 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	"log"
-
 	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/actions"
 	"github.com/hexya-erp/hexya/hexya/i18n"
@@ -19,6 +17,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/models/types"
 	"github.com/hexya-erp/hexya/hexya/server"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
+	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/hexya-erp/hexya/hexya/tools/po"
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 	"github.com/hexya-erp/hexya/hexya/views"
@@ -29,13 +28,17 @@ var poUpdateDatas map[string]poUpdateFunc
 
 var poRuleSets map[string]*RuleSet
 
+var log logging.Logger
+
 type poUpdateFunc func(MessageMap, string, string, string) MessageMap
 
+// RuleSet contains the rules defining the files targeted by the custom i18n-Update methods
 type RuleSet struct {
 	Inherit []*RuleSet
 	Ruleset [][]string
 }
 
+// MessageMap is a map with all po-related informations
 type MessageMap map[MessageRef]po.Message
 
 // UpdatePOFiles creates or updates PO files of the module in the given
@@ -46,9 +49,10 @@ func UpdatePOFiles(config map[string]interface{}) {
 	moduleDir := config["moduleDir"].(string)
 	modulePath := config["modulePath"].(string)
 	langs := config["langs"].([]string)
-	if langs[0] == "ALL" {
+	if strings.ToUpper(langs[0]) == "ALL" {
 		langs = append(i18n.GetAllLanguageList(), langs[1:]...)
 	}
+	log = logging.GetLogger("i18nUpdate")
 	i18nDir := filepath.Join(moduleDir, "i18n")
 	server.LoadModuleTranslations(i18nDir, langs)
 	conf := loader.Config{}
@@ -120,16 +124,23 @@ type MessageRef struct {
 	msgCtxt string
 }
 
-// RegisterPoUpdateFunc registers the given method for the given key in the poMethods bundle
-func RegisterPoUpdateFunc(key string, f poUpdateFunc) {
+// Dummy type for typesafe registering
+type registerer int
+
+func Register() registerer {
+	return 0
+}
+
+// Func registers the given method for the given key in the poMethods bundle
+func (r registerer) Func(key string, f poUpdateFunc) {
 	if poUpdateDatas == nil {
 		poUpdateDatas = make(map[string]poUpdateFunc)
 	}
 	poUpdateDatas[key] = f
 }
 
-// RegisterPoUpdateRuleSet registers the given RuleSet for the given key in the poRuleSet bundle
-func RegisterPoUpdateRuleSet(key string, rules *RuleSet) {
+// RuleSet registers the given RuleSet for the given key in the poRuleSet bundle
+func (r registerer) RuleSet(key string, rules *RuleSet) {
 	if poRuleSets == nil {
 		poRuleSets = make(map[string]*RuleSet)
 	}

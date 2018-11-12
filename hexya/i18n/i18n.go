@@ -353,6 +353,7 @@ func loadLangModuleTranslationsMap() fullmap {
 	return out
 }
 
+// ListModuleTranslation retuns a map containing all translations of a module for the given language
 func ListModuleTranslations(lang string) langmap {
 	if langModuleTranslationsMap == nil {
 		langModuleTranslationsMap = loadLangModuleTranslationsMap()
@@ -360,7 +361,7 @@ func ListModuleTranslations(lang string) langmap {
 	return langModuleTranslationsMap[lang]
 }
 
-var AllLanguageList []string
+var allLanguageList []string
 
 // getLanguageListInFolder appends to a slice all language codes read in the given folder
 func getLanguageListInFolder(out []string, path string) []string {
@@ -381,7 +382,7 @@ func getLanguageListInFolder(out []string, path string) []string {
 
 // GetAllLanguageList returns a slice containing all known language codes
 func GetAllLanguageList() []string {
-	if AllLanguageList == nil {
+	if allLanguageList == nil {
 		out := []string{`af`, `am`, `ar`, `bg`, `bs`, `ca`, `cs`, `da`, `de`, `el`, `en_AU`, `en_GB`, `es`, `es_AR`,
 			`es_BO`, `es_CL`, `es_CO`, `es_CR`, `es_DO`, `es_EC`, `es_PA`, `es_PE`, `es_PY`, `es_VE`, `et`, `eu`,
 			`fa`, `fi`, `fo`, `fr`, `fr_BE`, `fr_CA`, `gl`, `gu`, `he`, `hr`, `hu`, `hy`, `id`, `is`, `it`, `ja`, `ka`,
@@ -408,7 +409,7 @@ func GetAllLanguageList() []string {
 			cmp := strings.Compare(out[i], out[j])
 			return cmp < 0
 		})
-		AllLanguageList = out
+		allLanguageList = out
 	}
-	return AllLanguageList
+	return allLanguageList
 }

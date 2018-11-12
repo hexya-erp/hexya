@@ -17,10 +17,9 @@ package strutils
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
-
-	"strconv"
 
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 )
