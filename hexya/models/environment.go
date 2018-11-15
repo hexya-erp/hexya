@@ -25,7 +25,7 @@ import (
 const DBSerializationMaxRetries uint8 = 5
 
 // maxRecursionDepth is the maximum allowed number of nested calls
-// during a transation.
+// during a transaction.
 const maxRecursionDepth uint8 = 100
 
 // An Environment stores various contextual data used by the models:
