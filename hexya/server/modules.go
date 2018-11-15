@@ -93,7 +93,7 @@ func LoadTranslations(langs []string) {
 		dataDir := filepath.Join(generate.HexyaDir, "hexya", "server", "i18n", mod.Name)
 		if _, err := os.Stat(dataDir); err != nil {
 			// No resources dir in this module
-			return
+			continue
 		}
 		LoadModuleTranslations(dataDir, langs)
 	}
