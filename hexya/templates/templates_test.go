@@ -4,8 +4,12 @@
 package templates
 
 import (
+	"io/ioutil"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/flosch/pongo2"
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -71,7 +75,7 @@ var tmplDef5 = `
 `
 
 var tmplDef8 = `
-<template inherit_id="my_other_id" id="new_base_view">
+<template inherit_id="my_other_id" id="new_base_view" priority="13" optional="disabled" page="True">
 	<xpath expr="//t[@t-esc='Email']" position="after">
 		<t t-raw="Fax"/>
 	</xpath>
@@ -95,8 +99,10 @@ func loadView(xml string) {
 }
 
 func TestViews(t *testing.T) {
+	Convey("Setting two languages", t, func() {
+		i18n.Langs = []string{"fr", "de"}
+	})
 	Convey("Creating Template 1", t, func() {
-		Registry.collection = newCollection()
 		loadView(tmplDef1)
 		BootStrap()
 		So(len(Registry.collection.templates), ShouldEqual, 1)
@@ -119,7 +125,6 @@ func TestViews(t *testing.T) {
 `)
 	})
 	Convey("Creating Template 2", t, func() {
-		Registry.collection = newCollection()
 		loadView(tmplDef1)
 		loadView(tmplDef2)
 		BootStrap()
@@ -145,7 +150,6 @@ func TestViews(t *testing.T) {
 `)
 	})
 	Convey("Inheriting Template 2", t, func() {
-		Registry.collection = newCollection()
 		loadView(tmplDef1)
 		loadView(tmplDef2)
 		loadView(tmplDef3)
@@ -178,7 +182,6 @@ func TestViews(t *testing.T) {
 	})
 
 	Convey("More inheritance on Template 2", t, func() {
-		Registry.collection = newCollection()
 		loadView(tmplDef1)
 		loadView(tmplDef2)
 		loadView(tmplDef3)
@@ -203,7 +206,6 @@ func TestViews(t *testing.T) {
 
 	})
 	Convey("Modifying inherited modifications on Template 2", t, func() {
-		Registry.collection = newCollection()
 		loadView(tmplDef1)
 		loadView(tmplDef2)
 		loadView(tmplDef3)
@@ -228,7 +230,6 @@ func TestViews(t *testing.T) {
 	</div>`)
 	})
 	Convey("Create new base template from inheritance", t, func() {
-		Registry.collection = newCollection()
 		loadView(tmplDef1)
 		loadView(tmplDef2)
 		loadView(tmplDef3)
@@ -252,6 +253,14 @@ func TestViews(t *testing.T) {
 			{{ Email }}{{ Phone }}
 		</div>
 	</div>`)
+		So(template2.Priority, ShouldEqual, 12)
+		So(template2.Page, ShouldBeFalse)
+		So(template2.Optional, ShouldBeTrue)
+		So(template2.OptionalDefault, ShouldBeTrue)
+		So(newTemplate.Priority, ShouldEqual, 13)
+		So(newTemplate.Page, ShouldBeTrue)
+		So(newTemplate.Optional, ShouldBeTrue)
+		So(newTemplate.OptionalDefault, ShouldBeFalse)
 		So(string(newTemplate.Content("")), ShouldEqual,
 			`{% set _1 = _0 %}<div>
 		<h2>{{ Name }}</h2>
@@ -303,5 +312,28 @@ func TestViews(t *testing.T) {
 			{{ Email }}{{ Mobile|safe }}{{ Fax|safe }}{{ Phone }}
 		</div>
 	</div>`)
+	})
+	Convey("Testing gin loading", t, func() {
+		inst := Registry.Instance("my_id", pongo2.Context{
+			"lines": []map[string]string{
+				{"UserName": "jsmith"},
+				{"UserName": "wsmith"},
+			}})
+		w := httptest.NewRecorder()
+		inst.Render(w)
+		body, _ := ioutil.ReadAll(w.Result().Body)
+		So(string(body), ShouldEqual, `
+	<div>
+		<span>
+			<h1>jsmith</h1>
+			<label for="Age"/>
+			<p>Hello World</p>
+		</span><span>
+			<h1>wsmith</h1>
+			<label for="Age"/>
+			<p>Hello World</p>
+		</span>
+	</div>
+`)
 	})
 }
