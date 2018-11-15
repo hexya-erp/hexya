@@ -98,6 +98,10 @@ func updateFieldDefs() {
 				if fi.defaultFunc != nil && fi.isSettable() {
 					fi.required = true
 				}
+			case fieldtype.Selection:
+				if fi.selectionFunc != nil {
+					fi.selection = fi.selectionFunc()
+				}
 			}
 		}
 	}

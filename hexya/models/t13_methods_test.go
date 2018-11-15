@@ -353,4 +353,78 @@ func TestContextedFields(t *testing.T) {
 			})
 		}), ShouldBeNil)
 	})
+	Convey("Testing contexted group by queries", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			tags := env.Pool("Tag")
+			tags.SearchAll().Call("Unlink")
+			Convey("Simple group by query", func() {
+				tag1 := tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Translated description",
+				}).(RecordSet).Collection()
+				tag1.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
+				tag2 := tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Translated description",
+				}).(RecordSet).Collection()
+				tag2.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
+				tags.Call("Create", FieldMap{
+					"Name":        "Contexted tag",
+					"Description": "Other description",
+				}).(RecordSet).Collection()
+				gbq := tags.WithContext("lang", "fr_FR").SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
+				So(gbq, ShouldHaveLength, 2)
+				So(gbq[0].Values, ShouldContainKey, "Description")
+				So(gbq[0].Values["Description"], ShouldBeIn, []string{"Other description", "Description traduite"})
+				switch gbq[0].Values["Description"] {
+				case "Description traduite":
+					So(gbq[0].Count, ShouldEqual, 2)
+					So(gbq[1].Count, ShouldEqual, 1)
+					So(gbq[1].Values["Description"], ShouldEqual, "Other description")
+				case "Other description":
+					So(gbq[0].Count, ShouldEqual, 1)
+					So(gbq[1].Count, ShouldEqual, 2)
+					So(gbq[1].Values["Description"], ShouldEqual, "Description traduite")
+				default:
+					t.FailNow()
+				}
+				gbq = tags.SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
+				So(gbq[0].Values, ShouldContainKey, "Description")
+				So(gbq[0].Values["Description"], ShouldBeIn, []string{"Other description", "Translated description"})
+				switch gbq[0].Values["Description"] {
+				case "Translated description":
+					So(gbq[0].Count, ShouldEqual, 2)
+					So(gbq[1].Count, ShouldEqual, 1)
+					So(gbq[1].Values["Description"], ShouldEqual, "Other description")
+				case "Other description":
+					So(gbq[0].Count, ShouldEqual, 1)
+					So(gbq[1].Count, ShouldEqual, 2)
+					So(gbq[1].Values["Description"], ShouldEqual, "Translated description")
+				default:
+					t.FailNow()
+				}
+			})
+		}), ShouldBeNil)
+	})
+}
+
+func TestRecursionProtection(t *testing.T) {
+	Convey("Testing protection against recursion", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			Convey("Endless recursive method calls should panic", func() {
+				So(func() { env.Pool("User").Call("EndlessRecursion") }, ShouldPanic)
+			})
+			Convey("Loop calls should not trigger recursion protection", func() {
+				So(func() {
+					for i := 0; i < int(maxRecursionDepth)+10; i++ {
+						env.Pool("Profile").Call("SayHello")
+					}
+				}, ShouldNotPanic)
+			})
+			Convey("Recursion should be triggered exactly at the max recursion depth", func() {
+				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2-1, "Hi!") }, ShouldNotPanic)
+				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2, "Hi!") }, ShouldPanic)
+			})
+		}), ShouldBeNil)
+	})
 }

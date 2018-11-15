@@ -110,6 +110,11 @@ type Method struct {
 	groupsCallers map[callerGroup]bool
 }
 
+// MethodType returns the methodType of a Method
+func (m *Method) MethodType() reflect.Type {
+	return m.methodType
+}
+
 // addMethodLayer adds the given layer to this Method.
 func (m *Method) addMethodLayer(val reflect.Value, doc string) {
 	m.Lock()
@@ -456,4 +461,9 @@ func (m *Method) checkMethodAndFnctType(fnct interface{}) {
 		log.Panic("Function must have a `RecordSet` as first argument to be used as method.",
 			"model", m.model.name, "method", m.name, "type", funcType.In(0))
 	}
+}
+
+// Name returns the name of the method
+func (m *Method) Name() string {
+	return m.name
 }

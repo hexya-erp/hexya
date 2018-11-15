@@ -45,7 +45,6 @@ func (rc *RecordCollection) String() string {
 	idsStr := make([]string, len(rc.Ids()))
 	for i, id := range rc.Ids() {
 		idsStr[i] = strconv.Itoa(int(id))
-		i++
 	}
 	rsIds := strings.Join(idsStr, ",")
 	return fmt.Sprintf("%s(%s)", rc.model.name, rsIds)
@@ -874,7 +873,11 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 	if len(rc.query.groups) == 0 {
 		log.Panic("Trying to get aggregates of a non-grouped query", "model", rc.model)
 	}
+	groups := make([]string, len(rc.query.groups))
+	copy(groups, rc.query.groups)
+
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
+	rSet.applyContexts()
 	fields := convertToStringSlice(fieldNames)
 	subFields, substMap := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
@@ -900,7 +903,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 		line := GroupAggregateRow{
 			Values:    vals,
 			Count:     int(cnt),
-			Condition: getGroupCondition(rc.query.groups, vals, rc.query.cond),
+			Condition: getGroupCondition(groups, vals, rc.query.cond),
 		}
 		res = append(res, line)
 	}
@@ -911,9 +914,11 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 // It also adds a default order to the grouped fields if it does not exist.
 func (rc *RecordCollection) fixGroupByOrders(fieldNames ...string) *RecordCollection {
 	rSet := rc
-	orderExprs := rc.query.getOrderByExpressions()
+	orderExprs := rc.query.getOrderByExpressions(false)
+	ctxOrderExprs := rc.query.getCtxOrderByExpressions()
 	groupExprs := rc.query.getGroupByExpressions()
 	groupFields := make(map[string]bool)
+	ctxGroupFields := make(map[string]bool)
 	for _, g := range groupExprs {
 		groupFields[strings.Join(g, ExprSep)] = true
 	}
@@ -925,6 +930,13 @@ func (rc *RecordCollection) fixGroupByOrders(fieldNames ...string) *RecordCollec
 		oName := strings.Join(jsonizeExpr(rc.model, o), ExprSep)
 		if !groupFields[oName] && !fieldsMap[oName] {
 			rSet = rSet.GroupBy(FieldName(oName))
+		}
+	}
+	for _, o := range ctxOrderExprs {
+		oName := strings.Join(jsonizeExpr(rc.model, o), ExprSep)
+		if !ctxGroupFields[oName] && !fieldsMap[oName] {
+			rSet = rSet.clone()
+			rSet.query.ctxGroups = append(rSet.query.ctxGroups, oName)
 		}
 	}
 	if len(rc.query.orders) == 0 {

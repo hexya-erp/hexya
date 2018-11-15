@@ -437,23 +437,26 @@ func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
 		}
 		_, translate := fInfo.contexts["lang"]
 		res[fInfo.json] = &FieldInfo{
-			Name:       fInfo.name,
-			JSON:       fInfo.json,
-			Help:       fInfo.help,
-			Searchable: true,
-			Depends:    fInfo.depends,
-			Sortable:   true,
-			Type:       fInfo.fieldType,
-			Store:      fInfo.isSettable(),
-			String:     fInfo.description,
-			Relation:   relation,
-			Required:   fInfo.required,
-			Selection:  fInfo.selection,
-			Domain:     filter,
-			ReadOnly:   fInfo.isReadOnly(),
-			ReverseFK:  fInfo.jsonReverseFK,
-			OnChange:   fInfo.onChange != "",
-			Translate:  translate,
+			Name:          fInfo.name,
+			JSON:          fInfo.json,
+			Help:          fInfo.help,
+			Searchable:    true,
+			Depends:       fInfo.depends,
+			Sortable:      true,
+			Type:          fInfo.fieldType,
+			Store:         fInfo.isSettable(),
+			String:        fInfo.description,
+			Relation:      relation,
+			Selection:     fInfo.selection,
+			Domain:        filter,
+			ReverseFK:     fInfo.jsonReverseFK,
+			OnChange:      fInfo.onChange != "",
+			Translate:     translate,
+			InvisibleFunc: fInfo.invisibleFunc,
+			ReadOnly:      fInfo.isReadOnly(),
+			ReadOnlyFunc:  fInfo.readOnlyFunc,
+			Required:      fInfo.required,
+			RequiredFunc:  fInfo.requiredFunc,
 		}
 	}
 	return res
@@ -626,7 +629,7 @@ func CreateSequence(name string, increment, start int64) *Sequence {
 	return seq
 }
 
-// DropSequence drops this sequence and removes it from the database
+// Drop this sequence and removes it from the database
 func (s *Sequence) Drop() {
 	Registry.Lock()
 	defer Registry.Unlock()

@@ -13,6 +13,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	// Load JPEG driver
 	_ "image/jpeg"
 	"image/png"
 	"math/rand"

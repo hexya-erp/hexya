@@ -4,9 +4,11 @@
 package i18n
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -20,10 +22,12 @@ func checkTranslation() {
 	So(Registry.fieldDescription[fieldRef{lang: "fr", model: "User", field: "Active"}], ShouldEqual, "Actif")
 	So(Registry.fieldHelp, ShouldContainKey, fieldRef{lang: "fr", model: "User", field: "Active"})
 	So(Registry.fieldHelp[fieldRef{lang: "fr", model: "User", field: "Active"}], ShouldEqual, "Lorsqu'il est inactif,\nun utilisateur ne sera pas autorisé à se connecter")
-	So(Registry.resource, ShouldContainKey, resourceRef{lang: "fr", viewID: "user_view_id", source: "Profile Data"})
-	So(Registry.resource[resourceRef{lang: "fr", viewID: "user_view_id", source: "Profile Data"}], ShouldEqual, "Données du profil")
+	So(Registry.resource, ShouldContainKey, resourceRef{lang: "fr", id: "user_view_id", source: "Profile Data"})
+	So(Registry.resource[resourceRef{lang: "fr", id: "user_view_id", source: "Profile Data"}], ShouldEqual, "Données du profil")
 	So(Registry.code, ShouldContainKey, codeRef{lang: "fr", context: "base", source: "You are not allowed to perform this operation"})
 	So(Registry.code[codeRef{lang: "fr", context: "base", source: "You are not allowed to perform this operation"}], ShouldEqual, "Vous n'êtes pas autorisé à faire cette opération")
+	So(Registry.custom[customRef{lang: "fr", id: "Create", module: "testModule"}], ShouldEqual, "Créer")
+	So(Registry.custom[customRef{lang: "fr", id: "Warning", module: "testModule"}], ShouldEqual, "Attention")
 }
 
 func TestI18N(t *testing.T) {
@@ -82,6 +86,14 @@ func TestI18N(t *testing.T) {
 			trans = TranslateCode("fr", "stock", "You are not allowed to perform this operation")
 			So(trans, ShouldEqual, "You are not allowed to perform this operation")
 		})
+		Convey("Translating custom should work", func() {
+			trans := TranslateCustom("fr", "Create", "testModule")
+			So(trans, ShouldEqual, "Créer")
+			trans = TranslateCustom("de", "Create", "testModule")
+			So(trans, ShouldEqual, "Create")
+			trans = TranslateCustom("fr", "Stock", "testModule")
+			So(trans, ShouldEqual, "Stock")
+		})
 		Convey("Testing translation overrides", func() {
 			LoadPOFile("testdata/fr-override.po")
 			trans := TranslateFieldSelection("fr", "Profile", "State", types.Selection{"active": "Active", "inactive": "Inactive"})
@@ -99,6 +111,44 @@ func TestI18N(t *testing.T) {
 			So(func() { LoadPOFile("testdata/invalid-field.po") }, ShouldPanic)
 			So(func() { LoadPOFile("testdata/invalid-help.po") }, ShouldPanic)
 			So(func() { LoadPOFile("testdata/invalid-selection.po") }, ShouldPanic)
+			So(func() { LoadPOFile("testdata/invalid-comment.po") }, ShouldNotPanic)
+		})
+	})
+}
+
+func TestLanguagesData(t *testing.T) {
+	Convey("Testing languages data", t, func() {
+		generate.HexyaDir = generate.GetHexyaDir()
+		Convey("Getting all languages", func() {
+			os.Symlink("testdata/i18n", "testdata/server/i18n/testModule")
+			generate.HexyaDir = "testdata"
+			all := GetAllLanguageList()
+			So(all, ShouldHaveLength, 74)
+			So(all, ShouldContain, "wz")
+			os.Remove("testdata/server/i18n/testModule")
+		})
+		Convey("Checking existing language data", func() {
+			frParams := GetLangParameters("fr")
+			So(frParams, ShouldNotBeNil)
+			So(frParams.Name, ShouldEqual, "French / Français")
+		})
+		Convey("Checking non-existing language data", func() {
+			frParams := GetLangParameters("noexists")
+			So(frParams, ShouldNotBeNil)
+			So(frParams.Name, ShouldEqual, "UNKNOWN_LOCALE (noexists)")
+		})
+	})
+}
+
+func TestCustomTranslations(t *testing.T) {
+	Convey("Testing retrieving custom translations", t, func() {
+		Convey("Listing all custom translations", func() {
+			tr := GetAllCustomTranslations()
+			So(tr, ShouldHaveLength, 1)
+			So(tr, ShouldContainKey, "fr")
+			So(tr["fr"], ShouldHaveLength, 1)
+			So(tr["fr"], ShouldContainKey, "testModule")
+			So(tr["fr"]["testModule"], ShouldHaveLength, 2)
 		})
 	})
 }

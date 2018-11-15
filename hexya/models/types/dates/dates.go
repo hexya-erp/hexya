@@ -79,22 +79,22 @@ func (d Date) Equal(other Date) bool {
 
 // Greater returns true if d is strictly greater than other
 func (d Date) Greater(other Date) bool {
-	return d.Sub(other.Time) > 0
+	return d.Sub(other) > 0
 }
 
 // GreaterEqual returns true if d is greater than or equal to other
 func (d Date) GreaterEqual(other Date) bool {
-	return d.Sub(other.Time) >= 0
+	return d.Sub(other) >= 0
 }
 
 // Lower returns true if d is strictly lower than other
 func (d Date) Lower(other Date) bool {
-	return d.Sub(other.Time) < 0
+	return d.Sub(other) < 0
 }
 
 // LowerEqual returns true if d is lower than or equal to other
 func (d Date) LowerEqual(other Date) bool {
-	return d.Sub(other.Time) <= 0
+	return d.Sub(other) <= 0
 }
 
 // AddDate adds the given years, months or days to the current date
@@ -102,6 +102,14 @@ func (d Date) AddDate(years, months, days int) Date {
 	return Date{
 		Time: d.Time.AddDate(years, months, days),
 	}
+}
+
+// Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
+// value that can be stored in a Duration, the maximum (or minimum) duration
+// will be returned.
+// To compute t-d for a duration d, use t.Add(-d).
+func (d Date) Sub(t Date) time.Duration {
+	return  d.Time.Sub(t.Time)
 }
 
 // Today returns the current date
@@ -215,22 +223,22 @@ func (d DateTime) Equal(other DateTime) bool {
 
 // Greater returns true if d is strictly greater than other
 func (d DateTime) Greater(other DateTime) bool {
-	return d.Sub(other.Time) > 0
+	return d.Sub(other) > 0
 }
 
 // GreaterEqual returns true if d is greater than or equal to other
 func (d DateTime) GreaterEqual(other DateTime) bool {
-	return d.Sub(other.Time) >= 0
+	return d.Sub(other) >= 0
 }
 
 // Lower returns true if d is strictly lower than other
 func (d DateTime) Lower(other DateTime) bool {
-	return d.Sub(other.Time) < 0
+	return d.Sub(other) < 0
 }
 
 // LowerEqual returns true if d is lower than or equal to other
 func (d DateTime) LowerEqual(other DateTime) bool {
-	return d.Sub(other.Time) <= 0
+	return d.Sub(other) <= 0
 }
 
 // Add adds the given duration to this DateTime
@@ -238,6 +246,14 @@ func (d DateTime) Add(duration time.Duration) DateTime {
 	return DateTime{
 		Time: d.Time.Add(duration),
 	}
+}
+
+// Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
+// value that can be stored in a Duration, the maximum (or minimum) duration
+// will be returned.
+// To compute t-d for a duration d, use t.Add(-d).
+func (d DateTime) Sub(t DateTime) time.Duration {
+	return  d.Time.Sub(t.Time)
 }
 
 // AddDate adds the given years, months or days to the current DateTime

@@ -66,9 +66,11 @@ func TestActions(t *testing.T) {
 		models.BootStrap()
 	})
 	Convey("Creating Action 1", t, func() {
-		views.LoadFromEtree(xmlutils.XMLToElement(viewDef1))
+		view1, _ := xmlutils.XMLToElement(viewDef1)
+		views.LoadFromEtree(view1)
 		views.BootStrap()
-		LoadFromEtree(xmlutils.XMLToElement(actionDef1))
+		action1, _ := xmlutils.XMLToElement(actionDef1)
+		LoadFromEtree(action1)
 		So(len(Registry.actions), ShouldEqual, 1)
 		So(Registry.GetById("my_action"), ShouldNotBeNil)
 		action := Registry.GetById("my_action")
@@ -78,7 +80,8 @@ func TestActions(t *testing.T) {
 		So(action.ViewMode, ShouldEqual, "tree,form")
 	})
 	Convey("Creating Action 2", t, func() {
-		LoadFromEtree(xmlutils.XMLToElement(actionDef2))
+		action2, _ := xmlutils.XMLToElement(actionDef2)
+		LoadFromEtree(action2)
 		So(len(Registry.actions), ShouldEqual, 2)
 		So(Registry.GetById("my_action_2"), ShouldNotBeNil)
 		action := Registry.GetById("my_action_2")

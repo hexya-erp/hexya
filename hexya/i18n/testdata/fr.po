@@ -42,3 +42,13 @@ msgstr "Données du profil"
 msgctxt "base"
 msgid "You are not allowed to perform this operation"
 msgstr "Vous n'êtes pas autorisé à faire cette opération"
+
+#. custom: testModule
+#: mod.js:543
+msgid "Create"
+msgstr "Créer"
+
+#. custom: testModule
+#: data.xml:0
+msgid "Warning"
+msgstr "Attention"

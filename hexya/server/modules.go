@@ -25,6 +25,7 @@ import (
 	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/menus"
 	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/hexya/templates"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
 	"github.com/hexya-erp/hexya/hexya/views"
 )
@@ -83,11 +84,16 @@ func LoadDemoRecords() {
 // LoadTranslations loads all translation data from the PO files in the 'i18n' directory
 // into the translations registry.
 func LoadTranslations(langs []string) {
+	for i, lang := range langs {
+		if lang == "ALL" {
+			langs = append(langs[:i], append(i18n.GetAllLanguageList(), langs[i+1:]...)...)
+		}
+	}
 	for _, mod := range Modules {
 		dataDir := filepath.Join(generate.HexyaDir, "hexya", "server", "i18n", mod.Name)
 		if _, err := os.Stat(dataDir); err != nil {
 			// No resources dir in this module
-			return
+			continue
 		}
 		LoadModuleTranslations(dataDir, langs)
 	}
@@ -97,7 +103,8 @@ func LoadTranslations(langs []string) {
 func LoadModuleTranslations(i18nDir string, langs []string) {
 	var poFiles []string
 	for _, lang := range langs {
-		dataFiles, err := filepath.Glob(fmt.Sprintf("%s/%s.po", i18nDir, lang))
+		abs, _ := filepath.Abs(i18nDir)
+		dataFiles, err := filepath.Glob(fmt.Sprintf("%s/%s.po", abs, lang))
 		if err != nil {
 			log.Panic("Unable to scan directory for data files", "dir", i18nDir, "type", "po", "error", err)
 		}
@@ -146,6 +153,8 @@ func loadXMLResourceFile(fileName string) {
 				actions.LoadFromEtree(object)
 			case "menuitem":
 				menus.LoadFromEtree(object)
+			case "template":
+				templates.LoadFromEtree(object)
 			default:
 				log.Panic("Unknown XML tag", "filename", fileName, "tag", object.Tag)
 			}
