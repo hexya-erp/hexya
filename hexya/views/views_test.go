@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/beevik/etree"
+	"github.com/hexya-erp/hexya/hexya/i18n"
 	"github.com/hexya-erp/hexya/hexya/models"
 	"github.com/hexya-erp/hexya/hexya/tools/xmlutils"
 	. "github.com/smartystreets/goconvey/convey"
@@ -255,6 +256,10 @@ func TestViews(t *testing.T) {
 			"Address":     models.CharField{},
 		})
 		models.BootStrap()
+		models.Views[partner] = []string{`<view id="test_view" model="Partner"><tree><field name="Name"></tree></view>`}
+	})
+	Convey("Setting two languages", t, func() {
+		i18n.Langs = []string{"fr", "de"}
 	})
 	Convey("Inheriting View 2", t, func() {
 		Registry = NewCollection()
@@ -262,7 +267,7 @@ func TestViews(t *testing.T) {
 		loadView(viewDef2)
 		loadView(viewDef3)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 2)
+		So(len(Registry.views), ShouldEqual, 3)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view1 := Registry.GetByID("my_id")
@@ -299,7 +304,7 @@ func TestViews(t *testing.T) {
 		loadView(viewDef3)
 		loadView(viewDef4)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 2)
+		So(len(Registry.views), ShouldEqual, 3)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
@@ -331,7 +336,7 @@ func TestViews(t *testing.T) {
 		loadView(viewDef4)
 		loadView(viewDef5)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 2)
+		So(len(Registry.views), ShouldEqual, 3)
 		So(Registry.GetByID("my_id"), ShouldNotBeNil)
 		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
 		view2 := Registry.GetByID("my_other_id")
@@ -384,7 +389,7 @@ func TestViews(t *testing.T) {
 		loadView(viewDef6)
 		loadView(viewDef7)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 4)
+		So(len(Registry.views), ShouldEqual, 5)
 		So(Registry.GetByID("embedded_form"), ShouldNotBeNil)
 		So(Registry.GetByID("embedded_form_childview_1"), ShouldBeNil)
 		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
@@ -441,7 +446,7 @@ func TestViews(t *testing.T) {
 		loadView(viewDef7)
 		loadView(viewDef71)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 4)
+		So(len(Registry.views), ShouldEqual, 5)
 		So(Registry.GetByID("embedded_form"), ShouldNotBeNil)
 		So(Registry.GetByID("embedded_form_childview_1"), ShouldBeNil)
 		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
@@ -489,7 +494,7 @@ func TestViews(t *testing.T) {
 	})
 	Convey("Testing GetViews functions", t, func() {
 		allViews := Registry.GetAll()
-		So(allViews, ShouldHaveLength, 4)
+		So(allViews, ShouldHaveLength, 5)
 		userViews := Registry.GetAllViewsForModel("User")
 		So(userViews, ShouldHaveLength, 3)
 		userFirstView := Registry.GetFirstViewForModel("User", ViewTypeForm)
