@@ -76,7 +76,7 @@ func (tc *TranslationsCollection) TranslateFieldSelection(lang, model, field str
 // in the given lang. If no translation is found or if the translation is the
 // empty string src is returned.
 func (tc *TranslationsCollection) TranslateResourceItem(lang, resourceID, src string) string {
-	key := resourceRef{lang: lang, viewID: resourceID, source: src}
+	key := resourceRef{lang: lang, id: resourceID, source: src}
 	val, ok := tc.resource[key]
 	if !ok || val == "" {
 		return src
@@ -155,16 +155,14 @@ func (tc *TranslationsCollection) LoadPOFile(fileName string) {
 			case "resource":
 				// #. resource:my_view_id
 				viewID := strings.Replace(tokens[1], " ", "", -1)
-				tc.resource[resourceRef{lang: lang, viewID: viewID, source: msg.MsgId}] = msg.MsgStr
+				tc.resource[resourceRef{lang: lang, id: viewID, source: msg.MsgId}] = msg.MsgStr
 			case "code":
 				// #. code:
 				// Translating code. Context may be given as msgctxt
 				tc.code[codeRef{lang: lang, context: msg.MsgContext, source: msg.MsgId}] = msg.MsgStr
-			default:
-				//unknown tag, may be a custom one
-				moduleNameSpl := strings.Split(fileName, "/i18n")
-				moduleNameSpl = strings.Split(moduleNameSpl[len(moduleNameSpl)-1], "/")
-				moduleName := moduleNameSpl[len(moduleNameSpl)-2]
+			case "custom":
+				// #. custom: moduleName
+				moduleName := strings.Replace(tokens[1], " ", "", -1)
 				tc.custom[customRef{lang: lang, id: msg.MsgId, module: moduleName}] = msg.MsgStr
 			}
 		}
@@ -231,7 +229,7 @@ type selectionRef struct {
 // A resourceRef references a text translation in a resource
 type resourceRef struct {
 	lang   string
-	viewID string
+	id     string
 	source string
 }
 
@@ -278,7 +276,7 @@ func LoadPOFile(fileName string) {
 // Those informations are read from data file in <HexPath>/hexya/i18n/data/langParameters.csv
 func loadLangParametersMap() map[string]LangParameters {
 	out := make(map[string]LangParameters)
-	path := generate.HexyaPath + "/hexya/i18n/data/langParameters.csv"
+	path := filepath.Join(generate.HexyaDir, "hexya", "i18n", "data", "langParameters.csv")
 	r, err := os.Open(path)
 	if err != nil {
 		log.Panic("langParameters.csv Not found", "path", path)
@@ -331,50 +329,19 @@ func GetLangParameters(lang string) LangParameters {
 	return out
 }
 
-// A CustomMessage holds the custom translation string for the given ID
-type CustomMessage struct {
-	ID     string `json:"id"`
-	String string `json:"string"`
-}
-
-// A ModuleCustomMessageList is the list of all custom translations of a module
-type ModuleCustomMessageList struct {
-	Messages []CustomMessage `json:"messages"`
-}
-
-// A LangCustomMap holds custom translations for all modules for a given language
-type LangCustomMap map[string]ModuleCustomMessageList
-
-// A CustomTranslationsMap holds all custom translations for all modules and all languages
-type CustomTranslationsMap map[string]LangCustomMap
-
-// langModuleTranslationsMap is the memory cache for custom translations
-var langModuleTranslationsMap CustomTranslationsMap
-
-// loadCustomTranslationsMap populates a CustomTranslationsMap for this application.
-func loadCustomTranslationsMap() CustomTranslationsMap {
-	out := make(CustomTranslationsMap)
-	for key, entry := range Registry.custom {
-		if out[key.lang] == nil {
-			out[key.lang] = make(LangCustomMap)
+// GetAllCustomTranslations returns all custom translations by lang and by modules
+func GetAllCustomTranslations() map[string]map[string]map[string]string {
+	res := make(map[string]map[string]map[string]string)
+	for key, val := range Registry.custom {
+		if res[key.lang] == nil {
+			res[key.lang] = make(map[string]map[string]string)
 		}
-		msg := CustomMessage{
-			ID:     key.id,
-			String: entry,
+		if res[key.lang][key.module] == nil {
+			res[key.lang][key.module] = make(map[string]string)
 		}
-		list := out[key.lang][key.module]
-		list.Messages = append(list.Messages, msg)
-		out[key.lang][key.module] = list
+		res[key.lang][key.module][key.id] = val
 	}
-	return out
-}
-
-// ListModuleTranslations returns a map containing all custom translations of a module for the given language
-func ListModuleTranslations(lang string) LangCustomMap {
-	if langModuleTranslationsMap == nil {
-		langModuleTranslationsMap = loadCustomTranslationsMap()
-	}
-	return langModuleTranslationsMap[lang]
+	return res
 }
 
 var allLanguageList []string
@@ -404,22 +371,23 @@ func GetAllLanguageList() []string {
 			`fa`, `fi`, `fo`, `fr`, `fr_BE`, `fr_CA`, `gl`, `gu`, `he`, `hr`, `hu`, `hy`, `id`, `is`, `it`, `ja`, `ka`,
 			`kab`, `km`, `ko`, `lo`, `lt`, `lv`, `mk`, `mn`, `nb`, `ne`, `nl`, `nl_BE`, `pl`, `pt`, `pt_BR`, `ro`, `ru`,
 			`sk`, `sl`, `sq`, `sr`, `sr@latin`, `sv`, `ta`, `th`, `tr`, `uk`, `vi`, `zh_CN`, `zh_TW`}
-		path := filepath.Join(generate.HexyaDir, "server/i18n/")
-		symlinks, err := filepath.Glob(path + "*")
+		path := filepath.Join(generate.HexyaDir, "server", "i18n", "*")
+		symlinks, err := filepath.Glob(path)
 		if err != nil {
 			log.Error("Could not find any glob match", "path", path+"*", "error", err)
 			symlinks = nil
 		}
 		for _, link := range symlinks {
 			fi, _ := os.Lstat(link)
-			if fi.Mode()&os.ModeSymlink != 0 {
-				path, err = os.Readlink(link)
-				if err != nil {
-					log.Warn("Could not read symlink", `link`, link, `err`, err)
-					continue
-				}
-				out = getLanguageListInFolder(out, path)
+			if fi.Mode()&os.ModeSymlink == 0 {
+				continue
 			}
+			path, err = os.Readlink(link)
+			if err != nil {
+				log.Warn("Could not read symlink", `link`, link, `error`, err)
+				continue
+			}
+			out = getLanguageListInFolder(out, path)
 		}
 		sort.Slice(out, func(i, j int) bool {
 			cmp := strings.Compare(out[i], out[j])

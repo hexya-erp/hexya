@@ -38,11 +38,18 @@ var (
 	}
 )
 
-func init() {
-	log = logging.GetLogger("tools/generate")
+// GetHexyaDir computes and return the Hexya Directory.
+//
+// You should not use this function, but use the HexyaDir variable instead.
+func GetHexyaDir() string {
 	hexyaPack, err := build.Import(HexyaPath, ".", build.FindOnly)
 	if err != nil {
 		panic(fmt.Errorf("Error while getting Hexya root path: %s", err))
 	}
-	HexyaDir = hexyaPack.Dir
+	return hexyaPack.Dir
+}
+
+func init() {
+	log = logging.GetLogger("tools/generate")
+	HexyaDir = GetHexyaDir()
 }
