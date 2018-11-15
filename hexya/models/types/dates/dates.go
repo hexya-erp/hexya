@@ -109,7 +109,7 @@ func (d Date) AddDate(years, months, days int) Date {
 // will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
 func (d Date) Sub(t Date) time.Duration {
-	return  d.Time.Sub(t.Time)
+	return d.Time.Sub(t.Time)
 }
 
 // Today returns the current date
@@ -253,7 +253,7 @@ func (d DateTime) Add(duration time.Duration) DateTime {
 // will be returned.
 // To compute t-d for a duration d, use t.Add(-d).
 func (d DateTime) Sub(t DateTime) time.Duration {
-	return  d.Time.Sub(t.Time)
+	return d.Time.Sub(t.Time)
 }
 
 // AddDate adds the given years, months or days to the current DateTime
