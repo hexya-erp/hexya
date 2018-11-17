@@ -21,6 +21,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
@@ -326,9 +327,16 @@ type Selection map[string]string
 
 // MarshalJSON function for the Selection type
 func (s Selection) MarshalJSON() ([]byte, error) {
+	keys := make([]string, len(s))
+	var i int
+	for k := range s {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
 	var selSlice [][2]string
-	for key, value := range s {
-		selSlice = append(selSlice, [2]string{0: key, 1: value})
+	for _, key := range keys {
+		selSlice = append(selSlice, [2]string{0: key, 1: s[key]})
 	}
 	return json.Marshal(selSlice)
 }
