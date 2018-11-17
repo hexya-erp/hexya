@@ -4,6 +4,8 @@
 package i18n
 
 import (
+	"strings"
+
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/spf13/viper"
 )
@@ -18,7 +20,7 @@ var (
 func BootStrap() {
 	Langs = viper.GetStringSlice("Server.Languages")
 	for i, lang := range Langs {
-		if lang == "ALL" {
+		if strings.ToUpper(lang) == "ALL" {
 			Langs = append(Langs[:i], append(GetAllLanguageList(), Langs[i+1:]...)...)
 		}
 	}

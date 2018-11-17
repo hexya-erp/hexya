@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/hexya/actions"
@@ -85,7 +86,7 @@ func LoadDemoRecords() {
 // into the translations registry.
 func LoadTranslations(langs []string) {
 	for i, lang := range langs {
-		if lang == "ALL" {
+		if strings.ToUpper(lang) == "ALL" {
 			langs = append(langs[:i], append(i18n.GetAllLanguageList(), langs[i+1:]...)...)
 		}
 	}
