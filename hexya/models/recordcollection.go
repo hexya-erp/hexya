@@ -130,9 +130,9 @@ func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 }
 
 // applyDefaults adds the default value to the given fMap values which
-// are not in fMap. If requiredOnly is true, default
-// value is set only if the field is required (and not in fMap).
-func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
+// are not in fMap. If create is true, default
+// value is set only if the field is required or readonly (and not in fMap).
+func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 	// 1. Create a map with default values from context
 	ctxDefaults := make(FieldMap)
 	for ctxKey, ctxVal := range rc.env.context.ToMap() {
@@ -153,7 +153,7 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, requiredOnly bool) {
 		}
 
 		if _, ok := fMap.Get(fName, rc.model); !ok {
-			if !fi.required && requiredOnly {
+			if !fi.required && !fi.isReadOnly() && create {
 				continue
 			}
 			val, exists := ctxDefaults[fi.json]
