@@ -120,10 +120,11 @@ func TestLanguagesData(t *testing.T) {
 	Convey("Testing languages data", t, func() {
 		generate.HexyaDir = generate.GetHexyaDir()
 		Convey("Getting all languages", func() {
+			langParametersMap = loadLangParametersMap()
 			os.Symlink("testdata/i18n", "testdata/server/i18n/testModule")
 			generate.HexyaDir = "testdata"
 			all := GetAllLanguageList()
-			So(all, ShouldHaveLength, 74)
+			So(all, ShouldHaveLength, 80)
 			So(all, ShouldContain, "wz")
 			os.Remove("testdata/server/i18n/testModule")
 		})
