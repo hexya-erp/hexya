@@ -366,11 +366,15 @@ func getLanguageListInFolder(out []string, path string) []string {
 // GetAllLanguageList returns a slice containing all known language codes
 func GetAllLanguageList() []string {
 	if allLanguageList == nil {
-		out := []string{`af`, `am`, `ar`, `bg`, `bs`, `ca`, `cs`, `da`, `de`, `el`, `en_AU`, `en_GB`, `es`, `es_AR`,
-			`es_BO`, `es_CL`, `es_CO`, `es_CR`, `es_DO`, `es_EC`, `es_PA`, `es_PE`, `es_PY`, `es_VE`, `et`, `eu`,
-			`fa`, `fi`, `fo`, `fr`, `fr_BE`, `fr_CA`, `gl`, `gu`, `he`, `hr`, `hu`, `hy`, `id`, `is`, `it`, `ja`, `ka`,
-			`kab`, `km`, `ko`, `lo`, `lt`, `lv`, `mk`, `mn`, `nb`, `ne`, `nl`, `nl_BE`, `pl`, `pt`, `pt_BR`, `ro`, `ru`,
-			`sk`, `sl`, `sq`, `sr`, `sr@latin`, `sv`, `ta`, `th`, `tr`, `uk`, `vi`, `zh_CN`, `zh_TW`}
+		if langParametersMap == nil {
+			langParametersMap = loadLangParametersMap()
+		}
+		out := make([]string, len(langParametersMap))
+		var i int
+		for code := range langParametersMap {
+			out[i] = code
+			i++
+		}
 		path := filepath.Join(generate.HexyaDir, "server", "i18n", "*")
 		symlinks, err := filepath.Glob(path)
 		if err != nil {
