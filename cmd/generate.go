@@ -16,19 +16,16 @@ package cmd
 
 import (
 	"fmt"
-	"go/build"
-	"go/types"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
 
-	// We need to import models because of generated code
-	_ "github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/tools/generate"
+	_ "github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/tools/generate"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/tools/go/loader"
+	"golang.org/x/tools/go/packages"
 )
 
 const (
@@ -39,13 +36,21 @@ const (
 )
 
 var generateCmd = &cobra.Command{
-	Use:   "generate",
+	Use:   "generate [projectDir]",
 	Short: "Generate the source code of the model pool",
 	Long: `Generate the source code of the pool package which includes the definition of all the models.
-Additionally, this command creates the startup file of the project.
+This command also creates the resource directory by symlinking all modules resources into the project directory.
 This command must be rerun after each source code modification, including module import.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runGenerate()
+		if testedModule != "" {
+			runGenerate("")
+			return
+		}
+		if len(args) == 0 {
+			fmt.Println("You must specify the project directory or a module to test")
+			os.Exit(1)
+		}
+		runGenerate(args[0])
 	},
 }
 
@@ -62,18 +67,11 @@ func init() {
 	generateCmd.Flags().BoolVar(&generateEmptyPool, "empty", false, "Generate an empty pool package. When set projectDir is ignored.")
 }
 
-func runGenerate() {
+func runGenerate(projectDir string) {
 	poolDir := filepath.Join(generate.HexyaDir, PoolDirRel)
 	cleanPoolDir(poolDir)
 	if generateEmptyPool {
 		return
-	}
-
-	conf := loader.Config{
-		AllowErrors: true,
-		TypeChecker: types.Config{
-			Error: func(err error) {},
-		},
 	}
 
 	fmt.Println(`Hexya Generate
@@ -83,46 +81,45 @@ func runGenerate() {
 	targetPaths := viper.GetStringSlice("Modules")
 	if testedModule != "" {
 		testDir, _ := filepath.Abs(testedModule)
-		importPack, err := build.ImportDir(testDir, 0)
+		importPack, err := packages.Load(&packages.Config{Mode: packages.LoadFiles}, testDir)
 		if err != nil {
 			panic(err)
 		}
-		targetPaths = []string{importPack.ImportPath}
+		if len(importPack) == 0 {
+			panic(fmt.Errorf("no package found at %s", testDir))
+		}
+		targetPaths = []string{importPack[0].PkgPath}
 	}
 	fmt.Println("Modules paths:")
 	fmt.Println(" -", strings.Join(targetPaths, "\n - "))
-	for _, ip := range targetPaths {
-		conf.Import(ip)
-	}
 
 	fmt.Print(`Loading program...`)
 
-	program, _ := conf.Load()
+	conf := packages.Config{
+		Mode: packages.LoadAllSyntax,
+	}
+	packs, _ := packages.Load(&conf, targetPaths...)
 	fmt.Println("Ok")
 
-	fmt.Print("Generating symlinks...")
-	modules := generate.GetModulePackages(program)
-	cleanModuleSymlinks()
-	for _, m := range modules {
-		if m.ModType != generate.Base {
-			continue
+	if projectDir != "" {
+		fmt.Print("Generating symlinks...")
+		modules := generate.GetModulePackages(packs)
+		cleanModuleSymlinks(projectDir)
+		for _, m := range modules {
+			if m.ModType != generate.Base {
+				continue
+			}
+			createModuleSymlinks(m, projectDir)
 		}
-		pkg, err := build.Import(m.Pkg.Path(), "", 0)
-		if err != nil {
-			panic(err)
-		}
-		createModuleSymlinks(pkg)
+		fmt.Println("Ok")
 	}
-	fmt.Println("Ok")
 
 	fmt.Print("Generating pool...")
-	generate.CreatePool(program, poolDir)
+	generate.CreatePool(packs, poolDir)
 	fmt.Println("Ok")
 
 	fmt.Print("Checking the generated code...")
-	conf.AllowErrors = false
-	conf.TypeChecker = types.Config{}
-	_, err := conf.Load()
+	_, err := packages.Load(&conf, targetPaths...)
 	if err != nil {
 		fmt.Println("FAIL")
 		fmt.Println(err)
@@ -146,16 +143,20 @@ func cleanPoolDir(dirName string) {
 }
 
 // createModuleSymlinks create the symlinks of the given module in the
-// server directory.
-func createModuleSymlinks(mod *build.Package) {
+// project directory.
+func createModuleSymlinks(mod *generate.ModuleInfo, projectDir string) {
 	for _, dir := range symlinkDirs {
-		srcPath := filepath.Join(mod.Dir, dir)
-		dstPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir, mod.Name)
+		mDir := filepath.Dir(mod.GoFiles[0])
+		srcPath := filepath.Join(mDir, dir)
+		dstPath := filepath.Join(projectDir, "res", dir)
 		if _, err := os.Stat(srcPath); err != nil {
 			// Subdir doesn't exist, so we don't symlink
 			continue
 		}
-		if err := os.Symlink(srcPath, dstPath); err != nil {
+		if err := os.MkdirAll(dstPath, 0755); err != nil {
+			panic(err)
+		}
+		if err := os.Symlink(srcPath, filepath.Join(dstPath, mod.Name)); err != nil {
 			panic(err)
 		}
 	}
@@ -163,9 +164,9 @@ func createModuleSymlinks(mod *build.Package) {
 
 // cleanModuleSymlinks removes all symlinks in the server symlink directories.
 // Note that this function actually removes and recreates the symlink directories.
-func cleanModuleSymlinks() {
+func cleanModuleSymlinks(projectDir string) {
 	for _, dir := range symlinkDirs {
-		dirPath := filepath.Join(generate.HexyaDir, "hexya", "server", dir)
+		dirPath := filepath.Join(projectDir, "res", dir)
 		os.RemoveAll(dirPath)
 		os.Mkdir(dirPath, 0775)
 	}

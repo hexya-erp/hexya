@@ -103,7 +103,7 @@ created above:
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/server"
+	"github.com/hexya-erp/hexya/src/server"
 )
 
 const MODULE_NAME string = "openacademy"
@@ -156,7 +156,7 @@ the module.
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/src/models"
 )
 
 func init() {
@@ -221,7 +221,7 @@ Update the `OpenAcademyCourse` model to include a name and a description to our 
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/pool/h" // <1>
 )
 
@@ -595,8 +595,8 @@ the new model
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/pool/h"
 )
 
@@ -726,7 +726,7 @@ Let's add relations to our Course and Session models.
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/pool/h"
 )
 
@@ -749,8 +749,8 @@ func init() {
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/models/types"
+	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/pool/h"
 )
 
@@ -983,7 +983,7 @@ the session-partner relation.
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/pool/h"
 )
 
@@ -1564,8 +1564,8 @@ model.
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models/security"
-	"github.com/hexya-erp/hexya/hexya/server"
+	"github.com/hexya-erp/hexya/src/models/security"
+	"github.com/hexya-erp/hexya/src/server"
 )
 
 const MODULE_NAME string = "openacademy"
@@ -1753,7 +1753,7 @@ session, or for a list of sessions at once.
 package openacademy
 
 import (
-	"github.com/hexya-erp/hexya/hexya/models"
+	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/pool/h"
 	"github.com/hexya-erp/hexya/pool/q"
 )

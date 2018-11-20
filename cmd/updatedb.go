@@ -4,10 +4,11 @@
 package cmd
 
 import (
+	"path/filepath"
 	"text/template"
 
-	"github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/server"
+	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/server"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -37,10 +38,11 @@ func UpdateDB(config map[string]interface{}) {
 	connectToDB()
 	models.BootStrap()
 	models.SyncDatabase()
-	server.LoadDataRecords()
+	resourceDir := filepath.Join(viper.GetString("ProjectDir"), "res")
+	server.LoadDataRecords(resourceDir)
 	if viper.GetBool("Demo") {
 		log.Info("Demo mode detected: loading demo data")
-		server.LoadDemoRecords()
+		server.LoadDemoRecords(resourceDir)
 	}
 	log.Info("Database updated successfully")
 }

@@ -23,16 +23,16 @@ import (
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
-	"github.com/hexya-erp/hexya/hexya/actions"
-	"github.com/hexya-erp/hexya/hexya/controllers"
-	"github.com/hexya-erp/hexya/hexya/i18n"
-	"github.com/hexya-erp/hexya/hexya/menus"
-	"github.com/hexya-erp/hexya/hexya/models"
-	"github.com/hexya-erp/hexya/hexya/server"
-	"github.com/hexya-erp/hexya/hexya/templates"
-	"github.com/hexya-erp/hexya/hexya/tools/generate"
-	"github.com/hexya-erp/hexya/hexya/tools/logging"
-	"github.com/hexya-erp/hexya/hexya/views"
+	"github.com/hexya-erp/hexya/src/actions"
+	"github.com/hexya-erp/hexya/src/controllers"
+	"github.com/hexya-erp/hexya/src/i18n"
+	"github.com/hexya-erp/hexya/src/menus"
+	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/server"
+	"github.com/hexya-erp/hexya/src/templates"
+	"github.com/hexya-erp/hexya/src/tools/generate"
+	"github.com/hexya-erp/hexya/src/tools/logging"
+	"github.com/hexya-erp/hexya/src/views"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -56,6 +56,7 @@ If projectDir is omitted, defaults to the current directory.`,
 // generateAndRunFile creates the startup file of the project and runs it.
 func generateAndRunFile(projectDir, fileName string, tmpl *template.Template) {
 	fmt.Println("Please wait, Hexya is starting ...")
+	viper.Set("ProjectDir", projectDir)
 	conf := viper.AllSettings()
 	delete(conf, "modules")
 
@@ -87,8 +88,9 @@ func StartServer(config map[string]interface{}) {
 	connectToDB()
 	i18n.BootStrap()
 	models.BootStrap()
-	server.LoadTranslations(i18n.Langs)
-	server.LoadInternalResources()
+	resourceDir := filepath.Join(viper.GetString("ProjectDir"), "res")
+	server.LoadTranslations(resourceDir, i18n.Langs)
+	server.LoadInternalResources(resourceDir)
 	views.BootStrap()
 	templates.BootStrap()
 	actions.BootStrap()

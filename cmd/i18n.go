@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"text/template"
 
-	"github.com/hexya-erp/hexya/hexya/tools/generate"
+	"github.com/hexya-erp/hexya/src/tools/generate"
 	"github.com/spf13/cobra"
 )
 
@@ -86,7 +86,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/hexya-erp/hexya/hexya/i18n/translations"
+	"github.com/hexya-erp/hexya/src/i18n/translations"
 {{ range .Imports }}	_ "{{ . }}"
 {{ end }}
 )

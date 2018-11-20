@@ -4,6 +4,8 @@
 
 *.iml
 
+hexya
+
 ## Directory-based project format:
 .idea/
 # if you remove the above rule, at least ignore the following:
@@ -74,11 +76,11 @@ _testmain.go
 
 # Hexya Specifics
 pool/
-/hexya/server/static/
-/hexya/server/templates/
-/hexya/server/data/
-/hexya/server/demo/
+/src/server/static/
+/src/server/templates/
+/src/server/data/
+/src/server/demo/
 /coverage.txt
 /xsd/
-/hexya/server/resources/
-/hexya/server/i18n/
+/src/server/resources/
+/src/server/i18n/
