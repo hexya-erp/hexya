@@ -236,7 +236,7 @@ func (rc *RecordCollection) CheckConstraints() {
 // the given FieldMap.
 func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
-		(*fMap)["CreateDate"] = dates.Now()
+		(*fMap)["CreateDate"] = dates.Now().UTC()
 		(*fMap)["CreateUID"] = rc.env.uid
 	}
 }
@@ -274,7 +274,7 @@ func (rc *RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer
 // the given FieldMap.
 func (rc *RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 	if !rc.model.isSystem() {
-		(*fMap)["WriteDate"] = dates.Now()
+		(*fMap)["WriteDate"] = dates.Now().UTC()
 		(*fMap)["WriteUID"] = rc.env.uid
 	}
 }
