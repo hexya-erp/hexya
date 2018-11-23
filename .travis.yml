@@ -4,17 +4,17 @@ go:
  - "tip"
 
 addons:
-  postgresql: "9.4"
+  postgresql: "9.6"
 
 services:
   - postgresql
 
-before_install:
-  - go get -t github.com/hexya-erp/hexya
-  - hexya generate -t ./hexya/tests/testmodule
+install:
+  - go install
+  - npm install less -g
 
 before_script:
-  - npm install less -g
+  - hexya generate -t ./src/tests/testmodule
   - psql -c 'create database hexya_test_models;' -U postgres
   - psql -c 'create database hexya_test_tests;' -U postgres
 
@@ -25,4 +25,4 @@ after_success:
   - bash <(curl -s https://codecov.io/bash)
 
 env:
-  - HEXYA_DB_DRIVER=postgres HEXYA_DB_USER=postgres HEXYA_DB_PASSWORD= HEXYA_DB_PREFIX=hexya_test
+  - HEXYA_DB_DRIVER=postgres HEXYA_DB_USER=postgres HEXYA_DB_PASSWORD= HEXYA_DB_PREFIX=hexya_test GO111MODULE=on

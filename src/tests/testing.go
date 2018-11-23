@@ -99,9 +99,10 @@ func InitializeTests(moduleName string) {
 // TearDownTests tears down the tests for the given module
 func TearDownTests(moduleName string) {
 	models.DBClose()
-	fmt.Printf("Tearing down database for module %s\n", moduleName)
+	fmt.Printf("Tearing down database for module %s...", moduleName)
 	dbName := fmt.Sprintf("%s_%s_tests", prefix, moduleName)
 	db := sqlx.MustConnect(driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", user, password))
 	db.MustExec(fmt.Sprintf("DROP DATABASE %s", dbName))
 	db.Close()
+	fmt.Println("Ok")
 }

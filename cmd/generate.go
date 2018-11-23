@@ -58,11 +58,15 @@ This command must be rerun after each source code modification, including module
 
 var symlinkDirs = []string{"static", "data", "demo", "resources", "i18n"}
 
-var generateEmptyPool bool
+var (
+	generateEmptyPool bool
+	testEnabled       bool
+)
 
 func init() {
 	HexyaCmd.AddCommand(generateCmd)
-	generateCmd.Flags().BoolVar(&generateEmptyPool, "empty", false, "Generate an empty pool package. When set projectDir is ignored.")
+	generateCmd.Flags().BoolVarP(&testEnabled, "test", "t", false, "Generate pool for testing a module. When set projectDir must be the source directory of the module.")
+	generateCmd.Flags().BoolVar(&generateEmptyPool, "empty", false, "Generate an empty pool package and returns. When set, resource dir and main.go are untouched.")
 }
 
 func runGenerate(projectDir string) {
@@ -71,8 +75,13 @@ func runGenerate(projectDir string) {
 	if generateEmptyPool {
 		return
 	}
+	var targetPaths []string
+	if testEnabled {
+		targetPaths = []string{projectDir}
+	} else {
+		targetPaths = viper.GetStringSlice("Modules")
+	}
 	replacePoolDirInGoMod(poolDir)
-	targetPaths := viper.GetStringSlice("Modules")
 
 	fmt.Println(`Hexya Generate
 	--------------`)
@@ -87,8 +96,12 @@ func runGenerate(projectDir string) {
 	fmt.Println("Ok")
 
 	fmt.Print("2/5 - Generating symlinks...")
-	createSymlinks(packs, projectDir)
-	fmt.Println("Ok")
+	if testEnabled {
+		fmt.Println("SKIPPED")
+	} else {
+		createSymlinks(packs, projectDir)
+		fmt.Println("Ok")
+	}
 
 	fmt.Print("3/5 - Generating pool...")
 	generate.CreatePool(packs, poolDir)
@@ -104,8 +117,12 @@ func runGenerate(projectDir string) {
 	fmt.Println("Ok")
 
 	fmt.Print("5/5 - Creating main.go in project...")
-	createStartFile(projectDir, targetPaths)
-	fmt.Println("Ok")
+	if testEnabled {
+		fmt.Println("SKIPPED")
+	} else {
+		createStartFile(projectDir, targetPaths)
+		fmt.Println("Ok")
+	}
 
 	fmt.Println("Pool generated successfully")
 }
@@ -150,13 +167,6 @@ func replacePoolDirInGoMod(poolDir string) {
 }
 
 func computeDirs(projectDir string) (string, string) {
-	if projectDir == "" {
-		npd, err := ioutil.TempDir("", "hexya-test")
-		if err != nil {
-			panic(err)
-		}
-		projectDir = npd
-	}
 	poolDir, err := filepath.Abs(filepath.Join(projectDir, PoolDirRel))
 	if err != nil {
 		panic(err)

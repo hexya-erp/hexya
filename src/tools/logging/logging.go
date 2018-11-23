@@ -16,6 +16,7 @@ package logging
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"runtime"
@@ -23,7 +24,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/src/tools/exceptions"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
