@@ -30,6 +30,10 @@ import (
 	"github.com/hexya-erp/hexya/src/views"
 )
 
+// ResourceDir is the path to the resources directory.
+// It is set on startup based on the configuration.
+var ResourceDir string
+
 // A Module is a go package that implements business features.
 // This struct is used to register modules.
 type Module struct {

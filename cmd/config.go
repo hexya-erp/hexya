@@ -23,7 +23,7 @@ var scaffoldCmd = &cobra.Command{
 	Long: `Create a Hexya configuration file hexya.toml in the current directory. Use the -c flag to specify another destination file.
 All configuration parameters passed as environment variables or as flags will be set in the config file.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		initConfig()
+		InitConfig()
 		cfgFile := viper.GetString("ConfigFileName")
 		if cfgFile == "" {
 			cwd, err := os.Getwd()

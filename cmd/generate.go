@@ -15,8 +15,11 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -32,22 +35,21 @@ const (
 	// PoolDirRel is the name of the generated pool directory (relative to the hexya root)
 	PoolDirRel = "pool"
 	// TempEmpty is the name of the temporary go file in the pool directory for startup
-	TempEmpty = "temp.go"
+	TempEmpty     = "temp.go"
+	startFileName = "main.go"
 )
 
 var generateCmd = &cobra.Command{
-	Use:   "generate [projectDir]",
+	Use:   "generate PROJECT_DIR",
 	Short: "Generate the source code of the model pool",
 	Long: `Generate the source code of the pool package which includes the definition of all the models.
-This command also creates the resource directory by symlinking all modules resources into the project directory.
+This command also :
+- creates the resource directory by symlinking all modules resources into the project directory.
+- creates or updates the main.go of the project.
 This command must be rerun after each source code modification, including module import.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if testedModule != "" {
-			runGenerate("")
-			return
-		}
 		if len(args) == 0 {
-			fmt.Println("You must specify the project directory or a module to test")
+			fmt.Println("You must specify the project directory ")
 			os.Exit(1)
 		}
 		runGenerate(args[0])
@@ -56,70 +58,44 @@ This command must be rerun after each source code modification, including module
 
 var symlinkDirs = []string{"static", "data", "demo", "resources", "i18n"}
 
-var (
-	generateEmptyPool bool
-	testedModule      string
-)
+var generateEmptyPool bool
 
 func init() {
 	HexyaCmd.AddCommand(generateCmd)
-	generateCmd.Flags().StringVarP(&testedModule, "test", "t", "", "Generate pool for testing the module in the given source directory. When set projectDir is ignored.")
 	generateCmd.Flags().BoolVar(&generateEmptyPool, "empty", false, "Generate an empty pool package. When set projectDir is ignored.")
 }
 
 func runGenerate(projectDir string) {
-	poolDir := filepath.Join(generate.HexyaDir, PoolDirRel)
+	projectDir, poolDir := computeDirs(projectDir)
 	cleanPoolDir(poolDir)
 	if generateEmptyPool {
 		return
 	}
+	replacePoolDirInGoMod(poolDir)
+	targetPaths := viper.GetStringSlice("Modules")
 
 	fmt.Println(`Hexya Generate
---------------`)
-	fmt.Printf("Detected Hexya root directory at %s.\n", generate.HexyaDir)
-
-	targetPaths := viper.GetStringSlice("Modules")
-	if testedModule != "" {
-		testDir, _ := filepath.Abs(testedModule)
-		importPack, err := packages.Load(&packages.Config{Mode: packages.LoadFiles}, testDir)
-		if err != nil {
-			panic(err)
-		}
-		if len(importPack) == 0 {
-			panic(fmt.Errorf("no package found at %s", testDir))
-		}
-		targetPaths = []string{importPack[0].PkgPath}
-	}
+	--------------`)
 	fmt.Println("Modules paths:")
 	fmt.Println(" -", strings.Join(targetPaths, "\n - "))
 
-	fmt.Print(`Loading program...`)
-
-	conf := packages.Config{
-		Mode: packages.LoadAllSyntax,
+	fmt.Print(`1/5 - Loading program...`)
+	packs, err := loadProgram(targetPaths)
+	if err != nil {
+		panic(err)
 	}
-	packs, _ := packages.Load(&conf, targetPaths...)
 	fmt.Println("Ok")
 
-	if projectDir != "" {
-		fmt.Print("Generating symlinks...")
-		modules := generate.GetModulePackages(packs)
-		cleanModuleSymlinks(projectDir)
-		for _, m := range modules {
-			if m.ModType != generate.Base {
-				continue
-			}
-			createModuleSymlinks(m, projectDir)
-		}
-		fmt.Println("Ok")
-	}
+	fmt.Print("2/5 - Generating symlinks...")
+	createSymlinks(packs, projectDir)
+	fmt.Println("Ok")
 
-	fmt.Print("Generating pool...")
+	fmt.Print("3/5 - Generating pool...")
 	generate.CreatePool(packs, poolDir)
 	fmt.Println("Ok")
 
-	fmt.Print("Checking the generated code...")
-	_, err := packages.Load(&conf, targetPaths...)
+	fmt.Print("4/5 - Checking the generated code...")
+	_, err = loadProgram(targetPaths)
 	if err != nil {
 		fmt.Println("FAIL")
 		fmt.Println(err)
@@ -127,7 +103,65 @@ func runGenerate(projectDir string) {
 	}
 	fmt.Println("Ok")
 
+	fmt.Print("5/5 - Creating main.go in project...")
+	createStartFile(projectDir, targetPaths)
+	fmt.Println("Ok")
+
 	fmt.Println("Pool generated successfully")
+}
+
+func createStartFile(projectDir string, targetPaths []string) {
+	cmdName := filepath.Base(projectDir)
+	tmplData := struct {
+		Imports    []string
+		Executable string
+	}{
+		Imports:    targetPaths,
+		Executable: cmdName,
+	}
+	sfn := filepath.Join(projectDir, startFileName)
+	generate.CreateFileFromTemplate(sfn, startFileTemplate, tmplData)
+}
+
+func createSymlinks(packs []*packages.Package, projectDir string) {
+	modules := generate.GetModulePackages(packs)
+	cleanModuleSymlinks(projectDir)
+	for _, m := range modules {
+		if m.ModType != generate.Base {
+			continue
+		}
+		createModuleSymlinks(m, projectDir)
+	}
+}
+
+func loadProgram(targetPaths []string) ([]*packages.Package, error) {
+	conf := packages.Config{
+		Mode: packages.LoadAllSyntax,
+	}
+	packs, err := packages.Load(&conf, targetPaths...)
+	return packs, err
+}
+
+func replacePoolDirInGoMod(poolDir string) {
+	cmdReplace := exec.Command("go", "mod", "edit", "-replace", fmt.Sprintf("github.com/hexya-erp/pool=%s", poolDir))
+	cmdReplace.Stderr = os.Stderr
+	cmdReplace.Stdout = os.Stdout
+	cmdReplace.Run()
+}
+
+func computeDirs(projectDir string) (string, string) {
+	if projectDir == "" {
+		npd, err := ioutil.TempDir("", "hexya-test")
+		if err != nil {
+			panic(err)
+		}
+		projectDir = npd
+	}
+	poolDir, err := filepath.Abs(filepath.Join(projectDir, PoolDirRel))
+	if err != nil {
+		panic(err)
+	}
+	return projectDir, poolDir
 }
 
 // cleanPoolDir removes all files in the given directory and leaves only
@@ -140,6 +174,13 @@ func cleanPoolDir(dirName string) {
 	os.MkdirAll(queryDir, 0755)
 	generate.CreateFileFromTemplate(filepath.Join(modelsDir, TempEmpty), emptyPoolTemplate, generate.PoolModelPackage)
 	generate.CreateFileFromTemplate(filepath.Join(queryDir, TempEmpty), emptyPoolTemplate, generate.PoolQueryPackage)
+
+	var buf bytes.Buffer
+	emptyPoolGoMod.Execute(&buf, "")
+	err := ioutil.WriteFile(filepath.Join(dirName, "go.mod"), buf.Bytes(), 0644)
+	if err != nil {
+		log.Panic("Error while saving generated source file", "error", err, "fileName", "go.mod")
+	}
 }
 
 // createModuleSymlinks create the symlinks of the given module in the
@@ -177,4 +218,62 @@ var emptyPoolTemplate = template.Must(template.New("").Parse(`
 // DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
 
 package {{ . }}
+`))
+
+var emptyPoolGoMod = template.Must(template.New("").Parse(`
+// This file is autogenerated by hexya-generate
+// DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
+
+module github.com/hexya-erp/pool
+`))
+
+var startFileTemplate = template.Must(template.New("").Parse(`
+// This file is autogenerated by hexya-server
+// DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
+
+package main
+
+import (
+	"github.com/hexya-erp/hexya/cmd"
+	"github.com/spf13/cobra"
+{{ range .Imports }}	_ "{{ . }}"
+{{ end }}
+)
+
+func main() {
+	var hexyaCmd = &cobra.Command{
+		Use:   "{{ .Executable }}",
+		Short: "Hexya is an open source modular ERP",
+		Long: "Hexya is an open source modular ERP written in Go. It is designed for high demand business data processing while being easily customizable",
+	}
+	cmd.SetHexyaFlags(hexyaCmd)
+
+	var serverCmd = &cobra.Command{
+		Use:   "server",
+		Short: "Start the Hexya server",
+		Long: "Start the Hexya server",
+		Run: func(c *cobra.Command, args []string) {
+			cmd.StartServer()
+		},
+	}
+	hexyaCmd.AddCommand(serverCmd)
+	cmd.SetServerFlags(serverCmd)
+
+	var updateDBCmd = &cobra.Command{
+		Use:   "updatedb",
+		Short: "Update the database schema",
+		Long: "Synchronize the database schema with the models definitions.",
+		Run: func(c *cobra.Command, args []string) {
+			cmd.UpdateDB()
+		},
+	}
+	hexyaCmd.AddCommand(updateDBCmd)
+
+	cobra.OnInitialize(cmd.InitConfig)
+
+	if err := hexyaCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+}
 `))

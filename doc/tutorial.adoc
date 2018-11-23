@@ -24,7 +24,7 @@ Change the `Modules` key to look like this:
 ----
 Modules = [
     "github.com/hexya-erp/hexya-demo/openacademy",
-    "github.com/hexya-erp/hexya-base/web"
+    "github.com/hexya-addons/web"
 ]
 ----
 
@@ -222,7 +222,7 @@ package openacademy
 
 import (
 	"github.com/hexya-erp/hexya/src/models"
-	"github.com/hexya-erp/hexya/pool/h" // <1>
+	"github.com/hexya-erp/pool/h" // <1>
 )
 
 func init() {
@@ -597,7 +597,7 @@ package openacademy
 import (
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/types"
-	"github.com/hexya-erp/hexya/pool/h"
+	"github.com/hexya-erp/pool/h"
 )
 
 func init() { // <1>
@@ -727,7 +727,7 @@ package openacademy
 
 import (
 	"github.com/hexya-erp/hexya/src/models"
-	"github.com/hexya-erp/hexya/pool/h"
+	"github.com/hexya-erp/pool/h"
 )
 
 func init() {
@@ -751,7 +751,7 @@ package openacademy
 import (
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/types"
-	"github.com/hexya-erp/hexya/pool/h"
+	"github.com/hexya-erp/pool/h"
 )
 
 func init() {
@@ -984,7 +984,7 @@ package openacademy
 
 import (
 	"github.com/hexya-erp/hexya/src/models"
-	"github.com/hexya-erp/hexya/pool/h"
+	"github.com/hexya-erp/pool/h"
 )
 
 func init() {
@@ -1280,7 +1280,7 @@ We can add a domain to limit instructors to partners who are instructors:
 ----
 import (
 (...)
-	"github.com/hexya-erp/hexya/pool/q"
+	"github.com/hexya-erp/pool/q"
 )
 (...)
     "Instructor": models.Many2OneField{RelationModel: h.Partner(),
@@ -1704,7 +1704,7 @@ of the group must be able to modify it.
 ----
 import (
 (...)
-	"github.com/hexya-erp/hexya/pool/q"
+	"github.com/hexya-erp/pool/q"
 )
 
 func getCurrentUser(rs h.OpenAcademyCourseSet) h.UserSet {
@@ -1754,8 +1754,8 @@ package openacademy
 
 import (
 	"github.com/hexya-erp/hexya/src/models"
-	"github.com/hexya-erp/hexya/pool/h"
-	"github.com/hexya-erp/hexya/pool/q"
+	"github.com/hexya-erp/pool/h"
+	"github.com/hexya-erp/pool/q"
 )
 
 func init() {

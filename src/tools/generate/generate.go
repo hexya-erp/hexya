@@ -540,7 +540,7 @@ package {{ .ModelsPackageName }}
 
 import (
 	"github.com/hexya-erp/hexya/src/tools/typesutils"
-    "github.com/hexya-erp/hexya/pool/{{ .QueryPackageName }}"
+    "github.com/hexya-erp/pool/{{ .QueryPackageName }}"
 {{ range .Deps }} 	"{{ . }}"
 {{ end }}
 )
@@ -959,7 +959,7 @@ package {{ .QueryPackageName }}
 
 import (
 	"github.com/hexya-erp/hexya/src/tools/typesutils"
-	"github.com/hexya-erp/hexya/pool/{{ .QueryPackageName }}/{{ .SnakeName }}"
+	"github.com/hexya-erp/pool/{{ .QueryPackageName }}/{{ .SnakeName }}"
 {{ range .Deps }} 	"{{ . }}"
 {{ end }}
 )

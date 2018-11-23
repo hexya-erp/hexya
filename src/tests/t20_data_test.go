@@ -6,10 +6,10 @@ package tests
 import (
 	"testing"
 
-	"github.com/hexya-erp/hexya/pool/h"
-	"github.com/hexya-erp/hexya/pool/q"
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/security"
+	"github.com/hexya-erp/pool/h"
+	"github.com/hexya-erp/pool/q"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

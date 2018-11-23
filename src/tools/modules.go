@@ -24,16 +24,16 @@ import (
 // Returned
 // If diskPath is true, returned file names have their path on the disk
 // otherwise file names are relative to the http root (e.g. /static/src/js/foo.js)
-func ListStaticFiles(projectDir, subDir string, modules []string, diskPath bool) []string {
+func ListStaticFiles(resourceDir, subDir string, modules []string, diskPath bool) []string {
 	var res []string
 	for _, module := range modules {
-		dirName := filepath.Join(projectDir, "res", module, subDir)
+		dirName := filepath.Join(resourceDir, "static", module, subDir)
 		fileInfos, _ := ioutil.ReadDir(dirName)
 		for _, fi := range fileInfos {
 			if !fi.IsDir() {
 				fPath := filepath.Join("static", module, subDir, fi.Name())
 				if diskPath {
-					fPath = filepath.Join(projectDir, "res", fPath)
+					fPath = filepath.Join(resourceDir, fPath)
 				}
 				res = append(res, fPath)
 			}

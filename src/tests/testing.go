@@ -6,7 +6,6 @@ package tests
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/hexya-erp/hexya/src/models"
@@ -90,7 +89,7 @@ func InitializeTests(moduleName string) {
 	})
 	models.BootStrap()
 	models.SyncDatabase()
-	resourceDir := filepath.Join(viper.GetString("ProjectDir"), "res")
+	resourceDir := viper.GetString("ResourceDir")
 	server.LoadDataRecords(resourceDir)
 	server.LoadDemoRecords(resourceDir)
 

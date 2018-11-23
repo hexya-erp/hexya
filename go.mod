@@ -4,10 +4,8 @@ require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/beevik/etree v1.0.1
 	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff // indirect
-	github.com/davecgh/go-spew v1.1.1
 	github.com/disintegration/imaging v1.5.0
 	github.com/flosch/pongo2 v0.0.0-20180809100617-24195e6d38b0
-	github.com/garyburd/redigo v2.0.0+incompatible // indirect
 	github.com/gin-contrib/pprof v0.0.0-20180827024024-a27513940d36
 	github.com/gin-contrib/sse v0.0.0-20170109093832-22d885f9ecc7 // indirect
 	github.com/gin-gonic/contrib v0.0.0-20181101072842-54170a7b0b4b
@@ -22,6 +20,7 @@ require (
 	github.com/juju/errors v0.0.0-20181012004132-a4583d0a56ea // indirect
 	github.com/juju/loggo v0.0.0-20180524022052-584905176618 // indirect
 	github.com/juju/testing v0.0.0-20180920084828-472a3e8b2073 // indirect
+	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lib/pq v1.0.0
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
