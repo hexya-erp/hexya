@@ -96,12 +96,8 @@ func runGenerate(projectDir string) {
 	fmt.Println("Ok")
 
 	fmt.Print("2/5 - Generating symlinks...")
-	if testEnabled {
-		fmt.Println("SKIPPED")
-	} else {
-		createSymlinks(packs, projectDir)
-		fmt.Println("Ok")
-	}
+	createSymlinks(packs, projectDir)
+	fmt.Println("Ok")
 
 	fmt.Print("3/5 - Generating pool...")
 	generate.CreatePool(packs, poolDir)
