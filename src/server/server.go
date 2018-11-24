@@ -20,7 +20,8 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"github.com/gin-gonic/contrib/sessions"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/hexya-erp/hexya/src/templates"
 	"github.com/hexya-erp/hexya/src/tools/logging"
@@ -140,7 +141,7 @@ func init() {
 	// Set to ReleaseMode now for tests and is overridden later (hexya/cmd/server.go)
 	gin.SetMode(gin.ReleaseMode)
 	hexyaServer = &Server{gin.New()}
-	store := sessions.NewCookieStore([]byte(">r&5#5T/sG-jnf=EW8$(WQX'-m2R6Gk*^qqr`CxEtG'wQ[/'G@`NYn^on?b!4G`9"),
+	store := cookie.NewStore([]byte(">r&5#5T/sG-jnf=EW8$(WQX'-m2R6Gk*^qqr`CxEtG'wQ[/'G@`NYn^on?b!4G`9"),
 		[]byte("!WY9Q|}09!4Ke=@w0HS|]$u,p1f^k(5T"))
 	hexyaServer.Use(gin.Recovery())
 	hexyaServer.Use(sessions.Sessions("hexya-session", store))
