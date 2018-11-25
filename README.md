@@ -2,6 +2,7 @@
 [![Go Report Card](https://goreportcard.com/badge/hexya-erp/hexya)](https://goreportcard.com/report/hexya-erp/hexya)
 [![codecov](https://codecov.io/gh/hexya-erp/hexya/branch/master/graph/badge.svg)](https://codecov.io/gh/hexya-erp/hexya)
 [![godoc reference](https://godoc.org/github.com/hexya-erp/hexya?status.png)](https://godoc.org/github.com/hexya-erp/hexya)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Hexya
 ===
