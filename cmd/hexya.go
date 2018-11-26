@@ -89,13 +89,13 @@ func InitConfig() {
 		viper.AddConfigPath("/etc/hexya")
 	}
 
-	osUser, err := user.Current()
-	if err != nil {
-		panic(fmt.Errorf("unable to retrieve current user. Error: %s", err))
+	if osUser, err := user.Current(); err == nil {
+		defaultHexyaDir := filepath.Join(osUser.HomeDir, ".hexya")
+		viper.SetDefault("DataDir", defaultHexyaDir)
+		viper.AddConfigPath(defaultHexyaDir)
+	} else {
+		fmt.Println(fmt.Errorf("unable to retrieve current user. Error: %s", err))
 	}
-	defaultHexyaDir := filepath.Join(osUser.HomeDir, ".hexya")
-	viper.SetDefault("DataDir", defaultHexyaDir)
-	viper.AddConfigPath(defaultHexyaDir)
 	viper.AddConfigPath(".")
 
 	viper.SetConfigName("hexya")
@@ -104,7 +104,7 @@ func InitConfig() {
 		viper.SetConfigFile(cfgFile)
 	}
 
-	err = viper.ReadInConfig()
+	err := viper.ReadInConfig()
 	if err != nil {
 		fmt.Println(err)
 	}
