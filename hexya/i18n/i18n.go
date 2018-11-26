@@ -276,7 +276,7 @@ func LoadPOFile(fileName string) {
 // Those informations are read from data file in <HexPath>/hexya/i18n/data/langParameters.csv
 func loadLangParametersMap() map[string]LangParameters {
 	out := make(map[string]LangParameters)
-	path := generate.HexyaPath + "/hexya/i18n/data/langParameters.csv"
+	path := filepath.Join(generate.HexyaDir, "hexya/i18n/data/langParameters.csv")
 	r, err := os.Open(path)
 	if err != nil {
 		log.Panic("langParameters.csv Not found", "path", path)
