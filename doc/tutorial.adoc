@@ -8,13 +8,16 @@ Author Nicolas Piganeau
 
 This tutorial requires having installed Hexya <<install.adoc>>.
 
-During this tutorial, you will create an `openacademy` module for managing
-training courses. We create this module inside the hexya-demo directory:
+IMPORTANT: We suppose that you have created a project called `hexya-demo` inside a directory of the same name,
+with `github.com/hexya-erp/hexya-demo` as path.
+
+During this tutorial, you will create an `openacademy` module for managing training courses.
+We create this module inside the `hexya-demo` project directory as a local module:
 
 [source,shell]
 ----
-$ cd $GOPATH/src/github.com/hexya-erp/hexya-demo
-$ mkdir openacademy
+$ cd hexya-demo
+$ hexya module new openacademy
 ----
 
 Now we also need to declare our new module inside the `hexya.toml` file.
@@ -31,9 +34,7 @@ Modules = [
 [NOTE]
 ====
 All file paths in this tutorial are relative to the
-`$GOPATH/src/github.com/hexya-erp/hexya-demo` directory.
-
-However, `hexya` commands should be run inside the `github.com/hexya-erp/hexya-demo`
+`hexya-demo` directory where the `hexya` commands should be run.
 ====
 
 == Start/Stop the Hexya server
@@ -123,7 +124,7 @@ The declared `PreInit` and `PostInit` functions allows to execute some code at s
 - `PostInit` is run after the models, views and controllers are bootstrapped.
 We leave them as empty functions for the moment.
 
-NOTE: We highly recommend that you use a Go IDE or editor with autocompletion
+NOTE: We highly recommend that you use a Go IDE or editor with auto-completion
 to benefit from the static typing of the Hexya framework.
 
 == Object-Relational Mapping
@@ -177,12 +178,11 @@ In order to use our newly created model, we need to generate the code that
 will provide the structs and methods of this model.
 
 This is done with the `hexya generate` command that must be executed at the
-project's root (i.e. `$GOPATH/src/github.com/hexya-erp/hexya-demo`).
+project's root (i.e. `hexya-demo`).
 
 [source,bash]
 ----
-$ cd $GOPATH/src/github.com/hexya-erp/hexya-demo
-$ hexya generate
+$ hexya generate .
 ----
 
 This command will output several warnings during its execution. Just check
@@ -535,7 +535,6 @@ definitions using the `hexya updatedb` command in the project root directory.
 
 [source,bash]
 ----
-$ cd $GOPATH/src/github.com/hexya-erp/hexya-demo
 $ hexya updatedb -o
 ----
 
@@ -1854,7 +1853,6 @@ translation:
 
 [source]
 ----
-$ cd $GOPATH/src/github.com/hexya-erp/hexya-demo
 $ mkdir openacademy/i18n
 $ hexya i18n update ./openacademy -l fr
 ----

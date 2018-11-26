@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -32,8 +31,10 @@ import (
 )
 
 const (
-	// PoolDirRel is the name of the generated pool directory (relative to the hexya root)
+	// PoolDirRel is the name of the generated pool directory (relative to the current project root)
 	PoolDirRel = "pool"
+	// ResDirRel is the name of the resources directory (relative to the current project root)
+	ResDirRel = "res"
 	// TempEmpty is the name of the temporary go file in the pool directory for startup
 	TempEmpty     = "temp.go"
 	startFileName = "main.go"
@@ -156,10 +157,7 @@ func loadProgram(targetPaths []string) ([]*packages.Package, error) {
 }
 
 func replacePoolDirInGoMod(poolDir string) {
-	cmdReplace := exec.Command("go", "mod", "edit", "-replace", fmt.Sprintf("github.com/hexya-erp/pool=%s", poolDir))
-	cmdReplace.Stderr = os.Stderr
-	cmdReplace.Stdout = os.Stdout
-	cmdReplace.Run()
+	runCommand("go", "mod", "edit", "-replace", fmt.Sprintf("github.com/hexya-erp/pool=%s", poolDir))
 }
 
 func computeDirs(projectDir string) (string, string) {
@@ -181,12 +179,16 @@ func cleanPoolDir(dirName string) {
 	generate.CreateFileFromTemplate(filepath.Join(modelsDir, TempEmpty), emptyPoolTemplate, generate.PoolModelPackage)
 	generate.CreateFileFromTemplate(filepath.Join(queryDir, TempEmpty), emptyPoolTemplate, generate.PoolQueryPackage)
 
-	var buf bytes.Buffer
-	emptyPoolGoMod.Execute(&buf, "")
-	err := ioutil.WriteFile(filepath.Join(dirName, "go.mod"), buf.Bytes(), 0644)
-	if err != nil {
+	if err := writeFileFromTemplate(filepath.Join(dirName, "go.mod"), emptyPoolGoMod, nil); err != nil {
 		log.Panic("Error while saving generated source file", "error", err, "fileName", "go.mod")
 	}
+}
+
+func writeFileFromTemplate(fileName string, tmpl *template.Template, data interface{}) error {
+	var buf bytes.Buffer
+	tmpl.Execute(&buf, data)
+	err := ioutil.WriteFile(fileName, buf.Bytes(), 0644)
+	return err
 }
 
 // createModuleSymlinks create the symlinks of the given module in the
@@ -195,7 +197,7 @@ func createModuleSymlinks(mod *generate.ModuleInfo, projectDir string) {
 	for _, dir := range symlinkDirs {
 		mDir := filepath.Dir(mod.GoFiles[0])
 		srcPath := filepath.Join(mDir, dir)
-		dstPath := filepath.Join(projectDir, "res", dir)
+		dstPath := filepath.Join(projectDir, ResDirRel, dir)
 		if _, err := os.Stat(srcPath); err != nil {
 			// Subdir doesn't exist, so we don't symlink
 			continue
@@ -213,7 +215,7 @@ func createModuleSymlinks(mod *generate.ModuleInfo, projectDir string) {
 // Note that this function actually removes and recreates the symlink directories.
 func cleanModuleSymlinks(projectDir string) {
 	for _, dir := range symlinkDirs {
-		dirPath := filepath.Join(projectDir, "res", dir)
+		dirPath := filepath.Join(projectDir, ResDirRel, dir)
 		os.RemoveAll(dirPath)
 		os.Mkdir(dirPath, 0775)
 	}

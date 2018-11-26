@@ -59,15 +59,8 @@ func runProject(projectDir, cmd string, args []string) {
 	}
 
 	cmdName := filepath.Base(absProjectDir)
-	cmdBuild := exec.Command("go", "build", "-o", cmdName, absProjectDir)
-	cmdBuild.Stdout = os.Stdout
-	cmdBuild.Stderr = os.Stderr
-	cmdBuild.Run()
-	cmdRun := exec.Command(filepath.Join(absProjectDir, cmdName), append([]string{cmd}, args...)...)
-	cmdRun.Stdout = os.Stdout
-	cmdRun.Stderr = os.Stderr
-	cmdRun.Run()
-
+	runCommand("go", "build", "-o", cmdName, absProjectDir)
+	runCommand(filepath.Join(absProjectDir, cmdName), append([]string{cmd}, args...)...)
 }
 
 // StartServer starts the Hexya server. It is meant to be called from
@@ -138,11 +131,6 @@ func connectToDB() {
 	})
 }
 
-func init() {
-	SetServerFlags(serverCmd)
-	HexyaCmd.AddCommand(serverCmd)
-}
-
 // SetServerFlags adds the server flags to the given command.
 func SetServerFlags(c *cobra.Command) {
 	c.PersistentFlags().StringP("interface", "i", "", "Interface on which the server should listen. Empty string is all interfaces")
@@ -157,4 +145,16 @@ func SetServerFlags(c *cobra.Command) {
 	viper.BindPFlag("Server.Certificate", c.PersistentFlags().Lookup("certificate"))
 	c.PersistentFlags().StringP("private-key", "K", "", "Private key file for HTTPS.")
 	viper.BindPFlag("Server.PrivateKey", c.PersistentFlags().Lookup("private-key"))
+}
+
+func runCommand(c string, args ...string) error {
+	cmdToRun := exec.Command(c, args...)
+	cmdToRun.Stdout = os.Stdout
+	cmdToRun.Stderr = os.Stderr
+	return cmdToRun.Run()
+}
+
+func init() {
+	SetServerFlags(serverCmd)
+	HexyaCmd.AddCommand(serverCmd)
 }
