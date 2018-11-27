@@ -94,14 +94,15 @@ func runGenerate(projectDir string) {
 	if err != nil {
 		panic(err)
 	}
+	mods := generate.GetModulePackages(packs)
 	fmt.Println("Ok")
 
 	fmt.Print("2/5 - Generating symlinks...")
-	createSymlinks(packs, projectDir)
+	createSymlinks(mods, projectDir)
 	fmt.Println("Ok")
 
 	fmt.Print("3/5 - Generating pool...")
-	generate.CreatePool(packs, poolDir)
+	generate.CreatePool(mods, poolDir)
 	fmt.Println("Ok")
 
 	fmt.Print("4/5 - Checking the generated code...")
@@ -137,8 +138,7 @@ func createStartFile(projectDir string, targetPaths []string) {
 	generate.CreateFileFromTemplate(sfn, startFileTemplate, tmplData)
 }
 
-func createSymlinks(packs []*packages.Package, projectDir string) {
-	modules := generate.GetModulePackages(packs)
+func createSymlinks(modules []*generate.ModuleInfo, projectDir string) {
 	cleanModuleSymlinks(projectDir)
 	for _, m := range modules {
 		if m.ModType != generate.Base {
@@ -242,6 +242,9 @@ var startFileTemplate = template.Must(template.New("").Parse(`
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/hexya-erp/hexya/cmd"
 	"github.com/spf13/cobra"
 {{ range .Imports }}	_ "{{ . }}"

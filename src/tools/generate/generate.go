@@ -6,6 +6,7 @@ package generate
 import (
 	"bytes"
 	"fmt"
+	"go/format"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,8 +16,6 @@ import (
 	"text/template"
 
 	"github.com/hexya-erp/hexya/src/tools/strutils"
-	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/imports"
 )
 
 // A fieldData describes a field in a RecordSet
@@ -26,6 +25,7 @@ type fieldData struct {
 	RelModel   string
 	Type       string
 	SanType    string
+	ImportPath string
 	IsRS       bool
 	MixinField bool
 	EmbedField bool
@@ -74,6 +74,7 @@ type modelData struct {
 	AllMethods        []methodData
 	ConditionFuncs    []string
 	Types             []fieldType
+	TypesDeps         []string
 }
 
 // sort sorts all slices fields of this modelData so that the generated code is always the same.
@@ -312,8 +313,8 @@ func createTypeIdent(typStr string) string {
 // CreatePool generates the pool package by parsing the source code AST
 // of the given program.
 // The generated package will be put in the given dir.
-func CreatePool(program []*packages.Package, dir string) {
-	modelsASTData := GetModelsASTData(program)
+func CreatePool(modules []*ModuleInfo, dir string) {
+	modelsASTData := GetModelsASTData(modules)
 	wg := sync.WaitGroup{}
 	wg.Add(len(modelsASTData))
 	for mName, mASTData := range modelsASTData {
@@ -447,6 +448,7 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 			SanType:    createTypeIdent(typStr),
 			MixinField: fieldASTData.MixinField,
 			EmbedField: fieldASTData.EmbedField,
+			ImportPath: fieldASTData.Type.ImportPath,
 		})
 		(*depsMap)[fieldASTData.Type.ImportPath] = true
 	}
@@ -455,15 +457,17 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 	}
 }
 
-// addFieldsToModelData extracts field types from mData.Fields
+// addFieldTypesToModelData extracts field types from mData.Fields
 // and add them to mData.Types
 func addFieldTypesToModelData(mData *modelData) {
 	fTypes := make(map[string]bool)
+	tDeps := make(map[string]bool)
 	for _, f := range mData.Fields {
 		if fTypes[f.Type] {
 			continue
 		}
 		fTypes[f.Type] = true
+		tDeps[f.ImportPath] = true
 		mData.Types = append(mData.Types, fieldType{
 			Type:    f.Type,
 			SanType: f.SanType,
@@ -475,6 +479,12 @@ func addFieldTypesToModelData(mData *modelData) {
 				{Name: "ChildOf"},
 			},
 		})
+	}
+	for dep := range tDeps {
+		if dep == "" {
+			continue
+		}
+		mData.TypesDeps = append(mData.TypesDeps, dep)
 	}
 }
 
@@ -520,7 +530,7 @@ func isRecordSetType(typ string, models map[string]ModelASTData) (bool, bool) {
 func CreateFileFromTemplate(fileName string, template *template.Template, data interface{}) {
 	var srcBuffer bytes.Buffer
 	template.Execute(&srcBuffer, data)
-	srcData, err := imports.Process(fileName, srcBuffer.Bytes(), nil)
+	srcData, err := format.Source(srcBuffer.Bytes())
 	if err != nil {
 		log.Panic("Error while formatting generated source file", "error", err, "fileName",
 			fileName, "mData", fmt.Sprintf("%#v", data), "src", srcBuffer.String())
@@ -958,10 +968,8 @@ var poolQueryTemplate = template.Must(template.New("").Parse(`
 package {{ .QueryPackageName }}
 
 import (
-	"github.com/hexya-erp/hexya/src/tools/typesutils"
+	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/pool/{{ .QueryPackageName }}/{{ .SnakeName }}"
-{{ range .Deps }} 	"{{ . }}"
-{{ end }}
 )
 
 type {{ .Name }}Condition = {{ .SnakeName }}.Condition
@@ -982,8 +990,8 @@ package {{ .SnakeName }}
 
 import (
 	"github.com/hexya-erp/hexya/src/models/operator"
-	"github.com/hexya-erp/hexya/src/tools/typesutils"
-{{ range .Deps }} 	"{{ . }}"
+	"github.com/hexya-erp/hexya/src/models"
+{{ range .TypesDeps }} 	"{{ . }}"
 {{ end }}
 )
 

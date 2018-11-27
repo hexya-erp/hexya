@@ -59,7 +59,9 @@ func runProject(projectDir, cmd string, args []string) {
 	}
 
 	cmdName := filepath.Base(absProjectDir)
-	runCommand("go", "build", "-o", cmdName, absProjectDir)
+	if err := runCommand("go", "build", "-o", cmdName, absProjectDir); err != nil {
+		os.Exit(1)
+	}
 	runCommand(filepath.Join(absProjectDir, cmdName), append([]string{cmd}, args...)...)
 }
 

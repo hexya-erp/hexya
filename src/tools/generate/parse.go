@@ -160,9 +160,8 @@ func newModelASTData(name string) ModelASTData {
 }
 
 // GetModelsASTData returns the ModelASTData of all models found when parsing program.
-func GetModelsASTData(program []*packages.Package) map[string]ModelASTData {
-	modInfos := GetModulePackages(program)
-	return GetModelsASTDataForModules(modInfos, true)
+func GetModelsASTData(modules []*ModuleInfo) map[string]ModelASTData {
+	return GetModelsASTDataForModules(modules, true)
 }
 
 // GetModelsASTDataForModules returns the MethodASTData for all methods in given modules.
