@@ -19,6 +19,8 @@ import (
 	"reflect"
 	"strings"
 
+	"time"
+
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
 	"github.com/hexya-erp/hexya/hexya/models/types"
@@ -55,6 +57,7 @@ func BootStrap() {
 	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
+	launchWorkloop()
 
 	Registry.bootstrapped = true
 }
@@ -776,4 +779,30 @@ func checkFieldMethodsExist() {
 			}
 		}
 	}
+}
+
+var ExecuteOnServerStop []func()
+
+func workloopMethods() {
+	fmt.Println("lel")
+	FreeTransientModels()
+}
+
+func launchWorkloop() {
+	c := make(chan bool)
+	ExecuteOnServerStop = append(ExecuteOnServerStop, func() {
+		workloopMethods()
+		c <- true
+	})
+	go func() {
+		workloopMethods()
+		for {
+			select {
+			case <-time.After(10 * time.Minute):
+				workloopMethods()
+			case <-c:
+				return
+			}
+		}
+	}()
 }

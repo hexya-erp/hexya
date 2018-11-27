@@ -23,8 +23,11 @@ import (
 	"strings"
 	"sync"
 
+	"time"
+
 	"github.com/hexya-erp/hexya/hexya/models/fieldtype"
 	"github.com/hexya-erp/hexya/hexya/models/security"
+	"github.com/hexya-erp/hexya/hexya/models/types/dates"
 	"github.com/hexya-erp/hexya/hexya/tools/nbutils"
 	"github.com/hexya-erp/hexya/hexya/tools/strutils"
 	"github.com/jmoiron/sqlx"
@@ -91,6 +94,15 @@ func (mc *modelCollection) add(mi *Model) {
 	mc.registryByTableName[mi.tableName] = mi
 	mi.methods.model = mi
 	mi.fields.model = mi
+}
+
+// remove the given Model from the modelCollection
+func (mc *modelCollection) remove(mi *Model) {
+	if _, exists := mc.Get(mi.name); !exists {
+		log.Panic(`Trying to remove inexisting model`, `model`, mi.name)
+	}
+	delete(mc.registryByName, mi.name)
+	delete(mc.registryByTableName, mi.name)
 }
 
 // newModelCollection returns a pointer to a new modelCollection
@@ -368,6 +380,10 @@ func (m *Model) isM2MLink() bool {
 		return true
 	}
 	return false
+}
+
+func (m *Model) isTransient() bool {
+	return m.options == TransientModel
 }
 
 // hasParentField returns true if this model is recursive and has a Parent field.
@@ -669,4 +685,15 @@ func (s *Sequence) Alter(increment, restart int64) {
 func (s *Sequence) NextValue() int64 {
 	adapter := adapters[db.DriverName()]
 	return adapter.nextSequenceValue(s.JSON)
+}
+
+// FreeTransientModels remove all transien models records from database
+func FreeTransientModels() {
+	for _, val := range Registry.registryByName {
+		if val.isTransient() {
+			ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+				val.Search(env, val.Field("CreateDate").Lower(dates.Now().Add(-1*time.Minute))).Call("Unlink")
+			})
+		}
+	}
 }

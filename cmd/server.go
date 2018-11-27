@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"text/template"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/hexya-erp/hexya/hexya/server"
 	"github.com/hexya-erp/hexya/hexya/templates"
 	"github.com/hexya-erp/hexya/hexya/tools/generate"
-	"github.com/hexya-erp/hexya/hexya/tools/hexCron"
 	"github.com/hexya-erp/hexya/hexya/tools/logging"
 	"github.com/hexya-erp/hexya/hexya/views"
 	"github.com/spf13/cobra"
@@ -80,6 +80,7 @@ func generateAndRunFile(projectDir, fileName string, tmpl *template.Template) {
 // StartServer starts the Hexya server. It is meant to be called from
 // a project start file which imports all the project's module.
 func StartServer(config map[string]interface{}) {
+	setupSignal()
 	setupConfig(config)
 	setupLogger()
 	defer log.Sync()
@@ -96,7 +97,6 @@ func StartServer(config map[string]interface{}) {
 	controllers.BootStrap()
 	menus.BootStrap()
 	server.PostInit()
-	hexCron.BootStrap()
 	srv := server.GetServer()
 	address := fmt.Sprintf("%s:%s", viper.GetString("Server.Interface"), viper.GetString("Server.Port"))
 	cert := viper.GetString("Server.Certificate")
@@ -132,6 +132,20 @@ func setupDebug() {
 	}
 	gin.SetMode(gin.DebugMode)
 	pprof.Register(server.GetServer().Engine)
+}
+
+// setupSignal makes the chanel for SIGTERM and prepares closing methods
+func setupSignal() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		log.Info("Server stopping...")
+		for _, f := range models.ExecuteOnServerStop {
+			f()
+		}
+		os.Exit(0)
+	}()
 }
 
 // connectToDB creates the connection to the database
