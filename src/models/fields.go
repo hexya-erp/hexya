@@ -287,6 +287,18 @@ func (f *Field) isContextedField() bool {
 	return false
 }
 
+// FieldName returns this field name as FieldName type
+func (f *Field) FieldName() FieldName {
+	return FieldName(f.name)
+}
+
+// String method for the Field type. Returns the field's name.
+func (f *Field) String() string {
+	return f.name
+}
+
+var _ FieldNamer = new(Field)
+
 // checkFieldInfo makes sanity checks on the given Field.
 // It panics in case of severe error and logs recoverable errors.
 func checkFieldInfo(fi *Field) {
