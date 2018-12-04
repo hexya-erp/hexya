@@ -127,14 +127,21 @@ func (g *Group) AddMiddleWare(fnct server.HandlerFunc) {
 	g.middleWares = append([]server.HandlerFunc{fnct}, g.middleWares...)
 }
 
-// GetGroup returns the sub group of this group for the given relativePath
+// MustGetGroup returns the sub group of this group for the given relativePath
 // It panics if this group does not exist
-func (g *Group) GetGroup(relativePath string) *Group {
+func (g *Group) MustGetGroup(relativePath string) *Group {
 	group, exists := g.groups[relativePath]
 	if !exists {
 		log.Panic("Group not found", "group", relativePath, "base", g.relativePath)
 	}
 	return group
+}
+
+// GetGroup returns the sub group of this group for the given relativePath
+// the returned boolean is 'false' if the sub group does not exists for this group
+func (g *Group) GetGroup(relativePath string) (*Group, bool) {
+	group, exists := g.groups[relativePath]
+	return group, exists
 }
 
 // createRoutes creates the router groups and routes defined in this Group
