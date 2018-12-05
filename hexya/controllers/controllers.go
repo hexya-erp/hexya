@@ -48,6 +48,18 @@ func (g *Group) AddGroup(relativePath string) *Group {
 	return newGrp
 }
 
+// HasController returns true if the given method and path already has a controller function
+func (g *Group) HasController(method, relativePath string) bool {
+	route := Route{
+		Method: method,
+		Path:   relativePath,
+	}
+	if _, exists := g.controllers[route]; exists {
+		return true
+	}
+	return false
+}
+
 // AddController creates a controller for the given method and path and sets
 // fnct as the base handler function for this controller.
 // It panics if such a controller already exists.
