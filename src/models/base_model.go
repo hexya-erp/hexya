@@ -117,8 +117,8 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
-		func(rc *RecordCollection, data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
-			return rc.create(data, fieldsToReset...)
+		func(rc *RecordCollection, data FieldMapper) *RecordCollection {
+			return rc.create(data)
 		})
 
 	commonMixin.AddMethod("Read",
@@ -163,8 +163,8 @@ func declareCRUDMethods() {
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
-		func(rc *RecordCollection, data FieldMapper, fieldsToUnset ...FieldNamer) bool {
-			return rc.update(data, fieldsToUnset...)
+		func(rc *RecordCollection, data FieldMapper) bool {
+			return rc.update(data)
 		})
 
 	commonMixin.AddMethod("Unlink",
@@ -176,15 +176,11 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
-		func(rc *RecordCollection, overrides FieldMapper, fieldsToUnset ...FieldNamer) *RecordCollection {
+		func(rc *RecordCollection, overrides FieldMapper) *RecordCollection {
 			rc.EnsureOne()
 			oVal := reflect.ValueOf(overrides)
 			if oVal.IsNil() {
-				overr := make(FieldMap)
-				for _, f := range fieldsToUnset {
-					overr[f.String()] = nil
-				}
-				overrides = overr
+				overrides = make(FieldMap)
 			}
 
 			// Prevent infinite recursion if we have circular references
@@ -218,7 +214,7 @@ func declareCRUDMethods() {
 
 			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64), rc.query.ctxArgsSlug())
 			fMap.RemovePK()
-			fMap.MergeWith(overrides.FieldMap(fieldsToUnset...), rc.model)
+			fMap.MergeWith(overrides.Underlying(), rc.model)
 			// Reload original record to prevent cache discrepancies
 			rc.Load()
 
@@ -227,7 +223,7 @@ func declareCRUDMethods() {
 
 			// Duplicate one2one and one2many records
 			for _, fi := range rc.model.fields.registryByName {
-				if _, inOverrides := overrides.FieldMap(fieldsToUnset...).Get(fi.name, rc.model); inOverrides {
+				if _, inOverrides := overrides.Underlying().Get(fi.name, rc.model); inOverrides {
 					continue
 				}
 				if fi.noCopy {
@@ -366,7 +362,6 @@ func declareRecordSetSpecificMethods() {
 		`Onchange returns the values that must be modified according to each field's Onchange
 		method in the pseudo-record given as params.Values`,
 		func(rc *RecordCollection, params OnchangeParams) OnchangeResult {
-			var fields []FieldNamer
 			values := params.Values
 			rc.model.convertValuesToFieldType(&values)
 			retValues := make(FieldMap)
@@ -390,8 +385,7 @@ func declareRecordSetSpecificMethods() {
 					env.cache.invalidateRecord(rs.model, rsID)
 					env.cache.addRecord(rs.model, rsID, values, rs.query.ctxArgsSlug())
 					res := rs.CallMulti(fi.onChange)
-					fields = res[1].([]FieldNamer)
-					resMap := res[0].(FieldMapper).FieldMap(fields...)
+					resMap := res[0].(FieldMapper).Underlying()
 					val := resMap.JSONized(rs.Model())
 					values.MergeWith(val, rs.model)
 					retValues.MergeWith(val, rs.model)

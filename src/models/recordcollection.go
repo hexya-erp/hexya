@@ -79,14 +79,14 @@ func (rc *RecordCollection) clone() *RecordCollection {
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Create")
-func (rc *RecordCollection) create(data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
+func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	defer func() {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
 		}
 	}()
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
-	fMap := data.FieldMap(fieldsToReset...)
+	fMap := data.Underlying()
 	rc.applyDefaults(&fMap, true)
 	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
@@ -245,9 +245,9 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
-func (rc *RecordCollection) update(data FieldMapper, fieldsToUnset ...FieldNamer) bool {
+func (rc *RecordCollection) update(data FieldMapper) bool {
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
-	fMap := data.FieldMap(fieldsToUnset...)
+	fMap := data.Underlying()
 	rSet.addAccessFieldsUpdateData(&fMap)
 	rSet.applyContexts()
 	fMap = rSet.addContextsFieldsValues(fMap)

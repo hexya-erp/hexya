@@ -101,8 +101,6 @@ func (m *modelData) sort() {
 var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map[string]bool){
 	"Search":           searchMethodHandler,
 	"SearchByName":     searchByNameMethodHandler,
-	"First":            firstMethodHandler,
-	"All":              allMethodHandler,
 	"Create":           createMethodHandler,
 	"Write":            writeMethodHandler,
 	"Copy":             copyMethodHandler,
@@ -134,44 +132,23 @@ func searchMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	})
 }
 
-// firstMethodHandler returns the specific methodData for the First method.
-func firstMethodHandler(modelData *modelData, depsMap *map[string]bool) {
-	modelData.AllMethods = append(modelData.AllMethods, methodData{
-		Name:         "First",
-		ParamsTypes:  "",
-		ReturnString: fmt.Sprintf("%sData", modelData.Name),
-	})
-
-}
-
-// allMethodHandler returns the specific methodData for the All method.
-func allMethodHandler(modelData *modelData, depsMap *map[string]bool) {
-	modelData.AllMethods = append(modelData.AllMethods, methodData{
-		Name:         "All",
-		ParamsTypes:  "",
-		ReturnString: fmt.Sprintf("[]*%sData", modelData.Name),
-	})
-}
-
 // createMethodHandler returns the specific methodData for the Create method.
 func createMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	name := "Create"
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
-		ParamsTypes:  fmt.Sprintf("*%sData, ...models.FieldNamer", modelData.Name),
+		ParamsTypes:  fmt.Sprintf("*%sData", modelData.Name),
 		ReturnString: returnString,
 	})
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name: name,
 		Doc: fmt.Sprintf(`// Create inserts a %s record in the database from the given data.
-// Returns the created %sSet.
-//
-// Only fields with non zero values or fields passed in the 'fieldsToReset' arg are set`,
+// Returns the created %sSet.`,
 			modelData.Name, modelData.Name),
 		ToDeclare:      false,
-		Params:         "data, fieldsToReset",
-		ParamsWithType: fmt.Sprintf("data *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
+		Params:         "data",
+		ParamsWithType: fmt.Sprintf("data *%sData", modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -185,18 +162,16 @@ func writeMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	returnString := "bool"
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
-		ParamsTypes:  fmt.Sprintf("*%sData, ...models.FieldNamer", modelData.Name),
+		ParamsTypes:  fmt.Sprintf("*%sData", modelData.Name),
 		ReturnString: returnString,
 	})
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name: name,
 		Doc: fmt.Sprintf(`// Write is the base implementation of the 'Write' method which updates
-// %s records in the database with the given data.
-//
-// Only fields with non zero values or fields passed in the 'fieldsToReset' arg are updated`, modelData.Name),
+// %s records in the database with the given data.`, modelData.Name),
 		ToDeclare:      false,
-		Params:         "data, fieldsToReset",
-		ParamsWithType: fmt.Sprintf("data *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
+		Params:         "data",
+		ParamsWithType: fmt.Sprintf("data *%sData", modelData.Name),
 		ReturnAsserts:  "resTyped, _ := res.(bool)",
 		Returns:        "resTyped",
 		ReturnString:   returnString,
@@ -210,17 +185,15 @@ func copyMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	returnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:         name,
-		ParamsTypes:  fmt.Sprintf("*%sData, ...models.FieldNamer", modelData.Name),
+		ParamsTypes:  fmt.Sprintf("*%sData", modelData.Name),
 		ReturnString: returnString,
 	})
 	modelData.Methods = append(modelData.Methods, methodData{
-		Name: name,
-		Doc: fmt.Sprintf(`// Copy duplicates the given %s record, overridding values with overrides.
-//
-// Only fields with non zero values of overrides or fields passed in the 'fieldsToReset' arg are updated`, modelData.Name),
+		Name:           name,
+		Doc:            fmt.Sprintf(`// Copy duplicates the given %s record, overridding values with overrides.`, modelData.Name),
 		ToDeclare:      false,
-		Params:         "overrides, fieldsToReset",
-		ParamsWithType: fmt.Sprintf("overrides *%sData, fieldsToReset ...models.FieldNamer", modelData.Name),
+		Params:         "overrides",
+		ParamsWithType: fmt.Sprintf("overrides *%sData", modelData.Name),
 		ReturnAsserts:  "resTyped := res.(models.RecordSet).Collection()",
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
@@ -549,7 +522,6 @@ var poolModelsTemplate = template.Must(template.New("").Parse(`
 package {{ .ModelsPackageName }}
 
 import (
-	"github.com/hexya-erp/hexya/src/tools/typesutils"
     "github.com/hexya-erp/pool/{{ .QueryPackageName }}"
 {{ range .Deps }} 	"{{ . }}"
 {{ end }}
@@ -584,9 +556,9 @@ func (m {{ .Name }}Model) NewSet(env models.Environment) {{ .Name }}Set {
 
 // Create creates a new {{ .Name }} record and returns the newly created
 // {{ .Name }}Set instance.
-func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data, fieldsToReset ...models.FieldNamer) {{ .Name }}Set {
+func (m {{ .Name }}Model) Create(env models.Environment, data *{{ .Name }}Data) {{ .Name }}Set {
 	return {{ .Name }}Set{
-		RecordCollection: m.Model.Create(env, data, fieldsToReset...),
+		RecordCollection: m.Model.Create(env, data),
 	}
 }
 
@@ -642,13 +614,6 @@ func {{ .Name }}() {{ .Name }}Model {
 		Model: models.Registry.MustGet("{{ .Name }}"),
 	}
 }
-
-{{ range .Fields }}
-// {{ .Name }} returns a FieldNamer for the "{{ .Name }}" field
-func (m {{ $.Name }}Model) {{ .Name }}() models.FieldName {
-	return models.FieldName("{{ .Name }}")
-}
-{{ end }}
 
 // ------- FIELD COLLECTION ----------
 
@@ -710,57 +675,44 @@ func (c p{{ $.Name }}MethodsCollection) {{ .Name }}() p{{ $.Name }}_{{ .Name }} 
 
 // ------- DATA STRUCT ---------
 
-// {{ .Name }}Data is an autogenerated struct type to handle {{ .Name }} data.
+// p{{ .Name }}Data is used to hold values of an {{ .Name }} object instance
+// when creating or updating a {{ .Name }}Set.
 type {{ .Name }}Data struct {
-{{ range .Fields }}	{{ .Name }} {{ .Type }} ` + "`json:\"{{ .JSON }}\"`" + `
+	models.ModelData
+}
+
+// New{{ .Name }}Data returns a pointer to a new empty {{ .Name }}Data instance.
+func New{{ .Name }}Data() *{{ .Name }}Data {
+	return &{{ .Name }}Data{
+		*models.NewModelData({{ .Name }}()),
+	}
+}
+
+{{ range .Fields }}
+// {{ .Name }} returns the value of the {{ .Name }} field.
+// The second argument is true if the value is set.
+func (d {{ $.Name }}Data) {{ .Name }}() ({{ .Type }}, bool) {
+	val, ok := d.ModelData.Get("{{ .Name }}")
+	if !ok {
+		return *new({{ .Type }}), false
+	}
+	return val.({{ .Type }}), true
+}
+
+// Set the {{ .Name }} field with the given value.
+// It returns this {{ $.Name }}Data so that calls can be chained.
+func (d *{{ $.Name }}Data) Set{{ .Name }}(value {{ .Type }}) *{{ $.Name }}Data {
+	d.ModelData.Set("{{ .Name }}", value)
+	return d
+}
+
+// Unset{{ .Name }} removes the value of the {{ .Name }} field if it exists.
+// It returns this {{ $.Name }}Data so that calls can be chained.
+func (d *{{ $.Name }}Data) Unset{{ .Name }}() *{{ $.Name }}Data {
+	d.ModelData.Unset("{{ .Name }}")
+	return d
+}
 {{ end }}
-}
-
-// FieldMap returns this {{ .Name }}Data as a FieldMap with JSON names as keys.
-// Only {{ .Name }}Data with non zero values will be set in the FieldMap.
-// To add fields with zero values to the map, give them as fields in parameters.
-func (d {{ .Name }}Data) FieldMap(fields ...models.FieldNamer) models.FieldMap {
-	res := make(models.FieldMap)
-	fieldsMap := make(map[string]bool)
-	var fJSON string
-	for _, field := range fields {
-		fJSON = {{ .Name }}().JSONizeFieldName(field.String())
-		fieldsMap[fJSON] = true
-	}
-{{ range .Fields -}}
-	fJSON = {{ $.Name }}().JSONizeFieldName("{{ .Name }}")
-	if fieldsMap[fJSON] || !typesutils.IsZero(d.{{ .Name }}) {
-		res[fJSON] = d.{{ .Name }}
-	}
-{{ end }}
-	return res
-}
-
-// Get returns the value of this {{ .Name }}Data for the given field.
-// If the field equals its go zero value, then it returns nil, except if the
-// field is given in fieldsToReset, in which case the zero value is returned.
-//
-// The second argument is true if the field has a non-zero go value or is in the fieldsToReset.
-func (d {{ .Name }}Data) Get(field models.FieldNamer, fieldsToReset ...models.FieldNamer) (interface{}, bool) {
-	val, exists := d.FieldMap(fieldsToReset...).Get(field.String(), {{ .Name }}().Model)
-	if exists {
-		return val, true
-	}
-	return nil, false
-}
-
-// FieldsSet returns the list of fields set for update, taking into account the fieldsToReset.
-func (d {{ .Name }}Data) FieldsSet(fieldsToReset ...models.FieldNamer) []models.FieldNamer {
-	return d.FieldMap(fieldsToReset...).FieldNames()
-}
-
-// Remove returns a new {{ .Name }}Data and []FieldNamer with the given field set to its
-// zero value and removed from the returned FieldNamer slice.
-func (d {{ .Name }}Data) Remove(rs {{ .Name }}Set, field models.FieldNamer, fieldsToReset ...models.FieldNamer) (*{{ .Name }}Data, []models.FieldNamer) {
-	fMap := d.FieldMap(fieldsToReset...)
-	fMap.Delete(field.String(), {{ .Name }}().Model)
-	return rs.DataStruct(fMap)
-}
 
 var _ models.FieldMapper = {{ .Name }}Data{}
 var _ models.FieldMapper = new({{ .Name }}Data)
@@ -786,22 +738,6 @@ var _ models.RecordSet = {{ .Name }}Set{}
 
 // {{ .Name }}SetHexyaFunc is a dummy function to uniquely match interfaces.
 func (s {{ .Name }}Set) {{ .Name }}SetHexyaFunc() {}
-
-// First returns a copy of the first Record of this RecordSet.
-// It returns an empty {{ .Name }} if the RecordSet is empty.
-func (s {{ .Name }}Set) First() {{ .Name }}Data {
-	var res {{ .Name }}Data
-	s.RecordCollection.First(&res)
-	return res
-}
-
-// All Returns a copy of all records of the RecordCollection.
-// It returns an empty slice if the RecordSet is empty.
-func (s {{ .Name }}Set) All() []*{{ .Name }}Data {
-	var ptrSlice []*{{ .Name }}Data
-	s.RecordCollection.All(&ptrSlice)
-	return ptrSlice
-}
 
 // Records returns a slice with all the records of this RecordSet, as singleton
 // RecordSets

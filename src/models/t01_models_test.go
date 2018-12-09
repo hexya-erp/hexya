@@ -110,10 +110,10 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("OnChangeName", "",
-			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
+			func(rc *RecordCollection) FieldMap {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
-				return res, []FieldNamer{FieldName("DecoratedName")}
+				return res
 			})
 
 		user.AddMethod("ComputeDecoratedName", "",
@@ -201,7 +201,7 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		post.Methods().MustGet("Create").Extend("",
-			func(rc *RecordCollection, data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
+			func(rc *RecordCollection, data FieldMapper) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})

@@ -591,11 +591,7 @@ func checkOnChangeMethType(fi *Field, label string) {
 		msg = fmt.Sprintf("%s should return a value", label)
 	case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
 		msg = "First return argument must implement models.FieldMapper"
-	case methType.NumOut() < 2:
-		msg = fmt.Sprintf("%s must return fields to unset as second value", label)
-	case methType.NumOut() == 2 && methType.Out(1) != reflect.TypeOf([]FieldNamer{}):
-		msg = fmt.Sprintf("Second return value of %s must be []models.FieldNamer", label)
-	case methType.NumOut() > 2:
+	case methType.NumOut() > 1:
 		msg = fmt.Sprintf("Too many return values for %s", label)
 	}
 	if msg != "" {

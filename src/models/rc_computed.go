@@ -29,7 +29,7 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 			// probably because it was computed with another field
 			continue
 		}
-		newParams := rc.Call(fInfo.compute).(FieldMapper).FieldMap()
+		newParams := rc.Call(fInfo.compute).(FieldMapper).Underlying()
 		for k, v := range newParams {
 			key, _ := rc.model.fields.Get(k)
 			(*params)[key.json] = v
@@ -46,25 +46,20 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 	}
 	// Find record fields to update from the modified fields of fMap
 	fieldNames := fMap.Keys()
-	toUpdate := make(map[computeData][]FieldNamer)
+	toUpdate := make(map[computeData]bool)
 	for _, fieldName := range fieldNames {
 		refFieldInfo, ok := rc.model.fields.Get(fieldName)
 		if !ok {
 			continue
 		}
 		for _, dep := range refFieldInfo.dependencies {
-			fName := dep.fieldName
-			if dep.stored {
-				// We remove fieldName to group calls to the compute method if stored
-				dep.fieldName = ""
-			}
-			toUpdate[dep] = append(toUpdate[dep], FieldName(fName))
+			toUpdate[dep] = true
 		}
 	}
 
 	// Compute all that must be computed and store the values
 	rc.Fetch()
-	for cData, fNames := range toUpdate {
+	for cData := range toUpdate {
 		recs := rc
 		if cData.path != "" {
 			recs = rc.Env().Pool(cData.model.name).Search(rc.Model().Field(cData.path).In(rc.Ids()))
@@ -76,15 +71,15 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 			}
 			continue
 		}
-		updateStoredFields(recs, cData.compute, fNames)
+		updateStoredFields(recs, cData.compute)
 	}
 }
 
 // updateStoredFields calls the given computeMethod on recs and stores the values.
-func updateStoredFields(recs *RecordCollection, computeMethod string, fieldsToReset []FieldNamer) {
+func updateStoredFields(recs *RecordCollection, computeMethod string) {
 	for _, rec := range recs.Records() {
 		retVal := rec.Call(computeMethod)
-		vals := retVal.(FieldMapper).FieldMap(fieldsToReset...)
+		vals := retVal.(FieldMapper).Underlying()
 		// Check if the values actually changed
 		var doUpdate bool
 		for f, v := range vals {
@@ -104,7 +99,7 @@ func updateStoredFields(recs *RecordCollection, computeMethod string, fieldsToRe
 			}
 		}
 		if doUpdate {
-			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals, fieldsToReset)
+			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals)
 		}
 	}
 }

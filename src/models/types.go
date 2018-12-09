@@ -16,155 +16,7 @@ package models
 
 import (
 	"fmt"
-	"sort"
 )
-
-// FieldMap is a map of interface{} specifically used for holding model
-// fields values.
-type FieldMap map[string]interface{}
-
-// Keys returns the FieldMap keys as a slice of strings
-func (fm FieldMap) Keys() (res []string) {
-	for k := range fm {
-		res = append(res, k)
-	}
-	return
-}
-
-// OrderedKeys returns the keys of this FieldMap ordered.
-//
-// This has the convenient side effect of having shorter paths come before longer paths,
-// which is particularly useful when creating or updating related records.
-func (fm FieldMap) OrderedKeys() []string {
-	keys := fm.Keys()
-	sort.Strings(keys)
-	return keys
-}
-
-// FieldNames returns the FieldMap keys as a slice of FieldNamer.
-// As within a FieldMap, the result can be field names or JSON names
-// or a mix of both.
-func (fm FieldMap) FieldNames() (res []FieldNamer) {
-	for k := range fm {
-		res = append(res, FieldName(k))
-	}
-	return
-}
-
-// Values returns the FieldMap values as a slice of interface{}
-func (fm FieldMap) Values() (res []interface{}) {
-	for _, v := range fm {
-		res = append(res, v)
-	}
-	return
-}
-
-// RemovePK removes the entries of our FieldMap which
-// references the ID field.
-func (fm *FieldMap) RemovePK() {
-	delete(*fm, "id")
-	delete(*fm, "ID")
-}
-
-// RemovePKIfZero removes the entries of our FieldMap which
-// references the ID field if the referenced id is 0.
-func (fm *FieldMap) RemovePKIfZero() {
-	if idl, ok := (*fm)["id"]; ok && idl.(int64) == 0 {
-		delete(*fm, "id")
-	}
-	if idu, ok := (*fm)["ID"]; ok && idu.(int64) == 0 {
-		delete(*fm, "ID")
-	}
-}
-
-// JSONized returns a new field map identical to this one but
-// with all its keys switched to the JSON name of the fields
-func (fm *FieldMap) JSONized(model *Model) FieldMap {
-	res := make(FieldMap)
-	for f, v := range *fm {
-		jsonFieldName := model.JSONizeFieldName(f)
-		res[jsonFieldName] = v
-	}
-	return res
-}
-
-// Get returns the value of the given field referring to the given model.
-// field can be either a field name (or path) or a field JSON name (or path).
-// The second returned value is true if the field has been found in the FieldMap
-func (fm FieldMap) Get(field string, model *Model) (interface{}, bool) {
-	fi := model.getRelatedFieldInfo(field)
-	val, ok := fm[fi.name]
-	if !ok {
-		val, ok = fm[fi.json]
-		if !ok {
-			return nil, false
-		}
-	}
-	return val, true
-}
-
-// MustGet returns the value of the given field referring to the given model.
-// field can be either a field name (or path) or a field JSON name (or path).
-// It panics if the field is not found.
-func (fm FieldMap) MustGet(field string, model *Model) interface{} {
-	val, ok := fm.Get(field, model)
-	if !ok {
-		log.Panic("Field not found in FieldMap", "field", field, "fMap", fm, "model", model)
-	}
-	return val
-}
-
-// Set sets the given field with the given value.
-// If the field already exists, then it is updated with value.
-// Otherwise, a new entry is inserted in the FieldMap with the
-// JSON name of the field.
-func (fm *FieldMap) Set(field string, value interface{}, model *Model) {
-	fi := model.getRelatedFieldInfo(field)
-	key := fi.name
-	_, ok := (*fm)[key]
-	if !ok {
-		key = fi.json
-	}
-	(*fm)[key] = value
-}
-
-// Delete removes the given field from this FieldMap.
-// Calling Del on a non existent field is a no op.
-func (fm *FieldMap) Delete(field string, model *Model) {
-	fi := model.getRelatedFieldInfo(field)
-	key := fi.name
-	_, ok := (*fm)[key]
-	if !ok {
-		key = fi.json
-	}
-	delete(*fm, key)
-}
-
-// MergeWith updates this FieldMap with the given other FieldMap
-// If a key of the other FieldMap already exists here, the value is overridden,
-// otherwise, the key is inserted with its json name.
-func (fm *FieldMap) MergeWith(other FieldMap, model *Model) {
-	for field, value := range other {
-		fm.Set(field, value, model)
-	}
-}
-
-// FieldMap returns the object converted to a FieldMap
-// i.e. itself
-func (fm FieldMap) FieldMap(fields ...FieldNamer) FieldMap {
-	return fm
-}
-
-var _ FieldMapper = FieldMap{}
-
-// Copy returns a shallow copy of this FieldMap
-func (fm FieldMap) Copy() FieldMap {
-	res := make(FieldMap, len(fm))
-	for k, v := range fm {
-		res[k] = v
-	}
-	return res
-}
 
 // A RecordRef uniquely identifies a Record by giving its model and ID.
 type RecordRef struct {
@@ -232,14 +84,8 @@ type FieldContexts map[string]func(RecordSet) string
 
 // A FieldMapper is an object that can convert itself into a FieldMap
 type FieldMapper interface {
-	// FieldMap returns the object converted to a FieldMap.
-	//
-	// If this is a struct, only non zero fields will be added to the result.
-	// To put additional fields with zero value in the map, specify them in fields.
-	//
-	// If this is already a FieldMap, then fields are ignored and the map is
-	// returned as is.
-	FieldMap(fields ...FieldNamer) FieldMap
+	// Underlying returns the object converted to a FieldMap.
+	Underlying() FieldMap
 }
 
 // A Methoder can return a Method data object through its Underlying() method
@@ -255,4 +101,44 @@ type Modeler interface {
 // A Conditioner can return a Condition object through its Underlying() method
 type Conditioner interface {
 	Underlying() *Condition
+}
+
+// A ModelData is used to hold values of an object instance for creating or
+// updating a RecordSet. It is mainly designed to be embedded in a type-safe
+// struct.
+type ModelData struct {
+	FieldMap
+	model *Model
+}
+
+var _ FieldMapper = ModelData{}
+var _ FieldMapper = new(ModelData)
+
+// Get returns the value of the given field.
+// The second returned value is true if the value exists.
+//
+// The field can be either its name or is JSON name.
+func (md *ModelData) Get(field string) (interface{}, bool) {
+	return md.FieldMap.Get(field, md.model)
+}
+
+// Set sets the given field with the given value.
+// If the field already exists, then it is updated with value.
+// Otherwise, a new entry is inserted.
+func (md *ModelData) Set(field string, value interface{}) {
+	md.FieldMap.Set(field, value, md.model)
+}
+
+// Unset removes the value of the given field if it exists.
+func (md *ModelData) Unset(field string) {
+	md.FieldMap.Delete(field, md.model)
+}
+
+// NewModelData returns a pointer to a new instance of ModelData
+// for the given model.
+func NewModelData(model Modeler) *ModelData {
+	return &ModelData{
+		FieldMap: make(FieldMap),
+		model:    model.Underlying(),
+	}
 }

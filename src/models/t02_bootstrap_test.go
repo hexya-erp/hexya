@@ -14,7 +14,7 @@ import (
 
 type TestFieldMap FieldMap
 
-func (f TestFieldMap) FieldMap(...FieldNamer) FieldMap {
+func (f TestFieldMap) Underlying() FieldMap {
 	return FieldMap(f)
 }
 
@@ -89,9 +89,6 @@ func TestIllegalMethods(t *testing.T) {
 	Convey("Test methods signature check", t, func() {
 		userModel := Registry.MustGet("User")
 		nameField := userModel.Fields().MustGet("Name")
-		nameField.SetOnchange(userModel.Methods().MustGet("ComputeAge"))
-		processUpdates()
-		So(func() { checkOnChangeMethType(nameField, "Onchange") }, ShouldPanic)
 		nameField.SetOnchange(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
 		So(func() { checkOnChangeMethType(nameField, "Onchange") }, ShouldPanic)
@@ -102,9 +99,6 @@ func TestIllegalMethods(t *testing.T) {
 		processUpdates()
 
 		ageField := userModel.Fields().MustGet("Age")
-		ageField.SetCompute(userModel.Methods().MustGet("OnChangeName"))
-		processUpdates()
-		So(func() { checkComputeMethType(ageField, "Compute") }, ShouldPanic)
 		ageField.SetCompute(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
 		So(func() { checkComputeMethType(ageField, "Compute") }, ShouldPanic)

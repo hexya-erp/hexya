@@ -20,8 +20,11 @@ func TestBaseModelMethods(t *testing.T) {
 			userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 			Convey("Copy", func() {
 				newProfile := userJane.Profile().Copy(&h.ProfileData{})
-				userJane.Write(&h.UserData{Password: "Jane's Password"})
-				userJaneCopy := userJane.Copy(&h.UserData{Name: "Jane's Copy", Email2: "js@example.com", Profile: newProfile})
+				userJane.Write(h.NewUserData().SetPassword("Jane's Password"))
+				userJaneCopy := userJane.Copy(h.NewUserData().
+					SetName("Jane's Copy").
+					SetEmail2("js@example.com").
+					SetProfile(newProfile))
 				So(userJaneCopy.Name(), ShouldEqual, "Jane's Copy")
 				So(userJaneCopy.Email(), ShouldEqual, "jane.smith@example.com")
 				So(userJaneCopy.Email2(), ShouldEqual, "js@example.com")
@@ -32,10 +35,9 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Sorted", func() {
 				for i := 0; i < 20; i++ {
-					h.Post().Create(env, &h.PostData{
-						Title: fmt.Sprintf("Post no %02d", (24-i)%20),
-						User:  userJane,
-					})
+					h.Post().Create(env, h.NewPostData().
+						SetTitle(fmt.Sprintf("Post no %02d", (24-i)%20)).
+						SetUser(userJane))
 				}
 				posts := h.Post().Search(env, q.Post().Title().Contains("Post no")).OrderBy("ID")
 				for i, post := range posts.Records() {
@@ -52,10 +54,9 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Filtered", func() {
 				for i := 0; i < 20; i++ {
-					h.Post().Create(env, &h.PostData{
-						Title: fmt.Sprintf("Post no %02d", i),
-						User:  userJane,
-					})
+					h.Post().Create(env, h.NewPostData().
+						SetTitle(fmt.Sprintf("Post no %02d", i)).
+						SetUser(userJane))
 				}
 				posts := h.Post().Search(env, q.Post().Title().Contains("Post no"))
 
