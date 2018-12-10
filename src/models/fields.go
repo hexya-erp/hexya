@@ -15,6 +15,7 @@
 package models
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -528,39 +529,47 @@ func processDepends() {
 // in computed fields and for OnChange methods.
 // It panics if it is not the case.
 func checkComputeMethodsSignature() {
-	for _, mi := range Registry.registryByName {
-		for _, fi := range mi.fields.computedFields {
-			checkComputeMethType(fi, "Compute methods")
+	for _, model := range Registry.registryByName {
+		for _, fi := range model.fields.computedFields {
+			method := fi.model.methods.MustGet(fi.compute)
+			if err := checkMethType(method, "Compute methods"); err != nil {
+				log.Panic(err.Error(), "model", method.model.name, "method", method.name, "field", fi.name)
+			}
 		}
-		for _, fi := range mi.fields.computedStoredFields {
-			checkComputeMethType(fi, "Compute method for stored fields")
+		for _, fi := range model.fields.computedStoredFields {
+			method := fi.model.methods.MustGet(fi.compute)
+			if err := checkMethType(method, "Compute method for stored fields"); err != nil {
+				log.Panic(err.Error(), "model", method.model.name, "method", method.name, "field", fi.name)
+			}
 		}
-		for _, fi := range mi.fields.registryByName {
+		for _, fi := range model.fields.registryByName {
 			if fi.onChange == "" {
 				continue
 			}
-			checkOnChangeMethType(fi, "OnChange methods")
+			method := fi.model.methods.MustGet(fi.onChange)
+			if err := checkMethType(method, "OnchangeMethods"); err != nil {
+				log.Panic(err.Error(), "model", method.model.name, "method", method.name, "field", fi.name)
+			}
 		}
-		for _, fi := range mi.fields.registryByName {
+		for _, fi := range model.fields.registryByName {
 			if fi.inverse == "" {
 				continue
 			}
-			method := mi.methods.MustGet(fi.inverse)
+			method := model.methods.MustGet(fi.inverse)
 			methType := method.methodType
 			if methType.NumIn() != 2 {
-				log.Panic("Inverse methods should have 2 arguments", "model", mi.name, "field", fi.name, "method", method.name)
+				log.Panic("Inverse methods should have 2 arguments", "model", model.name, "field", fi.name, "method", method.name)
 			}
 			if methType.NumOut() != 0 {
-				log.Panic("Inverse methods should not return any value", "model", mi.name, "field", fi.name, "method", method.name)
+				log.Panic("Inverse methods should not return any value", "model", model.name, "field", fi.name, "method", method.name)
 			}
 		}
 	}
 }
 
-// checkComputeMethType panics if the given method does not have
-// the correct number and type of arguments and returns for a compute method
-func checkComputeMethType(fi *Field, label string) {
-	method := fi.model.methods.MustGet(fi.compute)
+// checkMethType panics if the given method does not have
+// the correct number and type of arguments and returns for a compute/onChange method
+func checkMethType(method *Method, label string) error {
 	methType := method.methodType
 	var msg string
 	switch {
@@ -569,32 +578,12 @@ func checkComputeMethType(fi *Field, label string) {
 	case methType.NumOut() == 0:
 		msg = fmt.Sprintf("%s should return a value", label)
 	case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
-		msg = "First return argument must implement models.FieldMapper"
+		msg = fmt.Sprintf("%s returned value must implement models.FieldMapper", label)
 	case methType.NumOut() > 1:
 		msg = fmt.Sprintf("Too many return values for %s", label)
 	}
 	if msg != "" {
-		log.Panic(msg, "model", method.model.name, "method", method.name, "field", fi.name)
+		return errors.New(msg)
 	}
-}
-
-// checkOnChangeMethType panics if the given method does not have
-// the correct number and type of arguments and returns for an onchange method
-func checkOnChangeMethType(fi *Field, label string) {
-	method := fi.model.methods.MustGet(fi.onChange)
-	methType := method.methodType
-	var msg string
-	switch {
-	case methType.NumIn() != 1:
-		msg = fmt.Sprintf("%s should have no arguments", label)
-	case methType.NumOut() == 0:
-		msg = fmt.Sprintf("%s should return a value", label)
-	case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
-		msg = "First return argument must implement models.FieldMapper"
-	case methType.NumOut() > 1:
-		msg = fmt.Sprintf("Too many return values for %s", label)
-	}
-	if msg != "" {
-		log.Panic(msg, "model", method.model.name, "method", method.name, "field", fi.name)
-	}
+	return nil
 }

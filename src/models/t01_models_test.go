@@ -155,6 +155,22 @@ func TestModelDeclaration(t *testing.T) {
 				return rc.Call("EndlessRecursion").(string)
 			})
 
+		user.AddMethod("TwoReturnValues", "Test method with 2 return values",
+			func(rc *RecordCollection) (FieldMap, bool) {
+				return FieldMap{"One": 1}, true
+			})
+
+		user.AddMethod("NoReturnValue", "Test method with 0 return values",
+			func(rc *RecordCollection) {
+				fmt.Println("NOOP")
+			})
+
+		user.AddMethod("WrongInverseSetAge", "",
+			func(rc *RecordCollection, age int16) string {
+				rc.Get("Profile").(*RecordCollection).Set("Age", age)
+				return "Ok"
+			})
+
 		activeMI.AddMethod("IsActivated", "",
 			func(rc *RecordCollection) bool {
 				return rc.Get("Active").(bool)
@@ -463,5 +479,12 @@ func TestErroneousDeclarations(t *testing.T) {
 				})
 			}, ShouldPanic)
 		})
+	})
+}
+
+func TestMiscellaneous(t *testing.T) {
+	Convey("Check that Field instances are FieldNamers", t, func() {
+		So(Registry.MustGet("User").Fields().MustGet("Name").FieldName(), ShouldEqual, FieldName("Name"))
+		So(Registry.MustGet("User").Fields().MustGet("Name").String(), ShouldEqual, "Name")
 	})
 }

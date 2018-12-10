@@ -86,27 +86,56 @@ func TestIllegalMethods(t *testing.T) {
 		So(checkTypesMatch(reflect.TypeOf(TestFieldMap{}), reflect.TypeOf(FieldMap{})), ShouldBeTrue)
 		So(checkTypesMatch(reflect.TypeOf(FieldMap{}), reflect.TypeOf(TestFieldMap{})), ShouldBeTrue)
 	})
-	Convey("Test methods signature check", t, func() {
+	Convey("Test compute and onChange method signature", t, func() {
 		userModel := Registry.MustGet("User")
 		nameField := userModel.Fields().MustGet("Name")
 		nameField.SetOnchange(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
-		So(func() { checkOnChangeMethType(nameField, "Onchange") }, ShouldPanic)
-		nameField.SetOnchange(userModel.Methods().MustGet("InverseSetAge"))
-		processUpdates()
-		So(func() { checkOnChangeMethType(nameField, "Onchange") }, ShouldPanic)
+		So(checkComputeMethodsSignature, ShouldPanic)
 		nameField.SetOnchange(userModel.Methods().MustGet("OnChangeName"))
 		processUpdates()
 
 		ageField := userModel.Fields().MustGet("Age")
 		ageField.SetCompute(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
-		So(func() { checkComputeMethType(ageField, "Compute") }, ShouldPanic)
-		ageField.SetCompute(userModel.Methods().MustGet("InverseSetAge"))
-		processUpdates()
-		So(func() { checkComputeMethType(ageField, "Compute") }, ShouldPanic)
+		So(checkComputeMethodsSignature, ShouldPanic)
 		ageField.SetCompute(userModel.Methods().MustGet("ComputeAge"))
 		processUpdates()
+
+		ageField.SetInverse(userModel.Methods().MustGet("SubSetSuper"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		ageField.SetInverse(userModel.Methods().MustGet("WrongInverseSetAge"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		ageField.SetInverse(userModel.Methods().MustGet("InverseSetAge"))
+		processUpdates()
+
+		dnField := userModel.Fields().MustGet("DecoratedName")
+		dnField.SetCompute(userModel.Methods().MustGet("SubSetSuper"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		dnField.SetCompute(userModel.Methods().MustGet("ComputeDecoratedName"))
+		processUpdates()
+	})
+	Convey("Test methods signature check", t, func() {
+		userModel := Registry.MustGet("User")
+		Convey("Onchange/compute method should have no arguments", func() {
+			meth := userModel.Methods().MustGet("InverseSetAge")
+			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+		})
+		Convey("Onchange/compute method should return a value", func() {
+			meth := userModel.Methods().MustGet("NoReturnValue")
+			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+		})
+		Convey("Onchange/compute method returned value must be a FieldMapper", func() {
+			meth := userModel.Methods().MustGet("SubSetSuper")
+			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+		})
+		Convey("Onchange/compute method should not return more than one value", func() {
+			meth := userModel.Methods().MustGet("TwoReturnValues")
+			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+		})
 	})
 }
 
