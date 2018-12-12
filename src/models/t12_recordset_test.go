@@ -37,14 +37,13 @@ func TestCreateRecordSet(t *testing.T) {
 				So(users.Get("Resume").(RecordSet).IsEmpty(), ShouldBeFalse)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Tags and Comments", func() {
-				userJaneProfileData := FieldMap{
-					"Age":     23,
-					"Money":   12345,
-					"Street":  "165 5th Avenue",
-					"City":    "New York",
-					"Zip":     "0305",
-					"Country": "USA",
-				}
+				userJaneProfileData := NewModelData(Registry.MustGet("Profile")).
+					Set("Age", 23).
+					Set("Money", 12345).
+					Set("Street", "165 5th Avenue").
+					Set("City", "New York").
+					Set("Zip", "0305").
+					Set("Country", "USA")
 				profile := env.Pool("Profile").Call("Create", userJaneProfileData).(RecordSet).Collection()
 				So(profile.Len(), ShouldEqual, 1)
 				So(profile.Get("UserName"), ShouldBeBlank)
@@ -533,6 +532,23 @@ func TestGroupedQueries(t *testing.T) {
 func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			Convey("Checking ModelData methods", func() {
+				johnValues := NewModelData(Registry.MustGet("User")).
+					Set("Email", "jsmith2@example.com").
+					Set("Nums", 13).
+					Set("IsStaff", false)
+				num, ok := johnValues.Get("Nums")
+				So(num, ShouldEqual, 13)
+				So(ok, ShouldBeTrue)
+				jv2 := johnValues.Copy()
+				johnValues.Unset("Nums")
+				num2, ok2 := johnValues.Get("Nums")
+				So(num2, ShouldEqual, nil)
+				So(ok2, ShouldBeFalse)
+				num3, ok3 := jv2.Get("Nums")
+				So(num3, ShouldEqual, 13)
+				So(ok3, ShouldBeTrue)
+			})
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)

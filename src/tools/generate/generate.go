@@ -688,6 +688,13 @@ func New{{ .Name }}Data() *{{ .Name }}Data {
 	}
 }
 
+// Copy returns a copy of this {{ $.Name }}Data
+func (d *{{ $.Name }}Data) Copy() *{{ $.Name }}Data {
+	return &{{ $.Name }}Data{
+		*d.ModelData.Copy(),
+	}
+}
+
 {{ range .Fields }}
 // {{ .Name }} returns the value of the {{ .Name }} field.
 // The second argument is true if the value is set.

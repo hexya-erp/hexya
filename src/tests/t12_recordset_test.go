@@ -377,6 +377,23 @@ func TestAdvancedQueries(t *testing.T) {
 func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
 		So(models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+			Convey("Checking ModelData methods", func() {
+				johnValues := h.NewUserData().
+					SetEmail("jsmith2@example.com").
+					SetNums(13).
+					SetIsStaff(false)
+				num, ok := johnValues.Nums()
+				So(num, ShouldEqual, 13)
+				So(ok, ShouldBeTrue)
+				jv2 := johnValues.Copy()
+				johnValues.UnsetNums()
+				num2, ok2 := johnValues.Nums()
+				So(num2, ShouldEqual, 0)
+				So(ok2, ShouldBeFalse)
+				num3, ok3 := jv2.Nums()
+				So(num3, ShouldEqual, 13)
+				So(ok3, ShouldBeTrue)
+			})
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)

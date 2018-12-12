@@ -125,13 +125,27 @@ func (md *ModelData) Get(field string) (interface{}, bool) {
 // Set sets the given field with the given value.
 // If the field already exists, then it is updated with value.
 // Otherwise, a new entry is inserted.
-func (md *ModelData) Set(field string, value interface{}) {
+//
+// It returns the given ModelData so that calls can be chained
+func (md *ModelData) Set(field string, value interface{}) *ModelData {
 	md.FieldMap.Set(field, value, md.model)
+	return md
 }
 
 // Unset removes the value of the given field if it exists.
-func (md *ModelData) Unset(field string) {
+//
+// It returns the given ModelData so that calls can be chained
+func (md *ModelData) Unset(field string) *ModelData {
 	md.FieldMap.Delete(field, md.model)
+	return md
+}
+
+// Copy returns a copy of this ModelData
+func (md *ModelData) Copy() *ModelData {
+	return &ModelData{
+		model:    md.model,
+		FieldMap: md.FieldMap.Copy(),
+	}
 }
 
 // NewModelData returns a pointer to a new instance of ModelData
