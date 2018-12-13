@@ -848,9 +848,8 @@ func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldNamer) []{{ .Name }
 	lines := s.RecordCollection.Aggregates(fieldNames...)
 	res := make([]{{ .Name }}GroupAggregateRow, len(lines))
 	for i, l := range lines {
-		ds, _ := s.DataStruct(l.Values)
 		res[i] = {{ .Name }}GroupAggregateRow {
-			Values:    ds, 
+			Values:    s.ModelData(l.Values), 
 			Count:     l.Count,
 			Condition: {{ $.QueryPackageName }}.{{ .Name }}Condition {
 				Condition: l.Condition,
@@ -909,13 +908,14 @@ func (s {{ .Name }}Set) Super() {{ .Name }}Set {
 	}
 }
 
-// DataStruct returns a new {{ .Name }}Data object populated with the values
-// of the given FieldMap. It returns as a second argument the list of keys of the
-// given FieldMap.
-func (s {{ .Name }}Set) DataStruct(fMap models.FieldMap) (*{{ .Name }}Data, []models.FieldNamer) {
-	var res {{ .Name }}Data
-	models.MapToStruct(s.Collection(), &res, fMap)
-	return &res, fMap.FieldNames()
+// ModelData returns a new {{ .Name }}Data object populated with the values
+// of the given FieldMap. 
+func (s {{ .Name }}Set) ModelData(fMap models.FieldMap) *{{ .Name }}Data {
+	res := New{{ .Name }}Data()
+	for k, v := range fMap {
+		res.Set(k, v)
+	}
+	return res
 }
 
 {{ range .Methods }}
