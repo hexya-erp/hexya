@@ -29,15 +29,14 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.2.1
 	github.com/stretchr/testify v1.2.2 // indirect
-	github.com/ugorji/go/codec v0.0.0-20181120210156-7d13b37dbec6 // indirect
+	github.com/ugorji/go/codec v0.0.0-20181206144755-e72634d4d386 // indirect
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
 	golang.org/x/crypto v0.0.0-20181112202954-3d3f9f413869
 	golang.org/x/image v0.0.0-20181116024801-cd38e8056d9b // indirect
-	golang.org/x/net v0.0.0-20181114220301-adae6a3d119a // indirect
+	golang.org/x/net v0.0.0-20181207154023-610586996380 // indirect
 	golang.org/x/sync v0.0.0-20181108010431-42b317875d0f // indirect
-	golang.org/x/sys v0.0.0-20181122145206-62eef0e2fa9b // indirect
 	golang.org/x/tools v0.0.0-20181122213734-04b5d21e00f1
 	google.golang.org/appengine v1.3.0 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect

@@ -37,14 +37,13 @@ func TestCreateRecordSet(t *testing.T) {
 				So(users.Get("Resume").(RecordSet).IsEmpty(), ShouldBeFalse)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Tags and Comments", func() {
-				userJaneProfileData := FieldMap{
-					"Age":     23,
-					"Money":   12345,
-					"Street":  "165 5th Avenue",
-					"City":    "New York",
-					"Zip":     "0305",
-					"Country": "USA",
-				}
+				userJaneProfileData := NewModelData(Registry.MustGet("Profile")).
+					Set("Age", 23).
+					Set("Money", 12345).
+					Set("Street", "165 5th Avenue").
+					Set("City", "New York").
+					Set("Zip", "0305").
+					Set("Country", "USA")
 				profile := env.Pool("Profile").Call("Create", userJaneProfileData).(RecordSet).Collection()
 				So(profile.Len(), ShouldEqual, 1)
 				So(profile.Get("UserName"), ShouldBeBlank)
@@ -265,12 +264,19 @@ func TestSearchRecordSet(t *testing.T) {
 					So(recs[1].Get("Title"), ShouldEqual, "2nd Post")
 				})
 				Convey("Reading Jane with ReadFirst", func() {
-					var userJaneStruct UserStruct
-					userJane.First(&userJaneStruct)
-					So(userJaneStruct.Name, ShouldEqual, "Jane Smith")
-					So(userJaneStruct.Email, ShouldEqual, "jane.smith@example.com")
-					So(userJaneStruct.ID, ShouldEqual, userJane.Get("ID").(int64))
-					So(userJaneStruct.Profile.Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
+					ujData := userJane.First()
+					name, ok := ujData.Get("Name")
+					So(name, ShouldEqual, "Jane Smith")
+					So(ok, ShouldBeTrue)
+					email, ok := ujData.Get("Email")
+					So(email, ShouldEqual, "jane.smith@example.com")
+					So(ok, ShouldBeTrue)
+					id, ok := ujData.Get("ID")
+					So(id, ShouldEqual, userJane.Get("ID").(int64))
+					So(ok, ShouldBeTrue)
+					profile, ok := ujData.Get("Profile")
+					So(profile.(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
+					So(ok, ShouldBeTrue)
 				})
 			})
 
@@ -291,11 +297,16 @@ func TestSearchRecordSet(t *testing.T) {
 					So(recs[2].Get("Email"), ShouldEqual, "will.smith@example.com")
 				})
 				Convey("Reading all users with ReadAll()", func() {
-					var userStructs []*UserStruct
-					usersAll.All(&userStructs)
-					So(userStructs[0].Email, ShouldEqual, "jane.smith@example.com")
-					So(userStructs[1].Email, ShouldEqual, "jsmith@example.com")
-					So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
+					usersData := usersAll.All()
+					email0, ok := usersData[0].Get("Email")
+					So(email0, ShouldEqual, "jane.smith@example.com")
+					So(ok, ShouldBeTrue)
+					email1, ok := usersData[1].Get("Email")
+					So(email1, ShouldEqual, "jsmith@example.com")
+					So(ok, ShouldBeTrue)
+					email2, ok := usersData[2].Get("Email")
+					So(email2, ShouldEqual, "will.smith@example.com")
+					So(ok, ShouldBeTrue)
 				})
 			})
 			Convey("Testing search on manual model", func() {

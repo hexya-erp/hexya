@@ -110,10 +110,10 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("OnChangeName", "",
-			func(rc *RecordCollection) (FieldMap, []FieldNamer) {
+			func(rc *RecordCollection) FieldMap {
 				res := make(FieldMap)
 				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
-				return res, []FieldNamer{FieldName("DecoratedName")}
+				return res
 			})
 
 		user.AddMethod("ComputeDecoratedName", "",
@@ -153,6 +153,22 @@ func TestModelDeclaration(t *testing.T) {
 		user.AddMethod("EndlessRecursion2", "Endless recursive method for tests",
 			func(rc *RecordCollection) string {
 				return rc.Call("EndlessRecursion").(string)
+			})
+
+		user.AddMethod("TwoReturnValues", "Test method with 2 return values",
+			func(rc *RecordCollection) (FieldMap, bool) {
+				return FieldMap{"One": 1}, true
+			})
+
+		user.AddMethod("NoReturnValue", "Test method with 0 return values",
+			func(rc *RecordCollection) {
+				fmt.Println("NOOP")
+			})
+
+		user.AddMethod("WrongInverseSetAge", "",
+			func(rc *RecordCollection, age int16) string {
+				rc.Get("Profile").(*RecordCollection).Set("Age", age)
+				return "Ok"
 			})
 
 		activeMI.AddMethod("IsActivated", "",
@@ -201,7 +217,7 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		post.Methods().MustGet("Create").Extend("",
-			func(rc *RecordCollection, data FieldMapper, fieldsToReset ...FieldNamer) *RecordCollection {
+			func(rc *RecordCollection, data FieldMapper) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
@@ -463,5 +479,12 @@ func TestErroneousDeclarations(t *testing.T) {
 				})
 			}, ShouldPanic)
 		})
+	})
+}
+
+func TestMiscellaneous(t *testing.T) {
+	Convey("Check that Field instances are FieldNamers", t, func() {
+		So(Registry.MustGet("User").Fields().MustGet("Name").FieldName(), ShouldEqual, FieldName("Name"))
+		So(Registry.MustGet("User").Fields().MustGet("Name").String(), ShouldEqual, "Name")
 	})
 }

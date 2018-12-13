@@ -41,28 +41,19 @@ func init() {
 	// Methods directly declared with AddMethod must be defined before being referenced in the field declaration
 
 	user.AddMethod("OnChangeName", "",
-		func(rs h.UserSet) (*h.UserData, []models.FieldNamer) {
-			res := h.UserData{
-				DecoratedName: rs.PrefixedUser("User")[0],
-			}
-			return &res, []models.FieldNamer{h.User().DecoratedName()}
+		func(rs h.UserSet) *h.UserData {
+			return h.NewUserData().SetDecoratedName(rs.PrefixedUser("User")[0])
 		})
 
 	user.AddMethod("ComputeDecoratedName", "",
 		func(rs h.UserSet) *h.UserData {
-			res := h.UserData{
-				DecoratedName: rs.PrefixedUser("User")[0],
-			}
-			return &res
+			return h.NewUserData().SetDecoratedName(rs.PrefixedUser("User")[0])
 		})
 
 	user.AddMethod("ComputeAge",
 		`ComputeAge is a sample method layer for testing`,
 		func(rs h.UserSet) *h.UserData {
-			res := h.UserData{
-				Age: rs.Profile().Age(),
-			}
-			return &res
+			return h.NewUserData().SetAge(rs.Profile().Age())
 		})
 
 	var isPremiumHelp = "This the IsPremium Help message"
@@ -197,7 +188,7 @@ func init() {
 	})
 
 	h.Post().Methods().Create().Extend("",
-		func(rs h.PostSet, data *h.PostData, fieldsToReset ...models.FieldNamer) h.PostSet {
+		func(rs h.PostSet, data *h.PostData) h.PostSet {
 			res := rs.Super().Create(data)
 			return res
 		})
@@ -248,16 +239,14 @@ func init() {
 		"Other":      models.CharField{Compute: h.Resume().Methods().ComputeOther()},
 	})
 	cv.Methods().Create().Extend("",
-		func(rs h.ResumeSet, data *h.ResumeData, fieldsToReset ...models.FieldNamer) h.ResumeSet {
+		func(rs h.ResumeSet, data *h.ResumeData) h.ResumeSet {
 			return rs.Super().Create(data)
 		})
 
 	cv.Methods().ComputeOther().DeclareMethod(
 		`Dummy compute function`,
 		func(rs h.ResumeSet) *h.ResumeData {
-			return &h.ResumeData{
-				Other: "Other information",
-			}
+			return h.NewResumeData().SetOther("Other information")
 		})
 
 	addressMI := h.AddressMixIn().DeclareMixinModel()

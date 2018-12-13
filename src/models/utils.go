@@ -15,8 +15,6 @@
 package models
 
 import (
-	"errors"
-	"reflect"
 	"strings"
 )
 
@@ -24,58 +22,6 @@ var (
 	// Testing is true if we are testing the framework
 	Testing bool
 )
-
-/*
-checkStructPtr checks that the given data is a struct ptr valid for receiving data from
-the database through the RecordSet API. That is:
-- data must be a struct pointer
-- The struct must contain an ID field of type int64
-It returns an error if it not the case.
-*/
-func checkStructPtr(data interface{}) error {
-	val := reflect.ValueOf(data)
-	ind := reflect.Indirect(val)
-	indType := ind.Type()
-	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		return errors.New("argument must be a struct pointer")
-	}
-
-	if _, ok := indType.FieldByName("ID"); !ok {
-		return errors.New("struct must have an ID field")
-	}
-	if f, _ := indType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
-		return errors.New("struct ID field must be of type `int64`")
-	}
-	return nil
-}
-
-// checkStructSlicePtr checks that the given data is a pointer to a slice of
-// struct pointers valid for receiving data from the database through the RecordSet API.
-// That is:
-// - data must be a pointer to a slice of struct pointers
-// - The struct must contain an ID field of type int64
-// It returns an error if it not the case.
-func checkStructSlicePtr(data interface{}) error {
-	val := reflect.ValueOf(data)
-	ind := reflect.Indirect(val)
-	indType := ind.Type()
-	if val.Kind() != reflect.Ptr ||
-		ind.Kind() != reflect.Slice ||
-		indType.Elem().Kind() != reflect.Ptr ||
-		indType.Elem().Elem().Kind() != reflect.Struct {
-
-		return errors.New("argument must be a pointer to a slice of struct pointers")
-	}
-	structType := indType.Elem().Elem()
-
-	if _, ok := structType.FieldByName("ID"); !ok {
-		return errors.New("struct must have an ID field")
-	}
-	if f, _ := structType.FieldByName("ID"); f.Type != reflect.TypeOf(int64(1.0)) {
-		return errors.New("struct ID field must be of type `int64`")
-	}
-	return nil
-}
 
 // jsonizeExpr returns an expression slice with field names changed to the fields json names
 // Computation is made relatively to the given Model
@@ -142,78 +88,6 @@ func jsonizePath(mi *Model, path string) string {
 	exprs := strings.Split(path, ExprSep)
 	exprs = jsonizeExpr(mi, exprs)
 	return strings.Join(exprs, ExprSep)
-}
-
-// MapToStruct populates the given structPtr with the values in fMap.
-func MapToStruct(rc *RecordCollection, structPtr interface{}, fMap FieldMap) {
-	fMap = fMap.JSONized(rc.model)
-	fMap = nestMap(fMap)
-	rc.model.convertValuesToFieldType(&fMap)
-	val := reflect.ValueOf(structPtr)
-	ind := reflect.Indirect(val)
-	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		log.Panic("structPtr must be a pointer to a struct", "structPtr", structPtr)
-	}
-	for i := 0; i < ind.NumField(); i++ {
-		fVal := ind.Field(i)
-		sf := ind.Type().Field(i)
-		fi, ok := rc.model.fields.Get(sf.Name)
-		if !ok {
-			log.Panic("Unregistered field in model", "field", sf.Name, "model", rc.ModelName())
-		}
-
-		isRecordSet := sf.Type.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem())
-		mValue, mValExists := fMap[fi.json]
-		var convertedValue reflect.Value
-		if isRecordSet {
-			var relRC *RecordCollection
-			switch r := mValue.(type) {
-			case nil, *interface{}:
-				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name)
-			case int64:
-				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
-			case []int64:
-				relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
-			}
-			if sf.Type == reflect.TypeOf(new(RecordCollection)) {
-				convertedValue = reflect.ValueOf(relRC)
-			} else {
-				// We have a generated RecordSet Type
-				convertedValue = reflect.New(sf.Type).Elem()
-				convertedValue.FieldByName("RecordCollection").Set(reflect.ValueOf(relRC))
-			}
-			fVal.Set(convertedValue)
-			continue
-		}
-		if mValExists && mValue != nil {
-			convertedValue = reflect.ValueOf(mValue).Convert(fVal.Type())
-			fVal.Set(convertedValue)
-		}
-	}
-}
-
-// nestMap returns a nested FieldMap from a flat FieldMap with dotted
-// field names. nestMap is lazy and only nests the first level.
-func nestMap(fMap FieldMap) FieldMap {
-	res := make(FieldMap)
-	nested := make(map[string]FieldMap)
-	for k, v := range fMap {
-		exprs := strings.Split(k, ExprSep)
-		if len(exprs) == 1 {
-			// We are in the top map here
-			res[k] = v
-			continue
-		}
-		if _, exists := nested[exprs[0]]; !exists {
-			nested[exprs[0]] = make(FieldMap)
-		}
-		nested[exprs[0]][strings.Join(exprs[1:], ExprSep)] = v
-	}
-	// Get nested FieldMap and assign to top key
-	for k, fm := range nested {
-		res[k] = fm
-	}
-	return res
 }
 
 // filterOnDBFields returns the given fields slice with only stored fields.
