@@ -120,6 +120,17 @@ func (fc *FieldsCollection) storedFieldNames(fieldNames ...string) []string {
 	return res
 }
 
+// allJSONNames returns a slice with the name of all field's JSON names of this collection
+func (fc *FieldsCollection) allJSONNames() []string {
+	res := make([]string, len(fc.registryByJSON))
+	var i int
+	for f := range fc.registryByJSON {
+		res[i] = f
+		i++
+	}
+	return res
+}
+
 // getComputedFields returns the slice of Field of the computed, but not
 // stored fields of the given modelName.
 // If fields are given, return only Field instances in the list

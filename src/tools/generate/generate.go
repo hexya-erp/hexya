@@ -108,6 +108,8 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 	"Sorted":           sortedMethodHandler,
 	"Filtered":         filteredMethodHandler,
 	"Aggregates":       aggregatesMethodHandler,
+	"First":            firstMethodHandler,
+	"All":              allMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
@@ -227,6 +229,26 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 		Returns:        fmt.Sprintf("%sSet{RecordCollection: resTyped}", modelData.Name),
 		ReturnString:   returnString,
 		Call:           "Call",
+	})
+}
+
+// firstMethodHandler returns the specific methodData for the First method.
+func firstMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "First"
+	returnString := fmt.Sprintf("*%sData", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ReturnString: returnString,
+	})
+}
+
+// allMethodHandler returns the specific methodData for the First method.
+func allMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "All"
+	returnString := fmt.Sprintf("[]*%sData", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:         name,
+		ReturnString: returnString,
 	})
 }
 
@@ -771,6 +793,25 @@ func (s {{ .Name }}Set) CartesianProduct(others ...{{ .Name }}Set) []{{ .Name }}
 		res[i] = {{ .Name }}Set{
 			RecordCollection: rec,
 		}
+	}
+	return res
+}
+
+// First returns the values of the first Record of the RecordSet as a pointer to a {{ .Name }}Data.
+//
+// If this RecordSet is empty, it returns an empty {{ .Name }}Data.
+func (s {{ .Name }}Set) First() *{{ .Name }}Data {
+	return &{{ .Name }}Data {
+		*s.RecordCollection.First(),
+	}
+}
+
+// All returns the values of all Records of the RecordCollection as a slice of {{ .Name }}Data pointers.
+func (s {{ .Name }}Set) All() []*{{ .Name }}Data {
+	allSlice := s.RecordCollection.All()
+	res := make([]*{{ .Name }}Data, len(allSlice))
+	for i, v := range allSlice {
+		res[i] = &{{ .Name }}Data{*v}
 	}
 	return res
 }

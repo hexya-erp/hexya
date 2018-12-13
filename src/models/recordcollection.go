@@ -825,47 +825,32 @@ func (rc *RecordCollection) InvalidateCache() {
 	rc.Load()
 }
 
-// First populates structPtr with a copy of the first Record of the RecordCollection.
-// structPtr must a pointer to a struct.
-func (rc *RecordCollection) First(structPtr interface{}) {
+// First returns the values of the first Record of the RecordCollection as a ModelData.
+//
+// If this RecordCollection is empty, it returns an empty ModelData.
+func (rc *RecordCollection) First() *ModelData {
 	rc.Fetch()
-	if err := checkStructPtr(structPtr); err != nil {
-		log.Panic("Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structPtr)
-	}
 	if rc.IsEmpty() {
-		return
+		NewModelData(rc.model)
 	}
-	typ := reflect.TypeOf(structPtr).Elem()
-	fields := make([]string, typ.NumField())
-	for i := 0; i < typ.NumField(); i++ {
-		fields[i] = typ.Field(i).Name
-	}
+	fields := rc.model.fields.allJSONNames()
 	rc.Load(fields...)
-	fMap := make(FieldMap)
+	res := NewModelData(rc.model)
 	for _, f := range fields {
-		fMap[f] = rc.Get(f)
+		res.Set(f, rc.Get(f))
 	}
-	MapToStruct(rc, structPtr, fMap)
+	return res
 }
 
-// All fetches a copy of all records of the RecordCollection and populates structSlicePtr.
-func (rc *RecordCollection) All(structSlicePtr interface{}) {
+// All returns the values of all records of the RecordCollection as a slice of ModelData.
+func (rc *RecordCollection) All() []*ModelData {
 	rc.Fetch()
-	if err := checkStructSlicePtr(structSlicePtr); err != nil {
-		log.Panic("Invalid structPtr given", "error", err, "model", rc.ModelName(), "received", structSlicePtr)
-	}
-	val := reflect.ValueOf(structSlicePtr)
-	// sspType is []*struct
-	sspType := val.Type().Elem()
-	// structType is struct
-	structType := sspType.Elem().Elem()
-	val.Elem().Set(reflect.MakeSlice(sspType, rc.Len(), rc.Len()))
+	res := make([]*ModelData, rc.Len())
 	recs := rc.Records()
 	for i := 0; i < rc.Len(); i++ {
-		newStructPtr := reflect.New(structType).Interface()
-		recs[i].First(newStructPtr)
-		val.Elem().Index(i).Set(reflect.ValueOf(newStructPtr))
+		res[i] = recs[i].First()
 	}
+	return res
 }
 
 // Aggregates returns the result of this RecordCollection query, which must by a grouped query.

@@ -174,16 +174,17 @@ func TestSearchRecordSet(t *testing.T) {
 					So(recs[0].Title(), ShouldEqual, "1st Post")
 					So(recs[1].Title(), ShouldEqual, "2nd Post")
 				})
-				Convey("Reading Jane with ReadFirst", func() {
-					var userJaneStruct struct {
-						ID    int64
-						Email string
-						Name  string
-					}
-					userJane.First(&userJaneStruct)
-					So(userJaneStruct.Name, ShouldEqual, "Jane Smith")
-					So(userJaneStruct.Email, ShouldEqual, "jane.smith@example.com")
-					So(userJaneStruct.ID, ShouldEqual, userJane.ID())
+				Convey("Reading Jane with First", func() {
+					ujData := userJane.First()
+					name, ok := ujData.Name()
+					So(name, ShouldEqual, "Jane Smith")
+					So(ok, ShouldBeTrue)
+					email, ok := ujData.Email()
+					So(email, ShouldEqual, "jane.smith@example.com")
+					So(ok, ShouldBeTrue)
+					id, ok := ujData.ID()
+					So(id, ShouldEqual, userJane.ID())
+					So(ok, ShouldBeTrue)
 				})
 			})
 
@@ -202,15 +203,16 @@ func TestSearchRecordSet(t *testing.T) {
 					So(recs[2].Email(), ShouldEqual, "will.smith@example.com")
 				})
 				Convey("Reading all users with ReadAll()", func() {
-					var userStructs []*struct {
-						ID    int64
-						Email string
-						Name  string
-					}
-					usersAll.All(&userStructs)
-					So(userStructs[0].Email, ShouldEqual, "jane.smith@example.com")
-					So(userStructs[1].Email, ShouldEqual, "jsmith@example.com")
-					So(userStructs[2].Email, ShouldEqual, "will.smith@example.com")
+					usersData := usersAll.All()
+					email0, ok0 := usersData[0].Email()
+					So(email0, ShouldEqual, "jane.smith@example.com")
+					So(ok0, ShouldBeTrue)
+					email1, ok1 := usersData[1].Email()
+					So(email1, ShouldEqual, "jsmith@example.com")
+					So(ok1, ShouldBeTrue)
+					email2, ok2 := usersData[2].Email()
+					So(email2, ShouldEqual, "will.smith@example.com")
+					So(ok2, ShouldBeTrue)
 				})
 			})
 
