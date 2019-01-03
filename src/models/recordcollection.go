@@ -1077,11 +1077,19 @@ var _ RecordSet = new(RecordCollection)
 // newRecordCollection returns a new empty RecordCollection in the
 // given environment for the given modelName
 func newRecordCollection(env Environment, modelName string) *RecordCollection {
+	rc := InvalidRecordCollection(modelName)
+	rc.env = &env
+	return rc
+}
+
+// InvalidRecordCollection returns an invalid RecordCollection without an environment.
+//
+// You should really not use thihs function, but use env.Pool("ModelName") instead.
+func InvalidRecordCollection(modelName string) *RecordCollection {
 	mi := Registry.MustGet(modelName)
 	rc := RecordCollection{
 		model: mi,
 		query: newQuery(),
-		env:   &env,
 		ids:   make([]int64, 0),
 	}
 	rc.query.recordSet = &rc

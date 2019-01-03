@@ -724,12 +724,17 @@ func (d *{{ $.Name }}Data) Copy() *{{ $.Name }}Data {
 // the Go zero value for the type is returned.
 func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
 	val, ok := d.ModelData.Get("{{ .Name }}")
+{{- if .IsRS }}	
 	if !ok || val == (*interface{})(nil) {
+		val = models.InvalidRecordCollection("{{ $.Name }}")
+	}
+	return {{ .Type }}{
+		RecordCollection: val.(models.RecordSet).Collection(),
+	}
+{{- else }}
+	if !ok {
 		return *new({{ .Type }})
 	}
-{{ if .IsRS }}	return {{ .Type }}{
-		RecordCollection: val.(models.RecordSet).Collection(),
-	}{{ else -}}
 	return val.({{ .Type }})
 {{- end }}
 }

@@ -387,6 +387,17 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(jv2.Nums(), ShouldEqual, 13)
 				So(jv2.HasNums(), ShouldBeTrue)
 			})
+			Convey("Checking FieldMap convertion to ModelData", func() {
+				fm := models.FieldMap{
+					"Email": "jsmith2@example.com",
+					"Nums":  13,
+				}
+				ud := h.UserData{}
+				fm.ConvertToModelData(h.User().NewSet(env), &ud)
+				So(ud.Email(), ShouldEqual, "jsmith2@example.com")
+				So(ud.HasEmail(), ShouldBeTrue)
+				So(ud.HasIsStaff(), ShouldBeFalse)
+			})
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)

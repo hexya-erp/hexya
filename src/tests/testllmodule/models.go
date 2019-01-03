@@ -72,10 +72,10 @@ func declareModels() {
 		})
 
 	user.AddMethod("OnChangeName", "",
-		func(rc *models.RecordCollection) (models.FieldMap, []models.FieldNamer) {
+		func(rc *models.RecordCollection) models.FieldMap {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
-			return res, []models.FieldNamer{models.FieldName("DecoratedName")}
+			return res
 		})
 
 	user.AddMethod("ComputeDecoratedName", "",

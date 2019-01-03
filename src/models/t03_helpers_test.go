@@ -6,8 +6,44 @@ package models
 import (
 	"testing"
 
+	"github.com/hexya-erp/hexya/src/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+type TestUserData struct {
+	ModelData
+}
+
+func (t TestUserData) Name() string {
+	n, _ := t.ModelData.Get("Name")
+	return n.(string)
+}
+
+func (t TestUserData) Email() string {
+	n, _ := t.ModelData.Get("Email")
+	return n.(string)
+}
+
+func (t TestUserData) Nums() int {
+	n, _ := t.ModelData.Get("Nums")
+	return n.(int)
+}
+
+func (t TestUserData) IsStaff() bool {
+	n, _ := t.ModelData.Get("IsStaff")
+	return n.(bool)
+}
+
+func (t TestUserData) Profile() TestProfileSet {
+	n, _ := t.ModelData.Get("Profile")
+	return TestProfileSet{
+		RecordCollection: n.(RecordSet).Collection(),
+	}
+}
+
+type TestProfileSet struct {
+	*RecordCollection
+}
 
 func TestTypes(t *testing.T) {
 	Convey("Testing models types", t, func() {
@@ -68,6 +104,23 @@ func TestTypes(t *testing.T) {
 				So(keys, ShouldContain, 13)
 				So(keys, ShouldContain, false)
 			})
+			Convey("ConvertToModelData", func() {
+				var wrongType bool
+				var ud TestUserData
+				SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+					testMap["Profile"] = newRecordCollection(env, "Profile")
+					testMap["Resume"] = nil
+					testMap["LastPost"] = int64(2)
+					testMap["Posts"] = []int64{1, 2}
+					rc := env.Pool("User")
+					So(func() { testMap.ConvertToModelData(rc, wrongType) }, ShouldPanic)
+					testMap.ConvertToModelData(rc, &ud)
+					So(ud.Name(), ShouldEqual, "John Smith")
+					So(ud.Email(), ShouldEqual, "jsmith2@example.com")
+					So(ud.Nums(), ShouldEqual, 13)
+					So(ud.IsStaff(), ShouldBeFalse)
+				})
+			})
 		})
 		Convey("Checking ModelData methods", func() {
 			johnValues := NewModelData(Registry.MustGet("User")).
@@ -86,5 +139,12 @@ func TestTypes(t *testing.T) {
 			So(num3, ShouldEqual, 13)
 			So(ok3, ShouldBeTrue)
 		})
+	})
+	Convey("Testing helper functions", t, func() {
+		names := []string{"Name", "Email"}
+		fields := ConvertToFieldNameSlice(names)
+		So(fields, ShouldHaveLength, 2)
+		So(fields, ShouldContain, FieldName("Name"))
+		So(fields, ShouldContain, FieldName("Email"))
 	})
 }
