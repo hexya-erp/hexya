@@ -20,8 +20,8 @@ func TestBaseModelMethods(t *testing.T) {
 			userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 			Convey("Copy", func() {
 				newProfile := userJane.Profile().Copy(&h.ProfileData{})
-				userJane.Write(h.NewUserData().SetPassword("Jane's Password"))
-				userJaneCopy := userJane.Copy(h.NewUserData().
+				userJane.Write(h.User().NewData().SetPassword("Jane's Password"))
+				userJaneCopy := userJane.Copy(h.User().NewData().
 					SetName("Jane's Copy").
 					SetEmail2("js@example.com").
 					SetProfile(newProfile))
@@ -35,7 +35,7 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Sorted", func() {
 				for i := 0; i < 20; i++ {
-					h.Post().Create(env, h.NewPostData().
+					h.Post().Create(env, h.Post().NewData().
 						SetTitle(fmt.Sprintf("Post no %02d", (24-i)%20)).
 						SetUser(userJane))
 				}
@@ -54,7 +54,7 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Filtered", func() {
 				for i := 0; i < 20; i++ {
-					h.Post().Create(env, h.NewPostData().
+					h.Post().Create(env, h.Post().NewData().
 						SetTitle(fmt.Sprintf("Post no %02d", i)).
 						SetUser(userJane))
 				}

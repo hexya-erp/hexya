@@ -28,7 +28,7 @@ func TestCreateRecordSet(t *testing.T) {
 	Convey("Test record creation", t, func() {
 		So(models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Creating simple user John with no relations and checking ID", func() {
-				userJohnData := h.NewUserData().
+				userJohnData := h.User().NewData().
 					SetName("John Smith").
 					SetEmail("jsmith@example.com").
 					SetIsStaff(true)
@@ -37,7 +37,7 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userJohn.ID(), ShouldBeGreaterThan, 0)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Comments and Tags", func() {
-				profileData := h.NewProfileData().
+				profileData := h.Profile().NewData().
 					SetAge(23).
 					SetMoney(12345).
 					SetStreet("165 5th Avenue").
@@ -48,19 +48,19 @@ func TestCreateRecordSet(t *testing.T) {
 				So(profile.Len(), ShouldEqual, 1)
 				So(profile.UserName(), ShouldBeBlank)
 
-				post1Data := h.NewPostData().
+				post1Data := h.Post().NewData().
 					SetTitle("1st Post").
 					SetContent("Content of first post")
 				post1 := h.Post().Create(env, post1Data)
 				So(post1.Len(), ShouldEqual, 1)
-				post2Data := h.NewPostData().
+				post2Data := h.Post().NewData().
 					SetTitle("2nd Post").
 					SetContent("Content of second post")
 				post2 := h.Post().Create(env, post2Data)
 				So(post2.Len(), ShouldEqual, 1)
 				posts := post1.Union(post2)
 				profile.SetBestPost(post1)
-				userJaneData := h.NewUserData().
+				userJaneData := h.User().NewData().
 					SetName("Jane Smith").
 					SetEmail("jane.smith@example.com").
 					SetProfile(profile).
@@ -75,9 +75,9 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2.User().ID(), ShouldEqual, userJane.ID())
 				So(userJane.Posts().Len(), ShouldEqual, 2)
 
-				tag1 := h.Tag().Create(env, h.NewTagData().SetName("Trending"))
-				tag2 := h.Tag().Create(env, h.NewTagData().SetName("Books"))
-				tag3 := h.Tag().Create(env, h.NewTagData().SetName("Jane's"))
+				tag1 := h.Tag().Create(env, h.Tag().NewData().SetName("Trending"))
+				tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Books"))
+				tag3 := h.Tag().Create(env, h.Tag().NewData().SetName("Jane's"))
 				So(post1.LastTagName(), ShouldBeBlank)
 				post1.SetTags(tag1.Union(tag3))
 				post2.SetTags(tag2.Union(tag3))
@@ -92,14 +92,14 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2Tags.Records()[1].Name(), ShouldBeIn, "Books", "Jane's")
 
 				So(post1.LastCommentText(), ShouldBeBlank)
-				h.Comment().Create(env, h.NewCommentData().SetPost(post1).SetText("First Comment"))
-				h.Comment().Create(env, h.NewCommentData().SetPost(post1).SetText("Another Comment"))
-				h.Comment().Create(env, h.NewCommentData().SetPost(post1).SetText("Third Comment"))
+				h.Comment().Create(env, h.Comment().NewData().SetPost(post1).SetText("First Comment"))
+				h.Comment().Create(env, h.Comment().NewData().SetPost(post1).SetText("Another Comment"))
+				h.Comment().Create(env, h.Comment().NewData().SetPost(post1).SetText("Third Comment"))
 				So(post1.LastCommentText(), ShouldEqual, "Third Comment")
 				So(post1.Comments().Len(), ShouldEqual, 3)
 			})
 			Convey("Creating a user Will Smith", func() {
-				userWillData := h.NewUserData().
+				userWillData := h.User().NewData().
 					SetName("Will Smith").
 					SetEmail("will.smith@example.com")
 				userWill := h.User().Create(env, userWillData)
@@ -107,11 +107,11 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userWill.ID(), ShouldBeGreaterThan, 0)
 			})
 			Convey("Checking constraint methods enforcement", func() {
-				tag1Data := h.NewTagData().SetName("Tag1").SetDescription("Tag1")
+				tag1Data := h.Tag().NewData().SetName("Tag1").SetDescription("Tag1")
 				So(func() { h.Tag().Create(env, tag1Data) }, ShouldPanic)
-				tag2Data := h.NewTagData().SetName("Tag2").SetRate(12)
+				tag2Data := h.Tag().NewData().SetName("Tag2").SetRate(12)
 				So(func() { h.Tag().Create(env, tag2Data) }, ShouldPanic)
-				tag3Data := h.NewTagData().SetName("Tag2").SetDescription("Tag2").SetRate(-3)
+				tag3Data := h.Tag().NewData().SetName("Tag2").SetDescription("Tag2").SetRate(-3)
 				So(func() { h.Tag().Create(env, tag3Data) }, ShouldPanic)
 			})
 		}), ShouldBeNil)
@@ -121,7 +121,7 @@ func TestCreateRecordSet(t *testing.T) {
 		So(models.SimulateInNewEnvironment(2, func(env models.Environment) {
 			security.Registry.AddMembership(2, group1)
 			Convey("Checking that user 2 cannot create records", func() {
-				userTomData := h.NewUserData().
+				userTomData := h.User().NewData().
 					SetName("Tom Smith").
 					SetEmail("tsmith@example.com")
 				So(func() { h.User().Create(env, userTomData) }, ShouldPanic)
@@ -129,14 +129,14 @@ func TestCreateRecordSet(t *testing.T) {
 			Convey("Adding model access rights to user 2 and check failure again", func() {
 				h.User().Methods().Create().AllowGroup(group1)
 				h.Resume().Methods().Create().AllowGroup(group1, h.User().Methods().Write())
-				userTomData := h.NewUserData().
+				userTomData := h.User().NewData().
 					SetName("Tom Smith").
 					SetEmail("tsmith@example.com")
 				So(func() { h.User().Create(env, userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for posts and it works", func() {
 				h.Resume().Methods().Create().AllowGroup(group1, h.User().Methods().Create())
-				userTomData := h.NewUserData().
+				userTomData := h.User().NewData().
 					SetName("Tom Smith").
 					SetEmail("tsmith@example.com")
 				userTom := h.User().Create(env, userTomData)
@@ -144,7 +144,7 @@ func TestCreateRecordSet(t *testing.T) {
 			})
 			Convey("Checking creation again with read rights too", func() {
 				h.User().Methods().Load().AllowGroup(group1)
-				userTomData := h.NewUserData().
+				userTomData := h.User().NewData().
 					SetName("Tom Smith").
 					SetEmail("tsmith@example.com")
 				userTom := h.User().Create(env, userTomData)
@@ -176,15 +176,12 @@ func TestSearchRecordSet(t *testing.T) {
 				})
 				Convey("Reading Jane with First", func() {
 					ujData := userJane.First()
-					name, ok := ujData.Name()
-					So(name, ShouldEqual, "Jane Smith")
-					So(ok, ShouldBeTrue)
-					email, ok := ujData.Email()
-					So(email, ShouldEqual, "jane.smith@example.com")
-					So(ok, ShouldBeTrue)
-					id, ok := ujData.ID()
-					So(id, ShouldEqual, userJane.ID())
-					So(ok, ShouldBeTrue)
+					So(ujData.Name(), ShouldEqual, "Jane Smith")
+					So(ujData.HasName(), ShouldBeTrue)
+					So(ujData.Email(), ShouldEqual, "jane.smith@example.com")
+					So(ujData.HasEmail(), ShouldBeTrue)
+					So(ujData.ID(), ShouldEqual, userJane.ID())
+					So(ujData.HasID(), ShouldBeTrue)
 				})
 			})
 
@@ -204,15 +201,12 @@ func TestSearchRecordSet(t *testing.T) {
 				})
 				Convey("Reading all users with ReadAll()", func() {
 					usersData := usersAll.All()
-					email0, ok0 := usersData[0].Email()
-					So(email0, ShouldEqual, "jane.smith@example.com")
-					So(ok0, ShouldBeTrue)
-					email1, ok1 := usersData[1].Email()
-					So(email1, ShouldEqual, "jsmith@example.com")
-					So(ok1, ShouldBeTrue)
-					email2, ok2 := usersData[2].Email()
-					So(email2, ShouldEqual, "will.smith@example.com")
-					So(ok2, ShouldBeTrue)
+					So(usersData[0].Email(), ShouldEqual, "jane.smith@example.com")
+					So(usersData[0].HasEmail(), ShouldBeTrue)
+					So(usersData[1].Email(), ShouldEqual, "jsmith@example.com")
+					So(usersData[1].HasEmail(), ShouldBeTrue)
+					So(usersData[2].Email(), ShouldEqual, "will.smith@example.com")
+					So(usersData[2].HasEmail(), ShouldBeTrue)
 				})
 			})
 
@@ -380,21 +374,18 @@ func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
 		So(models.ExecuteInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			Convey("Checking ModelData methods", func() {
-				johnValues := h.NewUserData().
+				johnValues := h.User().NewData().
 					SetEmail("jsmith2@example.com").
 					SetNums(13).
 					SetIsStaff(false)
-				num, ok := johnValues.Nums()
-				So(num, ShouldEqual, 13)
-				So(ok, ShouldBeTrue)
+				So(johnValues.Nums(), ShouldEqual, 13)
+				So(johnValues.HasNums(), ShouldBeTrue)
 				jv2 := johnValues.Copy()
 				johnValues.UnsetNums()
-				num2, ok2 := johnValues.Nums()
-				So(num2, ShouldEqual, 0)
-				So(ok2, ShouldBeFalse)
-				num3, ok3 := jv2.Nums()
-				So(num3, ShouldEqual, 13)
-				So(ok3, ShouldBeTrue)
+				So(johnValues.Nums(), ShouldEqual, 0)
+				So(johnValues.HasNums(), ShouldBeFalse)
+				So(jv2.Nums(), ShouldEqual, 13)
+				So(jv2.HasNums(), ShouldBeTrue)
 			})
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
@@ -406,7 +397,7 @@ func TestUpdateRecordSet(t *testing.T) {
 
 				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := h.NewUserData().
+				johnValues := h.User().NewData().
 					SetEmail("jsmith2@example.com").
 					SetNums(13).
 					SetIsStaff(false)
@@ -438,7 +429,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userRecs[0].IsStaff(), ShouldBeTrue)
 				So(userRecs[1].IsStaff(), ShouldBeTrue)
 
-				uData := h.NewUserData().
+				uData := h.User().NewData().
 					SetIsStaff(false).
 					SetIsActive(true)
 				users.Write(uData)
@@ -473,7 +464,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				posts := h.Post().NewSet(env)
 				post1 := posts.Search(q.Post().Title().Equals("1st Post"))
 				post2 := posts.Search(q.Post().Title().Equals("2nd Post"))
-				post3 := posts.Create(h.NewPostData().
+				post3 := posts.Create(h.Post().NewData().
 					SetTitle("3rd Post").
 					SetContent("Content of third post"))
 				So(post3.Title(), ShouldEqual, "3rd Post")
@@ -490,7 +481,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				tag2 := h.Tag().Search(env, q.Tag().Name().Equals("Books"))
 				So(func() { tag2.SetRate(12) }, ShouldPanic)
 				So(func() {
-					tag2.Write(h.NewTagData().
+					tag2.Write(h.Tag().NewData().
 						SetDescription("Books").
 						SetRate(-3))
 				}, ShouldPanic)
@@ -505,7 +496,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				h.User().Methods().Load().AllowGroup(group1)
 				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := h.NewUserData().
+				johnValues := h.User().NewData().
 					SetEmail("jsmith3@example.com").
 					SetNums(13)
 				So(func() { john.Write(johnValues) }, ShouldPanic)
@@ -514,7 +505,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				h.User().Methods().Write().AllowGroup(group1)
 				john := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := h.NewUserData().
+				johnValues := h.User().NewData().
 					SetEmail("jsmith3@example.com").
 					SetNums(13)
 				john.Write(johnValues)

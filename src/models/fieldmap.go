@@ -3,7 +3,10 @@
 
 package models
 
-import "sort"
+import (
+	"reflect"
+	"sort"
+)
 
 // FieldMap is a map of interface{} specifically used for holding model
 // fields values.
@@ -133,6 +136,19 @@ func (fm *FieldMap) MergeWith(other FieldMap, model *Model) {
 	for field, value := range other {
 		fm.Set(field, value, model)
 	}
+}
+
+// ConvertToModelData populates the given dst ModelData type with the
+// values from this FieldMap. The given RecordSet is used to get the
+// current model and an environment.
+func (fm FieldMap) ConvertToModelData(rs RecordSet, dst interface{}) {
+	typ := reflect.TypeOf(dst)
+	if typ.Kind() != reflect.Ptr {
+		log.Panic("call to ConvertToModelData with non pointer type", "type", typ, "map", fm)
+	}
+	vals := mapToModelData(rs.Collection(), fm, reflect.TypeOf(dst))
+	val := reflect.ValueOf(dst)
+	val.Elem().Set(vals.Elem())
 }
 
 // Underlying returns the object converted to a FieldMap

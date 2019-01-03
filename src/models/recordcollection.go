@@ -86,7 +86,7 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 		}
 	}()
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
-	fMap := data.Underlying()
+	fMap := data.Underlying().Copy()
 	rc.applyDefaults(&fMap, true)
 	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
@@ -247,7 +247,7 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // Instead use rs.Call("Write")
 func (rc *RecordCollection) update(data FieldMapper) bool {
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
-	fMap := data.Underlying()
+	fMap := data.Underlying().Copy()
 	rSet.addAccessFieldsUpdateData(&fMap)
 	rSet.applyContexts()
 	fMap = rSet.addContextsFieldsValues(fMap)
