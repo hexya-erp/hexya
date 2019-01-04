@@ -100,6 +100,10 @@ func InitializeTests(moduleName string) {
 // TearDownTests tears down the tests for the given module
 func TearDownTests(moduleName string) {
 	models.DBClose()
+	keepDB := os.Getenv("HEXYA_KEEP_TEST_DB")
+	if keepDB != "" {
+		return
+	}
 	fmt.Printf("Tearing down database for module %s...", moduleName)
 	dbName := fmt.Sprintf("%s_%s_tests", prefix, moduleName)
 	db := sqlx.MustConnect(driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", user, password))

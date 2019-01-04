@@ -93,7 +93,7 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill := h.User().Search(env, q.User().Email().Equals("will.smith@example.com"))
 				userWill.Load()
 				So(userWill.Name(), ShouldEqual, "Will Smith")
-				willProfileData := h.NewProfileData().
+				willProfileData := h.Profile().NewData().
 					SetAge(36).
 					SetMoney(5100)
 				willProfile := h.Profile().Create(env, willProfileData)

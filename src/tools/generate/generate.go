@@ -601,6 +601,14 @@ func (m {{ .Name }}Model) Browse(env models.Environment, ids []int64) {{ .Name }
 }
 
 {{ end }}
+
+// NewData returns a pointer to a new empty {{ .Name }}Data instance.
+func (m {{ .Name }}Model) NewData() *{{ .Name }}Data {
+	return &{{ .Name }}Data{
+		*models.NewModelData({{ .Name }}()),
+	}
+}
+
 // Fields returns the Field Collection of the {{ .Name }} Model
 func (m {{ .Name }}Model) Fields() p{{ .Name }}FieldsCollection {
 	return p{{ .Name }}FieldsCollection {
@@ -703,13 +711,6 @@ type {{ .Name }}Data struct {
 	models.ModelData
 }
 
-// New{{ .Name }}Data returns a pointer to a new empty {{ .Name }}Data instance.
-func New{{ .Name }}Data() *{{ .Name }}Data {
-	return &{{ .Name }}Data{
-		*models.NewModelData({{ .Name }}()),
-	}
-}
-
 // Copy returns a copy of this {{ $.Name }}Data
 func (d *{{ $.Name }}Data) Copy() *{{ $.Name }}Data {
 	return &{{ $.Name }}Data{
@@ -719,16 +720,32 @@ func (d *{{ $.Name }}Data) Copy() *{{ $.Name }}Data {
 
 {{ range .Fields }}
 // {{ .Name }} returns the value of the {{ .Name }} field.
-// The second argument is true if the value is set.
-func (d {{ $.Name }}Data) {{ .Name }}() ({{ .Type }}, bool) {
+// If this {{ .Name }} is not set in this {{ $.Name }}Data, then
+// the Go zero value for the type is returned.
+func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
 	val, ok := d.ModelData.Get("{{ .Name }}")
-	if !ok {
-		return *new({{ .Type }}), false
+{{- if .IsRS }}	
+	if !ok || val == (*interface{})(nil) {
+		val = models.InvalidRecordCollection("{{ $.Name }}")
 	}
-	return val.({{ .Type }}), true
+	return {{ .Type }}{
+		RecordCollection: val.(models.RecordSet).Collection(),
+	}
+{{- else }}
+	if !ok {
+		return *new({{ .Type }})
+	}
+	return val.({{ .Type }})
+{{- end }}
 }
 
-// Set the {{ .Name }} field with the given value.
+// Has{{ .Name }} returns true if {{ .Name }} is set in this {{ $.Name }}Data
+func (d {{ $.Name }}Data) Has{{ .Name }}() bool {
+	_, ok := d.ModelData.Get("{{ .Name }}")
+	return ok
+}
+
+// Set{{ .Name }} sets the {{ .Name }} field with the given value.
 // It returns this {{ $.Name }}Data so that calls can be chained.
 func (d *{{ $.Name }}Data) Set{{ .Name }}(value {{ .Type }}) *{{ $.Name }}Data {
 	d.ModelData.Set("{{ .Name }}", value)
@@ -848,8 +865,10 @@ func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldNamer) []{{ .Name }
 	lines := s.RecordCollection.Aggregates(fieldNames...)
 	res := make([]{{ .Name }}GroupAggregateRow, len(lines))
 	for i, l := range lines {
+		d := {{ .Name }}Data{}
+		l.Values.ConvertToModelData(s, &d)
 		res[i] = {{ .Name }}GroupAggregateRow {
-			Values:    s.ModelData(l.Values), 
+			Values:    &d, 
 			Count:     l.Count,
 			Condition: {{ $.QueryPackageName }}.{{ .Name }}Condition {
 				Condition: l.Condition,
@@ -911,7 +930,7 @@ func (s {{ .Name }}Set) Super() {{ .Name }}Set {
 // ModelData returns a new {{ .Name }}Data object populated with the values
 // of the given FieldMap. 
 func (s {{ .Name }}Set) ModelData(fMap models.FieldMap) *{{ .Name }}Data {
-	res := New{{ .Name }}Data()
+	res := {{ .Name }}().NewData()
 	for k, v := range fMap {
 		res.Set(k, v)
 	}

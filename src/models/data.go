@@ -118,12 +118,12 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				if relRC.Len() != 1 {
 					log.Panic("Unable to find related record from external ID", "fileName", fileName, "line", line, "field", headers[i], "value", record[i])
 				}
-				val = relRC.Ids()[0]
+				val = relRC
 			}
 		case fi.fieldType == fieldtype.Many2Many:
 			ids := strings.Split(record[i], "|")
 			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").In(ids))
-			val = relRC.Ids()
+			val = relRC
 		case fi.fieldType == fieldtype.Binary:
 			if record[i] == "" {
 				continue

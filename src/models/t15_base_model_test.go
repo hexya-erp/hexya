@@ -206,6 +206,12 @@ func TestBaseModelMethods(t *testing.T) {
 					return true
 				}
 
+				So(cartesianProductSlices(), ShouldHaveLength, 0)
+
+				product0 := tagA.CartesianProduct()
+				So(product0, ShouldHaveLength, 1)
+				So(product0[0].Equals(tagA), ShouldBeTrue)
+
 				product1 := tagsAB.CartesianProduct(tagsCD)
 				So(product1, ShouldHaveLength, 4)
 				So(contains(product1,

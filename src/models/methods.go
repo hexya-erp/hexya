@@ -291,10 +291,7 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 		// => Target is a struct pointer *h.MyModelData
 		if fm, ok := at.(FieldMap); ok {
 			// Given arg is a FieldMap, so we map to our modelData
-			res := NewModelData(rc.model)
-			res.FieldMap = fm
-			val = reflect.New(fnctArgType.Elem())
-			val.Elem().FieldByName("ModelData").Set(reflect.ValueOf(res).Elem())
+			val = mapToModelData(rc, fm, fnctArgType)
 			return val
 		}
 		// Given arg is already a struct pointer

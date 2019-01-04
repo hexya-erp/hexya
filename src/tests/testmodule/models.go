@@ -42,18 +42,18 @@ func init() {
 
 	user.AddMethod("OnChangeName", "",
 		func(rs h.UserSet) *h.UserData {
-			return h.NewUserData().SetDecoratedName(rs.PrefixedUser("User")[0])
+			return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
 		})
 
 	user.AddMethod("ComputeDecoratedName", "",
 		func(rs h.UserSet) *h.UserData {
-			return h.NewUserData().SetDecoratedName(rs.PrefixedUser("User")[0])
+			return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
 		})
 
 	user.AddMethod("ComputeAge",
 		`ComputeAge is a sample method layer for testing`,
 		func(rs h.UserSet) *h.UserData {
-			return h.NewUserData().SetAge(rs.Profile().Age())
+			return h.User().NewData().SetAge(rs.Profile().Age())
 		})
 
 	var isPremiumHelp = "This the IsPremium Help message"
@@ -246,7 +246,7 @@ func init() {
 	cv.Methods().ComputeOther().DeclareMethod(
 		`Dummy compute function`,
 		func(rs h.ResumeSet) *h.ResumeData {
-			return h.NewResumeData().SetOther("Other information")
+			return h.Resume().NewData().SetOther("Other information")
 		})
 
 	addressMI := h.AddressMixIn().DeclareMixinModel()

@@ -15,6 +15,7 @@
 package models
 
 import (
+	"reflect"
 	"strings"
 )
 
@@ -293,4 +294,45 @@ func cartesianProductSlices(records ...[]*RecordCollection) []*RecordCollection 
 		return cartesianProductSlices(records[0], cartesianProductSlices(records[1:]...))
 	}
 
+}
+
+// mapToModelData maps the given FieldMap to the targetType object which is either a
+// type-less ModelData or a pointer to a typed one. The given RecordCollection is used
+// only to retrieve the model and an Environment.
+func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) reflect.Value {
+	targetType = targetType.Elem()
+	for field, val := range fm {
+		fi := rc.model.Fields().MustGet(field)
+		if !fi.fieldType.IsRelationType() {
+			continue
+		}
+
+		var convertedValue reflect.Value
+		var relRC *RecordCollection
+		switch r := val.(type) {
+		case RecordSet:
+			relRC = r.Collection()
+		case nil, *interface{}:
+			relRC = newRecordCollection(rc.Env(), fi.relatedModel.name)
+		case int64:
+			relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
+		case []int64:
+			relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
+		}
+
+		if meth, ok := targetType.MethodByName(fi.name); ok {
+			// We have a generated RecordSet Type with a MyField() method
+			fType := meth.Type.Out(0)
+			convertedValue = reflect.New(fType).Elem()
+			convertedValue.FieldByName("RecordCollection").Set(reflect.ValueOf(relRC))
+		} else {
+			convertedValue = reflect.ValueOf(relRC)
+		}
+		fm[field] = convertedValue.Interface()
+	}
+	md := NewModelData(rc.model)
+	md.FieldMap = fm
+	res := reflect.New(targetType)
+	res.Elem().FieldByName("ModelData").Set(reflect.ValueOf(md).Elem())
+	return res
 }
