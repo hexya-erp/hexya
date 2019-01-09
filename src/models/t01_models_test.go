@@ -171,6 +171,37 @@ func TestModelDeclaration(t *testing.T) {
 				return "Ok"
 			})
 
+		user.AddMethod("ComputeCoolType", "",
+			func(rc *RecordCollection) FieldMap {
+				res := make(FieldMap)
+				if rc.Get("IsCool").(bool) {
+					res["CoolType"] = "cool"
+				} else {
+					res["CoolType"] = "no-cool"
+				}
+				return res
+			})
+
+		user.AddMethod("OnChangeCoolType", "",
+			func(rc *RecordCollection) FieldMap {
+				res := make(FieldMap)
+				if rc.Get("CoolType").(string) == "cool" {
+					res["IsCool"] = true
+				} else {
+					res["IsCool"] = false
+				}
+				return res
+			})
+
+		user.AddMethod("InverseCoolType", "",
+			func(rc *RecordCollection, val string) {
+				if val == "cool" {
+					rc.Set("IsCool", true)
+				} else {
+					rc.Set("IsCool", false)
+				}
+			})
+
 		activeMI.AddMethod("IsActivated", "",
 			func(rc *RecordCollection) bool {
 				return rc.Get("Active").(bool)
@@ -287,10 +318,17 @@ func TestModelDeclaration(t *testing.T) {
 			"Age": IntegerField{Compute: user.Methods().MustGet("ComputeAge"),
 				Inverse: user.Methods().MustGet("InverseSetAge"),
 				Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-			"Posts":     One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User", Copy: true},
-			"PMoney":    FloatField{Related: "Profile.Money"},
-			"LastPost":  Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"Resume":    Many2OneField{RelationModel: Registry.MustGet("Resume"), Embed: true},
+			"Posts":    One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User", Copy: true},
+			"PMoney":   FloatField{Related: "Profile.Money"},
+			"LastPost": Many2OneField{RelationModel: Registry.MustGet("Post")},
+			"Resume":   Many2OneField{RelationModel: Registry.MustGet("Resume"), Embed: true},
+			"IsCool":   BooleanField{},
+			"CoolType": SelectionField{Selection: types.Selection{
+				"cool":    "Yes, its a cool user",
+				"no-cool": "No, forget it"},
+				Compute:  user.Methods().MustGet("ComputeCoolType"),
+				Inverse:  user.Methods().MustGet("InverseCoolType"),
+				OnChange: user.Methods().MustGet("OnChangeCoolType")},
 			"Email2":    CharField{},
 			"IsPremium": BooleanField{},
 			"Nums":      IntegerField{GoType: new(int)},

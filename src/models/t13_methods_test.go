@@ -15,6 +15,7 @@
 package models
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/hexya-erp/hexya/src/models/security"
@@ -422,6 +423,38 @@ func TestRecursionProtection(t *testing.T) {
 			Convey("Recursion should be triggered exactly at the max recursion depth", func() {
 				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2-1, "Hi!") }, ShouldNotPanic)
 				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2, "Hi!") }, ShouldPanic)
+			})
+		}), ShouldBeNil)
+	})
+}
+
+func TestTypeConversionInMethodCall(t *testing.T) {
+	Convey("Testing type conversion in method call", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			users := env.Pool("User")
+			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+			Convey("convertFunctionArg", func() {
+				So(convertFunctionArg(userJane, reflect.TypeOf(*new(int64)), 126).Interface(), ShouldEqual, 126)
+				prof := convertFunctionArg(userJane, reflect.TypeOf(TestProfileSet{}), userJane.Get("Profile"))
+				So(prof.Type(), ShouldEqual, reflect.TypeOf(TestProfileSet{}))
+				So(prof.Interface().(TestProfileSet).Collection().Equals(userJane.Get("Profile").(RecordSet).Collection()), ShouldBeTrue)
+				prof = convertFunctionArg(userJane, reflect.TypeOf(new(RecordCollection)), userJane.Get("Profile"))
+				So(prof.Type(), ShouldEqual, reflect.TypeOf(new(RecordCollection)))
+				So(prof.Interface().(*RecordCollection).Equals(userJane.Get("Profile").(RecordSet).Collection()), ShouldBeTrue)
+				vals := convertFunctionArg(userJane, reflect.TypeOf(FieldMap{}), FieldMap{"key": "value"})
+				So(vals.Type(), ShouldEqual, reflect.TypeOf(FieldMap{}))
+				So(vals.Interface(), ShouldHaveLength, 1)
+				So(vals.Interface(), ShouldContainKey, "key")
+				So(vals.Interface().(FieldMap)["key"], ShouldEqual, "value")
+				vals = convertFunctionArg(userJane, reflect.TypeOf(new(ModelData)), FieldMap{"IsStaff": true})
+				So(vals.Type(), ShouldEqual, reflect.TypeOf(new(ModelData)))
+				So(vals.Interface().(*ModelData).FieldMap, ShouldHaveLength, 1)
+				So(vals.Interface().(*ModelData).FieldMap, ShouldContainKey, "IsStaff")
+				So(vals.Interface().(*ModelData).FieldMap["IsStaff"], ShouldEqual, true)
+				cond := users.Model().Field("Name").Equals("Jane Smith")
+				c := convertFunctionArg(userJane, reflect.TypeOf(TestUserCondition{}), cond)
+				So(c.Type(), ShouldEqual, reflect.TypeOf(TestUserCondition{}))
+				So(c.Interface().(TestUserCondition).Underlying().String(), ShouldEqual, cond.String())
 			})
 		}), ShouldBeNil)
 	})

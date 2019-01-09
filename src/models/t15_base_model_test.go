@@ -75,7 +75,7 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fInfo.Help, ShouldEqual, "The user's username")
 				So(fInfo.Type, ShouldEqual, fieldtype.Char)
 				fInfos := userJane.Call("FieldsGet", FieldsGetArgs{}).(map[string]*FieldInfo)
-				So(fInfos, ShouldHaveLength, 31)
+				So(fInfos, ShouldHaveLength, 33)
 			})
 			Convey("NameGet", func() {
 				So(userJane.Get("DisplayName"), ShouldEqual, "Jane A. Smith")
@@ -84,7 +84,7 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("DefaultGet", func() {
 				defaults := userJane.Call("DefaultGet").(FieldMap)
-				So(defaults, ShouldHaveLength, 6)
+				So(defaults, ShouldHaveLength, 7)
 				So(defaults, ShouldContainKey, "status_json")
 				So(defaults["status_json"], ShouldEqual, 12)
 				So(defaults, ShouldContainKey, "hexya_external_id")
@@ -98,15 +98,32 @@ func TestBaseModelMethods(t *testing.T) {
 				So(defaults["is_staff"], ShouldEqual, false)
 			})
 			Convey("Onchange", func() {
-				res := userJane.Call("Onchange", OnchangeParams{
-					Fields:   []string{"Name"},
-					Onchange: map[string]string{"Name": "1"},
-					Values:   FieldMap{"Name": "William", "Email": "will@example.com"},
-				}).(OnchangeResult)
-				fMap := res.Value.Underlying()
-				So(fMap, ShouldHaveLength, 1)
-				So(fMap, ShouldContainKey, "decorated_name")
-				So(fMap["decorated_name"], ShouldEqual, "User: William [<will@example.com>]")
+				Convey("Testing with existing RecordSet", func() {
+					res := userJane.Call("Onchange", OnchangeParams{
+						Fields:   []string{"Name", "CoolType"},
+						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
+						Values:   FieldMap{"Name": "William", "Email": "will@example.com", "CoolType": "cool", "IsCool": false},
+					}).(OnchangeResult)
+					fMap := res.Value.Underlying()
+					So(fMap, ShouldHaveLength, 2)
+					So(fMap, ShouldContainKey, "decorated_name")
+					So(fMap["decorated_name"], ShouldEqual, "User: William [<will@example.com>]")
+					So(fMap, ShouldContainKey, "is_cool")
+					So(fMap["is_cool"], ShouldEqual, true)
+				})
+				Convey("Testing with new RecordSet", func() {
+					res := env.Pool("User").Call("Onchange", OnchangeParams{
+						Fields:   []string{"Name", "Email", "CoolType"},
+						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
+						Values:   FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false},
+					}).(OnchangeResult)
+					fMap := res.Value.Underlying()
+					So(fMap, ShouldHaveLength, 2)
+					So(fMap, ShouldContainKey, "decorated_name")
+					So(fMap["decorated_name"], ShouldEqual, "User:  [<>]")
+					So(fMap, ShouldContainKey, "is_cool")
+					So(fMap["is_cool"], ShouldEqual, true)
+				})
 			})
 			Convey("CheckRecursion", func() {
 				So(userJane.Call("CheckRecursion").(bool), ShouldBeTrue)

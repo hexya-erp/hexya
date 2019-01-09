@@ -45,6 +45,10 @@ type TestProfileSet struct {
 	*RecordCollection
 }
 
+type TestUserCondition struct {
+	*Condition
+}
+
 func TestTypes(t *testing.T) {
 	Convey("Testing models types", t, func() {
 		Convey("Testing FieldMap methods", func() {
@@ -110,6 +114,7 @@ func TestTypes(t *testing.T) {
 				SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 					testMap["Profile"] = newRecordCollection(env, "Profile")
 					testMap["Resume"] = nil
+					testMap["Email2"] = false
 					testMap["LastPost"] = int64(2)
 					testMap["Posts"] = []int64{1, 2}
 					rc := env.Pool("User")
