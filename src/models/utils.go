@@ -17,6 +17,8 @@ package models
 import (
 	"reflect"
 	"strings"
+
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 )
 
 var (
@@ -302,8 +304,15 @@ func cartesianProductSlices(records ...[]*RecordCollection) []*RecordCollection 
 func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) reflect.Value {
 	targetType = targetType.Elem()
 	for field, val := range fm {
-		fi := rc.model.Fields().MustGet(field)
+		fi := rc.model.getRelatedFieldInfo(field)
 		if !fi.fieldType.IsRelationType() {
+			if fi.fieldType == fieldtype.Boolean {
+				continue
+			}
+			if _, ok := val.(bool); ok {
+				// Client returns False when the value is null
+				fm[field] = reflect.Zero(fi.structField.Type).Interface()
+			}
 			continue
 		}
 
@@ -332,6 +341,10 @@ func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) 
 	}
 	md := NewModelData(rc.model)
 	md.FieldMap = fm
+	if targetType == reflect.TypeOf(*md) {
+		// target is type-less ModelData
+		return reflect.ValueOf(md)
+	}
 	res := reflect.New(targetType)
 	res.Elem().FieldByName("ModelData").Set(reflect.ValueOf(md).Elem())
 	return res

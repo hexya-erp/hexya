@@ -108,24 +108,23 @@ func updateStoredFields(recs *RecordCollection, computeMethod string) {
 // FieldMap if it exists. It returns a new FieldMap to be used by Create/Write
 // instead of the original one.
 func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
+	var md ModelData
+	fMap.ConvertToModelData(rc, &md)
 	for fieldName := range fMap {
 		fi := rc.model.getRelatedFieldInfo(fieldName)
 		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {
 			continue
 		}
-		val, exists := fMap.Get(fi.json, fi.model)
+		val, exists := md.Get(fi.json)
 		if !exists {
 			continue
 		}
 		if fi.inverse == "" {
-			if rc.Env().Context().GetBool("hexya_allow_without_inverse") {
-				continue
-			}
 			if typesutils.IsZero(val) {
 				continue
 			}
 			log.Panic("Trying to write a computed field without inverse method", "model", rc.model.name, "field", fieldName)
 		}
-		rc.CallMulti(fi.inverse, val)
+		rc.Call(fi.inverse, val)
 	}
 }

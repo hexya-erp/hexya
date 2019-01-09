@@ -235,20 +235,11 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 			argsVals[0].Field(0).Set(reflect.ValueOf(rc))
 		}
 		for i := 0; i < fnctVal.Type().NumIn()-1; i++ {
-			var arg interface{}
 			if len(args) < i+1 && fnctVal.Type().IsVariadic() && i == fnctVal.Type().NumIn()-2 {
-				// We handle here the case of a variadic function whose last argument is []FieldNamer
-				// and for which we did not have any values but we received some from previous arg conversion.
-				argType := fnctVal.Type().In(i + 1)
-				if argType.Elem().Name() != "FieldNamer" {
-					break
-				}
-				arg = []FieldNamer{}
-				argsVals = append(argsVals, reflect.Value{})
-			} else {
-				arg = args[i]
+				// Handle variadic function call without last argument
+				break
 			}
-			argsVals[i+1] = convertFunctionArg(rc, fnctVal.Type().In(i+1), arg)
+			argsVals[i+1] = convertFunctionArg(rc, fnctVal.Type().In(i+1), args[i])
 		}
 
 		var retVal []reflect.Value
@@ -295,6 +286,16 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 			return val
 		}
 		// Given arg is already a struct pointer
+		return reflect.ValueOf(arg)
+	case RecordSet:
+		if fnctArgType == reflect.TypeOf(new(RecordCollection)) {
+			return reflect.ValueOf(at.Collection())
+		}
+		if fnctArgType.Kind() == reflect.Struct {
+			val = reflect.New(fnctArgType).Elem()
+			val.Field(0).Set(reflect.ValueOf(at.Collection()))
+			return val
+		}
 		return reflect.ValueOf(arg)
 	default:
 		return reflect.ValueOf(arg)
