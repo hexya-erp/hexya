@@ -39,6 +39,8 @@ type RecordSet interface {
 	Len() int
 	// IsEmpty returns true if this RecordSet has no records
 	IsEmpty() bool
+	// IsNotEmpty returns true if this RecordSet has at least one record
+	IsNotEmpty() bool
 	// Call executes the given method (as string) with the given arguments
 	Call(string, ...interface{}) interface{}
 }

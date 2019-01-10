@@ -210,6 +210,7 @@ func TestEmbeddedModels(t *testing.T) {
 			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 			Convey("Checking that Jane's resume exists", func() {
 				So(userJane.Get("Resume").(RecordSet).IsEmpty(), ShouldBeFalse)
+				So(userJane.Get("Resume").(RecordSet).IsNotEmpty(), ShouldBeTrue)
 			})
 			Convey("Adding a proper resume to Jane", func() {
 				userJane.Get("Resume").(RecordSet).Collection().Set("Experience", "Hexya developer for 10 years")

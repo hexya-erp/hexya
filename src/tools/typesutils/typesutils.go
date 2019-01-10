@@ -18,6 +18,8 @@ type RecordSet interface {
 	Len() int
 	// IsEmpty returns true if this RecordSet has no records
 	IsEmpty() bool
+	// IsNotEmpty returns true if this RecordSet has at least one record
+	IsNotEmpty() bool
 }
 
 // IsZero returns true if the given value is the zero value of its type or nil

@@ -47,6 +47,17 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fMap, ShouldContainKey, "id")
 				So(fMap["id"], ShouldEqual, userJane.Ids()[0])
 			})
+			Convey("Browse and BrowseOne", func() {
+				jid := userJane.Ids()[0]
+				j2 := userModel.Browse(env, []int64{jid})
+				So(j2.Equals(userJane), ShouldBeTrue)
+				j21 := userModel.BrowseOne(env, jid)
+				So(j21.Equals(userJane), ShouldBeTrue)
+				j22 := env.Pool("User").Call("Browse", []int64{jid}).(RecordSet).Collection()
+				So(j22.Equals(userJane), ShouldBeTrue)
+				j23 := env.Pool("User").Call("BrowseOne", jid).(RecordSet).Collection()
+				So(j23.Equals(userJane), ShouldBeTrue)
+			})
 			Convey("SearchCount", func() {
 				countSingle := userJane.Call("SearchCount").(int)
 				So(countSingle, ShouldEqual, 1)
