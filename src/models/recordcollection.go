@@ -981,6 +981,11 @@ func (rc *RecordCollection) IsEmpty() bool {
 	return !rc.IsValid() || rc.Len() == 0
 }
 
+// IsNotEmpty returns true if rc is not an empty RecordCollection
+func (rc *RecordCollection) IsNotEmpty() bool {
+	return !rc.IsEmpty()
+}
+
 // IsValid returns true if this RecordSet has been initialized.
 func (rc *RecordCollection) IsValid() bool {
 	if rc == nil {

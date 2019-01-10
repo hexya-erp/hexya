@@ -420,6 +420,13 @@ func declareSearchMethods() {
 			return rc.Call("Search", rc.Model().Field("ID").In(ids)).(RecordSet).Collection()
 		})
 
+	commonMixin.AddMethod("BrowseOne",
+		`BrowseOne returns a new RecordSet with only the record with the given id.
+		Note that this function is just a shorcut for Search on a given id.`,
+		func(rc *RecordCollection, id int64) *RecordCollection {
+			return rc.Call("Search", rc.Model().Field("ID").Equals(id)).(RecordSet).Collection()
+		})
+
 	commonMixin.AddMethod("SearchCount",
 		`SearchCount fetch from the database the number of records that match the RecordSet conditions`,
 		func(rc *RecordCollection) int {

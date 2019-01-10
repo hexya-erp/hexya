@@ -17,6 +17,9 @@ func (d *dummyRecordSet) Len() int          { return 0 }
 func (d *dummyRecordSet) IsEmpty() bool {
 	return true
 }
+func (d *dummyRecordSet) IsNotEmpty() bool {
+	return false
+}
 
 var _ RecordSet = new(dummyRecordSet)
 
