@@ -600,6 +600,14 @@ func (m {{ .Name }}Model) Browse(env models.Environment, ids []int64) {{ .Name }
 	}
 }
 
+// BrowseOne returns a new RecordSet with the record with the given id.
+// Note that this function is just a shorcut for Search on the given id.
+func (m {{ .Name }}Model) BrowseOne(env models.Environment, id int64) {{ .Name }}Set {
+	return {{ .Name }}Set{
+		RecordCollection: m.Model.BrowseOne(env, id),
+	}
+}
+
 {{ end }}
 
 // NewData returns a pointer to a new empty {{ .Name }}Data instance.
