@@ -16,9 +16,11 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -181,6 +183,43 @@ func cleanPoolDir(dirName string) {
 
 	if err := writeFileFromTemplate(filepath.Join(dirName, "go.mod"), emptyPoolGoMod, nil); err != nil {
 		log.Panic("Error while saving generated source file", "error", err, "fileName", "go.mod")
+	}
+	copyGoModReplaces(dirName)
+}
+
+func copyGoModReplaces(poolDir string) {
+	type Module struct {
+		Path    string
+		Version string
+	}
+	type GoMod struct {
+		Replace []struct {
+			Old Module
+			New Module
+		}
+	}
+	modJSON, err := exec.Command("go", "mod", "edit", "-json").CombinedOutput()
+	if err != nil {
+		fmt.Println(string(modJSON))
+		panic(err)
+	}
+	var replaces GoMod
+	if err = json.Unmarshal(modJSON, &replaces); err != nil {
+		panic(err)
+	}
+	for _, repl := range replaces.Replace {
+		if repl.Old.Path == "github.com/hexya-erp/pool" {
+			continue
+		}
+		oldPath := repl.Old.Path
+		if repl.Old.Version != "" {
+			oldPath += "@" + repl.Old.Version
+		}
+		newPath := repl.New.Path
+		if repl.New.Version != "" {
+			newPath += "@" + repl.New.Version
+		}
+		runCommand("go", "mod", "edit", "-replace", fmt.Sprintf("%s=%s", oldPath, newPath), filepath.Join(poolDir, "go.mod"))
 	}
 }
 
