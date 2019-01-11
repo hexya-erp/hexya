@@ -644,6 +644,19 @@ func (m {{ .Name }}Model) Declare{{ .ModelType }}Model() {{ .Name }}Model {
 	return m
 }
 
+// Coalesce takes a list of {{ .Name }}Set and return the first non-empty one
+// if every record set is empty, it will return the last given
+func (m {{ .Name }}Model) Coalesce(lst ...{{ .Name }}Set) {{ .Name }}Set {
+	var last {{ .Name }}Set
+	for _, elem := range lst {
+		if elem.Collection().IsNotEmpty() {
+			return elem
+		}
+		last = elem
+	}
+	return last
+}
+
 // {{ .Name }} returns the unique instance of the {{ .Name }}Model type
 // which is used to extend the {{ .Name }} model or to get a {{ .Name }}Set through
 // its NewSet() function.
