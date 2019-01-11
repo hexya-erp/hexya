@@ -32,7 +32,10 @@ type modelCouple struct {
 	mixIn *Model
 }
 
-var mixed = map[modelCouple]bool{}
+var (
+	mixed      = map[modelCouple]bool{}
+	workerStop chan bool
+)
 
 // BootStrap freezes model, fields and method caches and syncs the database structure
 // with the declared data.
@@ -56,7 +59,7 @@ func BootStrap() {
 	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
-	launchWorkloop()
+	workloop()
 
 	Registry.bootstrapped = true
 }
@@ -782,18 +785,23 @@ func checkFieldMethodsExist() {
 
 // workloopMethods executes all methods that must be run regularly.
 func workloopMethods() {
-	FreeTransientModels()
+	go FreeTransientModels()
 }
 
-func launchWorkloop() {
+// workloop launches the hexya core worker loop.
+func workloop() {
+	if workerStop == nil {
+		workerStop = make(chan bool)
+	}
 	go func() {
-		workloopMethods()
 		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				workloopMethods()
+			case <-workerStop:
+				break
 			}
 		}
 	}()
