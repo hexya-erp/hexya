@@ -22,9 +22,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
+	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
 	"github.com/jmoiron/sqlx"
@@ -370,6 +372,10 @@ func (m *Model) isM2MLink() bool {
 	return false
 }
 
+func (m *Model) isTransient() bool {
+	return m.options == TransientModel
+}
+
 // hasParentField returns true if this model is recursive and has a Parent field.
 func (m *Model) hasParentField() bool {
 	_, parentExists := m.fields.Get("Parent")
@@ -675,4 +681,15 @@ func (s *Sequence) Alter(increment, restart int64) {
 func (s *Sequence) NextValue() int64 {
 	adapter := adapters[db.DriverName()]
 	return adapter.nextSequenceValue(s.JSON)
+}
+
+// FreeTransientModels remove all transien models records from database
+func FreeTransientModels() {
+	for _, val := range Registry.registryByName {
+		if val.isTransient() {
+			ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+				val.Search(env, val.Field("CreateDate").Lower(dates.Now().Add(-1*time.Minute))).Call("Unlink")
+			})
+		}
+	}
 }

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 
 	"github.com/gin-contrib/pprof"
@@ -68,6 +69,7 @@ func runProject(projectDir, cmd string, args []string) {
 // StartServer starts the Hexya server. It is meant to be called from
 // a project start file which imports all the project's module.
 func StartServer() {
+	setupSignal()
 	setupLogger()
 	defer log.Sync()
 	setupDebug()
@@ -116,6 +118,20 @@ func setupDebug() {
 	}
 	gin.SetMode(gin.DebugMode)
 	pprof.Register(server.GetServer().Engine)
+}
+
+// setupSignal makes the chanel for SIGTERM and prepares closing methods
+func setupSignal() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		log.Info("Server stopping...")
+		for _, f := range models.ExecuteOnServerStop {
+			f()
+		}
+		os.Exit(0)
+	}()
 }
 
 // connectToDB creates the connection to the database

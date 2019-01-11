@@ -189,9 +189,9 @@ func (d *DateTime) Scan(src interface{}) error {
 	return fmt.Errorf("DateTime data is not time.Time but %T", src)
 }
 
-// Now returns the current date/time
+// Now returns the current date/time with UTC timezone
 func Now() DateTime {
-	return DateTime{time.Now()}
+	return DateTime{time.Now().UTC()}
 }
 
 // ParseDateTime returns a datetime from the given string value
@@ -213,8 +213,49 @@ func ParseDateTimeWithLayout(layout, value string) (DateTime, error) {
 	return DateTime{Time: t}, err
 }
 
+// LoadLocation returns the Location with the given name.
+//
+// If the name is "" or "UTC", LoadLocation returns UTC.
+// If the name is "Local", LoadLocation returns Local.
+//
+// Otherwise, the name is taken to be a location name corresponding to a file
+// in the IANA Time Zone database, such as "America/New_York".
+func LoadLocation(name string) (*time.Location, error) {
+	return time.LoadLocation(name)
+}
+
 var _ driver.Valuer = DateTime{}
 var _ sql.Scanner = new(DateTime)
+
+// UTC returns d with the location set to UTC.
+func (d DateTime) UTC() DateTime {
+	return DateTime{
+		Time: d.Time.UTC(),
+	}
+}
+
+// WithTimezone returns d with a location corresponding to the given timezone identifier (IANA Time Zone database)
+// returns an error if the name is not found
+func (d DateTime) WithTimezone(tz string) (DateTime, error) {
+	loc, err := LoadLocation(tz)
+	if err != nil {
+		return d, err
+	}
+	return d.SetLoc(loc), nil
+}
+
+// WithTimezone returns d with a location corresponding to the given timezone identifier (IANA Time Zone database)
+// returned value does not differ from d if the given string is invalid
+func (d DateTime) WithTimezoneUnsafe(tz string) DateTime {
+	out, _ := d.WithTimezone(tz)
+	return out
+}
+
+// In returns d with the location information set to loc.
+// In panics if loc is nil.
+func (d DateTime) SetLoc(loc *time.Location) DateTime {
+	return DateTime{Time: d.Time.In(loc)}
+}
 
 // Equal reports whether d and other represent the same time instant
 func (d DateTime) Equal(other DateTime) bool {
