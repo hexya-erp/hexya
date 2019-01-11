@@ -32,6 +32,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// transientModelTimeout is the timeout after which transient model
+// records can be removed from the database
+const transientModelTimeout = 30 * time.Minute
+
 // Registry is the registry of all Model instances.
 var Registry *modelCollection
 
@@ -683,12 +687,13 @@ func (s *Sequence) NextValue() int64 {
 	return adapter.nextSequenceValue(s.JSON)
 }
 
-// FreeTransientModels remove all transien models records from database
+// FreeTransientModels remove transient models records from database which are
+// older than the given timeout.
 func FreeTransientModels() {
 	for _, val := range Registry.registryByName {
 		if val.isTransient() {
 			ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
-				val.Search(env, val.Field("CreateDate").Lower(dates.Now().Add(-1*time.Minute))).Call("Unlink")
+				val.Search(env, val.Field("CreateDate").Lower(dates.Now().Add(-transientModelTimeout))).Call("Unlink")
 			})
 		}
 	}

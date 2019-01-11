@@ -241,19 +241,12 @@ func (d DateTime) WithTimezone(tz string) (DateTime, error) {
 	if err != nil {
 		return d, err
 	}
-	return d.SetLoc(loc), nil
-}
-
-// WithTimezone returns d with a location corresponding to the given timezone identifier (IANA Time Zone database)
-// returned value does not differ from d if the given string is invalid
-func (d DateTime) WithTimezoneUnsafe(tz string) DateTime {
-	out, _ := d.WithTimezone(tz)
-	return out
+	return d.In(loc), nil
 }
 
 // In returns d with the location information set to loc.
 // In panics if loc is nil.
-func (d DateTime) SetLoc(loc *time.Location) DateTime {
+func (d DateTime) In(loc *time.Location) DateTime {
 	return DateTime{Time: d.Time.In(loc)}
 }
 

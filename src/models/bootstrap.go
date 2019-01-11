@@ -780,26 +780,20 @@ func checkFieldMethodsExist() {
 	}
 }
 
-var ExecuteOnServerStop []func()
-
+// workloopMethods executes all methods that must be run regularly.
 func workloopMethods() {
 	FreeTransientModels()
 }
 
 func launchWorkloop() {
-	c := make(chan bool)
-	ExecuteOnServerStop = append(ExecuteOnServerStop, func() {
-		workloopMethods()
-		c <- true
-	})
 	go func() {
 		workloopMethods()
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-time.After(10 * time.Minute):
+			case <-ticker.C:
 				workloopMethods()
-			case <-c:
-				return
 			}
 		}
 	}()
