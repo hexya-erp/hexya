@@ -30,14 +30,16 @@ func TestControllers(t *testing.T) {
 		registry := newGroup("/")
 		registry.AddGroup("/test")
 		Convey("Testing GetGroup", func() {
-			grp := registry.MustGetGroup("/test")
+			grp, err := registry.GetGroup("/test")
 			So(grp, ShouldEqual, registry.groups["/test"])
+			So(err, ShouldNotBeNil)
 		})
 		Convey("Testing simple addition of controllers", func() {
 			grp := registry.MustGetGroup("/test")
 			grp.AddController(http.MethodGet, "/ping", func(ctx *server.Context) {
 				ctx.String(http.StatusOK, "pong")
 			})
+			So(grp.HasController(http.MethodGet, "/ping"), ShouldBeTrue)
 			srv := newServer()
 			registry.createRoutes(srv.Group("/"))
 			r := performRequest(srv, http.MethodGet, "/test/ping")

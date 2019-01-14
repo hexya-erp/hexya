@@ -34,7 +34,7 @@ import (
 
 // transientModelTimeout is the timeout after which transient model
 // records can be removed from the database
-const transientModelTimeout = 30 * time.Minute
+var transientModelTimeout = 30 * time.Minute
 
 // Registry is the registry of all Model instances.
 var Registry *modelCollection

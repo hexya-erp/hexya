@@ -32,6 +32,8 @@ type modelCouple struct {
 	mixIn *Model
 }
 
+const workloopPeriod = 1 * time.Minute
+
 var (
 	mixed      = map[modelCouple]bool{}
 	workerStop chan bool
@@ -59,7 +61,7 @@ func BootStrap() {
 	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
-	workloop()
+	workloop(workloopPeriod)
 
 	Registry.bootstrapped = true
 }
@@ -789,19 +791,19 @@ func workloopMethods() {
 }
 
 // workloop launches the hexya core worker loop.
-func workloop() {
+func workloop(period time.Duration) {
 	if workerStop == nil {
 		workerStop = make(chan bool)
 	}
 	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
+		ticker := time.NewTicker(period)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				workloopMethods()
 			case <-workerStop:
-				break
+				return
 			}
 		}
 	}()
