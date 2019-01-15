@@ -73,10 +73,7 @@ func removeProjectDir(dir string) error {
 		return err
 	}
 	poolDir := filepath.Join(cwd, dir)
-	if err = os.RemoveAll(poolDir); err != nil {
-		return err
-	}
-	return nil
+	return os.RemoveAll(poolDir)
 }
 
 func writeConfigFile(projectDir string) error {
