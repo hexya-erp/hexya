@@ -30,14 +30,16 @@ func TestControllers(t *testing.T) {
 		registry := newGroup("/")
 		registry.AddGroup("/test")
 		Convey("Testing GetGroup", func() {
-			grp := registry.GetGroup("/test")
+			grp, err := registry.GetGroup("/test")
 			So(grp, ShouldEqual, registry.groups["/test"])
+			So(err, ShouldNotBeNil)
 		})
 		Convey("Testing simple addition of controllers", func() {
-			grp := registry.GetGroup("/test")
+			grp := registry.MustGetGroup("/test")
 			grp.AddController(http.MethodGet, "/ping", func(ctx *server.Context) {
 				ctx.String(http.StatusOK, "pong")
 			})
+			So(grp.HasController(http.MethodGet, "/ping"), ShouldBeTrue)
 			srv := newServer()
 			registry.createRoutes(srv.Group("/"))
 			r := performRequest(srv, http.MethodGet, "/test/ping")
@@ -45,7 +47,7 @@ func TestControllers(t *testing.T) {
 			So(r.Body.String(), ShouldEqual, "pong")
 		})
 		Convey("Testing inheritance of controller", func() {
-			grp := registry.GetGroup("/test")
+			grp := registry.MustGetGroup("/test")
 			grp.AddController(http.MethodGet, "/ping", func(ctx *server.Context) {
 				ctx.String(http.StatusOK, "pong")
 			})
@@ -64,7 +66,7 @@ func TestControllers(t *testing.T) {
 			So(r.Body.String(), ShouldEqual, "before**afterpong/after2")
 		})
 		Convey("Testing overriding of controller", func() {
-			grp := registry.GetGroup("/test")
+			grp := registry.MustGetGroup("/test")
 			grp.AddController(http.MethodGet, "/ping", func(ctx *server.Context) {
 				ctx.String(http.StatusOK, "pong")
 			})
@@ -83,7 +85,7 @@ func TestControllers(t *testing.T) {
 			So(r.Body.String(), ShouldEqual, "before**after/after2")
 		})
 		Convey("Testing group middlewares", func() {
-			grp := registry.GetGroup("/test")
+			grp := registry.MustGetGroup("/test")
 			grp.AddMiddleWare(func(ctx *server.Context) {
 				ctx.String(http.StatusOK, "middleware-")
 				ctx.Next()
@@ -105,7 +107,7 @@ func TestControllers(t *testing.T) {
 			So(r.Body.String(), ShouldEqual, "hexya-middleware-before/pong-middleware")
 		})
 		Convey("Testing static dir controller", func() {
-			grp := registry.GetGroup("/test")
+			grp := registry.MustGetGroup("/test")
 			grp.AddStatic("/static", "testdata")
 			srv := newServer()
 			registry.createRoutes(srv.Group("/"))
@@ -114,10 +116,10 @@ func TestControllers(t *testing.T) {
 			So(r.Body.String(), ShouldEqual, `window.alert("Test message");`)
 		})
 		Convey("Getting a group that does not exist should fail", func() {
-			So(func() { registry.GetGroup("/nonexistent") }, ShouldPanic)
+			So(func() { registry.MustGetGroup("/nonexistent") }, ShouldPanic)
 		})
 		Convey("Adding an already existing static dir should fail", func() {
-			grp := registry.GetGroup("/test")
+			grp := registry.MustGetGroup("/test")
 			grp.AddStatic("/static", "testdata")
 			So(func() { grp.AddStatic("/static", "testdata") }, ShouldPanic)
 		})
@@ -125,7 +127,7 @@ func TestControllers(t *testing.T) {
 			So(func() { registry.AddGroup("/test") }, ShouldPanic)
 		})
 		Convey("Adding an already existing controller should fail", func() {
-			grp := registry.GetGroup("/test")
+			grp := registry.MustGetGroup("/test")
 			grp.AddController(http.MethodGet, "/ping", func(ctx *server.Context) {
 				ctx.String(http.StatusOK, "pong")
 			})

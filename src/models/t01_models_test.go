@@ -36,6 +36,7 @@ func TestModelDeclaration(t *testing.T) {
 		addressMI := NewMixinModel("AddressMixIn")
 		activeMI := NewMixinModel("ActiveMixIn")
 		viewModel := NewManualModel("UserView")
+		wizard := NewTransientModel("Wizard")
 
 		user.AddMethod("PrefixedUser", "",
 			func(rc *RecordCollection, prefix string) []string {
@@ -409,6 +410,11 @@ func TestModelDeclaration(t *testing.T) {
 			"Name": CharField{},
 			"City": CharField{},
 		})
+
+		wizard.AddFields(map[string]FieldDefinition{
+			"Name":  CharField{},
+			"Value": IntegerField{},
+		})
 	})
 }
 
@@ -524,5 +530,21 @@ func TestMiscellaneous(t *testing.T) {
 	Convey("Check that Field instances are FieldNamers", t, func() {
 		So(Registry.MustGet("User").Fields().MustGet("Name").FieldName(), ShouldEqual, FieldName("Name"))
 		So(Registry.MustGet("User").Fields().MustGet("Name").String(), ShouldEqual, "Name")
+	})
+}
+
+func TestSequences(t *testing.T) {
+	Convey("Testing sequences before bootstrap", t, func() {
+		testSeq := CreateSequence("TestSequence", 5, 13)
+		_, ok := Registry.GetSequence("TestSequence")
+		So(ok, ShouldBeTrue)
+		So(testSeq.Increment, ShouldEqual, 5)
+		So(testSeq.Start, ShouldEqual, 13)
+		testSeq.Alter(3, 14)
+		So(testSeq.Increment, ShouldEqual, 3)
+		So(testSeq.Start, ShouldEqual, 14)
+		testSeq.Drop()
+		_, ok = Registry.GetSequence("TestSequence")
+		So(ok, ShouldBeFalse)
 	})
 }

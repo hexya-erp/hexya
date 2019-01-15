@@ -167,5 +167,18 @@ func TestDates(t *testing.T) {
 			So(dateTime1.AddDate(0, 2, 3).Equal(ParseDateTime("2017-10-04 10:34:23")), ShouldBeTrue)
 			So(dateTime1.Add(2*time.Hour+11*time.Minute).Equal(ParseDateTime("2017-08-01 12:45:23")), ShouldBeTrue)
 		})
+		Convey("Timezone tests", func() {
+			dt1, _ := dateTime1.WithTimezone("Etc/GMT")
+			So(dt1.Equal(dateTime1.UTC()), ShouldBeTrue)
+			dt2, _ := dateTime1.WithTimezone("Africa/Tripoli")
+			So(dt2.String() == ParseDateTime("2017-08-01 12:34:23").String(), ShouldBeTrue)
+			dt3, _ := dateTime1.WithTimezone("America/Argentina/Buenos_Aires")
+			So(dt3.String() == ParseDateTime("2017-08-01 7:34:23").String(), ShouldBeTrue)
+			date, err := dateTime1.WithTimezone("invalid/tzCode")
+			So(date == dateTime1, ShouldBeTrue)
+			So(err, ShouldNotBeNil)
+			values := TimeZones()
+			So(values, ShouldContain, "America/Scoresbysund")
+		})
 	})
 }
