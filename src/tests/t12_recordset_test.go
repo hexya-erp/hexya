@@ -387,7 +387,7 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(jv2.Nums(), ShouldEqual, 13)
 				So(jv2.HasNums(), ShouldBeTrue)
 			})
-			Convey("Checking FieldMap convertion to ModelData", func() {
+			Convey("Checking FieldMap conversion to ModelData", func() {
 				fm := models.FieldMap{
 					"Email": "jsmith2@example.com",
 					"Nums":  13,

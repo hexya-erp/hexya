@@ -25,7 +25,6 @@ import (
 	"strings"
 	"text/template"
 
-	_ "github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/tools/generate"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
