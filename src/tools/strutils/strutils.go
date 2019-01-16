@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"strconv"
 
@@ -143,4 +144,79 @@ func MakeUnique(str string, pool []string) string {
 		tested = str + strconv.Itoa(nb)
 	}
 	return tested
+}
+
+// Reverse returns s reversed
+func Reverse(s string) string {
+	size := len(s)
+	buf := make([]byte, size)
+	for start := 0; start < size; {
+		r, n := utf8.DecodeRuneInString(s[start:])
+		start += n
+		utf8.EncodeRune(buf[size-start:], r)
+	}
+	return string(buf)
+}
+
+// SplitEveryN retuns a slice containing str in multiple parts
+// each part has its size to n (or less if last part)
+func SplitEveryN(str string, n int) []string {
+	var out []string
+	var bSl []byte
+	bStr := []byte(str)
+	for i, b := range bStr {
+		if (i)%n == 0 && i != 0 {
+			out = append(out, string(bSl))
+			bSl = nil
+		}
+		bSl = append(bSl, b)
+	}
+	out = append(out, string(bSl))
+	return out
+}
+
+// FormatMonetary formats a float into a monetary string
+// eg. FormatMonetary(3.14159, 2, 0, ",", "$", true) => "$ 3,14"
+// Params:
+//	value: the float value to be formated
+//	digits: the ammount of digits written after the decimal point
+//	grouping: the ammount of numbers per space-separated group. leave at 0 for no grouping
+//         eg:   grouping = 0 ---   12345.6789 => 12345.6789
+//						  3	---   12345.6789 => 12 345.678 9
+//	separator: the character used as the decimal separator
+//	symbol: the currency symbol
+//	symPosLeft: whether or not the symbol shall be put before the value
+func FormatMonetary(value float64, digits, groupingLeft, groupingRight int, separator, thSeparator, symbol string, symToLeft bool) string {
+	fmtStr := fmt.Sprintf("%%.%df", digits)
+	str := fmt.Sprintf(fmtStr, value)
+	strSpl := strings.Split(str, ".")
+	str = strSpl[0]
+	if groupingLeft > 0 {
+		str = Reverse(strings.Join(SplitEveryN(Reverse(str), groupingLeft), " "))
+	}
+	if len(strSpl) > 1 {
+		str2 := strSpl[1]
+		if groupingRight > 0 {
+			str2 = strings.Join(SplitEveryN(str2, groupingRight), " ")
+		}
+		str = strings.Join([]string{str, str2}, separator)
+	}
+	if symbol != "" {
+		if symToLeft {
+			str = fmt.Sprintf("%s %s", symbol, str)
+		} else {
+			str = fmt.Sprintf("%s %s", str, symbol)
+		}
+	}
+	return str
+}
+
+// IsIn returns true if the given str is the same as one of the strings given in lst
+func IsIn(str string, lst ...string) bool {
+	for _, l := range lst {
+		if str == l {
+			return true
+		}
+	}
+	return false
 }
