@@ -1089,7 +1089,7 @@ func newRecordCollection(env Environment, modelName string) *RecordCollection {
 
 // InvalidRecordCollection returns an invalid RecordCollection without an environment.
 //
-// You should really not use thihs function, but use env.Pool("ModelName") instead.
+// You should really not use this function, but use env.Pool("ModelName") instead.
 func InvalidRecordCollection(modelName string) *RecordCollection {
 	mi := Registry.MustGet(modelName)
 	rc := RecordCollection{

@@ -149,6 +149,25 @@ func SimulateInNewEnvironment(uid int64, fnct func(Environment)) (rError error) 
 	return
 }
 
+func SimulateWithDummyRecord(uid int64, data *ModelData, fnct func(Environment, RecordSet)) (rError error) {
+	env := newEnvironment(uid)
+	var rc RecordSet
+	if val, bool := data.Get("ID"); bool && val.(int64) > 0 {
+		rc = env.Pool(data.model.name).Call("Write", data).(RecordSet)
+	} else {
+		rc = env.Pool(data.model.name).Call("Create", data).(RecordSet)
+	}
+	defer func() {
+		env.rollback()
+		if r := recover(); r != nil {
+			rError = logging.LogPanicData(r)
+			return
+		}
+	}()
+	fnct(env, rc)
+	return
+}
+
 // Pool returns an empty RecordCollection for the given modelName
 func (env Environment) Pool(modelName string) *RecordCollection {
 	return newRecordCollection(env, modelName)
