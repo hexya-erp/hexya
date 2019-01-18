@@ -385,36 +385,6 @@ func declareRecordSetSpecificMethods() {
 					retValues.MergeWith(val, rs.Collection().Model())
 				}
 			})
-			//SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
-			//	rs := env.Pool(rc.ModelName())
-			//	var rsID int64
-			//	if rc.IsEmpty() {
-			//		rsID = rs.create(values).ids[0]
-			//	} else {
-			//		rsID = rc.Ids()[0]
-			//	}
-			//	values.MergeWith(FieldMap{"ID": rsID}, rc.model)
-			//	rs.ids = []int64{rsID}
-			//	rs.query.cond = rs.model.Field("ID").In(rs.ids)
-			//
-			//	for _, field := range params.Fields {
-			//		fi := rs.Model().Fields().MustGet(field)
-			//		if fi.onChange == "" {
-			//			continue
-			//		}
-			//		env.cache.invalidateRecord(rs.model, rsID)
-			//		env.cache.addRecord(rs.model, rsID, values, rs.query.ctxArgsSlug())
-			//		if fi.inverse != "" {
-			//			fVal, _ := values.Get(field, rs.model)
-			//			rs.Call(fi.inverse, fVal)
-			//		}
-			//		res := rs.Call(fi.onChange)
-			//		resMap := res.(FieldMapper).Underlying()
-			//		val := resMap.JSONized(rs.Model())
-			//		values.MergeWith(val, rs.model)
-			//		retValues.MergeWith(val, rs.model)
-			//	}
-			//})
 			retValues.RemovePK()
 			return OnchangeResult{
 				Value: retValues,
