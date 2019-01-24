@@ -230,4 +230,11 @@ func TestEnvironment(t *testing.T) {
 			})
 		}), ShouldBeNil)
 	})
+	Convey("Testing SimulateWithDummyRecord", t, func() {
+		err := SimulateWithDummyRecord(security.SuperUserID, NewModelData(Registry.MustGet("User")), func(rs RecordSet) {
+			panic("oh no !")
+		})
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldStartWith, "oh no !")
+	})
 }

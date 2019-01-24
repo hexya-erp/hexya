@@ -364,36 +364,28 @@ func declareRecordSetSpecificMethods() {
 		func(rc *RecordCollection, params OnchangeParams) OnchangeResult {
 			values := params.Values
 			rc.model.convertValuesToFieldType(&values)
+			data := NewModelData(rc.model)
+			data.FieldMap = values
+			if rc.IsNotEmpty() {
+				data.Set("ID", rc.ids[0])
+			}
 			retValues := make(FieldMap)
 
-			SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
-				rs := env.Pool(rc.ModelName())
-				var rsID int64
-				if rc.IsEmpty() {
-					rsID = rs.create(values).ids[0]
-				} else {
-					rsID = rc.Ids()[0]
-				}
-				values.MergeWith(FieldMap{"ID": rsID}, rc.model)
-				rs.ids = []int64{rsID}
-				rs.query.cond = rs.model.Field("ID").In(rs.ids)
-
+			SimulateWithDummyRecord(rc.Env().Uid(), data, func(rs RecordSet) {
 				for _, field := range params.Fields {
-					fi := rs.Model().Fields().MustGet(field)
+					fi := rs.Collection().Model().Fields().MustGet(field)
 					if fi.onChange == "" {
 						continue
 					}
-					env.cache.invalidateRecord(rs.model, rsID)
-					env.cache.addRecord(rs.model, rsID, values, rs.query.ctxArgsSlug())
 					if fi.inverse != "" {
-						fVal, _ := values.Get(field, rs.model)
+						fVal, _ := data.Get(field)
 						rs.Call(fi.inverse, fVal)
 					}
 					res := rs.Call(fi.onChange)
 					resMap := res.(FieldMapper).Underlying()
-					val := resMap.JSONized(rs.Model())
-					values.MergeWith(val, rs.model)
-					retValues.MergeWith(val, rs.model)
+					val := resMap.JSONized(rs.Collection().Model())
+					data.FieldMap.MergeWith(val, rs.Collection().Model())
+					retValues.MergeWith(val, rs.Collection().Model())
 				}
 			})
 			retValues.RemovePK()

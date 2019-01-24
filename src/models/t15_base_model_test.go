@@ -113,12 +113,12 @@ func TestBaseModelMethods(t *testing.T) {
 					res := userJane.Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   FieldMap{"Name": "William", "Email": "will@example.com", "CoolType": "cool", "IsCool": false},
+						Values:   FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false},
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying()
 					So(fMap, ShouldHaveLength, 2)
 					So(fMap, ShouldContainKey, "decorated_name")
-					So(fMap["decorated_name"], ShouldEqual, "User: William [<will@example.com>]")
+					So(fMap["decorated_name"], ShouldEqual, "User: William [<jane.smith@example.com>]")
 					So(fMap, ShouldContainKey, "is_cool")
 					So(fMap["is_cool"], ShouldEqual, true)
 				})

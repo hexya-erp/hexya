@@ -149,6 +149,34 @@ func SimulateInNewEnvironment(uid int64, fnct func(Environment)) (rError error) 
 	return
 }
 
+// SimulateWithDummyRecord executes the given fnct on a temporary Recordset created
+// from the given data and rolls bac all changes afterwards.
+//
+// If data contains an ID field, then the record with this ID is retrieved from the
+// database instead of being created, and is updated with the data.
+//
+// This function always rolls back the transaction but returns an error
+// only if fnct panicked during its execution.
+func SimulateWithDummyRecord(uid int64, data *ModelData, fnct func(RecordSet)) (rError error) {
+	env := newEnvironment(uid)
+	var rc RecordSet
+	if val, ok := data.Get("ID"); ok && val.(int64) > 0 {
+		rc = env.Pool(data.model.name).Call("BrowseOne", val.(int64)).(RecordSet)
+		rc.Call("Write", data)
+	} else {
+		rc = env.Pool(data.model.name).Call("Create", data).(RecordSet)
+	}
+	defer func() {
+		env.rollback()
+		if r := recover(); r != nil {
+			rError = logging.LogPanicData(r)
+			return
+		}
+	}()
+	fnct(rc)
+	return
+}
+
 // Pool returns an empty RecordCollection for the given modelName
 func (env Environment) Pool(modelName string) *RecordCollection {
 	return newRecordCollection(env, modelName)
