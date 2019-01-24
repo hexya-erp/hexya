@@ -237,25 +237,17 @@ func (c Context) WithKey(key string, value interface{}) *Context {
 }
 
 // Delete removes the content pointed by the given key from the context.
-func (c Context) Delete(key string) *Context {
+func (c *Context) Delete(key string) *Context {
 	delete(c.values, key)
-	return &c
+	return c
 }
 
 // Pop removes the content pointed by the given key from the context.
 // and returns the value
-func (c Context) Pop(key string) interface{} {
+func (c *Context) Pop(key string) interface{} {
 	val := c.Get(key)
 	c.Delete(key)
 	return val
-}
-
-// Update updates the context with the elements from another dictionary.
-func (c Context) Update(m map[string]interface{}) *Context {
-	for key, value := range m {
-		c = *c.WithKey(key, value)
-	}
-	return &c
 }
 
 // IsEmpty returns true if this Context has no entries.
