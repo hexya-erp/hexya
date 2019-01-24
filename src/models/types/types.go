@@ -236,6 +236,20 @@ func (c Context) WithKey(key string, value interface{}) *Context {
 	return &c
 }
 
+// Delete removes the content pointed by the given key from the context
+func (c Context) Delete(key string) *Context {
+	delete(c.values, key)
+	return &c
+}
+
+// Pop removes the content pointed by the given key from the context
+// and returns the value
+func (c Context) Pop(key string) interface{} {
+	val := c.Get(key)
+	c.Delete(key)
+	return val
+}
+
 // IsEmpty returns true if this Context has no entries.
 func (c Context) IsEmpty() bool {
 	if len(c.values) == 0 {
