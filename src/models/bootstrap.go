@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
@@ -31,7 +32,12 @@ type modelCouple struct {
 	mixIn *Model
 }
 
-var mixed = map[modelCouple]bool{}
+const workloopPeriod = 1 * time.Minute
+
+var (
+	mixed      = map[modelCouple]bool{}
+	workerStop chan bool
+)
 
 // BootStrap freezes model, fields and method caches and syncs the database structure
 // with the declared data.
@@ -55,6 +61,7 @@ func BootStrap() {
 	checkFieldMethodsExist()
 	checkComputeMethodsSignature()
 	setupSecurity()
+	workloop(workloopPeriod)
 
 	Registry.bootstrapped = true
 }
@@ -776,4 +783,28 @@ func checkFieldMethodsExist() {
 			}
 		}
 	}
+}
+
+// workloopMethods executes all methods that must be run regularly.
+func workloopMethods() {
+	go FreeTransientModels()
+}
+
+// workloop launches the hexya core worker loop.
+func workloop(period time.Duration) {
+	if workerStop == nil {
+		workerStop = make(chan bool)
+	}
+	go func() {
+		ticker := time.NewTicker(period)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				workloopMethods()
+			case <-workerStop:
+				return
+			}
+		}
+	}()
 }

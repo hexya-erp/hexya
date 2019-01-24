@@ -113,12 +113,12 @@ func TestBaseModelMethods(t *testing.T) {
 					res := userJane.Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   FieldMap{"Name": "William", "Email": "will@example.com", "CoolType": "cool", "IsCool": false},
+						Values:   FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false},
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying()
 					So(fMap, ShouldHaveLength, 2)
 					So(fMap, ShouldContainKey, "decorated_name")
-					So(fMap["decorated_name"], ShouldEqual, "User: William [<will@example.com>]")
+					So(fMap["decorated_name"], ShouldEqual, "User: William [<jane.smith@example.com>]")
 					So(fMap, ShouldContainKey, "is_cool")
 					So(fMap["is_cool"], ShouldEqual, true)
 				})
@@ -394,4 +394,37 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 		}), ShouldBeNil)
 	})
+}
+
+func TestFreeTransientModels(t *testing.T) {
+	transientModelTimeout = 1500 * time.Millisecond
+	// Restart workerloop with a very small period
+	workerStop <- true
+	workloop(400 * time.Millisecond)
+
+	var wizID int64
+	Convey("Test freeing transient models", t, func() {
+		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			wizModel := env.Pool("Wizard")
+			Convey("Creating a transient record", func() {
+				wiz := wizModel.Call("Create", FieldMap{
+					"Name":  "WizName",
+					"Value": 13,
+				}).(RecordSet).Collection()
+				wizID = wiz.Ids()[0]
+			})
+			Convey("Loading the record immediately and it should still be there", func() {
+				wiz := wizModel.Call("BrowseOne", wizID).(RecordSet).Collection()
+				wiz.Load()
+				So(wiz.IsNotEmpty(), ShouldBeTrue)
+			})
+			Convey("After transient model timeout, it should not be there anymore", func() {
+				<-time.After(2 * time.Second)
+				wiz := wizModel.Call("BrowseOne", wizID).(RecordSet).Collection()
+				wiz.Load()
+				So(wiz.IsEmpty(), ShouldBeTrue)
+			})
+		})
+	})
+	workerStop <- true
 }

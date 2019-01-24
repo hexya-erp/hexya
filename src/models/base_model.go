@@ -363,25 +363,28 @@ func declareRecordSetSpecificMethods() {
 		method in the pseudo-record given as params.Values`,
 		func(rc *RecordCollection, params OnchangeParams) OnchangeResult {
 			values := params.Values
+			rc.model.convertValuesToFieldType(&values)
 			data := NewModelData(rc.model)
 			data.FieldMap = values
-			rc.model.convertValuesToFieldType(&values)
+			if rc.IsNotEmpty() {
+				data.Set("ID", rc.ids[0])
+			}
 			retValues := make(FieldMap)
 
-			SimulateWithDummyRecord(rc.Env().Uid(), data, func(env Environment, rs RecordSet) {
+			SimulateWithDummyRecord(rc.Env().Uid(), data, func(rs RecordSet) {
 				for _, field := range params.Fields {
 					fi := rs.Collection().Model().Fields().MustGet(field)
 					if fi.onChange == "" {
 						continue
 					}
 					if fi.inverse != "" {
-						fVal, _ := values.Get(field, rs.Collection().Model())
+						fVal, _ := data.Get(field)
 						rs.Call(fi.inverse, fVal)
 					}
 					res := rs.Call(fi.onChange)
 					resMap := res.(FieldMapper).Underlying()
 					val := resMap.JSONized(rs.Collection().Model())
-					values.MergeWith(val, rs.Collection().Model())
+					data.FieldMap.MergeWith(val, rs.Collection().Model())
 					retValues.MergeWith(val, rs.Collection().Model())
 				}
 			})
