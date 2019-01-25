@@ -164,31 +164,101 @@ func SplitEveryN(str string, n int) []string {
 	return out
 }
 
+// SplitAtN returns the given strings separated as two string splited after the N-th character
+func SplitAtN(str string, n int) (out1 string, out2 string) {
+	if n > len(str) {
+		out1 = str
+		out2 = ""
+	} else {
+		out1 = str[:n]
+		out2 = str[n:]
+	}
+	return
+}
+
+//ContainsOnly returns true if the given string only contains the characters given
+func ContainsOnly(str string, lst ...byte) bool {
+	for _, b := range []byte(str) {
+		for _, l := range lst {
+			if l != b {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// NumberGrouping represents grouping values of a number as follows:
+//  - it splits a number into groups of N, N being a value in the slice
+//  - the last value represent the last group
+//  - all values should be positive
+//  - 0 means repetition of next int
+//  - if the first value is not a 0, the grouping will end
+//    e.g. :
+//       3       -> 123456,789
+//       0,3     -> 123,456,789
+//       2,3     -> 1234,56,789
+//       0,2,3   -> 12,34,56,789
+type NumberGrouping []int
+
+// FormatNumberStrWithGrouping formats a string (supposedly representing an integer)
+// with number grouping defined by the given grouping slice. each group is separated with thSeparator
+func FormatNumberStrWithGrouping(number string, grouping NumberGrouping, thSeparator string) string {
+	number = Reverse(number)
+	thSeparator = Reverse(thSeparator) //reverse strings
+	var str string
+
+	var revGrouping NumberGrouping
+	for i := range grouping { //reverse grouping
+		revGrouping = append(revGrouping, grouping[len(grouping)-i-1])
+	}
+
+	var out string
+	last := 9999
+	for _, n := range revGrouping { // use all grouping numbers
+		if n == 0 {
+			n = last
+		}
+		str, number = SplitAtN(number, n)
+		if str != "" {
+			out = out + thSeparator + str
+		}
+		if number == "" {
+			return Reverse(strings.TrimPrefix(out, thSeparator))
+		}
+		last = n
+	}
+	// all grouping values exhausted, continue with N until number is empty
+	for number != "" {
+		n := 9999
+		if grouping[0] == 0 {
+			n = last
+		}
+		str, number = SplitAtN(number, n)
+		if str != "" {
+			out = out + thSeparator + str
+		}
+	}
+	return Reverse(strings.TrimPrefix(out, thSeparator))
+}
+
 // FormatMonetary formats a float into a monetary string
 // eg. FormatMonetary(3.14159, 2, 0, ",", "$", true) => "$ 3,14"
 // Params:
 //	value: the float value to be formated
 //	digits: the ammount of digits written after the decimal point
-//	grouping: the ammount of numbers per space-separated group. leave at 0 for no grouping
-//         eg:   grouping = 0 ---   12345.6789 => 12345.6789
-//						  3	---   12345.6789 => 12 345.678 9
+//	grouping: (See type NumberGrouping for more on this)
 //	separator: the character used as the decimal separator
+//  thSeparator: the character used as grouping separator
 //	symbol: the currency symbol
 //	symPosLeft: whether or not the symbol shall be put before the value
-func FormatMonetary(value float64, digits, groupingLeft, groupingRight int, separator, thSeparator, symbol string, symToLeft bool) string {
+func FormatMonetary(value float64, digits, grouping NumberGrouping, separator, thSeparator, symbol string, symToLeft bool) string {
 	fmtStr := fmt.Sprintf("%%.%df", digits)
 	str := fmt.Sprintf(fmtStr, value)
 	strSpl := strings.Split(str, ".")
-	str = strSpl[0]
-	if groupingLeft > 0 {
-		str = Reverse(strings.Join(SplitEveryN(Reverse(str), groupingLeft), " "))
-	}
+	str = FormatNumberStrWithGrouping(strSpl[0], grouping, thSeparator)
 	if len(strSpl) > 1 {
-		str2 := strSpl[1]
-		if groupingRight > 0 {
-			str2 = strings.Join(SplitEveryN(str2, groupingRight), " ")
-		}
-		str = strings.Join([]string{str, str2}, separator)
+		str = strings.Join([]string{str, strSpl[1]}, separator)
 	}
 	if symbol != "" {
 		if symToLeft {
