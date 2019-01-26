@@ -329,7 +329,8 @@ func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) 
 			relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
 		}
 
-		if meth, ok := targetType.MethodByName(fi.name); ok {
+		meth, ok := targetType.MethodByName(fi.name)
+		if targetType != reflect.TypeOf(ModelData{}) && ok {
 			// We have a generated RecordSet Type with a MyField() method
 			fType := meth.Type.Out(0)
 			convertedValue = reflect.New(fType).Elem()
