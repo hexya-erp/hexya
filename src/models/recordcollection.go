@@ -91,7 +91,7 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
 	fMap = rc.addEmbeddedfields(fMap)
-	rc.model.convertValuesToFieldType(&fMap)
+	rc.model.convertValuesToFieldType(&fMap, true)
 	fMap = rc.addContextsFieldsValues(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
@@ -152,20 +152,22 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 			continue
 		}
 
-		if _, ok := fMap.Get(fName, rc.model); !ok {
-			if !fi.required && !fi.isReadOnly() && create {
-				continue
-			}
-			val, exists := ctxDefaults[fi.json]
-			if exists {
-				fMap.Set(fName, val, rc.model)
-				continue
-			}
-			if fi.defaultFunc == nil {
-				continue
-			}
-			fMap.Set(fName, fi.defaultFunc(rc.Env()), rc.model)
+		if _, ok := fMap.Get(fName, rc.model); ok {
+			// we have the field in the given data, so we don't apply defaults
+			continue
 		}
+		if !fi.required && !fi.isReadOnly() && create {
+			continue
+		}
+		val, exists := ctxDefaults[fi.json]
+		if exists {
+			fMap.Set(fName, val, rc.model)
+			continue
+		}
+		if fi.defaultFunc == nil {
+			continue
+		}
+		fMap.Set(fName, fi.defaultFunc(rc.Env()), rc.model)
 	}
 }
 
@@ -253,7 +255,7 @@ func (rc *RecordCollection) update(data FieldMapper) bool {
 	fMap = rSet.addContextsFieldsValues(fMap)
 	// We process inverse method before we convert RecordSets to ids
 	rSet.processInverseMethods(fMap)
-	rSet.model.convertValuesToFieldType(&fMap)
+	rSet.model.convertValuesToFieldType(&fMap, true)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
 	storedFieldMap := filterMapOnStoredFields(rSet.model, fMap)
@@ -798,11 +800,11 @@ func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 	rc.Fetch()
 	var dbCalled bool
 	if !rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}, rc.query.ctxArgsSlug(), true) {
-		if !all {
-			rc.Load(field)
-		} else {
-			rc.Load()
+		fields := []string{field}
+		if all {
+			fields = append(fields, rc.model.fields.storedFieldNames()...)
 		}
+		rc.Load(field)
 		dbCalled = true
 	}
 	return rc.env.cache.get(rc.model, rc.ids[0], field, rc.query.ctxArgsSlug()), dbCalled

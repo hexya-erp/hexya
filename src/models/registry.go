@@ -214,13 +214,16 @@ func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap, substs map[str
 
 	// Step 3: We convert values with the type of the corresponding Field
 	// if the value is not nil.
-	m.convertValuesToFieldType(dest)
+	m.convertValuesToFieldType(dest, false)
 	return r.Err()
 }
 
 // convertValuesToFieldType converts all values of the given FieldMap to
 // their type in the Model.
-func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
+//
+// If this method is used to convert values before writing to DB, you
+// should set writeDB to true.
+func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 	destVals := reflect.ValueOf(fMap).Elem()
 	for colName, fMapValue := range *fMap {
 		if val, ok := fMapValue.(bool); ok && !val {
@@ -237,12 +240,7 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 		switch {
 		case fMapValue == nil:
 			// dbValue is null, we put the type zero value instead
-			// except if we have a nullable FK relation field
-			if fi.fieldType.IsFKRelationType() && !fi.required {
-				val = reflect.ValueOf((*interface{})(nil))
-			} else {
-				val = reflect.Zero(fType)
-			}
+			val = reflect.Zero(fType)
 		case reflect.PtrTo(fType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
 			// the type implements sql.Scanner, so we call Scan
 			valPtr := reflect.New(fType)
@@ -265,6 +263,18 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap) {
 			}
 		}
 		destVals.SetMapIndex(reflect.ValueOf(colName), val)
+	}
+	if writeDB {
+		// Change zero values to NULL if writing to DB for nullable M2O/O2O
+		for colName, fMapValue := range *fMap {
+			fi := m.getRelatedFieldInfo(colName)
+			val := reflect.ValueOf(fMapValue)
+			switch {
+			case fi.fieldType.IsFKRelationType() && val.Kind() == reflect.Int64 && val.Int() == 0 && !fi.required:
+				val = reflect.ValueOf((*interface{})(nil))
+				destVals.SetMapIndex(reflect.ValueOf(colName), val)
+			}
+		}
 	}
 }
 

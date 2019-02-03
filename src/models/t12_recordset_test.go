@@ -518,6 +518,22 @@ func TestAdvancedQueries(t *testing.T) {
 			})
 		}), ShouldBeNil)
 	})
+	Convey("Testing advanced queries with multiple joins", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			users := env.Pool("User")
+			jane := users.Search(users.Model().Field("Name").Equals("Jane Smith"))
+			john := users.Search(users.Model().Field("Name").Equals("John Smith"))
+			So(jane.Len(), ShouldEqual, 1)
+			So(john.Len(), ShouldEqual, 1)
+			Convey("Testing M2O-M2O-M2O", func() {
+				So(jane.Get("Profile.BestPost.User").(RecordSet).Collection().Equals(jane), ShouldBeTrue)
+				So(john.Get("Profile.BestPost.User").(RecordSet).Collection().IsEmpty(), ShouldBeTrue)
+				johnProfile := env.Pool("Profile").Call("Create", NewModelData(users.Model()))
+				john.Set("Profile", johnProfile)
+				So(john.Get("Profile.BestPost.User").(RecordSet).Collection().Get("Email"), ShouldBeEmpty)
+			})
+		}), ShouldBeNil)
+	})
 }
 
 func TestGroupedQueries(t *testing.T) {

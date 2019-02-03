@@ -26,9 +26,25 @@ import (
 // improve performance. cache is not safe for concurrent access.
 type cache struct {
 	sync.RWMutex
-	data       map[string]map[int64]FieldMap
-	x2mRelated map[string]map[int64]map[string]map[string]int64
-	m2mLinks   map[string]map[[2]int64]bool
+	data       map[string]map[int64]FieldMap                    // cache data values by model and id
+	x2mRelated map[string]map[int64]map[string]map[string]int64 // o2m and r2m relations by model, id, field, context
+	m2mLinks   map[string]map[[2]int64]bool                     // many2many relations by relation model and ids
+}
+
+// notInCacheError is returned when a request in cache returns no entry
+type notInCacheError struct{}
+
+// Error method fo the notInCacheError
+func (nice notInCacheError) Error() string {
+	return "requested value not in cache"
+}
+
+// nonExistentPathError is returned when a request path in cache leads
+// nowhere (i.e. one FK of the path is 0).
+type nonExistentPathError struct{}
+
+func (nepe nonExistentPathError) Error() string {
+	return "requested path is broken"
 }
 
 // updateEntry creates or updates an entry in the cache defined by its model, id and fieldName.
@@ -332,6 +348,12 @@ func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string, ctxS
 func (c *cache) isInCache(mi *Model, id int64, path string, ctxSlug string, strict bool) bool {
 	mi, id, path, err := c.getRelatedRefCommon(mi, id, path, ctxSlug, strict)
 	if err != nil {
+		switch err.(type) {
+		case nonExistentPathError:
+			return true
+		case notInCacheError:
+			return false
+		}
 		return false
 	}
 	if _, ok := c.data[mi.name][id][path]; !ok {
@@ -366,10 +388,13 @@ func (c *cache) getRelatedRefCommon(mi *Model, id int64, path string, ctxSlug st
 			var defVal bool
 			fkID, ok, defVal = c.getX2MValue(mi.name, id, exprs[0], ctxSlug)
 			if !ok || (strict && defVal) {
-				return nil, 0, "", errors.New("requested value not in cache")
+				return nil, 0, "", notInCacheError{}
 			}
 		}
 		relMI := mi.getRelatedModelInfo(exprs[0])
+		if fkID == 0 {
+			return nil, 0, "", nonExistentPathError{}
+		}
 		return c.getRelatedRefCommon(relMI, fkID, strings.Join(exprs[1:], ExprSep), ctxSlug, strict)
 	}
 	return mi, id, exprs[0], nil
