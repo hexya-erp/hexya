@@ -607,11 +607,10 @@ func getTypeData(typ ast.Expr, modInfo *ModuleInfo) TypeData {
 		// Maybe this is a pool type that is not yet defined
 		byts := bytes.Buffer{}
 		printer.Fprint(&byts, modInfo.FSet, typ)
-		typStr = strings.Replace(byts.String(), PoolModelPackage+".", "", 1)
+		typStr = byts.String()
 	}
 	importPath := computeExportPath(modInfo.TypesInfo.TypeOf(typ))
 	if strings.Contains(importPath, PoolPath) {
-		typStr = strings.Replace(typStr, PoolModelPackage+".", "", 1)
 		importPath = ""
 	}
 

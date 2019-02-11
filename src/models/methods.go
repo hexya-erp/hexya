@@ -232,7 +232,8 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 		case reflect.TypeOf(new(RecordCollection)):
 			argsVals[0].Set(reflect.ValueOf(rc))
 		default:
-			argsVals[0].Field(0).Set(reflect.ValueOf(rc))
+			modelName := argZeroType.Name()[:len(argZeroType.Name())-3]
+			argsVals[0].Set(reflect.ValueOf(rc.Wrap(modelName)))
 		}
 		for i := 0; i < fnctVal.Type().NumIn()-1; i++ {
 			if len(args) < i+1 && fnctVal.Type().IsVariadic() && i == fnctVal.Type().NumIn()-2 {
@@ -271,7 +272,8 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 		val.Field(0).Set(reflect.ValueOf(at.Underlying()))
 		return val
 	case FieldMapper:
-		if fnctArgType.Kind() == reflect.Interface {
+		var fm FieldMapper
+		if fnctArgType == reflect.TypeOf(fm) {
 			// Target is a FieldMapper nothing to change
 			return reflect.ValueOf(at)
 		}
@@ -279,13 +281,13 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 			// Target is a FieldMap, so we give the FieldMap of this FieldMapper
 			return reflect.ValueOf(at.Underlying())
 		}
-		// => Target is a struct pointer *h.MyModelData
+		// => Target is a m.MyModelData interface
 		if fm, ok := at.(FieldMap); ok {
 			// Given arg is a FieldMap, so we map to our modelData
 			val = mapToModelData(rc, fm, fnctArgType)
 			return val
 		}
-		// Given arg is already a struct pointer
+		// Given arg is already a typed ModelData
 		return reflect.ValueOf(arg)
 	case RecordSet:
 		if fnctArgType == reflect.TypeOf(new(RecordCollection)) {
@@ -297,6 +299,8 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 			return val
 		}
 		return reflect.ValueOf(arg)
+	case nil:
+		return reflect.Zero(fnctArgType)
 	default:
 		return reflect.ValueOf(arg)
 	}

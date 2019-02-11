@@ -298,11 +298,10 @@ func cartesianProductSlices(records ...[]*RecordCollection) []*RecordCollection 
 
 }
 
-// mapToModelData maps the given FieldMap to the targetType object which is either a
-// type-less ModelData or a pointer to a typed one. The given RecordCollection is used
+// mapToModelData maps the given FieldMap to the targetType object which is a pointer to
+// either a type-less ModelData or a typed one. The given RecordCollection is used
 // only to retrieve the model and an Environment.
 func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) reflect.Value {
-	targetType = targetType.Elem()
 	for field, val := range fm {
 		fi := rc.model.getRelatedFieldInfo(field)
 		if !fi.fieldType.IsRelationType() {
@@ -334,7 +333,7 @@ func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) 
 			// We have a generated RecordSet Type with a MyField() method
 			fType := meth.Type.Out(0)
 			convertedValue = reflect.New(fType).Elem()
-			convertedValue.FieldByName("RecordCollection").Set(reflect.ValueOf(relRC))
+			convertedValue.Set(reflect.ValueOf(relRC.Wrap()))
 		} else {
 			convertedValue = reflect.ValueOf(relRC)
 		}
@@ -342,11 +341,10 @@ func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) 
 	}
 	md := NewModelData(rc.model)
 	md.FieldMap = fm
-	if targetType == reflect.TypeOf(*md) {
-		// target is type-less ModelData
+	if targetType == reflect.TypeOf(md) {
+		// target is pointer to type-less ModelData
 		return reflect.ValueOf(md)
 	}
-	res := reflect.New(targetType)
-	res.Elem().FieldByName("ModelData").Set(reflect.ValueOf(md).Elem())
+	res := reflect.ValueOf(md.Wrap())
 	return res
 }

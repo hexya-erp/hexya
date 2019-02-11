@@ -22,6 +22,7 @@ import (
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/pool/h"
+	"github.com/hexya-erp/pool/m"
 	"github.com/hexya-erp/pool/q"
 )
 
@@ -41,18 +42,18 @@ func init() {
 	// Methods directly declared with AddMethod must be defined before being referenced in the field declaration
 
 	user.AddMethod("OnChangeName", "",
-		func(rs h.UserSet) *h.UserData {
+		func(rs m.UserSet) m.UserData {
 			return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
 		})
 
 	user.AddMethod("ComputeDecoratedName", "",
-		func(rs h.UserSet) *h.UserData {
+		func(rs m.UserSet) m.UserData {
 			return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
 		})
 
 	user.AddMethod("ComputeAge",
 		`ComputeAge is a sample method layer for testing`,
-		func(rs h.UserSet) *h.UserData {
+		func(rs m.UserSet) m.UserData {
 			return h.User().NewData().SetAge(rs.Profile().Age())
 		})
 
@@ -86,7 +87,7 @@ func init() {
 
 	user.Methods().PrefixedUser().DeclareMethod(
 		`PrefixedUser is a sample method layer for testing`,
-		func(rs h.UserSet, prefix string) []string {
+		func(rs m.UserSet, prefix string) []string {
 			var res []string
 			for _, u := range rs.Records() {
 				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Name()))
@@ -96,20 +97,20 @@ func init() {
 
 	user.Methods().DecorateEmail().DeclareMethod(
 		`DecorateEmail is a sample method layer for testing`,
-		func(rs h.UserSet, email string) string {
+		func(rs m.UserSet, email string) string {
 			return fmt.Sprintf("<%s>", email)
 		})
 
 	user.Methods().DecorateEmail().Extend(
 		`DecorateEmailExtension is a sample method layer for testing`,
-		func(rs h.UserSet, email string) string {
+		func(rs m.UserSet, email string) string {
 			res := rs.Super().DecorateEmail(email)
 			return fmt.Sprintf("[%s]", res)
 		})
 
 	user.Methods().RecursiveMethod().DeclareMethod(
 		`RecursiveMethod is a sample method layer for testing`,
-		func(rs h.UserSet, depth int, result string) string {
+		func(rs m.UserSet, depth int, result string) string {
 			if depth == 0 {
 				return result
 			}
@@ -117,14 +118,14 @@ func init() {
 		})
 
 	user.Methods().RecursiveMethod().Extend("",
-		func(rs h.UserSet, depth int, result string) string {
+		func(rs m.UserSet, depth int, result string) string {
 			result = "> " + result + " <"
 			sup := rs.Super().RecursiveMethod(depth, result)
 			return sup
 		})
 
 	user.Methods().SubSetSuper().DeclareMethod("",
-		func(rs h.UserSet) string {
+		func(rs m.UserSet) string {
 			var res string
 			for _, rec := range rs.Records() {
 				res += rec.Name()
@@ -133,7 +134,7 @@ func init() {
 		})
 
 	user.Methods().SubSetSuper().Extend("",
-		func(rs h.UserSet) string {
+		func(rs m.UserSet) string {
 			userJane := h.User().Search(rs.Env(), q.User().Email().Equals("jane.smith@example.com"))
 			userJohn := h.User().Search(rs.Env(), q.User().Email().Equals("jsmith2@example.com"))
 			users := h.User().NewSet(rs.Env())
@@ -143,12 +144,12 @@ func init() {
 		})
 
 	user.Methods().InverseSetAge().DeclareMethod("",
-		func(rs h.UserSet, age int16) {
+		func(rs m.UserSet, age int16) {
 			rs.Profile().SetAge(age)
 		})
 
 	h.User().Methods().PrefixedUser().Extend("",
-		func(rs h.UserSet, prefix string) []string {
+		func(rs m.UserSet, prefix string) []string {
 			res := rs.Super().PrefixedUser(prefix)
 			for i, u := range rs.Records() {
 				res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
@@ -157,7 +158,7 @@ func init() {
 		})
 
 	h.User().Methods().UpdateCity().DeclareMethod("",
-		func(rs h.UserSet, value string) {
+		func(rs m.UserSet, value string) {
 			rs.Profile().SetCity(value)
 		})
 
@@ -188,13 +189,13 @@ func init() {
 	})
 
 	h.Post().Methods().Create().Extend("",
-		func(rs h.PostSet, data *h.PostData) h.PostSet {
+		func(rs m.PostSet, data m.PostData) m.PostSet {
 			res := rs.Super().Create(data)
 			return res
 		})
 
 	h.Post().Methods().Search().Extend("",
-		func(rs h.PostSet, cond q.PostCondition) h.PostSet {
+		func(rs m.PostSet, cond q.PostCondition) m.PostSet {
 			res := rs.Super().Search(cond)
 			return res
 		})
@@ -217,7 +218,7 @@ func init() {
 
 	tag.Methods().CheckNameDescription().DeclareMethod(
 		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
-		func(rs h.TagSet) {
+		func(rs m.TagSet) {
 			if rs.Rate() < 0 || rs.Rate() > 10 {
 				log.Panic("Tag rate must be between 0 and 10")
 			}
@@ -225,7 +226,7 @@ func init() {
 
 	tag.Methods().CheckRate().DeclareMethod(
 		`CheckNameDescription checks that the description of a tag is not equal to its name`,
-		func(rs h.TagSet) {
+		func(rs m.TagSet) {
 			if rs.Name() == rs.Description() {
 				log.Panic("Tag name and description must be different")
 			}
@@ -239,13 +240,13 @@ func init() {
 		"Other":      models.CharField{Compute: h.Resume().Methods().ComputeOther()},
 	})
 	cv.Methods().Create().Extend("",
-		func(rs h.ResumeSet, data *h.ResumeData) h.ResumeSet {
+		func(rs m.ResumeSet, data m.ResumeData) m.ResumeSet {
 			return rs.Super().Create(data)
 		})
 
 	cv.Methods().ComputeOther().DeclareMethod(
 		`Dummy compute function`,
-		func(rs h.ResumeSet) *h.ResumeData {
+		func(rs m.ResumeSet) m.ResumeData {
 			return h.Resume().NewData().SetOther("Other information")
 		})
 
@@ -259,13 +260,13 @@ func init() {
 
 	h.Profile().Methods().PrintAddress().DeclareMethod(
 		`PrintAddress is a sample method layer for testing`,
-		func(rs h.ProfileSet) string {
+		func(rs m.ProfileSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("%s, %s", res, rs.Country())
 		})
 
 	h.Profile().Methods().PrintAddress().Extend("",
-		func(rs h.ProfileSet) string {
+		func(rs m.ProfileSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("[%s]", res)
 		})
@@ -273,18 +274,18 @@ func init() {
 	addressMI2 := h.AddressMixIn()
 	addressMI2.Methods().SayHello().DeclareMethod(
 		`SayHello is a sample method layer for testing`,
-		func(rs h.AddressMixInSet) string {
+		func(rs m.AddressMixInSet) string {
 			return "Hello !"
 		})
 
 	addressMI2.Methods().PrintAddress().DeclareMethod(
 		`PrintAddressMixIn is a sample method layer for testing`,
-		func(rs h.AddressMixInSet) string {
+		func(rs m.AddressMixInSet) string {
 			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
 		})
 
 	addressMI2.Methods().PrintAddress().Extend("",
-		func(rs h.AddressMixInSet) string {
+		func(rs m.AddressMixInSet) string {
 			res := rs.Super().PrintAddress()
 			return fmt.Sprintf("<%s>", res)
 		})
@@ -300,7 +301,7 @@ func init() {
 	activeMI2 := activeMI1
 	activeMI2.Methods().IsActivated().DeclareMethod(
 		`IsACtivated is a sample method of ActiveMixIn"`,
-		func(rs h.ActiveMixInSet) bool {
+		func(rs m.ActiveMixInSet) bool {
 			return rs.Active()
 		})
 

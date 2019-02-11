@@ -179,7 +179,7 @@ func declareCRUDMethods() {
 		func(rc *RecordCollection, overrides FieldMapper) *RecordCollection {
 			rc.EnsureOne()
 			oVal := reflect.ValueOf(overrides)
-			if oVal.IsNil() {
+			if !oVal.IsValid() || (oVal.Kind() != reflect.Struct && oVal.IsNil()) {
 				overrides = make(FieldMap)
 			}
 
