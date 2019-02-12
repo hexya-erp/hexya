@@ -1077,6 +1077,12 @@ func (rc *RecordCollection) Collection() *RecordCollection {
 	return rc
 }
 
+// SqlFromCondition returns the given condition in it's underlying SQL string form
+// and it's corresponding parameters
+func (rc *RecordCollection) SqlFromCondition(c *Condition) (string, []interface{}) {
+	return rc.query.conditionSQLClause(c)
+}
+
 var _ RecordSet = new(RecordCollection)
 
 // newRecordCollection returns a new empty RecordCollection in the
