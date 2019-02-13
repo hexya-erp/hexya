@@ -32,20 +32,20 @@ set of Records of the same model. Methods defined on a model are executed on a
 RecordSet.
 
 Each model has its own RecordSet Go type named by appending "Set" to the
-model's name (e.g. the RecordSet type for the `Partner` model is called
-`PartnerSet`). All RecordSet types implement the `RecordSet` interface, but
+model's name in the `m` package (e.g. the RecordSet type for the `Partner` model is called
+`m.PartnerSet`). All RecordSet types implement the `models.RecordSet` interface, but
 also a whole set of methods with defined names but which differ by the
 parameters or return values types. For example, all RecordSets implement a
-`Create` method but each take a Record struct of its model type and return its
+`Create` method but each take a Record data of its model type and return its
 own type.
 
 Each model has also its own Record Go type which is named by appending "Data"
-to its model's name (e.g. `PartnerData`). A Record type is simply a struct
-with all the fields of the model whether they are stored into the database or
-computed on the fly. Record types are used to read and write values to
-RecordSets.
+to its model's name in the m package (e.g. `m.PartnerData`).
+A Record data type can hold the values of all the fields of the model whether they are stored into the database or
+computed on the fly.
+Record types are used to read and write values to RecordSets.
 
-All Record and RecordSet types live in the `h` package.
+Record and RecordSet types live in the `m` package.
 
 === Using RecordSets
 
@@ -62,21 +62,21 @@ The following methods can be called RecordSet instances.
 
 [NOTE]
 ====
-A parameter or return value of type `RecordSetType` means the actual type of
-the RecordSet for this model (not an interface).
+A parameter or return value of type `m.ModelSet` means the actual type of
+the RecordSet for this model (e.g. `m.PartnerSet`).
 
-A parameter or return value of type `RecordType` means the actual type of the
-Record struct for this model (e.g. `PartnerData`).
+A parameter or return value of type `m.ModelData` means the actual type of the
+Record struct for this model (e.g. `m.PartnerData`).
 ====
 
 ==== Data Access Methods
 
-`*First() RecordType*`::
-Returns a copy of the first Record of the RecordSet. It returns an empty
-RecordType if the RecordSet is empty.
+`*First() m.ModelData*`::
+Returns the values of the first Record of the RecordSet. It returns an empty
+`m.ModelData` if the RecordSet is empty.
 
-`*All() []RecordType*`::
-Returns all Records of the RecordSet as a slice of RecordType. It returns an
+`*All() []m.ModelData*`::
+Returns all Records of the RecordSet as a slice of `m.ModelData`. It returns an
 empty slice if the RecordSet is empty.
 
 `*Read(fields []string) []FieldMap*`::
@@ -84,12 +84,12 @@ Returns all Records of the RecordSet as a slice of FieldMap. It returns an
 empty slice if the RecordSet is empty.
 
 RecordSets implement type safe getters and setters for all fields of the
-Record struct type.
+RecordSet type.
 
 `*__FieldName__() __FieldType__*`::
 Getter for the field called `__FieldName__` of type `__FieldType__` of the
 `First()` Record of the RecordSet. Call to the getter will make a call to
-`Read()` first if the field is not loaded in the RecordSet's cache.
+`Load()` first if the field is not loaded in the RecordSet's cache.
 +
 It returns the Go zero value of the type if it is called on an empty RecordSet.
 
@@ -105,21 +105,18 @@ RecordSet of the type of the related model.
 
 ==== CRUD Methods
 
-`*(Model) Create(env Environment, data *RecordType, fieldsToUnset ...models.FieldNamer) RecordSetType*`::
+`*(Model) Create(env Environment, data m.ModelData) m.ModelSet*`::
 Insert a new record in the database with the given data and returns the
-inserted Record. Fields which are not given a value are set to the type's zero
+inserted Record. Fields which are not given a value in data are set to the type's zero
 value or the default value if the field is required.
-+
-If you want to set a required field to its Go default value instead of the fields default, add this field
-to the fieldsToUnset slice.
 
 [source,go]
 ----
-customer := h.Partner().Create(env, q.PartnerData{
-    Name: "Jane Smith",
-    Email: "jsmith@example.com",
-    Position: "Sale's Manager",
-})
+customer := h.Partner().Create(env, h.Partner.NewData().
+    SetName("Jane Smith").
+    SetEmail("jsmith@example.com").
+    SetPosition("Sale's Manager"))
+
 fmt.Println(customer.Name())
 // Returns:
 // Jane Smith
@@ -130,43 +127,35 @@ the actual values of the RecordSet are silently ignored.
 
 [source,go]
 ----
-customer := h.Partner().NewSet(env).Create(h.PartnerData{
-    Name: "Jane Smith",
-    Email: "jsmith@example.com",
-    Position: "Sale's Manager",
-})
+customer := h.Partner().NewSet(env).Create(h.Partner.NewData().
+    SetName("Jane Smith").
+    SetEmail("jsmith@example.com").
+    SetPosition("Sale's Manager"))
+
 fmt.Println(customer.Name())
 // Returns:
 // Jane Smith
 
 ----
 
-`*Write(data *RecordType, fieldsToUnset ...models.FieldNamer) bool*`::
+`*Write(data m.ModelData) bool*`::
 Update records in the database with the given data. Updates are made with a
-single SQL query. Fields in `fieldsToUnset` are first set to their Go zero
-value, then all non-zero values of data are updated.
+single SQL query.
 
 [source,go]
 ----
 partner := h.Partner().Search(env, q.Partner().Where().Company().Name().Equals("NDP Systèmes"))
-partner.Write(h.Partner{
-    Lang: "fr_FR",
-})
+partner.Write(h.Partner().NewData().
+    SetLang("fr_FR"))
 ----
-
-IMPORTANT: As said above, zero values in the `data` struct fields will *NOT* be
-updated. If you are not sure whether the values you pass in the `data` struct
-are zero values or not (e.g. when setting from a variable), include their
-`FieldName` in the `fieldsToUnset` to be sure the value will be correctly
-updated in case it is a zero value.
 
 `*Unlink() bool*`::
 Deletes the database records that are linked with this RecordSet.
 
-`*Load(fields ...models.FieldName) RecordSetType*`::
-Populates this RecordSet with the data from the database matching the current
-search condition. If fields are given, only those fields are fetched and the
-other fields of the Records are set to their `go` zero value.
+`*Load(fields ...string)*`::
+Load the data from the database matching the RecordSet current
+search condition and store them in cache for access through the getters.
+If fields are given, only those fields are fetched.
 +
 Calling Load on an empty RecordSet with an empty query will have no effect.
 To load a whole table, use `FetchAll()`.
@@ -176,12 +165,12 @@ fields arguments) on the first call to a getter or when calling `Records()`.
 
 TIP: Calling `Load()` with fields arguments before any other call allows to
 finely control which fields will be queried from the database since subsequent
-calls to a getter will not call `Read()` again if the value is already loaded.
+calls to a getter will not call `Load()` again if the value is already loaded.
 
 [source,go]
 ----
 partners := h.Partner().NewSet(env)
-partners.Search(q.Partner().Where().Name().ILike("John")).Read(h.Partner().Name, h.Partner().Birthday)
+partners.Search(q.Partner().Where().Name().ILike("John")).Load("Name", "Birthday")
 
 // The following lines will not load from the database, but use
 // the values cached in the RecordSet.
@@ -193,15 +182,15 @@ for _, p := range partners.Records() {
 // John Doo 1975-01-06
 ----
 
-`*FetchAll() RecordSetType*`::
+`*FetchAll() m.ModelSet*`::
 Returns a RecordSet with all items of the table, regardless of the current
 RecordSet query. It is mainly meant to be used on an empty RecordSet.
 
 ==== Search Methods
 
-`*(Model) Search(env Environment, condition ConditionType) RecordSetType*`::
+`*(Model) Search(env Environment, condition q.ModelCondition) m.ModelSet*`::
 Search the database for matching records and return them as RecordSet.
-A new Condition instance can be created from a model instance.
+A new Condition instance can be created from `q.Model()`.
 
 [source,go]
 ----
@@ -209,7 +198,7 @@ cond := q.Users().Email().ILike("example.com").Or().Email().ILike("example.net")
 users := h.Users().Search(env, cond)
 ----
 
-`*(RecordSet) Search(condition ConditionType) RecordSetType*`::
+`*(RecordSet) Search(condition q.ModelCondition) m.ModelSet*`::
 Apply the given search condition to the given RecordSet. This will narrow the
 RecordSet current filter.
 
@@ -228,7 +217,7 @@ Depending on the field type, all or part of the following operator methods
 will be available:
 
 `Equals`, `NotEquals`, `Greater`, `GreaterOrEqual`, `Lower`, `LowerOrEqual`,
-`Like`, `NotLike`,`Contains`, `NotContains`, `IContains`, `NotIContains`, `In`,
+`Like`, `ILike`, `Contains`, `NotContains`, `IContains`, `NotIContains`, `In`,
 `NotIn`, `ChildOf`, `IsNull`, `IsNotNull`
 
 Each of these methods take a `value` parameter which is of the same Go type as
@@ -279,17 +268,21 @@ cond := q.Users().PartnerFilteredOn(q.Partner().Function().ILike("manager")).And
 ----
 ====
 
-`*(Model) Browse(env Environment, ids []int64) RecordSetType*`::
+`*(Model) Browse(env Environment, ids []int64) m.ModelSet*`::
 Search the database and returns a RecordSet with the records having the given ids.
 
-`*(RecordSet) Browse(ids []int64) RecordSetType*`::
+`*(RecordSet) Browse(ids []int64) m.ModelSet*`::
 Narrows this RecordSet by selecting only those with the given ids.
 This function is only a shortcut for `Search` on a list on ids.
+
+`*(Model) BrowseOne(env Environment, id int64) m.ModelSet*`::
+`*(RecordSet) BrowseOne(ids int64) m.ModelSet*`::
+Same as Browse but for a single id.
 
 `*SearchCount() int*`::
 Return the number of records matching the search condition.
 
-`*SearchByName(name string, op operator.Operator, additionalCond Condition, limit int) RecordSetType*`::
+`*SearchByName(name string, op operator.Operator, additionalCond Condition, limit int) m.ModelSet*`::
 Search for records that have a display name matching the given
 `name` pattern when compared with the given `op` operator, while also
 matching the optional `additionalCond` condition.
@@ -298,17 +291,17 @@ This is used for example to provide suggestions based on a partial
 value for a relational field. Sometimes be seen as the inverse
 function of `NameGet` but it is not guaranteed to be.
 
-`*FetchAll() RecordSetType*`::
+`*FetchAll() m.ModelSet*`::
 Returns a RecordSet with all the records in the database for the RecordSet's
 model.
 
-`*Limit(n int) RecordSetType*`::
+`*Limit(n int) m.ModelSet*`::
 Limit the search to `n` results.
 
-`*Offset(n int) RecordSetType*`::
+`*Offset(n int) m.ModelSet*`::
 Offset the search by `n` results.
 
-`*OrderBy(exprs ...string) RecordSetType*`::
+`*OrderBy(exprs ...string) m.ModelSet*`::
 Order the results by the given expressions. Each expression is a string with a
 valid field name and optionally a direction.
 
@@ -329,10 +322,7 @@ Returns the RecordSet's Environment.
 `*Len() int*`::
 Returns the number of records in this RecordSet.
 
-`*Record(i int) RecordSetType*`::
-Returns a new RecordSet with only the i^th^ Record inside.
-
-`*Records() []RecordSetType*`::
+`*Records() []m.ModelSet*`::
 Returns a slice of RecordSets, each with only one Record of the current
 RecordSet.
 
@@ -340,7 +330,7 @@ RecordSet.
 Check that this RecordSet contains only one Record. Panics if there are more
 than one Record or if there are no Records at all.
 
-`*Filtered(fn func(RecordType) bool) RecordSetType*`::
+`*Filtered(fn func(m.ModelSet) bool) m.ModelSet*`::
 Select the records in this RecordSet such that fn(Record) is true, and return
 them as a RecordSet. Filtered will use the data in cache if present.
 
@@ -348,28 +338,28 @@ NOTE: Unless the RecordSet is already loaded in cache, it might be faster
 and more efficient to use `Search()` on the RecordSet to return a filtered
 Set.
 
-`*Sorted(less func(RecordSet, RecordSet) bool) RecordSetType*`::
+`*Sorted(less func(RecordSet, RecordSet) bool) m.ModelSet*`::
 Returns a sorted copy of this RecordSet. `less(rs1, rs2)` should return true
 if rs1 < rs2.
 +
 The Sort is not guaranteed to be stable.
 
-`*SortedDefault() RecordSetType*`::
+`*SortedDefault() m.ModelSet*`::
 Returns a sorted copy of this RecordSet according to the model's default order.
 
-`*SortedByField(f FieldNamer, reverse bool) RecordSetType*`::
+`*SortedByField(f FieldNamer, reverse bool) m.ModelSet*`::
 Returns a sorted copy of this RecordSet by comparing the given field.
 If reverse is true, the sort is done in reversed order.
 
-`*Union(other RecordSetType) RecordSetType*`::
+`*Union(other m.ModelSet) m.ModelSet*`::
 Returns a new RecordSet that is the union of this RecordSet and the given
 `other` RecordSet. The result is guaranteed to be a set of unique records.
 
-`*Subtract(other RecordSetType) RecordSetType*`::
+`*Subtract(other m.ModelSet) m.ModelSet*`::
 Returns a RecordSet with the Records that are in this RecordSet but not in the
 given 'other' one. The result is guaranteed to be a set of unique records.
 
-`*Equals(other RecordSetType) bool*`::
+`*Equals(other m.ModelSet) bool*`::
 Returns true if this RecordSet is equal to the other RecordSet, that is they
 are from the same model and reference the same ids.
 
@@ -462,7 +452,7 @@ avoided.
 The Environment is immutable. It can be customized with the following methods
 to be applied on the RecordSet.
 
-`*Sudo(uid ...int64) RecordSetType*`::
+`*Sudo(uid ...int64) m.ModelSet*`::
 Call the next method as Super User. If uid is given, use the given user id
 instead.
 
@@ -474,14 +464,14 @@ partners := h.Partner().Search(env, q.Partner().Name().ILike("John"))
 partners.Sudo(noReplyUser.ID()).SendConfirmationEmail()
 ----
 
-`*WithEnv(env Environment) RecordSetType*`::
+`*WithEnv(env Environment) m.ModelSet*`::
 Returns a copy of the current RecordSet with the given Environment.
 
-`*WithContext(key string, value interface{}) RecordSetType*`::
+`*WithContext(key string, value interface{}) m.ModelSet*`::
 Returns a copy of the current RecordSet with its context extended by the
 given key and value.
 
-`*WithNewContext(context types.Context) RecordSetType*`::
+`*WithNewContext(context types.Context) m.ModelSet*`::
 Returns a copy of the current RecordSet with its context replaced by the
 given one.
 
@@ -537,7 +527,7 @@ the main package or of a package called by the module's main package.
 [IMPORTANT]
 ====
 After creating or modifying a model, you must run `hexya generate` to
-generate the types in the `h` and `q` packages before starting the Hexya server.
+generate the types in the `h`, `m` and `q` packages before starting the Hexya server.
 
 Running `hexya generate` will also allow you to obtain code completion and
 inspections on the newly created types.
@@ -618,9 +608,6 @@ A selection field can have as values only a set of predefined strings.
 A Text field is a string field that is meant to be displayed on multiple lines
 in the client. Text fields are mapped to go strings.
 
-As in the example below:
-
-
 ==== Overriding fields
 
 Fields attributes can be overridden by using one of the following methods that
@@ -646,7 +633,9 @@ apply on a Field instance.
 
 [source,go]
 ----
-course := h.Course().Fields().Name().SetString("MyNewName").SetHelp("This is the new name of the course")
+course := h.Course().Fields().Name().
+    SetString("MyNewName").
+    SetHelp("This is the new name of the course")
 ----
 
 ==== Field parameters
@@ -684,7 +673,7 @@ is pointing to the same model.
 Defines what to do with this record if the target record is deleted. Possible
 values are `models.SetNull` (default), `models.Restrict` and `models.Cascade`.
 
-`Selection` map[string]string::
+`Selection` types.Selection::
 Map of predefined allowed values for a Selection field. The map keys are the
 actual values, and the map values are the labels to display for each value.
 
@@ -773,7 +762,7 @@ field names to unset.
 
 [source,go]
 ----
-func (RecordSetType) (*RecordType, []models.FieldNamer)
+func (m.ModelSet) m.ModelData
 ----
 
 NOTE: OnChange function is called only when the modification is done in the
@@ -790,7 +779,7 @@ signature:
 
 [source,go]
 ----
-func (RecordSetType)
+func (m.ModelSet)
 ----
 
 The given method must panic if the given RecordSet is not valid.
@@ -811,7 +800,7 @@ Record struct with the values to update.
 
 [source,go]
 ----
-func (RecordSetType) *RecordType
+func (m.ModelSet) m.ModelData
 ----
 
 `Inverse` Methoder::
@@ -821,7 +810,7 @@ method must have the following signature:
 
 [source,go]
 ----
-func (RecordSetType, valueType)
+func (m.ModelSet, valueType)
 ----
 
 where `valueType` is the go type for the given field value.
@@ -904,7 +893,7 @@ Each override of a method is declared by a so-called "layer function" with the
 actual implementation. Layer functions must meet the following constraints:
 
 * Its first argument is the method's receiver. It must be of the
-`__RecordSetType__` of the model.
+`m.ModelSet` type.
 * It must panic when an error is encountered to force transaction rollback
 (or solve the error directly if possible).
 
@@ -925,7 +914,7 @@ the actual Method creation.
 // Create a new method called 'UpdateBirthday' on the 'Partner' model
 h.Partner().Methods().UpdateBirthday().DeclareMethod(
     `PartnerUpdateBirthday updates this partner birthday.`,
-    func (rs PartnerSet, birthday time.Time) {
+    func (rs m.PartnerSet, birthday time.Time) {
         rs.SetBirthday(Date(birthDay))
     })
 ----
@@ -942,7 +931,7 @@ call the previous layer.
 ----
 h.Partner().Methods().UpdateBirthday().Extend(
     `Extended in myModule to compute age at the same time.`,
-    func(rs PartnerSet, birthday time.Time) {
+    func(rs m.PartnerSet, birthday time.Time) {
         rs.Super().UpdateBirthday(birthday)
         rs.SetAge(Time.Now().Year() - birthday.Year())
     })
@@ -951,7 +940,7 @@ h.Partner().Methods().UpdateBirthday().Extend(
 NOTE: The `functionLayer` passed to `Extend` must have the same signature
 as that of the first layer passed to `DeclareMethod`.
 
-`*(RecordSetType) Super() RecordSetType*`::
+`*(m.ModelSet) Super() m.ModelSet*`::
 Returns a RecordSet with a modified callstack so that call to the current
 method will execute the next method layer.
 +
