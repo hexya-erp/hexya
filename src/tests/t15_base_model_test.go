@@ -10,6 +10,7 @@ import (
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/pool/h"
+	"github.com/hexya-erp/pool/m"
 	"github.com/hexya-erp/pool/q"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -19,7 +20,7 @@ func TestBaseModelMethods(t *testing.T) {
 		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
 			Convey("Copy", func() {
-				newProfile := userJane.Profile().Copy(&h.ProfileData{})
+				newProfile := userJane.Profile().Copy(nil)
 				userJane.Write(h.User().NewData().SetPassword("Jane's Password"))
 				userJaneCopy := userJane.Copy(h.User().NewData().
 					SetName("Jane's Copy").
@@ -32,6 +33,8 @@ func TestBaseModelMethods(t *testing.T) {
 				So(userJaneCopy.Age(), ShouldEqual, 24)
 				So(userJaneCopy.Nums(), ShouldEqual, 2)
 				So(userJaneCopy.Posts().Len(), ShouldEqual, 2)
+
+				So(func() { userJane.Profile().Copy(nil) }, ShouldNotPanic)
 			})
 			Convey("Sorted", func() {
 				for i := 0; i < 20; i++ {
@@ -44,7 +47,7 @@ func TestBaseModelMethods(t *testing.T) {
 					So(post.Title(), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
 				}
 
-				sortedPosts := posts.Sorted(func(rs1, rs2 h.PostSet) bool {
+				sortedPosts := posts.Sorted(func(rs1, rs2 m.PostSet) bool {
 					return rs1.Title() < rs2.Title()
 				}).Records()
 				So(sortedPosts, ShouldHaveLength, 20)
@@ -60,7 +63,7 @@ func TestBaseModelMethods(t *testing.T) {
 				}
 				posts := h.Post().Search(env, q.Post().Title().Contains("Post no"))
 
-				evenPosts := posts.Filtered(func(rs h.PostSet) bool {
+				evenPosts := posts.Filtered(func(rs m.PostSet) bool {
 					var num int
 					fmt.Sscanf(rs.Title(), "Post no %02d", &num)
 					if num%2 == 0 {

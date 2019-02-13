@@ -109,6 +109,10 @@ func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...interface{
 	inVals := make([]reflect.Value, len(args)+1)
 	inVals[0] = reflect.ValueOf(rc)
 	for i, arg := range args {
+		if arg == nil {
+			inVals[i+1] = reflect.Zero(methLayer.method.methodType.In(i + 1))
+			continue
+		}
 		inVals[i+1] = reflect.ValueOf(arg)
 	}
 

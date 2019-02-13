@@ -175,10 +175,13 @@ func cleanPoolDir(dirName string) {
 	os.RemoveAll(dirName)
 	modelsDir := filepath.Join(dirName, generate.PoolModelPackage)
 	queryDir := filepath.Join(dirName, generate.PoolQueryPackage)
+	interfacesDir := filepath.Join(dirName, generate.PoolInterfacesPackage)
 	os.MkdirAll(modelsDir, 0755)
 	os.MkdirAll(queryDir, 0755)
+	os.MkdirAll(interfacesDir, 0755)
 	generate.CreateFileFromTemplate(filepath.Join(modelsDir, TempEmpty), emptyPoolTemplate, generate.PoolModelPackage)
 	generate.CreateFileFromTemplate(filepath.Join(queryDir, TempEmpty), emptyPoolTemplate, generate.PoolQueryPackage)
+	generate.CreateFileFromTemplate(filepath.Join(interfacesDir, TempEmpty), emptyPoolTemplate, generate.PoolInterfacesPackage)
 
 	if err := writeFileFromTemplate(filepath.Join(dirName, "go.mod"), emptyPoolGoMod, nil); err != nil {
 		log.Panic("Error while saving generated source file", "error", err, "fileName", "go.mod")

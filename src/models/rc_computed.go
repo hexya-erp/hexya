@@ -108,8 +108,7 @@ func updateStoredFields(recs *RecordCollection, computeMethod string) {
 // FieldMap if it exists. It returns a new FieldMap to be used by Create/Write
 // instead of the original one.
 func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
-	var md ModelData
-	fMap.ConvertToModelData(rc, &md)
+	md := NewModelData(rc.model, fMap)
 	for fieldName := range fMap {
 		fi := rc.model.getRelatedFieldInfo(fieldName)
 		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {

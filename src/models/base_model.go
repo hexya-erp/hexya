@@ -179,7 +179,7 @@ func declareCRUDMethods() {
 		func(rc *RecordCollection, overrides FieldMapper) *RecordCollection {
 			rc.EnsureOne()
 			oVal := reflect.ValueOf(overrides)
-			if oVal.IsNil() {
+			if !oVal.IsValid() || (oVal.Kind() != reflect.Struct && oVal.IsNil()) {
 				overrides = make(FieldMap)
 			}
 
@@ -319,7 +319,7 @@ func declareRecordSetMethods() {
 		func(rc *RecordCollection) FieldMap {
 			res := make(FieldMap)
 			rc.applyDefaults(&res, false)
-			rc.model.convertValuesToFieldType(&res)
+			rc.model.convertValuesToFieldType(&res, false)
 			return res
 		})
 }
@@ -363,7 +363,7 @@ func declareRecordSetSpecificMethods() {
 		method in the pseudo-record given as params.Values`,
 		func(rc *RecordCollection, params OnchangeParams) OnchangeResult {
 			values := params.Values
-			rc.model.convertValuesToFieldType(&values)
+			rc.model.convertValuesToFieldType(&values, false)
 			data := NewModelData(rc.model)
 			data.FieldMap = values
 			if rc.IsNotEmpty() {

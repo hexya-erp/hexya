@@ -15,6 +15,8 @@
 package models
 
 import (
+	"reflect"
+
 	"github.com/hexya-erp/hexya/src/tools/logging"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
 	"github.com/jmoiron/sqlx"
@@ -36,6 +38,8 @@ func init() {
 	// model registry
 	Registry = newModelCollection()
 	Views = make(map[*Model][]string)
+	recordSetWrappers = make(map[string]reflect.Type)
+	modelDataWrappers = make(map[string]reflect.Type)
 	// declare base and common mixins
 	declareCommonMixin()
 	declareBaseMixin()

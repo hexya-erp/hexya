@@ -43,6 +43,13 @@ type RecordSet interface {
 	Call(string, ...interface{}) interface{}
 	// Collection returns the underlying RecordCollection instance
 	Collection() *RecordCollection
+	// Get returns the value of the given fieldName for the first record of this RecordCollection.
+	// It returns the type's zero value if the RecordCollection is empty.
+	Get(string) interface{}
+	// Set sets field given by fieldName to the given value. If the RecordSet has several
+	// Records, all of them will be updated. Each call to Set makes an update query in the
+	// database. It panics if it is called on an empty RecordSet.
+	Set(string, interface{})
 }
 
 // A FieldName is a type representing field names in models.
@@ -152,9 +159,13 @@ func (md *ModelData) Copy() *ModelData {
 
 // NewModelData returns a pointer to a new instance of ModelData
 // for the given model.
-func NewModelData(model Modeler) *ModelData {
+func NewModelData(model Modeler, fm ...FieldMap) *ModelData {
+	fMap := make(FieldMap)
+	for _, f := range fm {
+		fMap.MergeWith(f, model.Underlying())
+	}
 	return &ModelData{
-		FieldMap: make(FieldMap),
+		FieldMap: fMap,
 		model:    model.Underlying(),
 	}
 }

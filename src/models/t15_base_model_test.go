@@ -79,6 +79,8 @@ func TestBaseModelMethods(t *testing.T) {
 				So(userJaneCopy.Get("Age"), ShouldEqual, 24)
 				So(userJaneCopy.Get("Nums"), ShouldEqual, 2)
 				So(userJaneCopy.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 2)
+
+				So(func() { userJane.Get("Profile").(RecordSet).Collection().Call("Copy", nil) }, ShouldNotPanic)
 			})
 			Convey("FieldGet and FieldsGet", func() {
 				fInfo := userJane.Call("FieldGet", FieldName("Name")).(*FieldInfo)

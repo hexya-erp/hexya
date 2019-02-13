@@ -59,6 +59,7 @@ func TestCreateRecordSet(t *testing.T) {
 				post2 := h.Post().Create(env, post2Data)
 				So(post2.Len(), ShouldEqual, 1)
 				posts := post1.Union(post2)
+				So(posts.Len(), ShouldEqual, 2)
 				profile.SetBestPost(post1)
 				userJaneData := h.User().NewData().
 					SetName("Jane Smith").
@@ -392,8 +393,7 @@ func TestUpdateRecordSet(t *testing.T) {
 					"Email": "jsmith2@example.com",
 					"Nums":  13,
 				}
-				ud := h.UserData{}
-				fm.ConvertToModelData(h.User().NewSet(env), &ud)
+				ud := h.User().NewData(fm)
 				So(ud.Email(), ShouldEqual, "jsmith2@example.com")
 				So(ud.HasEmail(), ShouldBeTrue)
 				So(ud.HasIsStaff(), ShouldBeFalse)
