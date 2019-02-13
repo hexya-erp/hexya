@@ -193,6 +193,20 @@ func TestEnvironment(t *testing.T) {
 				userJane.Get("DecoratedName")
 				So(janeEntry, ShouldNotContainKey, "decorated_name")
 			})
+			Convey("Checking cache dump for debug", func() {
+				So(env.DumpCache(), ShouldEqual, `Data
+====
+
+M2M Links
+=========
+
+X2M Links
+=========
+`)
+				userJane.Load()
+				userJane.Load("Posts.Tags")
+				So(len(env.DumpCache()), ShouldBeGreaterThan, 1360)
+			})
 		}), ShouldBeNil)
 	})
 	Convey("Testing prefetch", t, func() {
@@ -236,5 +250,11 @@ func TestEnvironment(t *testing.T) {
 		})
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldStartWith, "oh no !")
+	})
+	Convey("Checking error types", t, func() {
+		nice := new(notInCacheError)
+		So(nice.Error(), ShouldEqual, "requested value not in cache")
+		nepe := new(nonExistentPathError)
+		So(nepe.Error(), ShouldEqual, "requested path is broken")
 	})
 }
