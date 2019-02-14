@@ -4,11 +4,15 @@
 package i18n
 
 import (
+	"fmt"
+	"github.com/hexya-erp/hexya/src/i18n"
 	"sort"
 	"strings"
 
+	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/tools/po"
+	"github.com/hexya-erp/hexya/src/tools/strutils"
 )
 
 const fieldSep string = "."
@@ -300,4 +304,128 @@ func GetAllLanguageList() []string {
 		updateAllLanguageList()
 	}
 	return allLanguageList
+}
+
+// NumberGrouping represents grouping values of a number as follows:
+//  - it splits a number into groups of N, N being a value in the slice
+//  - the last value represent the last group
+//  - all values should be positive
+//  - 0 means repetition of next int
+//  - if the first value is not a 0, the grouping will end
+//    e.g. :
+//       3       -> 123456,789
+//       0,3     -> 123,456,789
+//       2,3     -> 1234,56,789
+//       0,2,3   -> 12,34,56,789
+type NumberGrouping []int
+
+// FormatNumberStrWithGrouping formats a string (supposedly representing an integer)
+// with number grouping defined by the given grouping slice. each group is separated with thSeparator
+func FormatNumberStrWithGrouping(number string, grouping NumberGrouping, thSeparator string) string {
+	number = strutils.Reverse(number)
+	thSeparator = strutils.Reverse(thSeparator) //reverse strings
+	var str string
+
+	var revGrouping NumberGrouping
+	for i := range grouping { //reverse grouping
+		revGrouping = append(revGrouping, grouping[len(grouping)-i-1])
+	}
+
+	var out string
+	last := 9999
+	for _, n := range revGrouping { // use all grouping numbers
+		if n == 0 {
+			n = last
+		}
+		str, number = strutils.SplitAtN(number, n)
+		if str != "" {
+			out = out + thSeparator + str
+		}
+		if number == "" {
+			return strutils.Reverse(strings.TrimPrefix(out, thSeparator))
+		}
+		last = n
+	}
+	// all grouping values exhausted, continue with N until number is empty
+	for number != "" {
+		n := 9999
+		if grouping[0] == 0 {
+			n = last
+		}
+		str, number = strutils.SplitAtN(number, n)
+		if str != "" {
+			out = out + thSeparator + str
+		}
+	}
+	return strutils.Reverse(strings.TrimPrefix(out, thSeparator))
+}
+
+// FormatMonetary formats a float into a monetary string
+// eg. FormatMonetary(3.14159, 2, 0, ",", "$", true) => "$ 3,14"
+// Params:
+//	value: the float value to be formated
+//	digits: the ammount of digits written after the decimal point
+//	grouping: (See type NumberGrouping for more on this)
+//	separator: the character used as the decimal separator
+//  thSeparator: the character used as grouping separator
+//	symbol: the currency symbol
+//	symPosLeft: whether or not the symbol shall be put before the value
+func FormatMonetary(value float64, digits int, grouping NumberGrouping, separator, thSeparator, symbol string, symToLeft bool) string {
+	fmtStr := fmt.Sprintf("%%.%df", digits)
+	str := fmt.Sprintf(fmtStr, value)
+	strSpl := strings.Split(str, ".")
+	str = FormatNumberStrWithGrouping(strSpl[0], grouping, thSeparator)
+	if len(strSpl) > 1 {
+		str = strings.Join([]string{str, strSpl[1]}, separator)
+	}
+	if symbol != "" {
+		if symToLeft {
+			str = fmt.Sprintf("%s %s", symbol, str)
+		} else {
+			str = fmt.Sprintf("%s %s", str, symbol)
+		}
+	}
+	return str
+}
+
+func FormatLang(env models.Environment, value float64, currency models.RecordSet) string {
+
+	CoalesceStr := func(lst ...string) string {
+		for _, str := range lst {
+			if str != "" {
+				return str
+			}
+		}
+		return ""
+	}
+
+	if currency.IsEmpty() || currency.ModelName() != "Currency" {
+		panic("Error while formatting float. the model given is not a Currency model")
+	}
+	ctx := env.Context()
+	locale := i18n.GetLocale(ctx.GetString("lang"))
+	curColl := currency.Collection()
+	digits := curColl.Get("DecimalPlaces").(int)
+	if digits == 0 {
+		digits = 2
+	}
+	if ctx.Get("digits") != nil {
+		digits = int(ctx.GetInteger("digits"))
+	}
+	grouping := locale.Grouping
+	gr := ctx.Get("grouping")
+	if gr != nil {
+		grouping = gr.(NumberGrouping)
+	} else if grouping == nil {
+		grouping = []int{3, 0}
+	}
+	separator := CoalesceStr(ctx.GetString("separator"), locale.DecimalPoint, ".")
+	thSeparator := CoalesceStr(ctx.GetString("th_separator"), locale.ThousandsSep, ",")
+	symbol := CoalesceStr(ctx.GetString("symbol"), curColl.Get("Symbol").(string), "$")
+	symPos := CoalesceStr(ctx.GetString("sym_pos"), curColl.Get("Position").(string), "before")
+	symToLeft := false
+	if symPos == "before" {
+		symToLeft = true
+	}
+	return FormatMonetary(value, digits, grouping, separator, thSeparator, symbol, symToLeft)
 }

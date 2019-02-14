@@ -22,16 +22,16 @@ const (
 
 // Locale defines the parameters of a language locale
 type Locale struct {
-	Name         string        `json:"name"`
-	Code         string        `json:"code"`
-	ISOCode      string        `json:"iso_code"`
-	WeekStart    time.Weekday  `json:"week_start"`
-	DateFormat   string        `json:"date_format"`
-	Direction    LangDirection `json:"lang_direction"`
-	ThousandsSep string        `json:"thousands_sep"`
-	TimeFormat   string        `json:"time_format"`
-	DecimalPoint string        `json:"decimal_point"`
-	Grouping     string        `json:"grouping"`
+	Name         string         `json:"name"`
+	Code         string         `json:"code"`
+	ISOCode      string         `json:"iso_code"`
+	WeekStart    time.Weekday   `json:"week_start"`
+	DateFormat   string         `json:"date_format"`
+	Direction    LangDirection  `json:"lang_direction"`
+	ThousandsSep string         `json:"thousands_sep"`
+	TimeFormat   string         `json:"time_format"`
+	DecimalPoint string         `json:"decimal_point"`
+	Grouping     NumberGrouping `json:"grouping"`
 }
 
 // Check returns an error if this locale is not valid
@@ -61,7 +61,7 @@ func GetLocale(lang string) *Locale {
 			TimeFormat:   `%H:%M:%S`,
 			ThousandsSep: `,`,
 			DecimalPoint: `.`,
-			Grouping:     `[3,0]`,
+			Grouping:     []int{3, 0},
 		}
 	}
 	return out
@@ -104,7 +104,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"lo": {
 		Name:         "Lao / ພາສາລາວ",
 		DateFormat:   "%d/%m/y",
@@ -112,7 +112,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"lv": {
 		Name:         "Latvian / latviešu valoda",
 		DateFormat:   "%Y.%m.%d.",
@@ -120,7 +120,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"pt": {
 		Name:         "Portuguese / Português",
 		DateFormat:   "%d-%m-%Y",
@@ -128,7 +128,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{3, 0}},
 	"sl": {
 		Name:         "Slovenian / slovenščina",
 		DateFormat:   "%d. %m. %Y",
@@ -136,7 +136,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{3, 0}},
 	"fi": {
 		Name:         "Finnish / Suomi",
 		DateFormat:   "%d.%m.%Y",
@@ -144,7 +144,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H.%M.%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"fr_CH": {
 		Name:         "French (CH) / Français (CH)",
 		DateFormat:   "%d. %m. %Y",
@@ -152,7 +152,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "'",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"gu": {
 		Name:         "Gujarati / ગુજરાતી",
 		DateFormat:   "%A %d %b %Y",
@@ -160,7 +160,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"et": {
 		Name:         "Estonian / Eesti keel",
 		DateFormat:   "%d.%m.%Y",
@@ -168,7 +168,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"kab": {
 		Name:         "Kabyle / Taqbaylit",
 		DateFormat:   "%m/%d/%Y",
@@ -176,7 +176,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S %p",
 		DecimalPoint: ".",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"my": {
 		Name:         "Burmese / ဗမာစာ",
 		DateFormat:   "%Y %b %d %A",
@@ -184,7 +184,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S %p",
 		DecimalPoint: ".",
-		Grouping:     "[3,3]"},
+		Grouping:     []int{3, 3}},
 	"es_AR": {
 		Name:         "Spanish (AR) / Español (AR)",
 		DateFormat:   "%d/%m/%Y",
@@ -192,7 +192,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_BO": {
 		Name:         "Spanish (BO) / Español (BO)",
 		DateFormat:   "%d/%m/%Y",
@@ -200,7 +200,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"am_ET": {
 		Name:         "Amharic / አምሃርኛ",
 		DateFormat:   "%d/%m/%Y",
@@ -208,7 +208,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ca_ES": {
 		Name:         "Catalan / Català",
 		DateFormat:   "%d/%m/%Y",
@@ -216,7 +216,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"en_GB": {
 		Name:         "English (UK)",
 		DateFormat:   "%d/%m/%Y",
@@ -224,7 +224,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es": {
 		Name:         "Spanish / Español",
 		DateFormat:   "%d/%m/%Y",
@@ -232,7 +232,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"sq": {
 		Name:         "Albanian / Shqip",
 		DateFormat:   "%Y-%b-%d",
@@ -240,7 +240,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%I.%M.%S.",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"mk": {
 		Name:         "Macedonian / македонски јазик",
 		DateFormat:   "%d.%m.%Y",
@@ -248,7 +248,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_PY": {
 		Name:         "Spanish (PY) / Español (PY)",
 		DateFormat:   "%d/%m/%Y",
@@ -256,7 +256,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"hu": {
 		Name:         "Hungarian / Magyar",
 		DateFormat:   "%Y-%m-%d",
@@ -264,7 +264,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H.%M.%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"sr_RS": {
 		Name:         "Serbian (Cyrillic) / српски",
 		DateFormat:   "%d.%m.%Y.",
@@ -272,7 +272,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"es_MX": {
 		Name:         "Spanish (MX) / Español (MX)",
 		DateFormat:   "%d/%m/%Y",
@@ -280,7 +280,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"te": {
 		Name:         "Telugu / తెలుగు",
 		DateFormat:   "%B %d %A %Y",
@@ -288,7 +288,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%p%I.%M.%S",
 		DecimalPoint: ".",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"en": {
 		Name:         "English",
 		DateFormat:   "%m/%d/%Y",
@@ -296,7 +296,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"fr_CA": {
 		Name:         "French (CA) / Français (CA)",
 		DateFormat:   "%Y-%m-%d",
@@ -304,7 +304,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"de": {
 		Name:         "German / Deutsch",
 		DateFormat:   "%d.%m.%Y",
@@ -312,7 +312,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"pt_BR": {
 		Name:         "Portuguese (BR) / Português (BR)",
 		DateFormat:   "%d/%m/%Y",
@@ -320,7 +320,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ru": {
 		Name:         "Russian / русский язык",
 		DateFormat:   "%d.%m.%Y",
@@ -328,7 +328,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_CO": {
 		Name:         "Spanish (CO) / Español (CO)",
 		DateFormat:   "%d-%m-%Y",
@@ -336,7 +336,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"bg": {
 		Name:         "Bulgarian / български език",
 		DateFormat:   "%d.%m.%Y",
@@ -344,7 +344,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H,%M,%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"fr_BE": {
 		Name:         "French (BE) / Français (BE)",
 		DateFormat:   "%d/%m/%Y",
@@ -352,7 +352,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"lt": {
 		Name:         "Lithuanian / Lietuvių kalba",
 		DateFormat:   "%Y.%m.%d",
@@ -360,7 +360,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_VE": {
 		Name:         "Spanish (VE) / Español (VE)",
 		DateFormat:   "%d/%m/%Y",
@@ -368,7 +368,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"en_CA": {
 		Name:         "English (CA)",
 		DateFormat:   "%Y-%m-%d",
@@ -376,7 +376,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"gl": {
 		Name:         "Galician / Galego",
 		DateFormat:   "%d/%m/%Y",
@@ -384,7 +384,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"de_CH": {
 		Name:         "German (CH) / Deutsch (CH)",
 		DateFormat:   "%d.%m.%Y",
@@ -392,7 +392,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "'",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,3]"},
+		Grouping:     []int{3, 3}},
 	"id": {
 		Name:         "Indonesian / Bahasa Indonesia",
 		DateFormat:   "%d/%m/%Y",
@@ -400,7 +400,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_DO": {
 		Name:         "Spanish (DO) / Español (DO)",
 		DateFormat:   "%d/%m/%Y",
@@ -408,7 +408,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"hr": {
 		Name:         "Croatian / hrvatski jezik",
 		DateFormat:   "%d.%m.%Y",
@@ -416,7 +416,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"nl": {
 		Name:         "Dutch / Nederlands",
 		DateFormat:   "%d-%m-%Y",
@@ -424,7 +424,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"en_AU": {
 		Name:         "English (AU)",
 		DateFormat:   "%d/%m/%Y",
@@ -432,7 +432,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_PE": {
 		Name:         "Spanish (PE) / Español (PE)",
 		DateFormat:   "%d/%m/%Y",
@@ -440,7 +440,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ka": {
 		Name:         "Georgian / ქართული ენა",
 		DateFormat:   "%m/%d/%Y",
@@ -448,7 +448,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"pl": {
 		Name:         "Polish / Język polski",
 		DateFormat:   "%d.%m.%Y",
@@ -456,7 +456,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"es_EC": {
 		Name:         "Spanish (EC) / Español (EC)",
 		DateFormat:   "%d/%m/%Y",
@@ -464,7 +464,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ja": {
 		Name:         "Japanese / 日本語",
 		DateFormat:   "%Y年%m月%d日",
@@ -472,7 +472,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H時%M分%S秒",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"km": {
 		Name:         "Khmer / ភាសាខ្មែរ",
 		DateFormat:   "%d %B %Y",
@@ -480,7 +480,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"fa": {
 		Name:         "Persian / فارس",
 		DateFormat:   "%Y/%m/%d",
@@ -488,7 +488,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"sr@latin": {
 		Name:         "Serbian (Latin) / srpski",
 		DateFormat:   "%m/%d/%Y",
@@ -496,7 +496,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S %p",
 		DecimalPoint: ".",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"es_CL": {
 		Name:         "Spanish (CL) / Español (CL)",
 		DateFormat:   "%d/%m/%Y",
@@ -504,7 +504,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ar": {
 		Name:         "Arabic / الْعَرَبيّة",
 		DateFormat:   "%d %b, %Y",
@@ -512,7 +512,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"el_GR": {
 		Name:         "Greek / Ελληνικά",
 		DateFormat:   "%d/%m/%Y",
@@ -520,7 +520,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%I:%M:%S %p",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"he": {
 		Name:         "Hebrew / עִבְרִי",
 		DateFormat:   "%d/%m/%Y",
@@ -528,7 +528,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_GT": {
 		Name:         "Spanish (GT) / Español (GT)",
 		DateFormat:   "%d/%m/%Y",
@@ -536,7 +536,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"fr": {
 		Name:         "French / Français",
 		DateFormat:   "%d/%m/%Y",
@@ -544,7 +544,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"mn": {
 		Name:         "Mongolian / монгол",
 		DateFormat:   "%Y.%m.%d",
@@ -552,7 +552,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ko_KP": {
 		Name:         "Korean (KP) / 한국어 (KP)",
 		DateFormat:   "%m/%d/%Y",
@@ -560,7 +560,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S %p",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"nb_NO": {
 		Name:         "Norwegian Bokmål / Norsk bokmål",
 		DateFormat:   "%d. %b %Y",
@@ -568,7 +568,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"sk": {
 		Name:         "Slovak / Slovenský jazyk",
 		DateFormat:   "%d.%m.%Y",
@@ -576,7 +576,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_PA": {
 		Name:         "Spanish (PA) / Español (PA)",
 		DateFormat:   "%d/%m/%Y",
@@ -584,7 +584,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"bs": {
 		Name:         "Bosnian / bosanski jezik",
 		DateFormat:   "%d.%m.%Y",
@@ -592,7 +592,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"zh_HK": {
 		Name:         "Chinese (HK)",
 		DateFormat:   "%Y年%m月%d日 %A",
@@ -600,7 +600,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I時%M分%S秒",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"hi": {
 		Name:         "Hindi / हिंदी",
 		DateFormat:   "%A %d",
@@ -608,7 +608,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%I:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"zh_CN": {
 		Name:         "Chinese (Simplified) / 简体中文",
 		DateFormat:   "%Y年%m月%d日",
@@ -616,7 +616,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H时%M分%S秒",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_CR": {
 		Name:         "Spanish (CR) / Español (CR)",
 		DateFormat:   "%d/%m/%Y",
@@ -624,7 +624,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"uk": {
 		Name:         "Ukrainian / українська",
 		DateFormat:   "%d.%m.%Y",
@@ -632,7 +632,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"cs_CZ": {
 		Name:         "Czech / Čeština",
 		DateFormat:   "%d.%m.%Y",
@@ -640,7 +640,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ko": {
 		Name:         "Korean (KR) / 한국어 (KR)",
 		DateFormat:   "%Y년 %m월 %d일",
@@ -648,7 +648,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H시 %M분 %S초",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"tr": {
 		Name:         "Turkish / Türkçe",
 		DateFormat:   "%d-%m-%Y",
@@ -656,7 +656,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"da_DK": {
 		Name:         "Danish / Dansk",
 		DateFormat:   "%d-%m-%Y",
@@ -664,7 +664,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"nl_BE": {
 		Name:         "Dutch (BE) / Nederlands (BE)",
 		DateFormat:   "%d-%m-%Y",
@@ -672,7 +672,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"ro": {
 		Name:         "Romanian / română",
 		DateFormat:   "%d.%m.%Y",
@@ -680,7 +680,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"eu_ES": {
 		Name:         "Basque / Euskara",
 		DateFormat:   "%a, %Y.eko %bren %da",
@@ -688,7 +688,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: "",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[]"},
+		Grouping:     []int{}},
 	"sv": {
 		Name:         "Swedish / svenska",
 		DateFormat:   "%Y-%m-%d",
@@ -696,7 +696,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: " ",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"vi": {
 		Name:         "Vietnamese / Tiếng Việt",
 		DateFormat:   "%d/%m/%Y",
@@ -704,7 +704,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"zh_TW": {
 		Name:         "Chinese (Traditional) / 正體字",
 		DateFormat:   "%Y年%m月%d日",
@@ -712,7 +712,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H時%M分%S秒",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"es_UY": {
 		Name:         "Spanish (UY) / Español (UY)",
 		DateFormat:   "%d/%m/%Y",
@@ -720,7 +720,7 @@ var locales = map[string]*Locale{
 		ThousandsSep: ".",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ",",
-		Grouping:     "[3,0]"},
+		Grouping:     []int{3, 0}},
 	"th": {
 		Name:         "Thai / ภาษาไทย",
 		DateFormat:   "%d/%m/%Y",
@@ -728,4 +728,4 @@ var locales = map[string]*Locale{
 		ThousandsSep: ",",
 		TimeFormat:   "%H:%M:%S",
 		DecimalPoint: ".",
-		Grouping:     "[3,0]"}}
+		Grouping:     []int{3, 0}}}
