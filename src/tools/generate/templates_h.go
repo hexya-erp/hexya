@@ -221,6 +221,26 @@ type {{ .Name }}Data struct {
 	*models.ModelData
 }
 
+// Set sets the given field with the given value.
+// If the field already exists, then it is updated with value.
+// Otherwise, a new entry is inserted.
+//
+// It returns the given {{ .Name }}Data so that calls can be chained
+func (d {{ .Name }}Data) Set(field string, value interface{}) {{ .InterfacesPackageName }}.{{ .Name }}Data {
+	return &{{ $.Name }}Data{
+		d.ModelData.Set(field, value),
+	}
+}
+
+// Unset removes the value of the given field if it exists.
+//
+// It returns the given ModelData so that calls can be chained
+func (d {{ .Name }}Data) Unset(field string) {{ .InterfacesPackageName }}.{{ .Name }}Data {
+	return &{{ $.Name }}Data{
+		d.ModelData.Unset(field),
+	}
+}
+
 // Copy returns a copy of this {{ $.Name }}Data
 func (d {{ $.Name }}Data) Copy() {{ .InterfacesPackageName }}.{{ $.Name }}Data {
 	return &{{ $.Name }}Data{
@@ -236,7 +256,7 @@ func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
 	val, ok := d.ModelData.Get("{{ .Name }}")
 {{- if .IsRS }}	
 	if !ok || val == (*interface{})(nil) {
-		val = models.InvalidRecordCollection("{{ $.Name }}")
+		val = models.InvalidRecordCollection("{{ .RelModel }}")
 	}
 	return val.(models.RecordSet).Collection().Wrap().({{ .Type }})
 {{- else }}
@@ -383,7 +403,7 @@ func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldNamer) []{{ .Interf
 	res := make([]{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow, len(lines))
 	for i, l := range lines {
 		res[i] = {{ .Name }}GroupAggregateRow {
-			values:    models.NewModelData(s.Model(), l.Values).Wrap().({{ .InterfacesPackageName }}.{{ .Name }}Data), 
+			values:    l.Values.Wrap().({{ .InterfacesPackageName }}.{{ .Name }}Data), 
 			count:     l.Count,
 			condition: {{ $.QueryPackageName }}.{{ .Name }}Condition {
 				Condition: l.Condition,
@@ -397,8 +417,8 @@ func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldNamer) []{{ .Interf
 // {{ .Name }} is a getter for the value of the "{{ .Name }}" field of the first
 // record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
 func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
-{{- if .IsRS }}	
-	res, _ := s.RecordCollection.Get("{{ .Name }}").(models.RecordSet).Collection().Wrap().({{ .Type }})
+{{- if .IsRS }}
+	res, _ := s.RecordCollection.Get("{{ .Name }}").(models.RecordSet).Collection().Wrap("{{ .RelModel }}").({{ .Type }})
 {{- else }}
 	res, _ := s.RecordCollection.Get("{{ .Name }}").({{ .Type }}) 
 {{- end }}
@@ -463,16 +483,20 @@ func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}
 func init() {
 {{- if not .IsModelMixin }}
 	models.New{{ .ModelType }}Model("{{ .Name }}")
-{{ range .Methods -}}
-{{ if .ToDeclare }}	models.Registry.MustGet("{{ $.Name }}").AddEmptyMethod("{{ .Name }}")
-{{ end -}}
+{{- end }}
+{{- range .Methods }}
+{{- if .ToDeclare }}
+	models.Registry.MustGet("{{ $.Name }}").AddEmptyMethod("{{ .Name }}")
+{{- end }}
 {{- end }}
 	models.Registry.MustGet("{{ $.Name }}").AddFields(map[string]models.FieldDefinition{
-{{- range .Fields -}}
-{{ if or .MixinField .EmbedField}}		"{{ .Name }}": models.DummyField{},{{ end }}
-{{ end -}}
+{{- range .Fields }}
+{{- if or .MixinField .EmbedField}}
+		"{{ .Name }}": models.DummyField{},
+{{- end }}
+{{- end }}
 	})
 	models.RegisterRecordSetWrapper("{{ .Name }}", {{ .Name }}Set{})
-	models.RegisterModelDataWrapper("{{ .Name }}", {{ .Name }}Data{}){{ end }}
+	models.RegisterModelDataWrapper("{{ .Name }}", {{ .Name }}Data{})
 }
 `))

@@ -888,7 +888,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 		delete(vals, "__count")
 		vals = substituteKeys(vals, substMap)
 		line := GroupAggregateRow{
-			Values:    vals,
+			Values:    mapToModelData(rc, vals, reflect.TypeOf(new(ModelData))).Interface().(*ModelData),
 			Count:     int(cnt),
 			Condition: getGroupCondition(groups, vals, rc.query.cond),
 		}
