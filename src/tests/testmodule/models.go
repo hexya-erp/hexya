@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hexya-erp/hexya/src/actions"
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
@@ -171,6 +172,7 @@ func init() {
 		"BestPost": models.Many2OneField{RelationModel: h.Post()},
 		"Country":  models.CharField{},
 		"UserName": models.CharField{Related: "User.Name"},
+		"Action":   models.CharField{GoType: new(actions.ActionRef)},
 	})
 	profile.Fields().Zip().SetString("Zip Code")
 

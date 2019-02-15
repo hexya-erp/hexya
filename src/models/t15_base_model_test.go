@@ -394,6 +394,10 @@ func TestBaseModelMethods(t *testing.T) {
 					So(evenPosts[i].Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", 2*i))
 				}
 			})
+			Convey("CheckExecutionPermissions", func() {
+				res := env.Pool("User").Call("CheckExecutionPermission", Registry.MustGet("User").Methods().MustGet("Load"), []bool{true})
+				So(res, ShouldBeTrue)
+			})
 		}), ShouldBeNil)
 	})
 }

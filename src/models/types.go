@@ -50,6 +50,17 @@ type RecordSet interface {
 	// Records, all of them will be updated. Each call to Set makes an update query in the
 	// database. It panics if it is called on an empty RecordSet.
 	Set(string, interface{})
+	// T translates the given string to the language specified by
+	// the 'lang' key of rc.Env().Context(). If for any reason the
+	// string cannot be translated, then src is returned.
+	//
+	// You MUST pass a string literal as src to have it extracted automatically (and not a variable)
+	//
+	// The translated string will be passed to fmt.Sprintf with the optional args
+	// before being returned.
+	T(string, ...interface{}) string
+	// EnsureOne panics if this Recordset is not a singleton
+	EnsureOne()
 }
 
 // A FieldName is a type representing field names in models.
@@ -79,7 +90,7 @@ type FieldNamer interface {
 // - Count is the number of lines aggregated into this one
 // - Condition can be used to query the aggregated rows separately if needed
 type GroupAggregateRow struct {
-	Values    FieldMap
+	Values    *ModelData
 	Count     int
 	Condition *Condition
 }

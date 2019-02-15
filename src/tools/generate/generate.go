@@ -20,16 +20,17 @@ import (
 
 // A fieldData describes a field in a RecordSet
 type fieldData struct {
-	Name       string
-	JSON       string
-	RelModel   string
-	Type       string
-	IType      string
-	SanType    string
-	ImportPath string
-	IsRS       bool
-	MixinField bool
-	EmbedField bool
+	Name        string
+	JSON        string
+	RelModel    string
+	Type        string
+	IType       string
+	TypeWrapper string
+	SanType     string
+	ImportPath  string
+	IsRS        bool
+	MixinField  bool
+	EmbedField  bool
 }
 
 // A methodData describes a method in a RecordSet
@@ -111,6 +112,14 @@ func createTypeIdent(typStr string) string {
 	return res
 }
 
+// trimInterfacePackagePrefix removes the 'm.' prefix from types
+func trimInterfacePackagePrefix(typ string) string {
+	toks := strings.Split(typ, "]")
+	lastTok := strings.TrimPrefix(toks[len(toks)-1], PoolInterfacesPackage+".")
+	toks = append(toks[:len(toks)-1], lastTok)
+	return strings.Join(toks, "]")
+}
+
 // CreatePool generates the pool package by parsing the source code AST
 // of the given program.
 // The generated package will be put in the given dir.
@@ -165,7 +174,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 		var params, paramsWithType, iParamsType, paramsType, call, returns, returnAsserts, returnString, iReturnString string
 		for _, astParam := range methodASTData.Params {
 			paramType := astParam.Type.Type
-			iParamType := strings.TrimPrefix(paramType, PoolInterfacesPackage+".")
+			iParamType := trimInterfacePackagePrefix(paramType)
 			p := fmt.Sprintf("%s,", astParam.Name)
 			if isRS, _ := isRecordSetType(astParam.Type.Type, modelsASTData); isRS {
 				iParamType = fmt.Sprintf("%sSet", modelData.Name)
@@ -185,26 +194,26 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			call = "Call"
 			(*depsMap)[methodASTData.Returns[0].ImportPath] = true
 			typ := methodASTData.Returns[0].Type
-			iTyp := strings.TrimPrefix(typ, PoolInterfacesPackage+".")
+			iTyp := trimInterfacePackagePrefix(typ)
 			returnAsserts = fmt.Sprintf("resTyped, _ := res.(%s)", typ)
 			returns = "resTyped"
 			if isRS, _ := isRecordSetType(typ, modelsASTData); isRS {
 				typ = fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 				iTyp = fmt.Sprintf("%sSet", modelData.Name)
-				returnAsserts = fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap().(%s)", typ)
+				returnAsserts = fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, typ)
 			}
 			returnString = typ
 			iReturnString = iTyp
 		} else if len(methodASTData.Returns) > 1 {
 			for i, ret := range methodASTData.Returns {
 				typ := ret.Type
-				iTyp := strings.TrimPrefix(typ, PoolInterfacesPackage+".")
+				iTyp := trimInterfacePackagePrefix(typ)
 				call = "CallMulti"
 				(*depsMap)[ret.ImportPath] = true
 				if isRS, _ := isRecordSetType(ret.Type, modelsASTData); isRS {
 					typ = fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 					iTyp = fmt.Sprintf("%sSet", modelData.Name)
-					returnAsserts += fmt.Sprintf("resTyped%d := res[%d].(models.RecordSet).Collection().Wrap(%s)\n", i, i, typ)
+					returnAsserts += fmt.Sprintf("resTyped%d := res[%d].(models.RecordSet).Collection().Wrap(\"%s\").(%s)\n", i, i, modelData.Name, typ)
 				} else {
 					returnAsserts += fmt.Sprintf("resTyped%d, _ := res[%d].(%s)\n", i, i, typ)
 				}
@@ -239,7 +248,7 @@ func addFieldsToModelData(modelASTData ModelASTData, modelData *modelData, depsM
 	relModels := make(map[string]bool)
 	for fieldName, fieldASTData := range modelASTData.Fields {
 		typStr := fieldASTData.Type.Type
-		iTypStr := strings.TrimPrefix(typStr, PoolInterfacesPackage+".")
+		iTypStr := trimInterfacePackagePrefix(typStr)
 		if fieldASTData.RelModel != "" {
 			relModels[fieldASTData.RelModel] = true
 			typStr = fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, fieldASTData.RelModel)

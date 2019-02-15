@@ -69,8 +69,36 @@ type {{ .Name }}Set interface {
 // {{ .Name }}Data is used to hold values of an {{ .Name }} object instance
 // when creating or updating a {{ .Name }}Set.
 type {{ .Name }}Data interface {
-	models.FieldMapper
-	Copy() {{ $.Name }}Data
+	// Underlying returns the object converted to a FieldMap.
+	Underlying() models.FieldMap
+	// Get returns the value of the given field.
+	// The second returned value is true if the value exists.
+	//
+	// The field can be either its name or is JSON name.
+	Get(field string) (interface{}, bool)
+	// Set sets the given field with the given value.
+	// If the field already exists, then it is updated with value.
+	// Otherwise, a new entry is inserted.
+	//
+	// It returns the given {{ .Name }}Data so that calls can be chained
+	Set(field string, value interface{}) {{ .Name }}Data
+	// Unset removes the value of the given field if it exists.
+	//
+	// It returns the given ModelData so that calls can be chained
+	Unset(field string) {{ .Name }}Data
+	// Copy returns a copy of this {{ .Name }}Data	
+	Copy() {{ .Name }}Data
+	// Keys returns the {{ .Name }}Data keys as a slice of strings
+	Keys() (res []string)
+	// OrderedKeys returns the keys of this {{ .Name }}Data ordered.
+	//
+	// This has the convenient side effect of having shorter paths come before longer paths,
+	// which is particularly useful when creating or updating related records.
+	OrderedKeys() []string
+	// FieldNames returns the {{ .Name }}Data keys as a slice of FieldNamer.
+	FieldNames() (res []models.FieldNamer)
+	// Values returns the {{ .Name }}Data values as a slice of interface{}
+	Values() (res []interface{})
 	{{- range .Fields }}
 	// {{ .Name }} returns the value of the {{ .Name }} field.
 	// If this {{ .Name }} is not set in this {{ $.Name }}Data, then

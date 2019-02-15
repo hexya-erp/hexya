@@ -547,6 +547,15 @@ func declareSearchMethods() {
 		func(rc *RecordCollection, externalID string) *RecordCollection {
 			return rc.GetRecord(externalID)
 		})
+
+	commonMixin.AddMethod("CheckExecutionPermission",
+		`CheckExecutionPermission panics if the current user is not allowed to execute the given method.
+
+		If dontPanic is false, this function will panic, otherwise it returns true
+		if the user has the execution permission and false otherwise.`,
+		func(rc *RecordCollection, method *Method, dontPanic ...bool) bool {
+			return rc.CheckExecutionPermission(method, dontPanic...)
+		})
 }
 
 func declareEnvironmentMethods() {
