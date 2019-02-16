@@ -97,8 +97,6 @@ type {{ .Name }}Data interface {
 	OrderedKeys() []string
 	// FieldNames returns the {{ .Name }}Data keys as a slice of FieldNamer.
 	FieldNames() (res []models.FieldNamer)
-	// Values returns the {{ .Name }}Data values as a slice of interface{}
-	Values() (res []interface{})
 	{{- range .Fields }}
 	// {{ .Name }} returns the value of the {{ .Name }} field.
 	// If this {{ .Name }} is not set in this {{ $.Name }}Data, then
