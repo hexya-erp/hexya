@@ -165,7 +165,7 @@ rule's `Name` already exists, then the rule is overwritten.
 ----
 salesman := security.Registry.GetGroup("sale_user")
 
-func getUserID(rs h.PartnerSet) interface{} {
+func getUserID(rs m.PartnerSet) interface{} {
     return rs.Env().Uid()
 }
 

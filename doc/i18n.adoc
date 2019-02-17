@@ -51,7 +51,7 @@ To translate such strings, they need to be passed to the `T()` method of a Recor
 ----
 h.OpenAcademyCourse().Methods().HelloWorld().DeclareMethod(
     `HelloWorld returns a localized "Hello World" message`,
-    func(rs h.PartnerSet) string {
+    func(rs m.PartnerSet) string {
         return rs.T("Hello World")
     })
 

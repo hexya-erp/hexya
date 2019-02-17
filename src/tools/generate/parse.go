@@ -603,7 +603,7 @@ func extractParams(ft *ast.FuncType, modInfo *ModuleInfo) []ParamData {
 // getTypeData returns a TypeData instance representing the typ AST Expression
 func getTypeData(typ ast.Expr, modInfo *ModuleInfo) TypeData {
 	typStr := types.TypeString(modInfo.TypesInfo.TypeOf(typ), (*types.Package).Name)
-	if strings.HasSuffix(typStr, "invalid type") {
+	if strings.Contains(typStr, "invalid type") {
 		// Maybe this is a pool type that is not yet defined
 		byts := bytes.Buffer{}
 		printer.Fprint(&byts, modInfo.FSet, typ)
