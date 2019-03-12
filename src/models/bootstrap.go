@@ -537,11 +537,6 @@ func updateDBColumns(mi *Model) {
 			(dbColData.IsNullable == "YES" && adapter.fieldIsNotNull(fi)) {
 			updateDBColumnNullable(fi)
 		}
-		if (dbColData.ColumnDefault.Valid && (fi.required ||
-			dbColData.ColumnDefault.String != adapter.fieldSQLDefault(fi))) ||
-			(!dbColData.ColumnDefault.Valid && !fi.required) {
-			updateDBColumnDefault(fi)
-		}
 	}
 	// drop columns that no longer exist
 	for colName := range dbColumns {
@@ -587,25 +582,6 @@ func updateDBColumnNullable(fi *Field) {
 		ALTER TABLE %s
 		ALTER COLUMN %s %s NOT NULL
 	`, adapter.quoteTableName(fi.model.tableName), fi.json, verb)
-	dbExecuteNoTx(query)
-}
-
-// updateDBColumnDefault updates the default value in database for the given Field
-func updateDBColumnDefault(fi *Field) {
-	adapter := adapters[db.DriverName()]
-	defValue := adapter.fieldSQLDefault(fi)
-	var query string
-	if defValue == "" {
-		query = fmt.Sprintf(`
-			ALTER TABLE %s
-			ALTER COLUMN %s DROP DEFAULT
-		`, adapter.quoteTableName(fi.model.tableName), fi.json)
-	} else {
-		query = fmt.Sprintf(`
-			ALTER TABLE %s
-			ALTER COLUMN %s SET DEFAULT %s
-		`, adapter.quoteTableName(fi.model.tableName), fi.json, adapter.fieldSQLDefault(fi))
-	}
 	dbExecuteNoTx(query)
 }
 

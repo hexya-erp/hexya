@@ -152,6 +152,28 @@ func TestCreateRecordSet(t *testing.T) {
 				}
 				So(func() { env.Pool("Tag").Call("Create", tag3Data) }, ShouldPanic)
 			})
+			Convey("Checking that we can't create two users with the same name", func() {
+				user1Data := FieldMap{
+					"Name": "User1",
+				}
+				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldNotPanic)
+				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldPanic)
+			})
+			Convey("Checking that we can't create two users with a empty string name", func() {
+				user1Data := FieldMap{
+					"Name": "",
+				}
+				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldNotPanic)
+				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldPanic)
+			})
+			Convey("Checking that we can create as many users with a NULL name", func() {
+				user2Data := FieldMap{
+					"Email": "user2@example.com",
+				}
+				So(func() { env.Pool("User").Call("Create", user2Data).(RecordSet).Collection() }, ShouldNotPanic)
+				So(func() { env.Pool("User").Call("Create", user2Data).(RecordSet).Collection() }, ShouldNotPanic)
+				So(func() { env.Pool("User").Call("Create", user2Data).(RecordSet).Collection() }, ShouldNotPanic)
+			})
 		}), ShouldBeNil)
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {

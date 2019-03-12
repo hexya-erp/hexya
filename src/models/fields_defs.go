@@ -409,7 +409,6 @@ func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 	required := mf.Required
 	if mf.Embed {
 		onDelete = Cascade
-		required = true
 		noCopy = true
 	}
 	var filter *Condition
