@@ -161,13 +161,13 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		case operator.Equals:
 			sql = fmt.Sprintf(`%s IS NULL`, field)
 			if !fi.isRelationField() {
-				sql += fmt.Sprintf(` OR %s = ?`, field)
+				sql = fmt.Sprintf(`(%s OR %s = ?)`, sql, field)
 				args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
 			}
 		case operator.NotEquals:
 			sql = fmt.Sprintf(`%s IS NOT NULL`, field)
 			if !fi.isRelationField() {
-				sql += fmt.Sprintf(` OR %s != ?`, field)
+				sql = fmt.Sprintf(`(%s AND %s != ?)`, sql, field)
 				args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
 			}
 		default:

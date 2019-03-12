@@ -1,7 +1,8 @@
 language: go
 go:
  - "1.11"
-# - "tip"
+ - "1.12"
+ - "tip"
 
 addons:
   postgresql: "9.6"

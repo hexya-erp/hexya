@@ -336,7 +336,7 @@ func TestModelDeclaration(t *testing.T) {
 			"Size":      FloatField{},
 			"Education": TextField{String: "Educational Background"},
 		})
-		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums > 0) OR (IS_PREMIUM = false))",
+		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums IS NOT NULL AND nums > 0) OR (IS_PREMIUM = false))",
 			"Premium users must have positive nums")
 
 		profile.AddFields(map[string]FieldDefinition{

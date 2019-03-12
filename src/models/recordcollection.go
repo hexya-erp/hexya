@@ -182,7 +182,7 @@ func (rc *RecordCollection) applyContexts() *RecordCollection {
 		for ctxName, ctxFunc := range fi.contexts {
 			path := fmt.Sprintf("%sHexyaContexts%s%s", fi.name, ExprSep, ctxName)
 			ctxOrders = append(ctxOrders, path)
-			cond := rc.model.Field(path).Equals("").Or().Field(path).IsNull()
+			cond := rc.model.Field(path).IsNull()
 			if !rc.env.context.GetBool("hexya_default_contexts") {
 				cond = cond.Or().Field(path).Equals(ctxFunc)
 			}

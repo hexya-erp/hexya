@@ -232,6 +232,18 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `WHERE "user".id NOT IN (?)`)
 					So(args, ShouldContain, []int64{23, 31})
 				})
+				Convey("Is Null", func() {
+					rs = rs.Search(rs.Model().Field("Name").IsNull())
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name = ?)`)
+					So(args, ShouldContain, "")
+				})
+				Convey("Is Not Null", func() {
+					rs = rs.Search(rs.Model().Field("Name").IsNotNull())
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NOT NULL AND "user".name != ?)`)
+					So(args, ShouldContain, "")
+				})
 				Convey("Child Of without parent field", func() {
 					rs = rs.Search(rs.Model().Field("ID").ChildOf(101))
 					sql, args, _ := rs.query.selectQuery([]string{"Name"})
