@@ -316,11 +316,11 @@ func declareRecordSetMethods() {
 
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
-		func(rc *RecordCollection) FieldMap {
+		func(rc *RecordCollection) *ModelData {
 			res := make(FieldMap)
 			rc.applyDefaults(&res, false)
 			rc.model.convertValuesToFieldType(&res, false)
-			return res
+			return NewModelData(rc.model, res)
 		})
 }
 
