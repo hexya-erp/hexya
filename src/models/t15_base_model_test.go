@@ -97,7 +97,7 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("DefaultGet", func() {
 				defaults := userJane.Call("DefaultGet").(FieldMap)
-				So(defaults, ShouldHaveLength, 7)
+				So(defaults, ShouldHaveLength, 12)
 				So(defaults, ShouldContainKey, "status_json")
 				So(defaults["status_json"], ShouldEqual, 12)
 				So(defaults, ShouldContainKey, "hexya_external_id")
