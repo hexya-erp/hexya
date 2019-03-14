@@ -12,8 +12,9 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190306220146-200a235640ff
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
+	go.uber.org/atomic v1.3.2 // indirect
+	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
 	golang.org/x/crypto v0.0.0-20190208162236-193df9c0f06f
 	golang.org/x/tools v0.0.0-20190208185513-a3f91d6be4f3
-	google.golang.org/appengine v1.4.0 // indirect
 )
