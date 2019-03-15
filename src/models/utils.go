@@ -165,8 +165,8 @@ func addIDIfNotPresent(fields []string) []string {
 	return fields
 }
 
-// convertToStringSlice converts the given FieldNamer slice into a slice of strings
-func convertToStringSlice(fieldNames []FieldNamer) []string {
+// ConvertToStringSlice converts the given FieldNamer slice into a slice of strings
+func ConvertToStringSlice(fieldNames []FieldNamer) []string {
 	res := make([]string, len(fieldNames))
 	for i, v := range fieldNames {
 		res[i] = string(v.FieldName())
