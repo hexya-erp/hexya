@@ -24,7 +24,6 @@ import (
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
-	"github.com/hexya-erp/hexya/src/tools/typesutils"
 )
 
 const maxSQLidentifierLength = 63
@@ -157,7 +156,24 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		args SQLParams
 	)
 	field, _, _ := q.joinedFieldExpression(exprs, false, 0)
-	if p.arg == nil || typesutils.IsZero(p.arg) {
+
+	var isNull bool
+	switch v := p.arg.(type) {
+	case nil:
+		isNull = true
+	case string:
+		if v == "" {
+			isNull = true
+		}
+	case bool:
+		if !v {
+			isNull = true
+		}
+	}
+	if s, ok := p.arg.(string); ok && s == "" {
+		isNull = true
+	}
+	if isNull {
 		switch p.operator {
 		case operator.Equals:
 			sql = fmt.Sprintf(`%s IS NULL`, field)
