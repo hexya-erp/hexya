@@ -105,7 +105,9 @@ func (d *postgresAdapter) typeSQL(fi *Field) string {
 }
 
 // columnSQLDefinition returns the SQL type string, including columns constraints if any
-func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
+//
+// If null is true, then the column will be nullable, whatever the field defines
+func (d *postgresAdapter) columnSQLDefinition(fi *Field, null bool) string {
 	var res string
 	typ, ok := pgTypes[fi.fieldType]
 	res = typ
@@ -123,7 +125,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 			res = fmt.Sprintf("numeric(%d, %d)", fi.digits.Precision, fi.digits.Scale)
 		}
 	}
-	if d.fieldIsNotNull(fi) {
+	if d.fieldIsNotNull(fi) && !null {
 		res += " NOT NULL"
 	}
 

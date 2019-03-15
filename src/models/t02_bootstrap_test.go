@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/types/dates"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -197,6 +199,13 @@ func TestBootStrap(t *testing.T) {
 			profileField.SetRequired(false)
 			numsField := Registry.MustGet("User").Fields().MustGet("Nums")
 			numsField.SetDefault(nil).SetIndex(false)
+			Registry.MustGet("Comment").AddFields(map[string]FieldDefinition{
+				"Date": DateField{Default: func(env Environment) interface{} {
+					return dates.Today()
+				}},
+			})
+			textField := Registry.MustGet("Comment").Fields().MustGet("Text")
+			textField.SetFieldType(fieldtype.Text)
 			So(BootStrap, ShouldNotPanic)
 			So(contentField.required, ShouldBeFalse)
 			So(profileField.required, ShouldBeFalse)
