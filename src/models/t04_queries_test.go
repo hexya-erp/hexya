@@ -244,6 +244,18 @@ func TestConditions(t *testing.T) {
 					So(sql, ShouldEqual, `WHERE ("user".name IS NOT NULL AND "user".name != ?)`)
 					So(args, ShouldContain, "")
 				})
+				Convey("Empty string", func() {
+					rs = rs.Search(rs.Model().Field("Name").Equals(""))
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name = ?)`)
+					So(args, ShouldContain, "")
+				})
+				Convey("False bool", func() {
+					rs = rs.Search(rs.Model().Field("IsStaff").Equals(false))
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".is_staff IS NULL OR "user".is_staff = ?)`)
+					So(args, ShouldContain, false)
+				})
 				Convey("Child Of without parent field", func() {
 					rs = rs.Search(rs.Model().Field("ID").ChildOf(101))
 					sql, args, _ := rs.query.selectQuery([]string{"Name"})
