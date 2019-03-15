@@ -170,9 +170,6 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 			isNull = true
 		}
 	}
-	if s, ok := p.arg.(string); ok && s == "" {
-		isNull = true
-	}
 	if isNull {
 		switch p.operator {
 		case operator.Equals:
