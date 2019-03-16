@@ -372,7 +372,7 @@ func TestModelDeclaration(t *testing.T) {
 
 		comment.AddFields(map[string]FieldDefinition{
 			"Post": Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"Text": TextField{},
+			"Text": CharField{},
 		})
 
 		tag.AddFields(map[string]FieldDefinition{
@@ -485,10 +485,10 @@ func TestFieldModification(t *testing.T) {
 		nameField.SetInverse(Registry.MustGet("User").Methods().MustGet("InverseSetAge"))
 		nameField.SetInverse(nil)
 		sizeField := Registry.MustGet("User").Fields().MustGet("Size")
-		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 1})
+		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 2})
 		So(sizeField.updates[len(sizeField.updates)-1], ShouldContainKey, "digits")
 		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Precision, ShouldEqual, 6)
-		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Scale, ShouldEqual, 1)
+		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Scale, ShouldEqual, 2)
 		userField := Registry.MustGet("Post").Fields().MustGet("User")
 		userField.SetOnDelete(Cascade)
 		checkUpdates(userField, "onDelete", Cascade)

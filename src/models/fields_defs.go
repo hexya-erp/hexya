@@ -797,6 +797,8 @@ func (f *Field) addUpdate(property string, value interface{}) {
 // This method uses switch as they are unexported struct fields
 func (f *Field) setProperty(property string, value interface{}) {
 	switch property {
+	case "fieldType":
+		f.fieldType = value.(fieldtype.Type)
 	case "description":
 		f.description = value.(string)
 	case "help":
@@ -866,6 +868,14 @@ func (f *Field) setProperty(property string, value interface{}) {
 	case "contexts":
 		f.contexts = value.(FieldContexts)
 	}
+}
+
+// SetFieldType overrides the type of Field.
+// This may fail at database sync if the table already has values and
+// the old type cannot be casted into the new type by the database.
+func (f *Field) SetFieldType(value fieldtype.Type) *Field {
+	f.addUpdate("fieldType", value)
+	return f
 }
 
 // SetString overrides the value of the String parameter of this Field

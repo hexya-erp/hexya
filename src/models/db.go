@@ -56,7 +56,9 @@ type dbAdapter interface {
 	// typeSQL returns the SQL type string, including columns constraints if any
 	typeSQL(fi *Field) string
 	// columnSQLDefinition returns the SQL type string, including columns constraints if any
-	columnSQLDefinition(fi *Field) string
+	//
+	// If null is true, then the column will be nullable, whatever the field defines
+	columnSQLDefinition(fi *Field, null bool) string
 	// tables returns a map of table names of the database
 	tables() map[string]bool
 	// columns returns a list of ColumnData for the given tableName
