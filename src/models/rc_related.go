@@ -139,7 +139,7 @@ func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 
 // createRelatedRecord creates Records at the given path, starting from this recordset.
 // This method does not check whether such a records already exists or not.
-func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *RecordCollection {
+func (rc *RecordCollection) createRelatedRecord(path string, vals RecordData) *RecordCollection {
 	log.Debug("Creating related record", "recordset", rc, "path", path, "vals", vals)
 	rc.EnsureOne()
 	fi := rc.model.getRelatedFieldInfo(path)
@@ -165,7 +165,7 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *Rec
 			}
 			target = target.Records()[0]
 		}
-		vals[fi.jsonReverseFK] = target
+		vals.Underlying().Set(fi.jsonReverseFK, target)
 		return rc.env.Pool(fi.relatedModel.name).Call("Create", vals).(RecordSet).Collection()
 	}
 	return rc.env.Pool(rc.ModelName())

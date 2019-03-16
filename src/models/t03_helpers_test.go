@@ -13,6 +13,10 @@ type TestProfileSet struct {
 	*RecordCollection
 }
 
+type TestUserData struct {
+	*ModelData
+}
+
 type TestUserCondition struct {
 	*Condition
 }

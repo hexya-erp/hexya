@@ -123,23 +123,28 @@ type Conditioner interface {
 	Underlying() *Condition
 }
 
+// A RecordData can return a ModelData object through its Underlying() method
+type RecordData interface {
+	Underlying() *ModelData
+}
+
 // A ModelData is used to hold values of an object instance for creating or
 // updating a RecordSet. It is mainly designed to be embedded in a type-safe
 // struct.
 type ModelData struct {
 	FieldMap
-	model *Model
+	ToCreate map[string][]*ModelData
+	Model    *Model
 }
 
-var _ FieldMapper = ModelData{}
-var _ FieldMapper = new(ModelData)
+var _ RecordData = new(ModelData)
 
 // Get returns the value of the given field.
 // The second returned value is true if the value exists.
 //
 // The field can be either its name or is JSON name.
 func (md *ModelData) Get(field string) (interface{}, bool) {
-	return md.FieldMap.Get(field, md.model)
+	return md.FieldMap.Get(field, md.Model)
 }
 
 // Set sets the given field with the given value.
@@ -148,7 +153,7 @@ func (md *ModelData) Get(field string) (interface{}, bool) {
 //
 // It returns the given ModelData so that calls can be chained
 func (md *ModelData) Set(field string, value interface{}) *ModelData {
-	md.FieldMap.Set(field, value, md.model)
+	md.FieldMap.Set(field, value, md.Model)
 	return md
 }
 
@@ -156,16 +161,34 @@ func (md *ModelData) Set(field string, value interface{}) *ModelData {
 //
 // It returns the given ModelData so that calls can be chained
 func (md *ModelData) Unset(field string) *ModelData {
-	md.FieldMap.Delete(field, md.model)
+	md.FieldMap.Delete(field, md.Model)
+	return md
+}
+
+// Create stores the related ModelData to be used to create
+// a related record on the fly and link it to this field.
+//
+// This method can be called multiple times to create multiple records
+func (md *ModelData) Create(field string, related *ModelData) *ModelData {
+	fi := md.Model.getRelatedFieldInfo(field)
+	if related.Model != fi.relatedModel {
+		log.Panic("create data must be of the model of the relation field", "fieldModel", fi.relatedModel, "dataModel", related.Model)
+	}
+	md.ToCreate[fi.json] = append(md.ToCreate[fi.json], related)
 	return md
 }
 
 // Copy returns a copy of this ModelData
 func (md *ModelData) Copy() *ModelData {
 	return &ModelData{
-		model:    md.model,
+		Model:    md.Model,
 		FieldMap: md.FieldMap.Copy(),
 	}
+}
+
+// Underlying returns the ModelData
+func (md *ModelData) Underlying() *ModelData {
+	return md
 }
 
 // NewModelData returns a pointer to a new instance of ModelData
@@ -173,10 +196,13 @@ func (md *ModelData) Copy() *ModelData {
 func NewModelData(model Modeler, fm ...FieldMap) *ModelData {
 	fMap := make(FieldMap)
 	for _, f := range fm {
-		fMap.MergeWith(f, model.Underlying())
+		for k, v := range f {
+			fMap[model.Underlying().JSONizeFieldName(k)] = v
+		}
 	}
 	return &ModelData{
 		FieldMap: fMap,
-		model:    model.Underlying(),
+		ToCreate: make(map[string][]*ModelData),
+		Model:    model.Underlying(),
 	}
 }

@@ -191,10 +191,10 @@ func SimulateWithDummyRecord(uid int64, data *ModelData, fnct func(RecordSet)) (
 	env := newEnvironment(uid)
 	var rc RecordSet
 	if val, ok := data.Get("ID"); ok && val.(int64) > 0 {
-		rc = env.Pool(data.model.name).Call("BrowseOne", val.(int64)).(RecordSet)
+		rc = env.Pool(data.Model.name).Call("BrowseOne", val.(int64)).(RecordSet)
 		rc.Call("Write", data)
 	} else {
-		rc = env.Pool(data.model.name).Call("Create", data).(RecordSet)
+		rc = env.Pool(data.Model.name).Call("Create", data).(RecordSet)
 	}
 	defer func() {
 		env.rollback()

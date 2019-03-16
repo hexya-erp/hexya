@@ -51,9 +51,9 @@ func TestMethods(t *testing.T) {
 				res := users.Model().Methods().MustGet("PrefixedUser").Call(users, "Prefix")
 				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 				resMulti := users.Model().Methods().MustGet("OnChangeName").CallMulti(users)
-				res1 := resMulti[0].(FieldMap)
-				So(res1, ShouldContainKey, "DecoratedName")
-				So(res1["DecoratedName"], ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+				res1 := resMulti[0].(*ModelData)
+				So(res1.FieldMap, ShouldContainKey, "decorated_name")
+				So(res1.FieldMap["decorated_name"], ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
 		}), ShouldBeNil)
 	})
@@ -94,6 +94,7 @@ func TestComputedStoredFields(t *testing.T) {
 	Convey("Testing stored computed fields", t, func() {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
+			profileModel := Registry.MustGet("Profile")
 			Convey("Checking that user Jane is 23", func() {
 				userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
 				So(userJane.Get("Age"), ShouldEqual, 23)
@@ -116,10 +117,9 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
 				userWill.Load()
 				So(userWill.Get("Name"), ShouldEqual, "Will Smith")
-				willProfileData := FieldMap{
-					"Age":   36,
-					"Money": 5100,
-				}
+				willProfileData := NewModelData(profileModel).
+					Set("Age", 36).
+					Set("Money", 5100)
 				willProfile := env.Pool("Profile").Call("Create", willProfileData)
 				userWill.Set("Profile", willProfile)
 
@@ -214,7 +214,7 @@ func TestEmbeddedModels(t *testing.T) {
 			})
 			Convey("Adding a proper resume to Jane", func() {
 				userJane.Get("Resume").(RecordSet).Collection().Set("Experience", "Hexya developer for 10 years")
-				userJane.Get("Resume").(RecordSet).Collection().Set("Leisure", "Music, Sports")
+				userJane.Set("Leisure", "Music, Sports")
 				userJane.Get("Resume").(RecordSet).Collection().Set("Education", "MIT")
 				userJane.Set("Education", "Berkeley")
 			})
@@ -260,10 +260,9 @@ func TestContextedFields(t *testing.T) {
 			decs := env.Pool("TagHexyaDescription")
 			var tagc *RecordCollection
 			Convey("Creating record with a single contexted field", func() {
-				tagc = tags.Call("Create", FieldMap{
-					"Name":        "Contexted tag",
-					"Description": "Translated description",
-				}).(RecordSet).Collection()
+				tagc = tags.Call("Create", NewModelData(tags.model).
+					Set("Name", "Contexted tag").
+					Set("Description", "Translated description")).(RecordSet).Collection()
 				So(tagc.Get("DescriptionHexyaContexts").(RecordSet).Len(), ShouldEqual, 1)
 				So(tagc.Get("Description"), ShouldEqual, "Translated description")
 
@@ -298,10 +297,9 @@ func TestContextedFields(t *testing.T) {
 				So(tagc.WithContext("lang", "it_IT").Get("Description"), ShouldEqual, "Translated description")
 			})
 			Convey("Creating a record with a contexted field should also create for default context", func() {
-				tags.WithContext("lang", "fr_FR").Call("Create", FieldMap{
-					"Name":        "Contexted tag 2",
-					"Description": "Description en français",
-				}).(RecordSet).Collection()
+				tags.WithContext("lang", "fr_FR").Call("Create", NewModelData(tags.model).
+					Set("Name", "Contexted tag 2").
+					Set("Description", "Description en français")).(RecordSet).Collection()
 				tag := tags.Search(tags.Model().Field("name").Equals("Contexted tag 2"))
 				So(tag.Get("Description"), ShouldEqual, "Description en français")
 				So(tag.WithContext("lang", "en_US").Get("Description"), ShouldEqual, "Description en français")
@@ -337,10 +335,9 @@ func TestContextedFields(t *testing.T) {
 				So(tag.Get("Description"), ShouldEqual, "descripción traducida")
 			})
 			Convey("Deleting a record with a contexted field should delete all contexts", func() {
-				newTag := tags.Call("Create", FieldMap{
-					"Name":        "Contexted tag 3",
-					"Description": "Description to translate",
-				}).(RecordSet).Collection()
+				newTag := tags.Call("Create", NewModelData(tags.model).
+					Set("Name", "Contexted tag 3").
+					Set("Description", "Description to translate")).(RecordSet).Collection()
 				So(newTag.Get("Description"), ShouldEqual, "Description to translate")
 				newTag.WithContext("lang", "fr_FR").Set("Description", "Description en français")
 				So(newTag.WithContext("lang", "fr_FR").Get("Description"), ShouldEqual, "Description en français")
@@ -358,20 +355,17 @@ func TestContextedFields(t *testing.T) {
 			tags := env.Pool("Tag")
 			tags.SearchAll().Call("Unlink")
 			Convey("Simple group by query", func() {
-				tag1 := tags.Call("Create", FieldMap{
-					"Name":        "Contexted tag",
-					"Description": "Translated description",
-				}).(RecordSet).Collection()
+				tag1 := tags.Call("Create", NewModelData(tags.model).
+					Set("Name", "Contexted tag").
+					Set("Description", "Translated description")).(RecordSet).Collection()
 				tag1.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
-				tag2 := tags.Call("Create", FieldMap{
-					"Name":        "Contexted tag",
-					"Description": "Translated description",
-				}).(RecordSet).Collection()
+				tag2 := tags.Call("Create", NewModelData(tags.model).
+					Set("Name", "Contexted tag").
+					Set("Description", "Translated description")).(RecordSet).Collection()
 				tag2.WithContext("lang", "fr_FR").Set("Description", "Description traduite")
-				tags.Call("Create", FieldMap{
-					"Name":        "Contexted tag",
-					"Description": "Other description",
-				}).(RecordSet).Collection()
+				tags.Call("Create", NewModelData(tags.model).
+					Set("Name", "Contexted tag").
+					Set("Description", "Other description")).(RecordSet).Collection()
 				gbq := tags.WithContext("lang", "fr_FR").SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
 				So(gbq, ShouldHaveLength, 2)
 				des, ok := gbq[0].Values.Get("Description")
@@ -448,16 +442,16 @@ func TestTypeConversionInMethodCall(t *testing.T) {
 				prof = convertFunctionArg(userJane, reflect.TypeOf(new(RecordCollection)), userJane.Get("Profile"))
 				So(prof.Type(), ShouldEqual, reflect.TypeOf(new(RecordCollection)))
 				So(prof.Interface().(*RecordCollection).Equals(userJane.Get("Profile").(RecordSet).Collection()), ShouldBeTrue)
-				vals := convertFunctionArg(userJane, reflect.TypeOf(FieldMap{}), FieldMap{"key": "value"})
-				So(vals.Type(), ShouldEqual, reflect.TypeOf(FieldMap{}))
-				So(vals.Interface(), ShouldHaveLength, 1)
-				So(vals.Interface(), ShouldContainKey, "key")
-				So(vals.Interface().(FieldMap)["key"], ShouldEqual, "value")
-				vals = convertFunctionArg(userJane, reflect.TypeOf(new(ModelData)), FieldMap{"IsStaff": true})
+				vals := convertFunctionArg(userJane, reflect.TypeOf(new(ModelData)), NewModelData(users.model, FieldMap{"Name": "Mike"}))
 				So(vals.Type(), ShouldEqual, reflect.TypeOf(new(ModelData)))
 				So(vals.Interface().(*ModelData).FieldMap, ShouldHaveLength, 1)
-				So(vals.Interface().(*ModelData).FieldMap, ShouldContainKey, "IsStaff")
-				So(vals.Interface().(*ModelData).FieldMap["IsStaff"], ShouldEqual, true)
+				So(vals.Interface().(*ModelData).FieldMap, ShouldContainKey, "name")
+				So(vals.Interface().(*ModelData).FieldMap["name"], ShouldEqual, "Mike")
+				vals = convertFunctionArg(userJane, reflect.TypeOf(new(TestUserData)), NewModelData(users.model, FieldMap{"IsStaff": true}))
+				So(vals.Type(), ShouldEqual, reflect.TypeOf(new(ModelData)))
+				So(vals.Interface().(*ModelData).FieldMap, ShouldHaveLength, 1)
+				So(vals.Interface().(*ModelData).FieldMap, ShouldContainKey, "is_staff")
+				So(vals.Interface().(*ModelData).FieldMap["is_staff"], ShouldEqual, true)
 				cond := users.Model().Field("Name").Equals("Jane Smith")
 				c := convertFunctionArg(userJane, reflect.TypeOf(TestUserCondition{}), cond)
 				So(c.Type(), ShouldEqual, reflect.TypeOf(TestUserCondition{}))

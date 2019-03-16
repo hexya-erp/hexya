@@ -67,7 +67,7 @@ func RegisterModelDataWrapper(modelName string, obj interface{}) {
 // Wrap returns the given ModelData embedded into a RecordSet Wrapper type.
 // This method returns a pointer.
 func (md ModelData) Wrap() interface{} {
-	typ, ok := modelDataWrappers[md.model.name]
+	typ, ok := modelDataWrappers[md.Model.name]
 	if !ok {
 		return &md
 	}

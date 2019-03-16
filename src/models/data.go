@@ -75,10 +75,10 @@ func LoadCSVDataFile(fileName string) {
 			rec := rc.Search(rc.Model().Field("HexyaExternalID").Equals(externalID)).Limit(1)
 			switch {
 			case rec.Len() == 0:
-				rc.Call("Create", values)
+				rc.Call("Create", NewModelData(rc.model, values))
 			case rec.Len() == 1:
 				if version > rec.Get("HexyaVersion").(int) || update {
-					rec.Call("Write", values)
+					rec.Call("Write", NewModelData(rc.model, values))
 				}
 			}
 			line++

@@ -15,10 +15,7 @@
 package models
 
 import (
-	"reflect"
 	"strings"
-
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
 )
 
 var (
@@ -296,55 +293,4 @@ func cartesianProductSlices(records ...[]*RecordCollection) []*RecordCollection 
 		return cartesianProductSlices(records[0], cartesianProductSlices(records[1:]...))
 	}
 
-}
-
-// mapToModelData maps the given FieldMap to the targetType object which is a pointer to
-// either a type-less ModelData or a typed one. The given RecordCollection is used
-// only to retrieve the model and an Environment.
-func mapToModelData(rc *RecordCollection, fm FieldMap, targetType reflect.Type) reflect.Value {
-	for field, val := range fm {
-		fi := rc.model.getRelatedFieldInfo(field)
-		if !fi.fieldType.IsRelationType() {
-			if fi.fieldType == fieldtype.Boolean {
-				continue
-			}
-			if _, ok := val.(bool); ok {
-				// Client returns False when the value is null
-				fm[field] = reflect.Zero(fi.structField.Type).Interface()
-			}
-			continue
-		}
-
-		var convertedValue reflect.Value
-		var relRC *RecordCollection
-		switch r := val.(type) {
-		case RecordSet:
-			relRC = r.Collection()
-		case nil, *interface{}:
-			relRC = newRecordCollection(rc.Env(), fi.relatedModel.name)
-		case int64:
-			relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds([]int64{r})
-		case []int64:
-			relRC = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r)
-		}
-
-		meth, ok := targetType.MethodByName(fi.name)
-		if targetType != reflect.TypeOf(ModelData{}) && ok {
-			// We have a generated RecordSet Type with a MyField() method
-			fType := meth.Type.Out(0)
-			convertedValue = reflect.New(fType).Elem()
-			convertedValue.Set(reflect.ValueOf(relRC.Wrap()))
-		} else {
-			convertedValue = reflect.ValueOf(relRC)
-		}
-		fm[field] = convertedValue.Interface()
-	}
-	md := NewModelData(rc.model)
-	md.FieldMap = fm
-	if targetType == reflect.TypeOf(md) {
-		// target is pointer to type-less ModelData
-		return reflect.ValueOf(md)
-	}
-	res := reflect.ValueOf(md.Wrap())
-	return res
 }

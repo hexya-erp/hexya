@@ -79,14 +79,14 @@ func (rc *RecordCollection) clone() *RecordCollection {
 // data can be either a FieldMap or a struct pointer of the same model as rs.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Create")
-func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
+func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	defer func() {
 		if r := recover(); r != nil {
 			panic(rc.substituteSQLErrorMessage(r))
 		}
 	}()
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
-	fMap := data.Underlying().Copy()
+	fMap := data.Underlying().FieldMap.Copy()
 	rc.applyDefaults(&fMap, true)
 	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
@@ -107,11 +107,23 @@ func (rc *RecordCollection) create(data FieldMapper) *RecordCollection {
 	rSet.updateRelationFields(fMap)
 	// update related fields
 	rSet.updateRelatedFields(fMap)
+	// process create data if any
+	rSet.createRelationRecords(data)
 	// compute stored fields
 	rSet.processInverseMethods(fMap)
 	rSet.processTriggers(fMap)
 	rSet.CheckConstraints()
 	return rSet
+}
+
+// createRelationRecords creates the records of relation fields when
+// the given data contains such directive.
+func (rc *RecordCollection) createRelationRecords(data RecordData) {
+	for f, dd := range data.Underlying().ToCreate {
+		for _, d := range dd {
+			rc.createRelatedRecord(f, d)
+		}
+	}
 }
 
 // addEmbeddedFields adds FK fields of embedded records into the fMap so that
@@ -247,9 +259,9 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // It panics in case of error.
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
-func (rc *RecordCollection) update(data FieldMapper) bool {
+func (rc *RecordCollection) update(data RecordData) bool {
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
-	fMap := data.Underlying().Copy()
+	fMap := data.Underlying().Copy().FieldMap
 	rSet.addAccessFieldsUpdateData(&fMap)
 	rSet.applyContexts()
 	fMap = rSet.addContextsFieldsValues(fMap)
@@ -385,7 +397,8 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 			model, id, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, rc.query.ctxArgsSlug())
 			if err != nil {
 				// Record does not exist, we create it on the fly instead of updating
-				nr := rc.createRelatedRecord(prefix, vals)
+				fp := rc.model.getRelatedFieldInfo(prefix)
+				nr := rc.createRelatedRecord(prefix, NewModelData(fp.relatedModel, vals))
 				rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix, nr.Ids()[0], rc.query.ctxArgsSlug())
 				createdPaths[prefix] = true
 				continue
@@ -417,7 +430,8 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 				"record_id": vals["record_id"],
 				field:       vals[field],
 			}
-			nr := rc.createRelatedRecord(prefix, defVals)
+			fp := rc.model.getRelatedFieldInfo(prefix)
+			nr := rc.createRelatedRecord(prefix, NewModelData(fp.relatedModel, defVals))
 			rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix, nr.Ids()[0], "")
 		}
 	}
@@ -425,7 +439,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	// Make the update for each record
 	for ref, upMap := range updateMap {
 		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})
-		rs.Call("Write", upMap)
+		rs.Call("Write", NewModelData(ref.model, upMap))
 	}
 }
 
@@ -468,7 +482,7 @@ func (rc *RecordCollection) loadRelatedRecords(fields []string) {
 	}
 }
 
-// createRelatedRecordMap return a FieldMap to create or update the related record
+// relatedRecordMap return a ModelData to create or update the related record
 // defined by path from this RecordCollection, using fMap values. The second record
 // value is the path to the related record.
 //
@@ -814,9 +828,8 @@ func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 // Records, all of them will be updated. Each call to Set makes an update query in the
 // database. It panics if it is called on an empty RecordSet.
 func (rc *RecordCollection) Set(fieldName string, value interface{}) {
-	fMap := make(FieldMap)
-	fMap[fieldName] = value
-	rc.Call("Write", fMap)
+	md := NewModelData(rc.model).Set(fieldName, value)
+	rc.Call("Write", md)
 }
 
 // InvalidateCache clears the cache for this RecordSet data, and immediately reloads the data from the DB.
@@ -888,7 +901,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 		delete(vals, "__count")
 		vals = substituteKeys(vals, substMap)
 		line := GroupAggregateRow{
-			Values:    mapToModelData(rc, vals, reflect.TypeOf(new(ModelData))).Interface().(*ModelData),
+			Values:    NewModelData(rc.model, vals),
 			Count:     int(cnt),
 			Condition: getGroupCondition(groups, vals, rc.query.cond),
 		}

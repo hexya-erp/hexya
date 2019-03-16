@@ -37,17 +37,6 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userJohn.ID(), ShouldBeGreaterThan, 0)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Comments and Tags", func() {
-				profileData := h.Profile().NewData().
-					SetAge(23).
-					SetMoney(12345).
-					SetStreet("165 5th Avenue").
-					SetCity("New York").
-					SetZip("0305").
-					SetCountry("USA")
-				profile := h.Profile().Create(env, profileData)
-				So(profile.Len(), ShouldEqual, 1)
-				So(profile.UserName(), ShouldBeBlank)
-
 				post1Data := h.Post().NewData().
 					SetTitle("1st Post").
 					SetContent("Content of first post")
@@ -60,17 +49,23 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2.Len(), ShouldEqual, 1)
 				posts := post1.Union(post2)
 				So(posts.Len(), ShouldEqual, 2)
-				profile.SetBestPost(post1)
 				userJaneData := h.User().NewData().
 					SetName("Jane Smith").
 					SetEmail("jane.smith@example.com").
-					SetProfile(profile).
 					SetPosts(posts).
-					SetNums(2)
+					SetNums(2).
+					CreateProfile(h.Profile().NewData().
+						SetAge(23).
+						SetMoney(12345).
+						SetStreet("165 5th Avenue").
+						SetCity("New York").
+						SetZip("0305").
+						SetCountry("USA").
+						SetBestPost(post1))
 				userJane := h.User().Create(env, userJaneData)
 				So(userJane.Len(), ShouldEqual, 1)
-				So(userJane.Profile().ID(), ShouldEqual, profile.ID())
-				So(profile.UserName(), ShouldEqual, "Jane Smith")
+				So(userJane.Profile().ID(), ShouldNotEqual, 0)
+				So(userJane.Profile().UserName(), ShouldEqual, "Jane Smith")
 
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
 				So(post2.User().ID(), ShouldEqual, userJane.ID())

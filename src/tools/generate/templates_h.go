@@ -286,6 +286,17 @@ func (d {{ $.Name }}Data) Unset{{ .Name }}() {{ $.InterfacesPackageName }}.{{ $.
 	d.ModelData.Unset("{{ .Name }}")
 	return d
 }
+
+{{- if .IsRS }}
+// Create{{ .Name }} stores the related {{ .RelModel }}Data to be used to create
+// a related record on the fly for {{ .Name }}.
+//
+// This method can be called multiple times to create multiple records
+func (d {{ $.Name }}Data) Create{{ .Name }}(related {{ $.InterfacesPackageName }}.{{ .RelModel }}Data) {{ $.InterfacesPackageName }}.{{ $.Name }}Data {
+	d.ModelData.Create("{{ .Name }}", related.Underlying())
+	return d
+}
+{{- end }}
 {{ end }}
 
 var _ {{ .InterfacesPackageName }}.{{ $.Name }}Data = new({{ .Name }}Data)
