@@ -151,7 +151,8 @@ func TestBootStrap(t *testing.T) {
 			So(testAdapter.tables(), ShouldContainKey, "shouldbedeleted")
 		})
 		Convey("Bootstrap should not panic", func() {
-			So(BootStrap, ShouldNotPanic)
+			BootStrap()
+			//So(BootStrap, ShouldNotPanic)
 			So(SyncDatabase, ShouldNotPanic)
 		})
 		Convey("Boostrapping twice should panic", func() {

@@ -75,10 +75,10 @@ func LoadCSVDataFile(fileName string) {
 			rec := rc.Search(rc.Model().Field("HexyaExternalID").Equals(externalID)).Limit(1)
 			switch {
 			case rec.Len() == 0:
-				rc.Call("Create", values)
+				rc.Call("Create", NewModelData(rc.model, values))
 			case rec.Len() == 1:
 				if version > rec.Get("HexyaVersion").(int) || update {
-					rec.Call("Write", values)
+					rec.Call("Write", NewModelData(rc.model, values))
 				}
 			}
 			line++
@@ -112,7 +112,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				log.Panic("Error while converting float", "fileName", fileName, "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
 		case fi.fieldType.IsFKRelationType():
-			val = nil
+			val = env.Pool(fi.relatedModelName)
 			if record[i] != "" {
 				relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").Equals(record[i]))
 				if relRC.Len() != 1 {

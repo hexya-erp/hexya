@@ -139,22 +139,15 @@ func (rc *RecordCollection) substituteRelatedInPath(path string) string {
 
 // createRelatedRecord creates Records at the given path, starting from this recordset.
 // This method does not check whether such a records already exists or not.
-func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *RecordCollection {
+func (rc *RecordCollection) createRelatedRecord(path string, vals RecordData) *RecordCollection {
 	log.Debug("Creating related record", "recordset", rc, "path", path, "vals", vals)
 	rc.EnsureOne()
 	fi := rc.model.getRelatedFieldInfo(path)
 	exprs := strings.Split(path, ExprSep)
 	switch fi.fieldType {
 	case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
-		rSet := rc.env.Pool(fi.relatedModel.name)
-		if fi.embed {
-			rSet = rSet.WithContext("default_hexya_external_id", fmt.Sprintf("%s_%s", rc.Get("HexyaExternalID"), strutils.SnakeCase(fi.relatedModel.name)))
-		}
-		res := rSet.Call("Create", vals)
-		resRS, ok := res.(RecordSet)
-		if ok {
-			rc.Set(path, resRS.Collection())
-		}
+		resRS := rc.createRelatedFKRecord(fi, vals)
+		rc.Set(path, resRS.Collection())
 		return resRS.Collection()
 	case fieldtype.One2Many, fieldtype.Rev2One:
 		target := rc
@@ -165,8 +158,18 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals FieldMap) *Rec
 			}
 			target = target.Records()[0]
 		}
-		vals[fi.jsonReverseFK] = target
+		vals.Underlying().Set(fi.jsonReverseFK, target)
 		return rc.env.Pool(fi.relatedModel.name).Call("Create", vals).(RecordSet).Collection()
 	}
 	return rc.env.Pool(rc.ModelName())
+}
+
+// createRelatedFKRecord creates a single related record for the given FK field
+func (rc *RecordCollection) createRelatedFKRecord(fi *Field, data RecordData) *RecordCollection {
+	rSet := rc.env.Pool(fi.relatedModel.name)
+	if fi.embed {
+		rSet = rSet.WithContext("default_hexya_external_id", fmt.Sprintf("%s_%s", rc.Get("HexyaExternalID"), strutils.SnakeCase(fi.relatedModel.name)))
+	}
+	res := rSet.Call("Create", data)
+	return res.(RecordSet).Collection()
 }

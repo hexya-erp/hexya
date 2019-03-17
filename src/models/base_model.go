@@ -92,20 +92,25 @@ func declareBaseComputeMethods() {
 
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
-		func(rc *RecordCollection) FieldMap {
+		func(rc *RecordCollection) *ModelData {
+			res := NewModelData(rc.model)
 			if !rc.Get("WriteDate").(dates.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("WriteDate").(dates.DateTime)}
+				res.Set("LastUpdate", rc.Get("WriteDate").(dates.DateTime))
+				return res
 			}
 			if !rc.Get("CreateDate").(dates.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("CreateDate").(dates.DateTime)}
+				res.Set("LastUpdate", rc.Get("CreateDate").(dates.DateTime))
+				return res
 			}
-			return FieldMap{"LastUpdate": dates.Now()}
+			res.Set("LastUpdate", dates.Now())
+			return res
 		})
 
 	model.AddMethod("ComputeDisplayName",
 		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
-		func(rc *RecordCollection) FieldMap {
-			return FieldMap{"DisplayName": rc.Call("NameGet")}
+		func(rc *RecordCollection) *ModelData {
+			res := NewModelData(rc.model).Set("DisplayName", rc.Call("NameGet"))
+			return res
 		})
 
 }
@@ -117,7 +122,7 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
-		func(rc *RecordCollection, data FieldMapper) *RecordCollection {
+		func(rc *RecordCollection, data RecordData) *RecordCollection {
 			return rc.create(data)
 		})
 
@@ -163,7 +168,7 @@ func declareCRUDMethods() {
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
-		func(rc *RecordCollection, data FieldMapper) bool {
+		func(rc *RecordCollection, data RecordData) bool {
 			return rc.update(data)
 		})
 
@@ -176,11 +181,11 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
-		func(rc *RecordCollection, overrides FieldMapper) *RecordCollection {
+		func(rc *RecordCollection, overrides RecordData) *RecordCollection {
 			rc.EnsureOne()
 			oVal := reflect.ValueOf(overrides)
 			if !oVal.IsValid() || (oVal.Kind() != reflect.Struct && oVal.IsNil()) {
-				overrides = make(FieldMap)
+				overrides = NewModelData(rc.model)
 			}
 
 			// Prevent infinite recursion if we have circular references
@@ -214,16 +219,17 @@ func declareCRUDMethods() {
 
 			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64), rc.query.ctxArgsSlug())
 			fMap.RemovePK()
-			fMap.MergeWith(overrides.Underlying(), rc.model)
+			fMap.MergeWith(overrides.Underlying().FieldMap, rc.model)
+			cData := NewModelData(rc.model, fMap)
 			// Reload original record to prevent cache discrepancies
 			rc.Load()
 
 			// Create our duplicated record
-			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", fMap).(RecordSet).Collection()
+			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", cData).(RecordSet).Collection()
 
 			// Duplicate one2one and one2many records
 			for _, fi := range rc.model.fields.registryByName {
-				if _, inOverrides := overrides.Underlying().Get(fi.name, rc.model); inOverrides {
+				if _, inOverrides := overrides.Underlying().FieldMap.Get(fi.name, rc.model); inOverrides {
 					continue
 				}
 				if fi.noCopy {
@@ -234,7 +240,7 @@ func declareCRUDMethods() {
 					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
 				case fieldtype.One2Many:
 					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
-						rec.Call("Copy", FieldMap{fi.reverseFK: newRs.Ids()[0]})
+						rec.Call("Copy", NewModelData(fi.relatedModel).Set(fi.reverseFK, newRs.Ids()[0]))
 					}
 				}
 			}
@@ -382,7 +388,7 @@ func declareRecordSetSpecificMethods() {
 						rs.Call(fi.inverse, fVal)
 					}
 					res := rs.Call(fi.onChange)
-					resMap := res.(FieldMapper).Underlying()
+					resMap := res.(RecordData).Underlying().FieldMap
 					val := resMap.JSONized(rs.Collection().Model())
 					data.FieldMap.MergeWith(val, rs.Collection().Model())
 					retValues.MergeWith(val, rs.Collection().Model())

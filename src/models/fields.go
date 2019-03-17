@@ -588,8 +588,8 @@ func checkMethType(method *Method, label string) error {
 		msg = fmt.Sprintf("%s should have no arguments", label)
 	case methType.NumOut() == 0:
 		msg = fmt.Sprintf("%s should return a value", label)
-	case !methType.Out(0).Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()):
-		msg = fmt.Sprintf("%s returned value must implement models.FieldMapper", label)
+	case !methType.Out(0).Implements(reflect.TypeOf((*RecordData)(nil)).Elem()):
+		msg = fmt.Sprintf("%s returned value must implement models.RecordData", label)
 	case methType.NumOut() > 1:
 		msg = fmt.Sprintf("Too many return values for %s", label)
 	}

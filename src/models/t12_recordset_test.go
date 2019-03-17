@@ -24,74 +24,69 @@ import (
 func TestCreateRecordSet(t *testing.T) {
 	Convey("Test record creation", t, func() {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			userModel := Registry.MustGet("User")
+			profileModel := Registry.MustGet("Profile")
+			tagModel := Registry.MustGet("Tag")
+			postModel := Registry.MustGet("Post")
+			commentModel := Registry.MustGet("Comment")
 			Convey("Creating simple user John with no relations and checking ID", func() {
-				userJohnData := FieldMap{
-					"Name":    "John Smith",
-					"Email":   "jsmith@example.com",
-					"IsStaff": true,
-					"Nums":    1,
-				}
+				userJohnData := NewModelData(userModel).
+					Set("Name", "John Smith").
+					Set("Email", "jsmith@example.com").
+					Set("IsStaff", true).
+					Set("Nums", 1)
 				users := env.Pool("User").Call("Create", userJohnData).(RecordSet).Collection()
 				So(users.Len(), ShouldEqual, 1)
 				So(users.Get("ID"), ShouldBeGreaterThan, 0)
 				So(users.Get("Resume").(RecordSet).IsEmpty(), ShouldBeFalse)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Tags and Comments", func() {
-				userJaneProfileData := NewModelData(Registry.MustGet("Profile")).
-					Set("Age", 23).
-					Set("Money", 12345).
-					Set("Street", "165 5th Avenue").
-					Set("City", "New York").
-					Set("Zip", "0305").
-					Set("Country", "USA")
-				profile := env.Pool("Profile").Call("Create", userJaneProfileData).(RecordSet).Collection()
-				So(profile.Len(), ShouldEqual, 1)
-				So(profile.Get("UserName"), ShouldBeBlank)
-
-				tag1 := env.Pool("Tag").Call("Create", FieldMap{
+				tag1 := env.Pool("Tag").Call("Create", NewModelData(tagModel, FieldMap{
 					"Name": "Trending",
-				}).(RecordSet).Collection()
-				tag2 := env.Pool("Tag").Call("Create", FieldMap{
+				})).(RecordSet).Collection()
+				tag2 := env.Pool("Tag").Call("Create", NewModelData(tagModel, FieldMap{
 					"Name": "Books",
-				}).(RecordSet).Collection()
-				tag3 := env.Pool("Tag").Call("Create", FieldMap{
+				})).(RecordSet).Collection()
+				tag3 := env.Pool("Tag").Call("Create", NewModelData(tagModel, FieldMap{
 					"Name": "Jane's",
-				}).(RecordSet).Collection()
+				})).(RecordSet).Collection()
 				So(tag1.Len(), ShouldEqual, 1)
 				So(tag2.Len(), ShouldEqual, 1)
 				So(tag3.Len(), ShouldEqual, 1)
 
-				post1Data := FieldMap{
-					"Title":   "1st Post",
-					"Content": "Content of first post",
-					"Tags":    tag1.Union(tag3),
-				}
-				post1 := env.Pool("Post").Call("Create", post1Data).(RecordSet).Collection()
-				So(post1.Len(), ShouldEqual, 1)
-				post2Data := FieldMap{
-					"Title":   "2nd Post",
-					"Content": "Content of second post",
-				}
-				post2 := env.Pool("Post").Call("Create", post2Data).(RecordSet).Collection()
-				So(post2.Len(), ShouldEqual, 1)
-				posts := post1.Union(post2)
-				profile.Set("BestPost", post1)
-				userJaneData := FieldMap{
-					"Name":    "Jane Smith",
-					"Email":   "jane.smith@example.com",
-					"Profile": profile,
-					"Posts":   posts,
-					"Nums":    2,
-				}
+				userJaneData := NewModelData(userModel).
+					Set("Name", "Jane Smith").
+					Set("Email", "jane.smith@example.com").
+					Set("Nums", 2).
+					Create("Profile", NewModelData(profileModel).
+						Set("Age", 23).
+						Set("Money", 12345).
+						Set("Street", "165 5th Avenue").
+						Set("City", "New York").
+						Set("Zip", "0305").
+						Set("Country", "USA")).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "1st Post").
+						Set("Content", "Content of first post").
+						Set("Tags", tag1.Union(tag3))).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "2nd Post").
+						Set("Content", "Content of second post"))
 				userJane := env.Pool("User").Call("Create", userJaneData).(RecordSet).Collection()
 				So(userJane.Len(), ShouldEqual, 1)
-				So(userJane.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldEqual, profile.Get("ID"))
-				So(profile.Get("UserName"), ShouldEqual, "Jane Smith")
+				So(userJane.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldNotEqual, 0)
+				So(userJane.Get("Profile").(RecordSet).Collection().Get("UserName"), ShouldEqual, "Jane Smith")
 
+				post1 := env.Pool("Post").Search(postModel.Field("Title").Equals("1st Post"))
+				post2 := env.Pool("Post").Search(postModel.Field("Title").Equals("2nd Post"))
+				So(post1.Len(), ShouldEqual, 1)
+				So(post2.Len(), ShouldEqual, 1)
 				So(post1.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post2.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				janePosts := userJane.Get("Posts").(RecordSet).Collection()
 				So(janePosts.Len(), ShouldEqual, 2)
+
+				userJane.Get("Profile").(RecordSet).Collection().Set("BestPost", post1)
 
 				So(post2.Get("LastTagName"), ShouldBeBlank)
 				post2.Set("Tags", tag2.Union(tag3))
@@ -106,70 +101,72 @@ func TestCreateRecordSet(t *testing.T) {
 				So(post2Tags.Records()[1].Get("Name"), ShouldBeIn, "Books", "Jane's")
 
 				So(post1.Get("LastCommentText").(string), ShouldBeBlank)
-				env.Pool("Comment").Call("Create", FieldMap{
+				env.Pool("Comment").Call("Create", NewModelData(commentModel, FieldMap{
 					"Post": post1,
 					"Text": "First Comment",
-				})
-				env.Pool("Comment").Call("Create", FieldMap{
+				}))
+				env.Pool("Comment").Call("Create", NewModelData(commentModel, FieldMap{
 					"Post": post1,
 					"Text": "Another Comment",
-				})
-				env.Pool("Comment").Call("Create", FieldMap{
+				}))
+				env.Pool("Comment").Call("Create", NewModelData(commentModel, FieldMap{
 					"Post": post1,
 					"Text": "Third Comment",
-				})
+				}))
 				So(post1.Get("LastCommentText").(string), ShouldEqual, "Third Comment")
 				So(post1.Get("Comments").(RecordSet).Len(), ShouldEqual, 3)
 			})
 			Convey("Creating a user Will Smith", func() {
-				userWillData := FieldMap{
+				userWillData := NewModelData(userModel, FieldMap{
 					"Name":    "Will Smith",
 					"Email":   "will.smith@example.com",
 					"IsStaff": true,
 					"Nums":    3,
-				}
+				})
 				userWill := env.Pool("User").Call("Create", userWillData).(RecordSet).Collection()
 				So(userWill.Len(), ShouldEqual, 1)
 				So(userWill.Get("ID"), ShouldBeGreaterThan, 0)
 			})
 		}), ShouldBeNil)
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			tagModel := Registry.MustGet("Tag")
+			userModel := Registry.MustGet("User")
 			Convey("Checking constraint methods enforcement", func() {
-				tag1Data := FieldMap{
+				tag1Data := NewModelData(tagModel, FieldMap{
 					"Name":        "Tag1",
 					"Description": "Tag1",
-				}
+				})
 				So(func() { env.Pool("Tag").Call("Create", tag1Data) }, ShouldPanic)
-				tag2Data := FieldMap{
+				tag2Data := NewModelData(tagModel, FieldMap{
 					"Name": "Tag2",
 					"Rate": 12,
-				}
+				})
 				So(func() { env.Pool("Tag").Call("Create", tag2Data) }, ShouldPanic)
-				tag3Data := FieldMap{
+				tag3Data := NewModelData(tagModel, FieldMap{
 					"Name":        "Tag2",
 					"Description": "Tag2",
 					"Rate":        -3,
-				}
+				})
 				So(func() { env.Pool("Tag").Call("Create", tag3Data) }, ShouldPanic)
 			})
 			Convey("Checking that we can't create two users with the same name", func() {
-				user1Data := FieldMap{
+				user1Data := NewModelData(userModel, FieldMap{
 					"Name": "User1",
-				}
+				})
 				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldNotPanic)
 				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldPanic)
 			})
 			Convey("Checking that we can't create two users with a empty string name", func() {
-				user1Data := FieldMap{
+				user1Data := NewModelData(userModel, FieldMap{
 					"Name": "",
-				}
+				})
 				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldNotPanic)
 				So(func() { env.Pool("User").Call("Create", user1Data).(RecordSet).Collection() }, ShouldPanic)
 			})
 			Convey("Checking that we can create as many users with a NULL name", func() {
-				user2Data := FieldMap{
+				user2Data := NewModelData(userModel, FieldMap{
 					"Email": "user2@example.com",
-				}
+				})
 				So(func() { env.Pool("User").Call("Create", user2Data).(RecordSet).Collection() }, ShouldNotPanic)
 				So(func() { env.Pool("User").Call("Create", user2Data).(RecordSet).Collection() }, ShouldNotPanic)
 				So(func() { env.Pool("User").Call("Create", user2Data).(RecordSet).Collection() }, ShouldNotPanic)
@@ -178,10 +175,11 @@ func TestCreateRecordSet(t *testing.T) {
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {
 		err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-			userRobData := FieldMap{
+			userModel := Registry.MustGet("User")
+			userRobData := NewModelData(userModel, FieldMap{
 				"Name":      "Rob Smith",
 				"IsPremium": true,
-			}
+			})
 			env.Pool("User").Call("Create", userRobData)
 		})
 		So(err, ShouldNotBeNil)
@@ -192,68 +190,69 @@ func TestCreateRecordSet(t *testing.T) {
 		So(SimulateInNewEnvironment(2, func(env Environment) {
 			security.Registry.AddMembership(2, group1)
 			userModel := Registry.MustGet("User")
+			tagModel := Registry.MustGet("Tag")
 			resumeModel := Registry.MustGet("Resume")
 
 			Convey("Checking that user 2 cannot create records", func() {
-				userTomData := FieldMap{
+				userTomData := NewModelData(userModel, FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
-				}
+				})
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 and check failure again", func() {
 				userModel.methods.MustGet("Create").AllowGroup(group1)
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Write"))
-				userTomData := FieldMap{
+				userTomData := NewModelData(userModel, FieldMap{
 					"Name":       "Tom Smith",
 					"Email":      "tsmith@example.com",
 					"Experience": "10 year of Hexya development",
-				}
+				})
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Adding model access rights to user 2 for resume and it works", func() {
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				resumeModel.methods.MustGet("Write").AllowGroup(group1, userModel.methods.MustGet("Create"))
-				userTomData := FieldMap{
+				userTomData := NewModelData(userModel, FieldMap{
 					"Name":       "Tom Smith",
 					"Email":      "tsmith@example.com",
 					"Experience": "10 year of Hexya development",
-				}
+				})
 				userTom := env.Pool("User").Call("Create", userTomData).(RecordSet).Collection()
 				So(func() { userTom.Get("Name") }, ShouldPanic)
 			})
 			Convey("Revoking model access rights to user 2 for resume and it doesn't works", func() {
 				resumeModel.methods.MustGet("Create").RevokeGroup(group1)
-				userTomData := FieldMap{
+				userTomData := NewModelData(userModel, FieldMap{
 					"Name":       "Tom Smith",
 					"Email":      "tsmith@example.com",
 					"Experience": "10 year of Hexya development",
-				}
+				})
 				So(func() { env.Pool("User").Call("Create", userTomData) }, ShouldPanic)
 			})
 			Convey("Regranting model access rights to user 2 for posts and it works", func() {
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
-				userTomData := FieldMap{
+				userTomData := NewModelData(userModel, FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
-				}
+				})
 				userTom := env.Pool("User").Call("Create", userTomData).(RecordSet).Collection()
 				So(func() { userTom.Get("Name") }, ShouldPanic)
 			})
 			Convey("Checking creation again with read rights too", func() {
 				userModel.methods.MustGet("Load").AllowGroup(group1)
-				userTomData := FieldMap{
+				userTomData := NewModelData(userModel, FieldMap{
 					"Name":  "Tom Smith",
 					"Email": "tsmith@example.com",
-				}
+				})
 				userTom := env.Pool("User").Call("Create", userTomData).(RecordSet).Collection()
 				So(userTom.Get("Name"), ShouldEqual, "Tom Smith")
 				So(userTom.Get("Email"), ShouldEqual, "tsmith@example.com")
 			})
 			Convey("Checking that we can create tags", func() {
-				tagData := FieldMap{
+				tagData := NewModelData(tagModel, FieldMap{
 					"Name": "My Tag",
-				}
+				})
 				So(func() { env.Pool("Tag").Call("Create", tagData) }, ShouldNotPanic)
 			})
 		}), ShouldBeNil)
@@ -586,6 +585,9 @@ func TestGroupedQueries(t *testing.T) {
 func TestUpdateRecordSet(t *testing.T) {
 	Convey("Testing updates through RecordSets", t, func() {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			userModel := Registry.MustGet("User")
+			postModel := Registry.MustGet("Post")
+			tagModel := Registry.MustGet("Tag")
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)
@@ -596,11 +598,10 @@ func TestUpdateRecordSet(t *testing.T) {
 
 				john := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := FieldMap{
-					"Email":   "jsmith2@example.com",
-					"Nums":    13,
-					"IsStaff": false,
-				}
+				johnValues := NewModelData(userModel).
+					Set("Email", "jsmith2@example.com").
+					Set("Nums", 13).
+					Set("IsStaff", false)
 				john.Call("Write", johnValues)
 				john.Load()
 				So(john.Get("Name"), ShouldEqual, "John Smith")
@@ -625,11 +626,10 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userRecs[0].Get("IsStaff").(bool), ShouldBeTrue)
 				So(userRecs[1].Get("IsStaff").(bool), ShouldBeTrue)
 
-				fMap := FieldMap{
-					"IsStaff":  false,
-					"IsActive": true,
-				}
-				users.Call("Write", fMap)
+				data := NewModelData(userModel).
+					Set("IsStaff", false).
+					Set("IsActive", true)
+				users.Call("Write", data)
 				users.Load()
 				So(userRecs[0].Get("IsStaff").(bool), ShouldBeFalse)
 				So(userRecs[1].Get("IsStaff").(bool), ShouldBeFalse)
@@ -647,16 +647,33 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userJane.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldEqual, 0)
 				userJane.Set("Profile", profile)
 				So(userJane.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldEqual, profile.ids[0])
+
+				post1 := profile.Get("BestPost")
+				profile.Call("Write", NewModelData(profile.model).
+					Create("BestPost", NewModelData(postModel).
+						Set("Title", "Post created on the Fly")))
+				So(profile.Get("BestPost").(RecordSet).Collection().Get("Title"), ShouldEqual, "Post created on the Fly")
+				profile.Set("BestPost", post1)
 			})
 			Convey("Updating many2many fields", func() {
 				posts := env.Pool("Post")
 				post1 := posts.Search(posts.Model().Field("title").Equals("1st Post"))
+				post1.Call("Write", NewModelData(postModel).
+					Create("Tags", NewModelData(tagModel).
+						Set("name", "Tag created on the fly")).
+					Create("Tags", NewModelData(tagModel).
+						Set("name", "Second Tag on the fly")))
+				post1Tags := post1.Get("Tags").(RecordSet).Collection()
+				So(post1Tags.Len(), ShouldEqual, 2)
+				So(post1Tags.Records()[0].Get("Name"), ShouldBeIn, []string{"Tag created on the fly", "Second Tag on the fly"})
+				So(post1Tags.Records()[1].Get("Name"), ShouldBeIn, []string{"Tag created on the fly", "Second Tag on the fly"})
+
 				tagBooks := env.Pool("Tag").Search(env.Pool("Tag").Model().Field("name").Equals("Books"))
 				post1.Set("Tags", tagBooks)
-
-				post1Tags := post1.Get("Tags").(RecordSet).Collection()
+				post1Tags = post1.Get("Tags").(RecordSet).Collection()
 				So(post1Tags.Len(), ShouldEqual, 1)
 				So(post1Tags.Get("Name"), ShouldEqual, "Books")
+
 				post2Tags := posts.Search(posts.Model().Field("title").Equals("2nd Post")).Get("Tags").(RecordSet).Collection()
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Get("Name"), ShouldBeIn, "Books", "Jane's")
@@ -666,15 +683,31 @@ func TestUpdateRecordSet(t *testing.T) {
 				posts := env.Pool("Post")
 				post1 := posts.Search(posts.Model().Field("title").Equals("1st Post"))
 				post2 := posts.Search(posts.Model().Field("title").Equals("2nd Post"))
-				post3 := posts.Call("Create", FieldMap{
+				post3 := posts.Call("Create", NewModelData(postModel, FieldMap{
 					"Title":   "3rd Post",
 					"Content": "Content of third post",
-				}).(RecordSet).Collection()
+				})).(RecordSet).Collection()
 				userJane := env.Pool("User").Search(env.Pool("User").Model().Field("Email").Equals("jane.smith@example.com"))
 				userJane.Set("Posts", post1.Call("Union", post3).(RecordSet).Collection())
 				So(post1.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post3.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post2.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, 0)
+
+				userJane.Set("Posts", nil)
+				userJane.Call("Write", NewModelData(userModel).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "Another post created on the fly")).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "One more post created on the fly")))
+				So(userJane.Get("Posts").(RecordSet).Len(), ShouldEqual, 2)
+				So(userJane.Get("Posts").(RecordSet).Collection().Records()[0].Get("Title"),
+					ShouldBeIn, []string{"Another post created on the fly", "One more post created on the fly"})
+				So(userJane.Get("Posts").(RecordSet).Collection().Records()[1].Get("Title"),
+					ShouldBeIn, []string{"Another post created on the fly", "One more post created on the fly"})
+
+				userJane.Set("Posts", post1.Call("Union", post3).(RecordSet).Collection())
+				So(userJane.Get("Posts").(RecordSet).Len(), ShouldEqual, 2)
+
 			})
 		}), ShouldBeNil)
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
@@ -695,8 +728,9 @@ func TestUpdateRecordSet(t *testing.T) {
 	})
 	Convey("Checking SQL Constraint enforcement", t, func() {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			userModel := Registry.MustGet("User")
 			userWill := env.Pool("User").Search(env.Pool("User").Model().Field("Email").Equals("will.smith@example.com"))
-			userWill.Call("Write", FieldMap{"Nums": 0, "IsPremium": true})
+			userWill.Call("Write", NewModelData(userModel).Set("Nums", 0).Set("IsPremium", true))
 		}).Error(), ShouldStartWith, "pq: Premium users must have positive nums")
 	})
 
@@ -721,10 +755,9 @@ func TestUpdateRecordSet(t *testing.T) {
 				userModel.methods.MustGet("Write").AllowGroup(group1)
 				john := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				So(john.Len(), ShouldEqual, 1)
-				johnValues := FieldMap{
-					"Email": "jsmith3@example.com",
-					"Nums":  13,
-				}
+				johnValues := NewModelData(userModel).
+					Set("Email", "jsmith3@example.com").
+					Set("Nums", 13)
 				john.Call("Write", johnValues)
 				john.Load()
 				So(john.Get("Name"), ShouldEqual, "John Smith")

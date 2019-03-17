@@ -29,11 +29,8 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 			// probably because it was computed with another field
 			continue
 		}
-		newParams := rc.Call(fInfo.compute).(FieldMapper).Underlying()
-		for k, v := range newParams {
-			key, _ := rc.model.fields.Get(k)
-			(*params)[key.json] = v
-		}
+		newParams := rc.Call(fInfo.compute).(RecordData).Underlying().FieldMap
+		(*params).MergeWith(newParams, rc.model)
 	}
 }
 
@@ -79,10 +76,10 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 func updateStoredFields(recs *RecordCollection, computeMethod string) {
 	for _, rec := range recs.Records() {
 		retVal := rec.Call(computeMethod)
-		vals := retVal.(FieldMapper).Underlying()
+		data := retVal.(RecordData).Underlying()
 		// Check if the values actually changed
 		var doUpdate bool
-		for f, v := range vals {
+		for f, v := range data.FieldMap {
 			if f == "write_date" {
 				continue
 			}
@@ -99,7 +96,7 @@ func updateStoredFields(recs *RecordCollection, computeMethod string) {
 			}
 		}
 		if doUpdate {
-			rec.WithContext("hexya_force_compute_write", true).Call("Write", vals)
+			rec.WithContext("hexya_force_compute_write", true).Call("Write", data)
 		}
 	}
 }
