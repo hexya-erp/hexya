@@ -54,23 +54,9 @@ func TestCreateRecordSet(t *testing.T) {
 				So(tag2.Len(), ShouldEqual, 1)
 				So(tag3.Len(), ShouldEqual, 1)
 
-				post1Data := NewModelData(postModel).
-					Set("Title", "1st Post").
-					Set("Content", "Content of first post").
-					Set("Tags", tag1.Union(tag3))
-				post1 := env.Pool("Post").Call("Create", post1Data).(RecordSet).Collection()
-				So(post1.Len(), ShouldEqual, 1)
-				post2Data := NewModelData(postModel, FieldMap{
-					"Title":   "2nd Post",
-					"Content": "Content of second post",
-				})
-				post2 := env.Pool("Post").Call("Create", post2Data).(RecordSet).Collection()
-				So(post2.Len(), ShouldEqual, 1)
-				posts := post1.Union(post2)
 				userJaneData := NewModelData(userModel).
 					Set("Name", "Jane Smith").
 					Set("Email", "jane.smith@example.com").
-					Set("Posts", posts).
 					Set("Nums", 2).
 					Create("Profile", NewModelData(profileModel).
 						Set("Age", 23).
@@ -78,17 +64,29 @@ func TestCreateRecordSet(t *testing.T) {
 						Set("Street", "165 5th Avenue").
 						Set("City", "New York").
 						Set("Zip", "0305").
-						Set("Country", "USA").
-						Set("BestPost", post1))
+						Set("Country", "USA")).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "1st Post").
+						Set("Content", "Content of first post").
+						Set("Tags", tag1.Union(tag3))).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "2nd Post").
+						Set("Content", "Content of second post"))
 				userJane := env.Pool("User").Call("Create", userJaneData).(RecordSet).Collection()
 				So(userJane.Len(), ShouldEqual, 1)
 				So(userJane.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldNotEqual, 0)
 				So(userJane.Get("Profile").(RecordSet).Collection().Get("UserName"), ShouldEqual, "Jane Smith")
 
+				post1 := env.Pool("Post").Search(postModel.Field("Title").Equals("1st Post"))
+				post2 := env.Pool("Post").Search(postModel.Field("Title").Equals("2nd Post"))
+				So(post1.Len(), ShouldEqual, 1)
+				So(post2.Len(), ShouldEqual, 1)
 				So(post1.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post2.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				janePosts := userJane.Get("Posts").(RecordSet).Collection()
 				So(janePosts.Len(), ShouldEqual, 2)
+
+				userJane.Get("Profile").(RecordSet).Collection().Set("BestPost", post1)
 
 				So(post2.Get("LastTagName"), ShouldBeBlank)
 				post2.Set("Tags", tag2.Union(tag3))
@@ -589,6 +587,7 @@ func TestUpdateRecordSet(t *testing.T) {
 		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userModel := Registry.MustGet("User")
 			postModel := Registry.MustGet("Post")
+			tagModel := Registry.MustGet("Tag")
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)
@@ -648,16 +647,33 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userJane.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldEqual, 0)
 				userJane.Set("Profile", profile)
 				So(userJane.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldEqual, profile.ids[0])
+
+				post1 := profile.Get("BestPost")
+				profile.Call("Write", NewModelData(profile.model).
+					Create("BestPost", NewModelData(postModel).
+						Set("Title", "Post created on the Fly")))
+				So(profile.Get("BestPost").(RecordSet).Collection().Get("Title"), ShouldEqual, "Post created on the Fly")
+				profile.Set("BestPost", post1)
 			})
 			Convey("Updating many2many fields", func() {
 				posts := env.Pool("Post")
 				post1 := posts.Search(posts.Model().Field("title").Equals("1st Post"))
+				post1.Call("Write", NewModelData(postModel).
+					Create("Tags", NewModelData(tagModel).
+						Set("name", "Tag created on the fly")).
+					Create("Tags", NewModelData(tagModel).
+						Set("name", "Second Tag on the fly")))
+				post1Tags := post1.Get("Tags").(RecordSet).Collection()
+				So(post1Tags.Len(), ShouldEqual, 2)
+				So(post1Tags.Records()[0].Get("Name"), ShouldBeIn, []string{"Tag created on the fly", "Second Tag on the fly"})
+				So(post1Tags.Records()[1].Get("Name"), ShouldBeIn, []string{"Tag created on the fly", "Second Tag on the fly"})
+
 				tagBooks := env.Pool("Tag").Search(env.Pool("Tag").Model().Field("name").Equals("Books"))
 				post1.Set("Tags", tagBooks)
-
-				post1Tags := post1.Get("Tags").(RecordSet).Collection()
+				post1Tags = post1.Get("Tags").(RecordSet).Collection()
 				So(post1Tags.Len(), ShouldEqual, 1)
 				So(post1Tags.Get("Name"), ShouldEqual, "Books")
+
 				post2Tags := posts.Search(posts.Model().Field("title").Equals("2nd Post")).Get("Tags").(RecordSet).Collection()
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Get("Name"), ShouldBeIn, "Books", "Jane's")
@@ -676,6 +692,22 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post1.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post3.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("ID"))
 				So(post2.Get("User").(RecordSet).Collection().Get("ID"), ShouldEqual, 0)
+
+				userJane.Set("Posts", nil)
+				userJane.Call("Write", NewModelData(userModel).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "Another post created on the fly")).
+					Create("Posts", NewModelData(postModel).
+						Set("Title", "One more post created on the fly")))
+				So(userJane.Get("Posts").(RecordSet).Len(), ShouldEqual, 2)
+				So(userJane.Get("Posts").(RecordSet).Collection().Records()[0].Get("Title"),
+					ShouldBeIn, []string{"Another post created on the fly", "One more post created on the fly"})
+				So(userJane.Get("Posts").(RecordSet).Collection().Records()[1].Get("Title"),
+					ShouldBeIn, []string{"Another post created on the fly", "One more post created on the fly"})
+
+				userJane.Set("Posts", post1.Call("Union", post3).(RecordSet).Collection())
+				So(userJane.Get("Posts").(RecordSet).Len(), ShouldEqual, 2)
+
 			})
 		}), ShouldBeNil)
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {

@@ -180,9 +180,14 @@ func (md *ModelData) Create(field string, related *ModelData) *ModelData {
 
 // Copy returns a copy of this ModelData
 func (md *ModelData) Copy() *ModelData {
+	ntc := make(map[string][]*ModelData)
+	for k, v := range md.ToCreate {
+		ntc[k] = v
+	}
 	return &ModelData{
 		Model:    md.Model,
 		FieldMap: md.FieldMap.Copy(),
+		ToCreate: ntc,
 	}
 }
 
@@ -192,7 +197,8 @@ func (md *ModelData) Underlying() *ModelData {
 }
 
 // NewModelData returns a pointer to a new instance of ModelData
-// for the given model.
+// for the given model. If FieldMaps are given they are added to
+// the ModelData.
 func NewModelData(model Modeler, fm ...FieldMap) *ModelData {
 	fMap := make(FieldMap)
 	for _, f := range fm {
@@ -204,5 +210,28 @@ func NewModelData(model Modeler, fm ...FieldMap) *ModelData {
 		FieldMap: fMap,
 		ToCreate: make(map[string][]*ModelData),
 		Model:    model.Underlying(),
+	}
+}
+
+// NewModelDataFromRS creates a pointer to a new instance of ModelData.
+// If FieldMaps are given they are added to the ModelData.
+//
+// Unlike NewModelData, this method translates relation fields in64 and
+// []int64 values as RecordSets
+func NewModelDataFromRS(rs RecordSet, fm ...FieldMap) *ModelData {
+	fMap := make(FieldMap)
+	for _, f := range fm {
+		for k, v := range f {
+			fi := rs.Collection().Model().getRelatedFieldInfo(k)
+			if fi.isRelationField() {
+				v = rs.Collection().convertToRecordSet(v, fi.relatedModelName)
+			}
+			fMap[fi.json] = v
+		}
+	}
+	return &ModelData{
+		FieldMap: fMap,
+		ToCreate: make(map[string][]*ModelData),
+		Model:    rs.Collection().model,
 	}
 }

@@ -37,22 +37,9 @@ func TestCreateRecordSet(t *testing.T) {
 				So(userJohn.ID(), ShouldBeGreaterThan, 0)
 			})
 			Convey("Creating user Jane with related Profile and Posts and Comments and Tags", func() {
-				post1Data := h.Post().NewData().
-					SetTitle("1st Post").
-					SetContent("Content of first post")
-				post1 := h.Post().Create(env, post1Data)
-				So(post1.Len(), ShouldEqual, 1)
-				post2Data := h.Post().NewData().
-					SetTitle("2nd Post").
-					SetContent("Content of second post")
-				post2 := h.Post().Create(env, post2Data)
-				So(post2.Len(), ShouldEqual, 1)
-				posts := post1.Union(post2)
-				So(posts.Len(), ShouldEqual, 2)
 				userJaneData := h.User().NewData().
 					SetName("Jane Smith").
 					SetEmail("jane.smith@example.com").
-					SetPosts(posts).
 					SetNums(2).
 					CreateProfile(h.Profile().NewData().
 						SetAge(23).
@@ -60,16 +47,28 @@ func TestCreateRecordSet(t *testing.T) {
 						SetStreet("165 5th Avenue").
 						SetCity("New York").
 						SetZip("0305").
-						SetCountry("USA").
-						SetBestPost(post1))
+						SetCountry("USA")).
+					CreatePosts(h.Post().NewData().
+						SetTitle("1st Post").
+						SetContent("Content of first post")).
+					CreatePosts(h.Post().NewData().
+						SetTitle("2nd Post").
+						SetContent("Content of second post"))
 				userJane := h.User().Create(env, userJaneData)
 				So(userJane.Len(), ShouldEqual, 1)
 				So(userJane.Profile().ID(), ShouldNotEqual, 0)
 				So(userJane.Profile().UserName(), ShouldEqual, "Jane Smith")
 
+				post1 := h.Post().Search(env, q.Post().Title().Equals("1st Post"))
+				post2 := h.Post().Search(env, q.Post().Title().Equals("2nd Post"))
+				So(post1.Len(), ShouldEqual, 1)
+				So(post2.Len(), ShouldEqual, 1)
+
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
 				So(post2.User().ID(), ShouldEqual, userJane.ID())
 				So(userJane.Posts().Len(), ShouldEqual, 2)
+
+				userJane.Profile().SetBestPost(post1)
 
 				tag1 := h.Tag().Create(env, h.Tag().NewData().SetName("Trending"))
 				tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Books"))
@@ -452,15 +451,33 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(userJane.Profile().ID(), ShouldEqual, 0)
 				userJane.SetProfile(profile)
 				So(userJane.Profile().ID(), ShouldEqual, profile.Ids()[0])
+
+				post1 := profile.BestPost()
+				profile.Write(h.Profile().NewData().
+					CreateBestPost(h.Post().NewData().
+						SetTitle("Post created on the Fly")))
+				So(profile.BestPost().Title(), ShouldEqual, "Post created on the Fly")
+				profile.SetBestPost(post1)
 			})
 			Convey("Updating many2many fields", func() {
 				post1 := h.Post().Search(env, q.Post().Title().Equals("1st Post"))
+
+				post1.Write(h.Post().NewData().
+					CreateTags(h.Tag().NewData().
+						SetName("Tag created on the fly")).
+					CreateTags(h.Tag().NewData().
+						SetName("Second Tag on the fly")))
+				post1Tags := post1.Tags()
+				So(post1Tags.Len(), ShouldEqual, 2)
+				So(post1Tags.Records()[0].Name(), ShouldBeIn, []string{"Tag created on the fly", "Second Tag on the fly"})
+				So(post1Tags.Records()[1].Name(), ShouldBeIn, []string{"Tag created on the fly", "Second Tag on the fly"})
+
 				tagBooks := h.Tag().Search(env, q.Tag().Name().Equals("Books"))
 				post1.SetTags(tagBooks)
-
-				post1Tags := post1.Tags()
+				post1Tags = post1.Tags()
 				So(post1Tags.Len(), ShouldEqual, 1)
 				So(post1Tags.Name(), ShouldEqual, "Books")
+
 				post2Tags := h.Post().Search(env, q.Post().Title().Equals("2nd Post")).Tags()
 				So(post2Tags.Len(), ShouldEqual, 2)
 				So(post2Tags.Records()[0].Name(), ShouldBeIn, "Books", "Jane's")
@@ -480,6 +497,19 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(post1.User().ID(), ShouldEqual, userJane.ID())
 				So(post3.User().ID(), ShouldEqual, userJane.ID())
 				So(post2.User().ID(), ShouldEqual, 0)
+
+				userJane.SetPosts(nil)
+				userJane.Write(h.User().NewData().
+					CreatePosts(h.Post().NewData().
+						SetTitle("Another post created on the fly")).
+					CreatePosts(h.Post().NewData().
+						SetTitle("One more post created on the fly")))
+				So(userJane.Posts().Len(), ShouldEqual, 2)
+				So(userJane.Posts().Records()[0].Title(), ShouldBeIn, []string{"Another post created on the fly", "One more post created on the fly"})
+				So(userJane.Posts().Records()[1].Title(), ShouldBeIn, []string{"Another post created on the fly", "One more post created on the fly"})
+
+				userJane.SetPosts(post1.Union(post3))
+				So(userJane.Posts().Len(), ShouldEqual, 2)
 			})
 			Convey("Checking constraint methods enforcement", func() {
 				tag1 := h.Tag().Search(env, q.Tag().Name().Equals("Trending"))

@@ -112,7 +112,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				log.Panic("Error while converting float", "fileName", fileName, "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
 		case fi.fieldType.IsFKRelationType():
-			val = nil
+			val = env.Pool(fi.relatedModelName)
 			if record[i] != "" {
 				relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").Equals(record[i]))
 				if relRC.Len() != 1 {

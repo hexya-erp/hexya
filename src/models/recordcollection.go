@@ -86,6 +86,9 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 		}
 	}()
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Create"))
+	// process create data for FK relations if any
+	data = rc.createFKRelationRecords(data)
+
 	fMap := data.Underlying().FieldMap.Copy()
 	rc.applyDefaults(&fMap, true)
 	rc.applyContexts()
@@ -107,8 +110,8 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	rSet.updateRelationFields(fMap)
 	// update related fields
 	rSet.updateRelatedFields(fMap)
-	// process create data if any
-	rSet.createRelationRecords(data)
+	// process create data for reverse relations if any
+	rSet.createReverseRelationRecords(data)
 	// compute stored fields
 	rSet.processInverseMethods(fMap)
 	rSet.processTriggers(fMap)
@@ -116,14 +119,42 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	return rSet
 }
 
-// createRelationRecords creates the records of relation fields when
+// createReverseRelationRecords creates the reverse records of relation fields when
 // the given data contains such directive.
-func (rc *RecordCollection) createRelationRecords(data RecordData) {
+func (rc *RecordCollection) createReverseRelationRecords(data RecordData) {
 	for f, dd := range data.Underlying().ToCreate {
+		fi := rc.model.getRelatedFieldInfo(f)
+		if !fi.fieldType.IsReverseRelationType() {
+			continue
+		}
 		for _, d := range dd {
 			rc.createRelatedRecord(f, d)
 		}
 	}
+}
+
+// createFKRelationRecords creates the FK records of relation fields when
+// the given data contains such directive.
+func (rc *RecordCollection) createFKRelationRecords(data RecordData) *ModelData {
+	res := data.Underlying().Copy()
+	for f, dd := range data.Underlying().ToCreate {
+		fi := rc.model.getRelatedFieldInfo(f)
+		if !fi.fieldType.IsFKRelationType() && fi.fieldType != fieldtype.Many2Many {
+			continue
+		}
+		relRS := rc.env.Pool(fi.relatedModelName)
+		for _, d := range dd {
+			created := rc.createRelatedFKRecord(fi, d)
+			if fi.fieldType == fieldtype.Many2Many {
+				relRS = relRS.Union(created)
+				continue
+			}
+			relRS = created
+		}
+		res.Set(f, relRS)
+		delete(res.ToCreate, f)
+	}
+	return res
 }
 
 // addEmbeddedFields adds FK fields of embedded records into the fMap so that
@@ -261,6 +292,8 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // Instead use rs.Call("Write")
 func (rc *RecordCollection) update(data RecordData) bool {
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
+	// process create data for FK relations if any
+	data = rc.createFKRelationRecords(data)
 	fMap := data.Underlying().Copy().FieldMap
 	rSet.addAccessFieldsUpdateData(&fMap)
 	rSet.applyContexts()
@@ -278,6 +311,8 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	rSet.updateRelationFields(fMap)
 	// write related fields
 	rSet.updateRelatedFields(fMap)
+	// process create data for reverse relations if any
+	rSet.createReverseRelationRecords(data)
 	// compute stored fields
 	rSet.processTriggers(fMap)
 	rSet.CheckConstraints()
@@ -350,7 +385,7 @@ func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
 			// Add new children records
 			toAdd := newRS.Subtract(curRS)
 			if toAdd.Len() > 0 {
-				toAdd.Set(fi.reverseFK, rc.ids[0])
+				toAdd.Set(fi.reverseFK, rc.Records()[0])
 			}
 
 		case fieldtype.Rev2One:
@@ -782,25 +817,34 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 		res, _ = rc.get(fieldName, all)
 	}
 
-	if res == nil {
+	if res == nil || res == (*interface{})(nil) {
 		// res is nil if we do not have access rights on the field.
 		// then return the field's type zero value
 		res = reflect.Zero(fi.structField.Type).Interface()
 	}
 
 	if fi.isRelationField() {
-		switch r := res.(type) {
-		case *interface{}:
-			// *interface{} is returned when the field is null
-			res = newRecordCollection(rc.Env(), fi.relatedModel.name)
-		case int64:
-			res = newRecordCollection(rc.Env(), fi.relatedModel.name)
-			if r != 0 {
-				res = res.(RecordSet).Collection().withIds([]int64{r})
-			}
-		case []int64:
-			res = newRecordCollection(rc.Env(), fi.relatedModel.name).withIds(r).SortedDefault()
+		res = rc.convertToRecordSet(res, fi.relatedModelName)
+	}
+	return res
+}
+
+// ConvertToRecordSet the given val which can be of type *interface{}(nil) int64, []int64
+// for the given related model name
+func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName string) *RecordCollection {
+	res := newRecordCollection(rc.Env(), relatedModelName)
+	switch r := val.(type) {
+	case *interface{}, nil:
+	case int64:
+		if r != 0 {
+			res = res.withIds([]int64{r})
 		}
+	case []int64:
+		res = res.withIds(r).SortedDefault()
+	case RecordSet:
+		res = r.Collection()
+	default:
+		log.Panic("unexpected type", "type", r)
 	}
 	return res
 }
@@ -892,7 +936,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 	defer rows.Close()
 
 	for rows.Next() {
-		vals := make(map[string]interface{})
+		vals := make(FieldMap)
 		err := sqlx.MapScan(rows, vals)
 		if err != nil {
 			log.Panic(err.Error(), "model", rSet.ModelName(), "fields", fields)
@@ -901,7 +945,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 		delete(vals, "__count")
 		vals = substituteKeys(vals, substMap)
 		line := GroupAggregateRow{
-			Values:    NewModelData(rc.model, vals),
+			Values:    NewModelDataFromRS(rc, vals),
 			Count:     int(cnt),
 			Condition: getGroupCondition(groups, vals, rc.query.cond),
 		}
