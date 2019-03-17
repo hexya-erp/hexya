@@ -21,16 +21,14 @@ func TestBaseModelMethods(t *testing.T) {
 			profileModel := Registry.MustGet("Profile")
 			tagModel := Registry.MustGet("Tag")
 			postModel := Registry.MustGet("Post")
+			commentModel := Registry.MustGet("Comment")
 			userJane := userModel.Search(env, userModel.Field("Email").Equals("jane.smith@example.com"))
 			Convey("LastUpdate", func() {
 				So(userJane.Get("LastUpdate").(dates.DateTime).Sub(userJane.Get("WriteDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
-				newUser := userModel.Create(env, NewModelData(userModel).
-					Set("Name", "Alex Smith").
-					Set("Email", "jsmith@example.com").
-					Set("IsStaff", true).
-					Set("Nums", 1))
+				newComment := commentModel.Create(env, NewModelData(commentModel).
+					Set("Text", "MyComment"))
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
+				So(newComment.Get("LastUpdate").(dates.DateTime).Sub(newComment.Get("CreateDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {
 				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordSet).Collection()

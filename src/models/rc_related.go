@@ -166,17 +166,10 @@ func (rc *RecordCollection) createRelatedRecord(path string, vals RecordData) *R
 
 // createRelatedFKRecord creates a single related record for the given FK field
 func (rc *RecordCollection) createRelatedFKRecord(fi *Field, data RecordData) *RecordCollection {
-	if !fi.fieldType.IsFKRelationType() && fi.fieldType != fieldtype.Many2Many {
-		log.Panic("called createRelatedFKRecord for a non FK field", "model", fi.model.name, "field", fi.name)
-	}
 	rSet := rc.env.Pool(fi.relatedModel.name)
 	if fi.embed {
 		rSet = rSet.WithContext("default_hexya_external_id", fmt.Sprintf("%s_%s", rc.Get("HexyaExternalID"), strutils.SnakeCase(fi.relatedModel.name)))
 	}
 	res := rSet.Call("Create", data)
-	resRS, ok := res.(RecordSet)
-	if !ok {
-		return rSet
-	}
-	return resRS.Collection()
+	return res.(RecordSet).Collection()
 }
