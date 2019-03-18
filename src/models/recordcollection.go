@@ -865,7 +865,7 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
 	rSet.applyContexts()
-	fields := convertToStringSlice(fieldNames)
+	fields := ConvertToStringSlice(fieldNames)
 	subFields, substMap := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields, true)
