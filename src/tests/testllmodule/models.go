@@ -72,24 +72,24 @@ func declareModels() {
 		})
 
 	user.AddMethod("OnChangeName", "",
-		func(rc *models.RecordCollection) models.FieldMap {
+		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
-			return res
+			return models.NewModelDataFromRS(rc, res)
 		})
 
 	user.AddMethod("ComputeDecoratedName", "",
-		func(rc *models.RecordCollection) models.FieldMap {
+		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
-			return res
+			return models.NewModelDataFromRS(rc, res)
 		})
 
 	user.AddMethod("ComputeAge", "",
-		func(rc *models.RecordCollection) models.FieldMap {
+		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["Age"] = rc.Get("Profile").(*models.RecordCollection).Get("Age").(int16)
-			return res
+			return models.NewModelDataFromRS(rc, res)
 		})
 
 	user.AddMethod("InverseSetAge", "",
@@ -137,7 +137,7 @@ func declareModels() {
 		})
 
 	post.Methods().MustGet("Create").Extend("",
-		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+		func(rc *models.RecordCollection, data models.RecordData) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(models.RecordSet).Collection()
 			return res
 		})
@@ -211,7 +211,7 @@ func declareModels() {
 	})
 
 	post.Methods().MustGet("Create").Extend("",
-		func(rc *models.RecordCollection, data models.FieldMapper) *models.RecordCollection {
+		func(rc *models.RecordCollection, data models.RecordData) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(*models.RecordCollection)
 			return res
 		})

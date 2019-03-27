@@ -34,16 +34,16 @@ func TestBaseModelMethods(t *testing.T) {
 				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordSet).Collection()
 				res := userJane.Call("Read", []string{"Name", "Age", "Posts", "Profile"})
 				So(res, ShouldHaveLength, 1)
-				fMap := res.([]FieldMap)[0]
+				fMap := res.([]RecordData)[0].Underlying().FieldMap
 				So(fMap, ShouldHaveLength, 5)
-				So(fMap, ShouldContainKey, "Name")
-				So(fMap["Name"], ShouldEqual, "Jane A. Smith")
-				So(fMap, ShouldContainKey, "Age")
-				So(fMap["Age"], ShouldEqual, 24)
-				So(fMap, ShouldContainKey, "Posts")
-				So(fMap["Posts"].(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
-				So(fMap, ShouldContainKey, "Profile")
-				So(fMap["Profile"].(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
+				So(fMap, ShouldContainKey, "name")
+				So(fMap["name"], ShouldEqual, "Jane A. Smith")
+				So(fMap, ShouldContainKey, "age")
+				So(fMap["age"], ShouldEqual, 24)
+				So(fMap, ShouldContainKey, "posts_ids")
+				So(fMap["posts_ids"].(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
+				So(fMap, ShouldContainKey, "profile_id")
+				So(fMap["profile_id"].(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
 				So(fMap, ShouldContainKey, "id")
 				So(fMap["id"], ShouldEqual, userJane.Ids()[0])
 			})
@@ -96,7 +96,7 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("DefaultGet", func() {
 				defaults := userJane.Call("DefaultGet").(*ModelData)
-				So(defaults.FieldMap, ShouldHaveLength, 12)
+				So(defaults.FieldMap, ShouldHaveLength, 13)
 				So(defaults.FieldMap, ShouldContainKey, "status_json")
 				So(defaults.FieldMap["status_json"], ShouldEqual, 12)
 				So(defaults.FieldMap, ShouldContainKey, "hexya_external_id")
@@ -114,9 +114,9 @@ func TestBaseModelMethods(t *testing.T) {
 					res := userJane.Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false},
+						Values:   NewModelData(userModel, FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false}),
 					}).(OnchangeResult)
-					fMap := res.Value.Underlying()
+					fMap := res.Value.Underlying().FieldMap
 					So(fMap, ShouldHaveLength, 2)
 					So(fMap, ShouldContainKey, "decorated_name")
 					So(fMap["decorated_name"], ShouldEqual, "User: William [<jane.smith@example.com>]")
@@ -127,9 +127,9 @@ func TestBaseModelMethods(t *testing.T) {
 					res := env.Pool("User").Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "Email", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false},
+						Values:   NewModelData(userModel, FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false}),
 					}).(OnchangeResult)
-					fMap := res.Value.Underlying()
+					fMap := res.Value.Underlying().FieldMap
 					So(fMap, ShouldHaveLength, 2)
 					So(fMap, ShouldContainKey, "decorated_name")
 					So(fMap["decorated_name"], ShouldEqual, "User:  [<>]")

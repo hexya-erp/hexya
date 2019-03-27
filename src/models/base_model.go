@@ -24,6 +24,7 @@ import (
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
+	"github.com/hexya-erp/hexya/src/tools/nbutils"
 )
 
 const (
@@ -128,15 +129,15 @@ func declareCRUDMethods() {
 
 	commonMixin.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
-		func(rc *RecordCollection, fields []string) []FieldMap {
-			var res []FieldMap
+		func(rc *RecordCollection, fields []string) []RecordData {
+			var res []RecordData
 			// Check if we have id in fields, and add it otherwise
 			fields = addIDIfNotPresent(fields)
 			// Do the actual reading
 			for _, rec := range rc.Records() {
-				fData := make(FieldMap)
+				fData := NewModelData(rc.model)
 				for _, fName := range fields {
-					fData[fName] = rec.Get(fName)
+					fData.Underlying().Set(fName, rec.Get(fName))
 				}
 				res = append(res, fData)
 			}
@@ -285,7 +286,6 @@ func declareRecordSetMethods() {
 				cond = cond.AndCond(additionalCond.Underlying())
 			}
 			return rc.Model().Search(rc.Env(), cond).Limit(limit)
-
 		})
 
 	commonMixin.AddMethod("FieldsGet",
@@ -368,10 +368,8 @@ func declareRecordSetSpecificMethods() {
 		`Onchange returns the values that must be modified according to each field's Onchange
 		method in the pseudo-record given as params.Values`,
 		func(rc *RecordCollection, params OnchangeParams) OnchangeResult {
-			values := params.Values
-			rc.model.convertValuesToFieldType(&values, false)
-			data := NewModelData(rc.model)
-			data.FieldMap = values
+			values := params.Values.Underlying().FieldMap
+			data := NewModelDataFromRS(rc, values)
 			if rc.IsNotEmpty() {
 				data.Set("ID", rc.ids[0])
 			}
@@ -396,7 +394,7 @@ func declareRecordSetSpecificMethods() {
 			})
 			retValues.RemovePK()
 			return OnchangeResult{
-				Value: retValues,
+				Value: NewModelDataFromRS(rc, retValues),
 			}
 		})
 }
@@ -603,16 +601,14 @@ func declareEnvironmentMethods() {
 
 // ConvertLimitToInt converts the given limit as interface{} to an int
 func ConvertLimitToInt(limit interface{}) int {
-	var lim int
-	switch limit.(type) {
-	case bool:
-		lim = -1
-	case int:
-		lim = limit.(int)
-	default:
-		lim = 80
+	if l, ok := limit.(bool); ok && !l {
+		return -1
 	}
-	return lim
+	val, err := nbutils.CastToInteger(limit)
+	if err != nil {
+		return 80
+	}
+	return int(val)
 }
 
 // FieldInfo is the exportable field information struct
@@ -651,12 +647,12 @@ type FieldsGetArgs struct {
 
 // OnchangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
-	Values   FieldMap          `json:"values"`
+	Values   RecordData        `json:"values"`
 	Fields   []string          `json:"field_name"`
 	Onchange map[string]string `json:"field_onchange"`
 }
 
 // OnchangeResult is the result struct type of the Onchange function
 type OnchangeResult struct {
-	Value FieldMapper `json:"value"`
+	Value RecordData `json:"value"`
 }
