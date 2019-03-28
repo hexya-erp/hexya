@@ -837,7 +837,6 @@ func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName
 	case *interface{}, nil, bool:
 	case []interface{}:
 		if len(r) > 0 {
-			fmt.Printf("r: %T %v", r, r)
 			ids := make([]int64, len(r))
 			for i, v := range r {
 				ids[i] = int64(v.(float64))
