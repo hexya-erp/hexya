@@ -14,9 +14,7 @@
 
 package models
 
-import (
-	"github.com/hexya-erp/hexya/src/tools/typesutils"
-)
+import "github.com/hexya-erp/hexya/src/tools/typesutils"
 
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
@@ -108,7 +106,7 @@ func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
 	md := NewModelData(rc.model, fMap)
 	for fieldName := range fMap {
 		fi := rc.model.getRelatedFieldInfo(fieldName)
-		if !fi.isComputedField() || rc.Env().Context().HasKey("hexya_force_compute_write") {
+		if !fi.isComputedField() || rc.Env().Context().GetBool("hexya_force_compute_write") {
 			continue
 		}
 		val, exists := md.Get(fi.json)
@@ -116,7 +114,7 @@ func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
 			continue
 		}
 		if fi.inverse == "" {
-			if typesutils.IsZero(val) {
+			if typesutils.IsZero(val) || rc.Env().Context().GetBool("hexya_ignore_computed_fields") {
 				continue
 			}
 			log.Panic("Trying to write a computed field without inverse method", "model", rc.model.name, "field", fieldName)

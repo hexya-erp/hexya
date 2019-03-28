@@ -16,6 +16,10 @@ package models
 
 import (
 	"fmt"
+	"reflect"
+
+	"github.com/gin-gonic/gin/json"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 )
 
 // A RecordRef uniquely identifies a Record by giving its model and ID.
@@ -191,6 +195,11 @@ func (md *ModelData) Copy() *ModelData {
 	}
 }
 
+// MarshalJSON function for ModelData. Returns the FieldMap.
+func (md *ModelData) MarshalJSON() ([]byte, error) {
+	return json.Marshal(md.FieldMap)
+}
+
 // Underlying returns the ModelData
 func (md *ModelData) Underlying() *ModelData {
 	return md
@@ -203,6 +212,11 @@ func NewModelData(model Modeler, fm ...FieldMap) *ModelData {
 	fMap := make(FieldMap)
 	for _, f := range fm {
 		for k, v := range f {
+			fi := model.Underlying().getRelatedFieldInfo(k)
+			if _, ok := v.(bool); ok && fi.fieldType != fieldtype.Boolean {
+				// Client returns false when empty
+				v = reflect.Zero(fi.structField.Type).Interface()
+			}
 			fMap[model.Underlying().JSONizeFieldName(k)] = v
 		}
 	}
@@ -225,6 +239,10 @@ func NewModelDataFromRS(rs RecordSet, fm ...FieldMap) *ModelData {
 			fi := rs.Collection().Model().getRelatedFieldInfo(k)
 			if fi.isRelationField() {
 				v = rs.Collection().convertToRecordSet(v, fi.relatedModelName)
+			}
+			if _, ok := v.(bool); ok && fi.fieldType != fieldtype.Boolean {
+				// Client returns false when empty
+				v = reflect.Zero(fi.structField.Type).Interface()
 			}
 			fMap[fi.json] = v
 		}

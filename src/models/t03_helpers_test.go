@@ -4,8 +4,10 @@
 package models
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/hexya-erp/hexya/src/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -97,6 +99,73 @@ func TestTypes(t *testing.T) {
 			num3, ok3 := jv2.Get("Nums")
 			So(num3, ShouldEqual, 13)
 			So(ok3, ShouldBeTrue)
+		})
+		Convey("Checking JSON marshalling of a ModelData", func() {
+			johnValues := NewModelData(Registry.MustGet("User")).
+				Set("Email", "jsmith2@example.com").
+				Set("Nums", 13).
+				Set("IsStaff", false)
+			jData, err := json.Marshal(johnValues)
+			So(err, ShouldBeNil)
+			var fm FieldMap
+			err = json.Unmarshal(jData, &fm)
+			So(err, ShouldBeNil)
+			So(fm, ShouldHaveLength, 3)
+			So(fm, ShouldContainKey, "email")
+			So(fm, ShouldContainKey, "nums")
+			So(fm, ShouldContainKey, "is_staff")
+			So(fm["email"], ShouldEqual, "jsmith2@example.com")
+			So(fm["nums"], ShouldEqual, 13)
+			So(fm["is_staff"], ShouldEqual, false)
+		})
+		Convey("Checking NewModelData with FieldMap", func() {
+			johnValues := NewModelData(Registry.MustGet("User"), FieldMap{
+				"Email":    "jsmith2@example.com",
+				"Nums":     13,
+				"IsStaff":  false,
+				"Profile":  false,
+				"LastPost": nil,
+				"Password": false,
+			})
+			num, ok := johnValues.Get("Nums")
+			So(num, ShouldEqual, 13)
+			So(ok, ShouldBeTrue)
+			profile, ok := johnValues.Get("Profile")
+			So(profile, ShouldEqual, 0)
+			So(ok, ShouldBeTrue)
+			lastPost, ok := johnValues.Get("LastPost")
+			So(lastPost, ShouldEqual, nil)
+			So(ok, ShouldBeTrue)
+			password, ok := johnValues.Get("Password")
+			So(password, ShouldEqual, "")
+			So(ok, ShouldBeTrue)
+		})
+		Convey("Checking NewModelDataFromRS with FieldMap", func() {
+			var johnValues *ModelData
+			So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				johnValues = NewModelDataFromRS(env.Pool("User"), FieldMap{
+					"Email":    "jsmith2@example.com",
+					"Nums":     13,
+					"IsStaff":  false,
+					"Profile":  false,
+					"LastPost": nil,
+					"Password": false,
+				})
+			}), ShouldBeNil)
+			num, ok := johnValues.Get("Nums")
+			So(num, ShouldEqual, 13)
+			So(ok, ShouldBeTrue)
+			profile, ok := johnValues.Get("Profile")
+			So(ok, ShouldBeTrue)
+			prof, ok := profile.(RecordSet)
+			So(prof.IsEmpty(), ShouldBeTrue)
+			lastPost, ok := johnValues.Get("LastPost")
+			So(ok, ShouldBeTrue)
+			lastP, ok := lastPost.(RecordSet)
+			So(lastP.IsEmpty(), ShouldBeTrue)
+			password, ok := johnValues.Get("Password")
+			So(password, ShouldEqual, "")
+			So(ok, ShouldBeTrue)
 		})
 	})
 	Convey("Testing helper functions", t, func() {

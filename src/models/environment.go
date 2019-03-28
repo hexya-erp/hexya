@@ -192,9 +192,9 @@ func SimulateWithDummyRecord(uid int64, data *ModelData, fnct func(RecordSet)) (
 	var rc RecordSet
 	if val, ok := data.Get("ID"); ok && val.(int64) > 0 {
 		rc = env.Pool(data.Model.name).Call("BrowseOne", val.(int64)).(RecordSet)
-		rc.Call("Write", data)
+		rc.Collection().WithContext("hexya_ignore_computed_fields", true).Call("Write", data)
 	} else {
-		rc = env.Pool(data.Model.name).Call("Create", data).(RecordSet)
+		rc = env.Pool(data.Model.name).WithContext("hexya_ignore_computed_fields", true).Call("Create", data).(RecordSet)
 	}
 	defer func() {
 		env.rollback()

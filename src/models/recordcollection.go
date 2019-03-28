@@ -191,7 +191,7 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() || fi.isRelatedField() {
+		if !fi.isSettable() {
 			continue
 		}
 
@@ -433,7 +433,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 			if err != nil {
 				// Record does not exist, we create it on the fly instead of updating
 				fp := rc.model.getRelatedFieldInfo(prefix)
-				nr := rc.createRelatedRecord(prefix, NewModelData(fp.relatedModel, vals))
+				nr := rc.createRelatedRecord(prefix, NewModelDataFromRS(rc.env.Pool(fp.relatedModelName), vals))
 				rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix, nr.Ids()[0], rc.query.ctxArgsSlug())
 				createdPaths[prefix] = true
 				continue
@@ -466,7 +466,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 				field:       vals[field],
 			}
 			fp := rc.model.getRelatedFieldInfo(prefix)
-			nr := rc.createRelatedRecord(prefix, NewModelData(fp.relatedModel, defVals))
+			nr := rc.createRelatedRecord(prefix, NewModelDataFromRS(rc.env.Pool(fp.relatedModelName), defVals))
 			rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix, nr.Ids()[0], "")
 		}
 	}
@@ -834,17 +834,45 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName string) *RecordCollection {
 	res := newRecordCollection(rc.Env(), relatedModelName)
 	switch r := val.(type) {
-	case *interface{}, nil:
+	case *interface{}, nil, bool:
+	case []interface{}:
+		if len(r) > 0 {
+			ids := make([]int64, len(r))
+			for i, v := range r {
+				ids[i] = int64(v.(float64))
+			}
+			res = res.withIds(ids).SortedDefault()
+		}
 	case int64:
 		if r != 0 {
 			res = res.withIds([]int64{r})
 		}
+	case int:
+		if r != 0 {
+			res = res.withIds([]int64{int64(r)})
+		}
+	case float64:
+		if r != 0 {
+			res = res.withIds([]int64{int64(r)})
+		}
 	case []int64:
 		res = res.withIds(r).SortedDefault()
+	case []int:
+		ids := make([]int64, len(r))
+		for i, v := range r {
+			ids[i] = int64(v)
+		}
+		res = res.withIds(ids).SortedDefault()
+	case []float64:
+		ids := make([]int64, len(r))
+		for i, v := range r {
+			ids[i] = int64(v)
+		}
+		res = res.withIds(ids).SortedDefault()
 	case RecordSet:
 		res = r.Collection()
 	default:
-		log.Panic("unexpected type", "type", r)
+		log.Panic("unexpected type", "value", r, "type", fmt.Sprintf("%T", r))
 	}
 	return res
 }

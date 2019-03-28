@@ -157,8 +157,12 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 	)
 	field, _, _ := q.joinedFieldExpression(exprs, false, 0)
 
+	adapter := adapters[db.DriverName()]
+	arg := q.evaluateConditionArgFunctions(p)
+	opSql, arg := adapter.operatorSQL(p.operator, arg)
+
 	var isNull bool
-	switch v := p.arg.(type) {
+	switch v := arg.(type) {
 	case nil:
 		isNull = true
 	case string:
@@ -170,15 +174,16 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 			isNull = true
 		}
 	}
+
 	if isNull {
 		switch p.operator {
-		case operator.Equals:
+		case operator.Equals, operator.Like, operator.ILike, operator.Contains, operator.IContains:
 			sql = fmt.Sprintf(`%s IS NULL`, field)
 			if !fi.isRelationField() {
 				sql = fmt.Sprintf(`(%s OR %s = ?)`, sql, field)
 				args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
 			}
-		case operator.NotEquals:
+		case operator.NotEquals, operator.NotContains, operator.NotIContains:
 			sql = fmt.Sprintf(`%s IS NOT NULL`, field)
 			if !fi.isRelationField() {
 				sql = fmt.Sprintf(`(%s AND %s != ?)`, sql, field)
@@ -189,9 +194,6 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		}
 		return sql, args
 	}
-	adapter := adapters[db.DriverName()]
-	arg := q.evaluateConditionArgFunctions(p)
-	opSql, arg := adapter.operatorSQL(p.operator, arg)
 	sql = fmt.Sprintf(`%s %s`, field, opSql)
 	args = append(args, arg)
 	return sql, args
