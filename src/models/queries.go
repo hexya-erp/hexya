@@ -174,28 +174,41 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 			isNull = true
 		}
 	}
-
 	if isNull {
-		switch p.operator {
-		case operator.Equals, operator.Like, operator.ILike, operator.Contains, operator.IContains:
-			sql = fmt.Sprintf(`%s IS NULL`, field)
-			if !fi.isRelationField() {
-				sql = fmt.Sprintf(`(%s OR %s = ?)`, sql, field)
-				args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
-			}
-		case operator.NotEquals, operator.NotContains, operator.NotIContains:
-			sql = fmt.Sprintf(`%s IS NOT NULL`, field)
-			if !fi.isRelationField() {
-				sql = fmt.Sprintf(`(%s AND %s != ?)`, sql, field)
-				args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
-			}
-		default:
-			log.Panic("Null argument can only be used with = and != operators", "operator", p.operator)
-		}
-		return sql, args
+		return nullSQLClause(field, p.operator, fi)
 	}
+
 	sql = fmt.Sprintf(`%s %s`, field, opSql)
+	if p.operator.IsNegative() {
+		sql = fmt.Sprintf(`(%s IS NULL OR %s)`, field, sql)
+	}
+
 	args = append(args, arg)
+	return sql, args
+}
+
+//nullSQLClause returns the sql string and arguments for searching the given field with an empty argument
+func nullSQLClause(field string, op operator.Operator, fi *Field) (string, SQLParams) {
+	var (
+		sql  string
+		args SQLParams
+	)
+	switch op {
+	case operator.Equals, operator.Like, operator.ILike, operator.Contains, operator.IContains:
+		sql = fmt.Sprintf(`%s IS NULL`, field)
+		if !fi.isRelationField() {
+			sql = fmt.Sprintf(`(%s OR %s = ?)`, sql, field)
+			args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
+		}
+	case operator.NotEquals, operator.NotContains, operator.NotIContains:
+		sql = fmt.Sprintf(`%s IS NOT NULL`, field)
+		if !fi.isRelationField() {
+			sql = fmt.Sprintf(`(%s AND %s != ?)`, sql, field)
+			args = SQLParams{reflect.Zero(fi.fieldType.DefaultGoType()).Interface()}
+		}
+	default:
+		log.Panic("Null argument can only be used with = and != operators", "operator", op)
+	}
 	return sql, args
 }
 

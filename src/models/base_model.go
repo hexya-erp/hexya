@@ -382,7 +382,7 @@ func declareRecordSetSpecificMethods() {
 						continue
 					}
 					if fi.inverse != "" {
-						fVal, _ := data.Get(field)
+						fVal := data.Get(field)
 						rs.Call(fi.inverse, fVal)
 					}
 					res := rs.Call(fi.onChange)

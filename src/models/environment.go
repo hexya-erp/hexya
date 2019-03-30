@@ -190,8 +190,8 @@ func SimulateInNewEnvironment(uid int64, fnct func(Environment)) (rError error) 
 func SimulateWithDummyRecord(uid int64, data *ModelData, fnct func(RecordSet)) (rError error) {
 	env := newEnvironment(uid)
 	var rc RecordSet
-	if val, ok := data.Get("ID"); ok && val.(int64) > 0 {
-		rc = env.Pool(data.Model.name).Call("BrowseOne", val.(int64)).(RecordSet)
+	if data.Has("ID") && data.Get("ID").(int64) > 0 {
+		rc = env.Pool(data.Model.name).Call("BrowseOne", data.Get("ID").(int64)).(RecordSet)
 		rc.Collection().WithContext("hexya_ignore_computed_fields", true).Call("Write", data)
 	} else {
 		rc = env.Pool(data.Model.name).WithContext("hexya_ignore_computed_fields", true).Call("Create", data).(RecordSet)

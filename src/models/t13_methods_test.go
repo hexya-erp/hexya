@@ -368,37 +368,37 @@ func TestContextedFields(t *testing.T) {
 					Set("Description", "Other description")).(RecordSet).Collection()
 				gbq := tags.WithContext("lang", "fr_FR").SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
 				So(gbq, ShouldHaveLength, 2)
-				des, ok := gbq[0].Values.Get("Description")
-				So(ok, ShouldBeTrue)
+				So(gbq[0].Values.Has("Description"), ShouldBeTrue)
+				des := gbq[0].Values.Get("Description")
 				So(des, ShouldBeIn, []string{"Other description", "Description traduite"})
 				switch des {
 				case "Description traduite":
 					So(gbq[0].Count, ShouldEqual, 2)
 					So(gbq[1].Count, ShouldEqual, 1)
-					des1, _ := gbq[1].Values.Get("Description")
+					des1 := gbq[1].Values.Get("Description")
 					So(des1, ShouldEqual, "Other description")
 				case "Other description":
 					So(gbq[0].Count, ShouldEqual, 1)
 					So(gbq[1].Count, ShouldEqual, 2)
-					des1, _ := gbq[1].Values.Get("Description")
+					des1 := gbq[1].Values.Get("Description")
 					So(des1, ShouldEqual, "Description traduite")
 				default:
 					t.FailNow()
 				}
 				gbq = tags.SearchAll().GroupBy(FieldName("Description")).Aggregates(FieldName("Description"))
-				des, ok = gbq[0].Values.Get("Description")
-				So(ok, ShouldBeTrue)
+				So(gbq[0].Values.Has("Description"), ShouldBeTrue)
+				des = gbq[0].Values.Get("Description")
 				So(des, ShouldBeIn, []string{"Other description", "Translated description"})
 				switch des {
 				case "Translated description":
 					So(gbq[0].Count, ShouldEqual, 2)
 					So(gbq[1].Count, ShouldEqual, 1)
-					des1, _ := gbq[1].Values.Get("Description")
+					des1 := gbq[1].Values.Get("Description")
 					So(des1, ShouldEqual, "Other description")
 				case "Other description":
 					So(gbq[0].Count, ShouldEqual, 1)
 					So(gbq[1].Count, ShouldEqual, 2)
-					des1, _ := gbq[1].Values.Get("Description")
+					des1 := gbq[1].Values.Get("Description")
 					So(des1, ShouldEqual, "Translated description")
 				default:
 					t.FailNow()
@@ -434,6 +434,7 @@ func TestTypeConversionInMethodCall(t *testing.T) {
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			userJane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+			RegisterRecordSetWrapper("Profile", TestProfileSet{})
 			Convey("convertFunctionArg", func() {
 				So(convertFunctionArg(userJane, reflect.TypeOf(*new(int64)), 126).Interface(), ShouldEqual, 126)
 				prof := convertFunctionArg(userJane, reflect.TypeOf(TestProfileSet{}), userJane.Get("Profile"))
