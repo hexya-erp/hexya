@@ -88,17 +88,14 @@ func TestTypes(t *testing.T) {
 				Set("Email", "jsmith2@example.com").
 				Set("Nums", 13).
 				Set("IsStaff", false)
-			num, ok := johnValues.Get("Nums")
-			So(num, ShouldEqual, 13)
-			So(ok, ShouldBeTrue)
+			So(johnValues.Has("Nums"), ShouldBeTrue)
+			So(johnValues.Get("Nums"), ShouldEqual, 13)
 			jv2 := johnValues.Copy()
 			johnValues.Unset("Nums")
-			num2, ok2 := johnValues.Get("Nums")
-			So(num2, ShouldEqual, nil)
-			So(ok2, ShouldBeFalse)
-			num3, ok3 := jv2.Get("Nums")
-			So(num3, ShouldEqual, 13)
-			So(ok3, ShouldBeTrue)
+			So(johnValues.Has("Nums"), ShouldBeFalse)
+			So(johnValues.Get("Nums"), ShouldEqual, nil)
+			So(jv2.Has("Nums"), ShouldBeTrue)
+			So(jv2.Get("Nums"), ShouldEqual, 13)
 		})
 		Convey("Checking JSON marshalling of a ModelData", func() {
 			johnValues := NewModelData(Registry.MustGet("User")).
@@ -127,18 +124,14 @@ func TestTypes(t *testing.T) {
 				"LastPost": nil,
 				"Password": false,
 			})
-			num, ok := johnValues.Get("Nums")
-			So(num, ShouldEqual, 13)
-			So(ok, ShouldBeTrue)
-			profile, ok := johnValues.Get("Profile")
-			So(profile, ShouldEqual, 0)
-			So(ok, ShouldBeTrue)
-			lastPost, ok := johnValues.Get("LastPost")
-			So(lastPost, ShouldEqual, nil)
-			So(ok, ShouldBeTrue)
-			password, ok := johnValues.Get("Password")
-			So(password, ShouldEqual, "")
-			So(ok, ShouldBeTrue)
+			So(johnValues.Get("Nums"), ShouldEqual, 13)
+			So(johnValues.Has("Nums"), ShouldBeTrue)
+			So(johnValues.Get("Profile"), ShouldEqual, 0)
+			So(johnValues.Has("Profile"), ShouldBeTrue)
+			So(johnValues.Get("LastPost"), ShouldEqual, nil)
+			So(johnValues.Has("LastPost"), ShouldBeTrue)
+			So(johnValues.Get("Password"), ShouldEqual, "")
+			So(johnValues.Has("Password"), ShouldBeTrue)
 		})
 		Convey("Checking NewModelDataFromRS with FieldMap", func() {
 			var johnValues *ModelData
@@ -152,20 +145,47 @@ func TestTypes(t *testing.T) {
 					"Password": false,
 				})
 			}), ShouldBeNil)
-			num, ok := johnValues.Get("Nums")
-			So(num, ShouldEqual, 13)
-			So(ok, ShouldBeTrue)
-			profile, ok := johnValues.Get("Profile")
-			So(ok, ShouldBeTrue)
-			prof, ok := profile.(RecordSet)
-			So(prof.IsEmpty(), ShouldBeTrue)
-			lastPost, ok := johnValues.Get("LastPost")
-			So(ok, ShouldBeTrue)
-			lastP, ok := lastPost.(RecordSet)
-			So(lastP.IsEmpty(), ShouldBeTrue)
-			password, ok := johnValues.Get("Password")
-			So(password, ShouldEqual, "")
-			So(ok, ShouldBeTrue)
+			So(johnValues.Get("Nums"), ShouldEqual, 13)
+			So(johnValues.Has("Nums"), ShouldBeTrue)
+			So(johnValues.Has("Profile"), ShouldBeTrue)
+			So(johnValues.Get("Profile").(RecordSet).IsEmpty(), ShouldBeTrue)
+			So(johnValues.Has("LastPost"), ShouldBeTrue)
+			So(johnValues.Get("LastPost").(RecordSet).IsEmpty(), ShouldBeTrue)
+			So(johnValues.Get("Password"), ShouldEqual, "")
+			So(johnValues.Has("Password"), ShouldBeTrue)
+		})
+		Convey("Testing Create feature of ModelData", func() {
+			johnValues := NewModelData(Registry.MustGet("User")).
+				Set("Email", "jsmith2@example.com").
+				Set("Nums", 13).
+				Set("IsStaff", false).
+				Create("Profile", NewModelData(Registry.MustGet("Profile")).
+					Set("Age", 23).
+					Set("Money", 12345).
+					Set("Street", "165 5th Avenue").
+					Set("City", "New York").
+					Set("Zip", "0305").
+					Set("Country", "USA")).
+				Create("Posts", NewModelData(Registry.MustGet("Post")).
+					Set("Title", "1st Post").
+					Set("Content", "Content of first post")).
+				Create("Posts", NewModelData(Registry.MustGet("Post")).
+					Set("Title", "2nd Post").
+					Set("Content", "Content of second post"))
+			So(johnValues.Has("Email"), ShouldBeTrue)
+			So(johnValues.Has("Profile"), ShouldBeTrue)
+			So(johnValues.Has("Posts"), ShouldBeTrue)
+
+			So(func() {
+				NewModelData(Registry.MustGet("User")).
+					Create("Profile", NewModelData(Registry.MustGet("Post")).
+						Set("Age", 23).
+						Set("Money", 12345).
+						Set("Street", "165 5th Avenue").
+						Set("City", "New York").
+						Set("Zip", "0305").
+						Set("Country", "USA"))
+			}, ShouldPanic)
 		})
 	})
 	Convey("Testing helper functions", t, func() {

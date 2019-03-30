@@ -56,6 +56,7 @@ var positiveOperators = map[Operator]bool{
 	ILike:     true,
 	Contains:  true,
 	Like:      true,
+	In:        true,
 }
 
 var multiOperator = map[Operator]bool{

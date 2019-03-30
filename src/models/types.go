@@ -144,11 +144,25 @@ type ModelData struct {
 var _ RecordData = new(ModelData)
 
 // Get returns the value of the given field.
-// The second returned value is true if the value exists.
 //
 // The field can be either its name or is JSON name.
-func (md *ModelData) Get(field string) (interface{}, bool) {
-	return md.FieldMap.Get(field, md.Model)
+func (md *ModelData) Get(field string) interface{} {
+	res, _ := md.FieldMap.Get(field, md.Model)
+	return res
+}
+
+// Has returns true if this ModelData has values for the given field.
+//
+// The field can be either its name or is JSON name.
+func (md *ModelData) Has(field string) bool {
+	if _, ok := md.FieldMap.Get(field, md.Model); ok {
+		return true
+	}
+	fJSON := md.Model.JSONizeFieldName(field)
+	if _, ok := md.ToCreate[fJSON]; ok {
+		return true
+	}
+	return false
 }
 
 // Set sets the given field with the given value.

@@ -109,10 +109,10 @@ func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
 		if !fi.isComputedField() || rc.Env().Context().GetBool("hexya_force_compute_write") {
 			continue
 		}
-		val, exists := md.Get(fi.json)
-		if !exists {
+		if !md.Has(fi.json) {
 			continue
 		}
+		val := md.Get(fi.json)
 		if fi.inverse == "" {
 			if typesutils.IsZero(val) || rc.Env().Context().GetBool("hexya_ignore_computed_fields") {
 				continue

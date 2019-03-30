@@ -253,14 +253,14 @@ func (d {{ $.Name }}Data) Copy() {{ .InterfacesPackageName }}.{{ $.Name }}Data {
 // If this {{ .Name }} is not set in this {{ $.Name }}Data, then
 // the Go zero value for the type is returned.
 func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
-	val, ok := d.ModelData.Get("{{ .Name }}")
+	val := d.ModelData.Get("{{ .Name }}")
 {{- if .IsRS }}	
-	if !ok || val == (*interface{})(nil) {
+	if !d.Has("{{ .Name }}") || val == (*interface{})(nil) {
 		val = models.InvalidRecordCollection("{{ .RelModel }}")
 	}
 	return val.(models.RecordSet).Collection().Wrap().({{ .Type }})
 {{- else }}
-	if !ok {
+	if !d.Has("{{ .Name }}") {
 		return *new({{ .Type }})
 	}
 	return val.({{ .Type }})
@@ -269,8 +269,7 @@ func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
 
 // Has{{ .Name }} returns true if {{ .Name }} is set in this {{ $.Name }}Data
 func (d {{ $.Name }}Data) Has{{ .Name }}() bool {
-	_, ok := d.ModelData.Get("{{ .Name }}")
-	return ok
+	return d.ModelData.Has("{{ .Name }}")
 }
 
 // Set{{ .Name }} sets the {{ .Name }} field with the given value.

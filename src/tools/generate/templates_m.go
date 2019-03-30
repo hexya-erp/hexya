@@ -72,10 +72,13 @@ type {{ .Name }}Data interface {
 	// Underlying returns the object converted to a FieldMap.
 	Underlying() *models.ModelData
 	// Get returns the value of the given field.
-	// The second returned value is true if the value exists.
 	//
 	// The field can be either its name or is JSON name.
-	Get(field string) (interface{}, bool)
+	Get(field string) interface{}
+	// Has returns true if a value is set for the given field.
+	//
+	// The field can be either its name or is JSON name.
+	Has(field string) bool
 	// Set sets the given field with the given value.
 	// If the field already exists, then it is updated with value.
 	// Otherwise, a new entry is inserted.

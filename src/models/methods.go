@@ -290,15 +290,13 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 		// Given arg is already a typed ModelData
 		return reflect.ValueOf(arg)
 	case RecordSet:
+		if fnctArgType == reflect.TypeOf((*RecordSet)(nil)).Elem() {
+			return reflect.ValueOf(at)
+		}
 		if fnctArgType == reflect.TypeOf(new(RecordCollection)) {
 			return reflect.ValueOf(at.Collection())
 		}
-		if fnctArgType.Kind() == reflect.Struct {
-			val = reflect.New(fnctArgType).Elem()
-			val.Field(0).Set(reflect.ValueOf(at.Collection()))
-			return val
-		}
-		return reflect.ValueOf(arg)
+		return reflect.ValueOf(at.Collection().Wrap())
 	case nil:
 		return reflect.Zero(fnctArgType)
 	default:
