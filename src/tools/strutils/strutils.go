@@ -143,3 +143,18 @@ func IsIn(str string, lst ...string) bool {
 	}
 	return false
 }
+
+// TrimArgs returns a slice of string containing every given arg
+// converted to printed string and trimmed down to a length of 30
+func TrimArgs(args []interface{}) []string {
+	argStr := make([]string, len(args))
+	for i, arg := range args {
+		str := []byte(fmt.Sprintf("%v", arg))
+		if len(str) > 30 {
+			argStr[i] = string([]byte(str)[:30]) + "..."
+		} else {
+			argStr[i] = string(str)
+		}
+	}
+	return argStr
+}
