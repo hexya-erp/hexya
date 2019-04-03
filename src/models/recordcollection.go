@@ -191,7 +191,7 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() {
+		if !fi.isSettable() || fi.isRelatedField() {
 			continue
 		}
 
