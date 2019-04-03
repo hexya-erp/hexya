@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hexya-erp/hexya/src/models/security"
+	"github.com/hexya-erp/hexya/src/tools/strutils"
 )
 
 // Call calls the given method name methName on the given RecordCollection
@@ -35,7 +36,7 @@ func (rc *RecordCollection) Call(methName string, args ...interface{}) interface
 // CallMulti calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as []interface{}.
 func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
-	log.Debug("Calling Recordset method", "model", rc.model.name, "method", methName, "ids", rc.ids, "args", args)
+	log.Debug("Calling Recordset method", "model", rc.model.name, "method", methName, "ids", rc.ids, "args", strutils.TrimArgs(args))
 	rc.env.checkRecursion()
 	startTime := time.Now()
 	methInfo, ok := rc.model.methods.Get(methName)
@@ -69,7 +70,7 @@ func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []in
 			res[i].(RecordSet).Collection().env.recursions -= 1
 		}
 	}
-	log.Debug("Called Recordset method", "model", rc.ModelName(), "method", methName, "ids", rc.ids, "duration", time.Now().Sub(startTime), "args", args)
+	log.Debug("Called Recordset method", "model", rc.ModelName(), "method", methName, "ids", rc.ids, "duration", time.Now().Sub(startTime), "args", strutils.TrimArgs(args))
 	return res
 }
 
