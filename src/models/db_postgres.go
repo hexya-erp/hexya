@@ -55,6 +55,7 @@ var pgTypes = map[fieldtype.Type]string{
 	fieldtype.Selection: "character varying",
 	fieldtype.Many2One:  "integer",
 	fieldtype.One2One:   "integer",
+	fieldtype.JSON:      "jsonb",
 }
 
 // connectionString returns the connection string for the given parameters
