@@ -91,6 +91,7 @@ func InitializeTests(moduleName string) {
 	models.BootStrap()
 	models.SyncDatabase()
 	resourceDir, _ := filepath.Abs(filepath.Join(".", "res"))
+	server.ResourceDir = resourceDir
 	server.LoadDataRecords(resourceDir)
 	server.LoadDemoRecords(resourceDir)
 

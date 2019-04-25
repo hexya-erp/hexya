@@ -191,10 +191,9 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() {
+		if !fi.isSettable() || fi.isRelatedField() {
 			continue
 		}
-
 		if _, ok := fMap.Get(fName, rc.model); ok {
 			// we have the field in the given data, so we don't apply defaults
 			continue
@@ -474,7 +473,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	// Make the update for each record
 	for ref, upMap := range updateMap {
 		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})
-		rs.Call("Write", NewModelData(ref.model, upMap))
+		rs.Call("Write", NewModelDataFromRS(rs, upMap))
 	}
 }
 
