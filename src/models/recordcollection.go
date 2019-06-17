@@ -191,7 +191,7 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() || fi.isRelatedField() {
+		if !fi.isSettable() || fi.isComputedField() || fi.isRelatedField() {
 			continue
 		}
 		if _, ok := fMap.Get(fName, rc.model); ok {
@@ -287,9 +287,13 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 
 // update updates the database with the given data and returns the number of updated rows.
 // It panics in case of error.
+// It returns without changes if rc is empty
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
 func (rc *RecordCollection) update(data RecordData) bool {
+	if rc.IsEmpty() {
+		return true
+	}
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
 	// process create data for FK relations if any
 	data = rc.createFKRelationRecords(data)
@@ -330,7 +334,7 @@ func (rc *RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 // doUpdate just updates the database records pointed at by
 // this RecordCollection with the given fieldMap. It also
 // updates the cache for the record
-func (rc *RecordCollection) doUpdate(fMap FieldMap) {
+func (rc *RecordCollection) doUpdate(fMap FieldMap) bool {
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Write"))
 	if rc.IsEmpty() {
 		log.Panic("Trying to update an empty RecordSet", "model", rc.ModelName(), "values", fMap)
@@ -346,7 +350,7 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 		_, okWU := fMap["write_uid"]
 		if okWD && okWU {
 			// We only have write_date and write_uid to update, so we ignore
-			return
+			return false
 		}
 	}
 	sql, args := rc.query.updateQuery(fMap)
@@ -359,6 +363,7 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 			rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v, rc.query.ctxArgsSlug())
 		}
 	}
+	return false
 }
 
 // updateRelationFields updates reverse relations fields of the
@@ -789,9 +794,12 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc *RecordCollection) Get(fieldName string) interface{} {
+	fi := rc.model.getRelatedFieldInfo(fieldName)
+	if !rc.IsValid() {
+		return reflect.Zero(fi.structField.Type).Interface()
+	}
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	rc.Fetch()
-	fi := rc.model.getRelatedFieldInfo(fieldName)
 	var res interface{}
 
 	switch {

@@ -155,9 +155,13 @@ func (rc *RecordCollection) CheckExecutionPermission(method *Method, dontPanic .
 	if len(dontPanic) > 0 && dontPanic[0] {
 		return false
 	}
+	methodCaller := "Unknown"
+	if caller != nil {
+		methodCaller = fmt.Sprintf("%s.%s()", caller.model.name, caller.name)
+	}
 	log.Panic("You are not allowed to execute this method", "model", rc.ModelName(),
 		"method", fmt.Sprintf("%s.%s()", method.model.name, method.name), "uid", rc.env.uid,
-		"methodCaller", fmt.Sprintf("%s.%s()", caller.model.name, caller.name))
+		"methodCaller", methodCaller)
 	// Unreachable
 	return false
 }

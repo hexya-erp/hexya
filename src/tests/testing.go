@@ -32,7 +32,7 @@ var driver, user, password, prefix, debug string
 //     func TestMain(m *testing.M) {
 //	       tests.RunTests(m, "my_module")
 //     }
-func RunTests(m *testing.M, moduleName string) {
+func RunTests(m *testing.M, moduleName string, fnct func()) {
 	var res int
 	defer func() {
 		TearDownTests(moduleName)
@@ -42,6 +42,9 @@ func RunTests(m *testing.M, moduleName string) {
 		os.Exit(res)
 	}()
 	InitializeTests(moduleName)
+	if fnct != nil {
+		fnct()
+	}
 	res = m.Run()
 
 }
