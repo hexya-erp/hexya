@@ -18,32 +18,32 @@ func TestBaseModelMethods(t *testing.T) {
 	Convey("Testing base model methods", t, func() {
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userModel := Registry.MustGet("User")
+			profileModel := Registry.MustGet("Profile")
+			tagModel := Registry.MustGet("Tag")
+			postModel := Registry.MustGet("Post")
+			commentModel := Registry.MustGet("Comment")
 			userJane := userModel.Search(env, userModel.Field("Email").Equals("jane.smith@example.com"))
 			Convey("LastUpdate", func() {
 				So(userJane.Get("LastUpdate").(dates.DateTime).Sub(userJane.Get("WriteDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
-				newUser := userModel.Create(env, FieldMap{
-					"Name":    "Alex Smith",
-					"Email":   "jsmith@example.com",
-					"IsStaff": true,
-					"Nums":    1,
-				})
+				newComment := commentModel.Create(env, NewModelData(commentModel).
+					Set("Text", "MyComment"))
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newUser.Get("LastUpdate").(dates.DateTime).Sub(newUser.Get("CreateDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
+				So(newComment.Get("LastUpdate").(dates.DateTime).Sub(newComment.Get("CreateDate").(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
 			})
 			Convey("Load and Read", func() {
 				userJane = userJane.Call("Load", []string{"ID", "Name", "Age", "Posts", "Profile"}).(RecordSet).Collection()
 				res := userJane.Call("Read", []string{"Name", "Age", "Posts", "Profile"})
 				So(res, ShouldHaveLength, 1)
-				fMap := res.([]FieldMap)[0]
+				fMap := res.([]RecordData)[0].Underlying().FieldMap
 				So(fMap, ShouldHaveLength, 5)
-				So(fMap, ShouldContainKey, "Name")
-				So(fMap["Name"], ShouldEqual, "Jane A. Smith")
-				So(fMap, ShouldContainKey, "Age")
-				So(fMap["Age"], ShouldEqual, 24)
-				So(fMap, ShouldContainKey, "Posts")
-				So(fMap["Posts"].(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
-				So(fMap, ShouldContainKey, "Profile")
-				So(fMap["Profile"].(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
+				So(fMap, ShouldContainKey, "name")
+				So(fMap["name"], ShouldEqual, "Jane A. Smith")
+				So(fMap, ShouldContainKey, "age")
+				So(fMap["age"], ShouldEqual, 24)
+				So(fMap, ShouldContainKey, "posts_ids")
+				So(fMap["posts_ids"].(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
+				So(fMap, ShouldContainKey, "profile_id")
+				So(fMap["profile_id"].(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
 				So(fMap, ShouldContainKey, "id")
 				So(fMap["id"], ShouldEqual, userJane.Ids()[0])
 			})
@@ -65,13 +65,12 @@ func TestBaseModelMethods(t *testing.T) {
 				So(allCount, ShouldEqual, 3)
 			})
 			Convey("Copy", func() {
-				newProfile := userJane.Get("Profile").(RecordSet).Collection().Call("Copy", FieldMap{})
-				userJane.Call("Write", FieldMap{"Password": "Jane's Password"})
-				userJaneCopy := userJane.Call("Copy", FieldMap{
-					"Name":    "Jane's Copy",
-					"Email2":  "js@example.com",
-					"Profile": newProfile,
-				}).(RecordSet).Collection()
+				newProfile := userJane.Get("Profile").(RecordSet).Collection().Call("Copy", NewModelData(profileModel))
+				userJane.Call("Write", NewModelData(userModel).Set("Password", "Jane's Password"))
+				userJaneCopy := userJane.Call("Copy", NewModelData(userModel).
+					Set("Name", "Jane's Copy").
+					Set("Email2", "js@example.com").
+					Set("Profile", newProfile)).(RecordSet).Collection()
 				So(userJaneCopy.Get("Name"), ShouldEqual, "Jane's Copy")
 				So(userJaneCopy.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				So(userJaneCopy.Get("Email2"), ShouldEqual, "js@example.com")
@@ -96,28 +95,28 @@ func TestBaseModelMethods(t *testing.T) {
 				So(profile.Get("DisplayName"), ShouldEqual, fmt.Sprintf("Profile(%d)", profile.Get("ID")))
 			})
 			Convey("DefaultGet", func() {
-				defaults := userJane.Call("DefaultGet").(FieldMap)
-				So(defaults, ShouldHaveLength, 7)
-				So(defaults, ShouldContainKey, "status_json")
-				So(defaults["status_json"], ShouldEqual, 12)
-				So(defaults, ShouldContainKey, "hexya_external_id")
-				So(defaults, ShouldContainKey, "is_active")
-				So(defaults["is_active"], ShouldEqual, false)
-				So(defaults, ShouldContainKey, "active")
-				So(defaults["active"], ShouldEqual, true)
-				So(defaults, ShouldContainKey, "is_premium")
-				So(defaults["is_premium"], ShouldEqual, false)
-				So(defaults, ShouldContainKey, "is_staff")
-				So(defaults["is_staff"], ShouldEqual, false)
+				defaults := userJane.Call("DefaultGet").(*ModelData)
+				So(defaults.FieldMap, ShouldHaveLength, 12)
+				So(defaults.FieldMap, ShouldContainKey, "status_json")
+				So(defaults.FieldMap["status_json"], ShouldEqual, 12)
+				So(defaults.FieldMap, ShouldContainKey, "hexya_external_id")
+				So(defaults.FieldMap, ShouldContainKey, "is_active")
+				So(defaults.FieldMap["is_active"], ShouldEqual, false)
+				So(defaults.FieldMap, ShouldContainKey, "active")
+				So(defaults.FieldMap["active"], ShouldEqual, true)
+				So(defaults.FieldMap, ShouldContainKey, "is_premium")
+				So(defaults.FieldMap["is_premium"], ShouldEqual, false)
+				So(defaults.FieldMap, ShouldContainKey, "is_staff")
+				So(defaults.FieldMap["is_staff"], ShouldEqual, false)
 			})
 			Convey("Onchange", func() {
 				Convey("Testing with existing RecordSet", func() {
 					res := userJane.Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false},
+						Values:   NewModelData(userModel, FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false}),
 					}).(OnchangeResult)
-					fMap := res.Value.Underlying()
+					fMap := res.Value.Underlying().FieldMap
 					So(fMap, ShouldHaveLength, 2)
 					So(fMap, ShouldContainKey, "decorated_name")
 					So(fMap["decorated_name"], ShouldEqual, "User: William [<jane.smith@example.com>]")
@@ -128,9 +127,9 @@ func TestBaseModelMethods(t *testing.T) {
 					res := env.Pool("User").Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "Email", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false},
+						Values:   NewModelData(userModel, FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false}),
 					}).(OnchangeResult)
-					fMap := res.Value.Underlying()
+					fMap := res.Value.Underlying().FieldMap
 					So(fMap, ShouldHaveLength, 2)
 					So(fMap, ShouldContainKey, "decorated_name")
 					So(fMap["decorated_name"], ShouldEqual, "User:  [<>]")
@@ -140,19 +139,16 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("CheckRecursion", func() {
 				So(userJane.Call("CheckRecursion").(bool), ShouldBeTrue)
-				tag1 := env.Pool("Tag").Call("Create", FieldMap{
-					"Name": "Tag1",
-				}).(RecordSet).Collection()
+				tag1 := env.Pool("Tag").Call("Create", NewModelData(tagModel).
+					Set("Name", "Tag1")).(RecordSet).Collection()
 				So(tag1.Call("CheckRecursion").(bool), ShouldBeTrue)
-				tag2 := env.Pool("Tag").Call("Create", FieldMap{
-					"Name":   "Tag2",
-					"Parent": tag1,
-				}).(RecordSet).Collection()
+				tag2 := env.Pool("Tag").Call("Create", NewModelData(tagModel).
+					Set("Name", "Tag2").
+					Set("Parent", tag1)).(RecordSet).Collection()
 				So(tag2.Call("CheckRecursion").(bool), ShouldBeTrue)
-				tag3 := env.Pool("Tag").Call("Create", FieldMap{
-					"Name":   "Tag1",
-					"Parent": tag2,
-				}).(RecordSet).Collection()
+				tag3 := env.Pool("Tag").Call("Create", NewModelData(tagModel).
+					Set("Name", "Tag1").
+					Set("Parent", tag2)).(RecordSet).Collection()
 				So(tag3.Call("CheckRecursion").(bool), ShouldBeTrue)
 				tag1.Set("Parent", tag3)
 				So(tag1.Call("CheckRecursion").(bool), ShouldBeFalse)
@@ -212,13 +208,13 @@ func TestBaseModelMethods(t *testing.T) {
 				So(ConvertLimitToInt(nil), ShouldEqual, 80)
 			})
 			Convey("CartesianProduct", func() {
-				tagA := env.Pool("Tag").Call("Create", FieldMap{"Name": "A"}).(RecordSet).Collection()
-				tagB := env.Pool("Tag").Call("Create", FieldMap{"Name": "B"}).(RecordSet).Collection()
-				tagC := env.Pool("Tag").Call("Create", FieldMap{"Name": "C"}).(RecordSet).Collection()
-				tagD := env.Pool("Tag").Call("Create", FieldMap{"Name": "D"}).(RecordSet).Collection()
-				tagE := env.Pool("Tag").Call("Create", FieldMap{"Name": "E"}).(RecordSet).Collection()
-				tagF := env.Pool("Tag").Call("Create", FieldMap{"Name": "F"}).(RecordSet).Collection()
-				tagG := env.Pool("Tag").Call("Create", FieldMap{"Name": "G"}).(RecordSet).Collection()
+				tagA := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set("Name", "A")).(RecordSet).Collection()
+				tagB := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set("Name", "B")).(RecordSet).Collection()
+				tagC := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set("Name", "C")).(RecordSet).Collection()
+				tagD := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set("Name", "D")).(RecordSet).Collection()
+				tagE := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set("Name", "E")).(RecordSet).Collection()
+				tagF := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set("Name", "F")).(RecordSet).Collection()
+				tagG := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set("Name", "G")).(RecordSet).Collection()
 				tagsAB := tagA.Union(tagB)
 				tagsCD := tagC.Union(tagD)
 				tagsEFG := tagE.Union(tagF).Union(tagG)
@@ -278,10 +274,9 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Sorted", func() {
 				for i := 0; i < 20; i++ {
-					env.Pool("Post").Call("Create", FieldMap{
-						"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
-						"User":  userJane,
-					})
+					env.Pool("Post").Call("Create", NewModelData(postModel).
+						Set("Title", fmt.Sprintf("Post no %02d", (24-i)%20)).
+						Set("User", userJane))
 				}
 				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
 				for i, post := range posts.Records() {
@@ -299,10 +294,9 @@ func TestBaseModelMethods(t *testing.T) {
 			Convey("SortedDefault", func() {
 				Convey("With posts", func() {
 					for i := 0; i < 20; i++ {
-						env.Pool("Post").Call("Create", FieldMap{
-							"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
-							"User":  userJane,
-						})
+						env.Pool("Post").Call("Create", NewModelData(postModel).
+							Set("Title", fmt.Sprintf("Post no %02d", (24-i)%20)).
+							Set("User", userJane))
 					}
 					posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
 					for i, post := range posts.Records() {
@@ -318,9 +312,8 @@ func TestBaseModelMethods(t *testing.T) {
 				Convey("With tags", func() {
 					env.Pool("Tag").SearchAll().Call("Unlink")
 					for i := 0; i < 20; i++ {
-						env.Pool("Tag").Call("Create", FieldMap{
-							"Name": fmt.Sprintf("Tag %02d", i/2),
-						})
+						env.Pool("Tag").Call("Create", NewModelData(tagModel).
+							Set("Name", fmt.Sprintf("Tag %02d", i/2)))
 					}
 					tags := env.Pool("Tag").SearchAll()
 					sortedTags := tags.Call("SortedDefault").(RecordSet).Collection().Records()
@@ -332,10 +325,9 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("SortedByField", func() {
 				for i := 0; i < 20; i++ {
-					env.Pool("Post").Call("Create", FieldMap{
-						"Title": fmt.Sprintf("Post no %02d", (24-i)%20),
-						"User":  userJane,
-					})
+					env.Pool("Post").Call("Create", NewModelData(postModel).
+						Set("Title", fmt.Sprintf("Post no %02d", (24-i)%20)).
+						Set("User", userJane))
 				}
 				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no")).OrderBy("ID")
 				for i, post := range posts.Records() {
@@ -357,10 +349,9 @@ func TestBaseModelMethods(t *testing.T) {
 			Convey("Testing one2many sets keep the default order", func() {
 				userJane.Get("Posts").(RecordSet).Collection().Call("Unlink")
 				for i := 0; i < 20; i++ {
-					env.Pool("Post").Call("Create", FieldMap{
-						"Title": fmt.Sprintf("Post no %02d", 19-i),
-						"User":  userJane,
-					})
+					env.Pool("Post").Call("Create", NewModelData(postModel).
+						Set("Title", fmt.Sprintf("Post no %02d", 19-i)).
+						Set("User", userJane))
 				}
 
 				posts := userJane.Get("Posts").(RecordSet).Collection()
@@ -371,10 +362,9 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("Filtered", func() {
 				for i := 0; i < 20; i++ {
-					env.Pool("Post").Call("Create", FieldMap{
-						"Title": fmt.Sprintf("Post no %02d", i),
-						"User":  userJane,
-					})
+					env.Pool("Post").Call("Create", NewModelData(postModel).
+						Set("Title", fmt.Sprintf("Post no %02d", i)).
+						Set("User", userJane))
 				}
 				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Title").Contains("Post no"))
 
@@ -398,6 +388,26 @@ func TestBaseModelMethods(t *testing.T) {
 				res := env.Pool("User").Call("CheckExecutionPermission", Registry.MustGet("User").Methods().MustGet("Load"), []bool{true})
 				So(res, ShouldBeTrue)
 			})
+			Convey("convertTotRecordSet", func() {
+				profileID := userJane.Get("Profile").(RecordSet).Collection().Ids()[0]
+				res := env.Pool("User").convertToRecordSet(profileID, "Profile")
+				So(res.Ids()[0], ShouldEqual, profileID)
+				res = env.Pool("User").convertToRecordSet(false, "Profile")
+				So(res.IsEmpty(), ShouldBeTrue)
+				res = env.Pool("User").convertToRecordSet([]interface{}{float64(profileID)}, "Profile")
+				So(res.Ids()[0], ShouldEqual, profileID)
+				res = env.Pool("User").convertToRecordSet(int(profileID), "Profile")
+				So(res.Ids()[0], ShouldEqual, profileID)
+				res = env.Pool("User").convertToRecordSet(float64(profileID), "Profile")
+				So(res.Ids()[0], ShouldEqual, profileID)
+				res = env.Pool("User").convertToRecordSet([]float64{float64(profileID)}, "Profile")
+				So(res.Ids()[0], ShouldEqual, profileID)
+				res = env.Pool("User").convertToRecordSet([]int{int(profileID)}, "Profile")
+				So(res.Ids()[0], ShouldEqual, profileID)
+				So(func() { env.Pool("User").convertToRecordSet("", "Profile") }, ShouldPanic)
+				res = env.Pool("User").convertToRecordSet(userJane.Get("Profile"), "Profile")
+				So(res.Ids()[0], ShouldEqual, profileID)
+			})
 		}), ShouldBeNil)
 	})
 }
@@ -413,10 +423,9 @@ func TestFreeTransientModels(t *testing.T) {
 		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			wizModel := env.Pool("Wizard")
 			Convey("Creating a transient record", func() {
-				wiz := wizModel.Call("Create", FieldMap{
-					"Name":  "WizName",
-					"Value": 13,
-				}).(RecordSet).Collection()
+				wiz := wizModel.Call("Create", NewModelData(wizModel.model).
+					Set("Name", "WizName").
+					Set("Value", 13)).(RecordSet).Collection()
 				wizID = wiz.Ids()[0]
 			})
 			Convey("Loading the record immediately and it should still be there", func() {

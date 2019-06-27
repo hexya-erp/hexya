@@ -228,6 +228,9 @@ type FloatField struct {
 
 // DeclareField adds this datetime field for the given FieldsCollection with the given name.
 func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
+	if ff.Default == nil {
+		ff.Default = DefaultValue(0)
+	}
 	fInfo := genericDeclareField(fc, &ff, name, fieldtype.Float, new(float64))
 	fInfo.groupOperator = strutils.GetDefaultString(ff.GroupOperator, "sum")
 	fInfo.digits = ff.Digits
@@ -298,6 +301,9 @@ type IntegerField struct {
 
 // DeclareField creates a datetime field for the given FieldsCollection with the given name.
 func (i IntegerField) DeclareField(fc *FieldsCollection, name string) *Field {
+	if i.Default == nil {
+		i.Default = DefaultValue(0)
+	}
 	fInfo := genericDeclareField(fc, &i, name, fieldtype.Integer, new(int64))
 	fInfo.groupOperator = strutils.GetDefaultString(i.GroupOperator, "sum")
 	return fInfo
@@ -409,8 +415,8 @@ func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 	required := mf.Required
 	if mf.Embed {
 		onDelete = Cascade
-		required = true
 		noCopy = true
+		required = false
 	}
 	var filter *Condition
 	if mf.Filter != nil {
@@ -791,6 +797,8 @@ func (f *Field) addUpdate(property string, value interface{}) {
 // This method uses switch as they are unexported struct fields
 func (f *Field) setProperty(property string, value interface{}) {
 	switch property {
+	case "fieldType":
+		f.fieldType = value.(fieldtype.Type)
 	case "description":
 		f.description = value.(string)
 	case "help":
@@ -860,6 +868,14 @@ func (f *Field) setProperty(property string, value interface{}) {
 	case "contexts":
 		f.contexts = value.(FieldContexts)
 	}
+}
+
+// SetFieldType overrides the type of Field.
+// This may fail at database sync if the table already has values and
+// the old type cannot be casted into the new type by the database.
+func (f *Field) SetFieldType(value fieldtype.Type) *Field {
+	f.addUpdate("fieldType", value)
+	return f
 }
 
 // SetString overrides the value of the String parameter of this Field

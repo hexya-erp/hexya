@@ -4,13 +4,19 @@
 package models
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/hexya-erp/hexya/src/models/security"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 type TestProfileSet struct {
 	*RecordCollection
+}
+
+type TestUserData struct {
+	*ModelData
 }
 
 type TestUserCondition struct {
@@ -82,17 +88,104 @@ func TestTypes(t *testing.T) {
 				Set("Email", "jsmith2@example.com").
 				Set("Nums", 13).
 				Set("IsStaff", false)
-			num, ok := johnValues.Get("Nums")
-			So(num, ShouldEqual, 13)
-			So(ok, ShouldBeTrue)
+			So(johnValues.Has("Nums"), ShouldBeTrue)
+			So(johnValues.Get("Nums"), ShouldEqual, 13)
 			jv2 := johnValues.Copy()
 			johnValues.Unset("Nums")
-			num2, ok2 := johnValues.Get("Nums")
-			So(num2, ShouldEqual, nil)
-			So(ok2, ShouldBeFalse)
-			num3, ok3 := jv2.Get("Nums")
-			So(num3, ShouldEqual, 13)
-			So(ok3, ShouldBeTrue)
+			So(johnValues.Has("Nums"), ShouldBeFalse)
+			So(johnValues.Get("Nums"), ShouldEqual, nil)
+			So(jv2.Has("Nums"), ShouldBeTrue)
+			So(jv2.Get("Nums"), ShouldEqual, 13)
+		})
+		Convey("Checking JSON marshalling of a ModelData", func() {
+			johnValues := NewModelData(Registry.MustGet("User")).
+				Set("Email", "jsmith2@example.com").
+				Set("Nums", 13).
+				Set("IsStaff", false)
+			jData, err := json.Marshal(johnValues)
+			So(err, ShouldBeNil)
+			var fm FieldMap
+			err = json.Unmarshal(jData, &fm)
+			So(err, ShouldBeNil)
+			So(fm, ShouldHaveLength, 3)
+			So(fm, ShouldContainKey, "email")
+			So(fm, ShouldContainKey, "nums")
+			So(fm, ShouldContainKey, "is_staff")
+			So(fm["email"], ShouldEqual, "jsmith2@example.com")
+			So(fm["nums"], ShouldEqual, 13)
+			So(fm["is_staff"], ShouldEqual, false)
+		})
+		Convey("Checking NewModelData with FieldMap", func() {
+			johnValues := NewModelData(Registry.MustGet("User"), FieldMap{
+				"Email":    "jsmith2@example.com",
+				"Nums":     13,
+				"IsStaff":  false,
+				"Profile":  false,
+				"LastPost": nil,
+				"Password": false,
+			})
+			So(johnValues.Get("Nums"), ShouldEqual, 13)
+			So(johnValues.Has("Nums"), ShouldBeTrue)
+			So(johnValues.Get("Profile"), ShouldEqual, 0)
+			So(johnValues.Has("Profile"), ShouldBeTrue)
+			So(johnValues.Get("LastPost"), ShouldEqual, nil)
+			So(johnValues.Has("LastPost"), ShouldBeTrue)
+			So(johnValues.Get("Password"), ShouldEqual, "")
+			So(johnValues.Has("Password"), ShouldBeTrue)
+		})
+		Convey("Checking NewModelDataFromRS with FieldMap", func() {
+			var johnValues *ModelData
+			So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				johnValues = NewModelDataFromRS(env.Pool("User"), FieldMap{
+					"Email":    "jsmith2@example.com",
+					"Nums":     13,
+					"IsStaff":  false,
+					"Profile":  false,
+					"LastPost": nil,
+					"Password": false,
+				})
+			}), ShouldBeNil)
+			So(johnValues.Get("Nums"), ShouldEqual, 13)
+			So(johnValues.Has("Nums"), ShouldBeTrue)
+			So(johnValues.Has("Profile"), ShouldBeTrue)
+			So(johnValues.Get("Profile").(RecordSet).IsEmpty(), ShouldBeTrue)
+			So(johnValues.Has("LastPost"), ShouldBeTrue)
+			So(johnValues.Get("LastPost").(RecordSet).IsEmpty(), ShouldBeTrue)
+			So(johnValues.Get("Password"), ShouldEqual, "")
+			So(johnValues.Has("Password"), ShouldBeTrue)
+		})
+		Convey("Testing Create feature of ModelData", func() {
+			johnValues := NewModelData(Registry.MustGet("User")).
+				Set("Email", "jsmith2@example.com").
+				Set("Nums", 13).
+				Set("IsStaff", false).
+				Create("Profile", NewModelData(Registry.MustGet("Profile")).
+					Set("Age", 23).
+					Set("Money", 12345).
+					Set("Street", "165 5th Avenue").
+					Set("City", "New York").
+					Set("Zip", "0305").
+					Set("Country", "USA")).
+				Create("Posts", NewModelData(Registry.MustGet("Post")).
+					Set("Title", "1st Post").
+					Set("Content", "Content of first post")).
+				Create("Posts", NewModelData(Registry.MustGet("Post")).
+					Set("Title", "2nd Post").
+					Set("Content", "Content of second post"))
+			So(johnValues.Has("Email"), ShouldBeTrue)
+			So(johnValues.Has("Profile"), ShouldBeTrue)
+			So(johnValues.Has("Posts"), ShouldBeTrue)
+
+			So(func() {
+				NewModelData(Registry.MustGet("User")).
+					Create("Profile", NewModelData(Registry.MustGet("Post")).
+						Set("Age", 23).
+						Set("Money", 12345).
+						Set("Street", "165 5th Avenue").
+						Set("City", "New York").
+						Set("Zip", "0305").
+						Set("Country", "USA"))
+			}, ShouldPanic)
 		})
 	})
 	Convey("Testing helper functions", t, func() {

@@ -142,10 +142,9 @@ func TestEnvironment(t *testing.T) {
 			Convey("Creating an extra post should update jane's posts", func() {
 				userJane.Load("Posts")
 				So(userJane.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 2)
-				env.Pool("Post").Call("Create", FieldMap{
-					"Title": "Extra Post",
-					"User":  userJane,
-				})
+				env.Pool("Post").Call("Create", NewModelData(Registry.MustGet("Post")).
+					Set("Title", "Extra Post").
+					Set("User", userJane))
 				So(userJane.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 3)
 			})
 			Convey("Reading M2M fields should work both ways", func() {

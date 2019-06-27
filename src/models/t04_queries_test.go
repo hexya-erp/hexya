@@ -157,7 +157,7 @@ func TestConditions(t *testing.T) {
 				Convey("NotEquals", func() {
 					rs = rs.Search(rs.Model().Field("Name").NotEquals("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name != ?`)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name != ?)`)
 					So(args, ShouldContain, "John")
 				})
 				Convey("Greater", func() {
@@ -193,7 +193,7 @@ func TestConditions(t *testing.T) {
 				Convey("Not Contains", func() {
 					rs = rs.Search(rs.Model().Field("Name").NotContains("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name NOT LIKE ?`)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name NOT LIKE ?)`)
 					So(args, ShouldContain, "%John%")
 				})
 				Convey("IContains", func() {
@@ -205,7 +205,7 @@ func TestConditions(t *testing.T) {
 				Convey("Not IContains", func() {
 					rs = rs.Search(rs.Model().Field("Name").NotIContains("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name NOT ILIKE ?`)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name NOT ILIKE ?)`)
 					So(args, ShouldContain, "%John%")
 				})
 				Convey("Contains pattern", func() {
@@ -229,8 +229,32 @@ func TestConditions(t *testing.T) {
 				Convey("Not In", func() {
 					rs = rs.Search(rs.Model().Field("ID").NotIn([]int64{23, 31}))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".id NOT IN (?)`)
+					So(sql, ShouldEqual, `WHERE ("user".id IS NULL OR "user".id NOT IN (?))`)
 					So(args, ShouldContain, []int64{23, 31})
+				})
+				Convey("Is Null", func() {
+					rs = rs.Search(rs.Model().Field("Name").IsNull())
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name = ?)`)
+					So(args, ShouldContain, "")
+				})
+				Convey("Is Not Null", func() {
+					rs = rs.Search(rs.Model().Field("Name").IsNotNull())
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NOT NULL AND "user".name != ?)`)
+					So(args, ShouldContain, "")
+				})
+				Convey("Empty string", func() {
+					rs = rs.Search(rs.Model().Field("Name").Equals(""))
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name = ?)`)
+					So(args, ShouldContain, "")
+				})
+				Convey("False bool", func() {
+					rs = rs.Search(rs.Model().Field("IsStaff").Equals(false))
+					sql, args := rs.query.sqlWhereClause(true)
+					So(sql, ShouldEqual, `WHERE ("user".is_staff IS NULL OR "user".is_staff = ?)`)
+					So(args, ShouldContain, false)
 				})
 				Convey("Child Of without parent field", func() {
 					rs = rs.Search(rs.Model().Field("ID").ChildOf(101))

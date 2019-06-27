@@ -70,12 +70,15 @@ type {{ .Name }}Set interface {
 // when creating or updating a {{ .Name }}Set.
 type {{ .Name }}Data interface {
 	// Underlying returns the object converted to a FieldMap.
-	Underlying() models.FieldMap
+	Underlying() *models.ModelData
 	// Get returns the value of the given field.
-	// The second returned value is true if the value exists.
 	//
 	// The field can be either its name or is JSON name.
-	Get(field string) (interface{}, bool)
+	Get(field string) interface{}
+	// Has returns true if a value is set for the given field.
+	//
+	// The field can be either its name or is JSON name.
+	Has(field string) bool
 	// Set sets the given field with the given value.
 	// If the field already exists, then it is updated with value.
 	// Otherwise, a new entry is inserted.
@@ -97,7 +100,7 @@ type {{ .Name }}Data interface {
 	OrderedKeys() []string
 	// FieldNames returns the {{ .Name }}Data keys as a slice of FieldNamer.
 	FieldNames() (res []models.FieldNamer)
-	{{- range .Fields }}
+{{- range .Fields }}
 	// {{ .Name }} returns the value of the {{ .Name }} field.
 	// If this {{ .Name }} is not set in this {{ $.Name }}Data, then
 	// the Go zero value for the type is returned.
@@ -110,7 +113,14 @@ type {{ .Name }}Data interface {
 	// Unset{{ .Name }} removes the value of the {{ .Name }} field if it exists.
 	// It returns this {{ $.Name }}Data so that calls can be chained.
 	Unset{{ .Name }}() {{ $.Name }}Data
-	{{- end }}
+{{ if .IsRS }}
+	// Create{{ .Name }} stores the related {{ .RelModel }}Data to be used to create
+	// a related record on the fly for {{ .Name }}.
+	//
+	// This method can be called multiple times to create multiple records
+	Create{{ .Name }}(related {{ .RelModel }}Data) {{ $.Name }}Data
+{{- end }}
+{{- end }}
 }
 
 // A {{ .Name }}GroupAggregateRow holds a row of results of a query with a group by clause

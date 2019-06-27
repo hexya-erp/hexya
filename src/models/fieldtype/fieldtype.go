@@ -68,6 +68,12 @@ func (t Type) Is2ManyRelationType() bool {
 	return t == Many2Many || t == One2Many
 }
 
+// IsNullInDB returns true if this type's zero value is
+// saved as null in database.
+func (t Type) IsNullInDB() bool {
+	return t.IsFKRelationType() || t == Binary || t == Char || t == Text || t == HTML || t == Selection || t == Date || t == DateTime
+}
+
 // DefaultGoType returns this Type's default Go type
 func (t Type) DefaultGoType() reflect.Type {
 	switch t {

@@ -57,19 +57,6 @@ var pgTypes = map[fieldtype.Type]string{
 	fieldtype.One2One:   "integer",
 }
 
-var pgDefaultValues = map[fieldtype.Type]string{
-	fieldtype.Boolean:   "FALSE",
-	fieldtype.Char:      "''",
-	fieldtype.Text:      "''",
-	fieldtype.Date:      "'0001-01-01'",
-	fieldtype.DateTime:  "'0001-01-01 00:00:00'",
-	fieldtype.Integer:   "0",
-	fieldtype.Float:     "0.0",
-	fieldtype.HTML:      "''",
-	fieldtype.Binary:    "''",
-	fieldtype.Selection: "''",
-}
-
 // connectionString returns the connection string for the given parameters
 func (d *postgresAdapter) connectionString(params ConnectionParams) string {
 	connectString := fmt.Sprintf("dbname=%s", params.DBName)
@@ -118,7 +105,9 @@ func (d *postgresAdapter) typeSQL(fi *Field) string {
 }
 
 // columnSQLDefinition returns the SQL type string, including columns constraints if any
-func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
+//
+// If null is true, then the column will be nullable, whatever the field defines
+func (d *postgresAdapter) columnSQLDefinition(fi *Field, null bool) string {
 	var res string
 	typ, ok := pgTypes[fi.fieldType]
 	res = typ
@@ -136,13 +125,8 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 			res = fmt.Sprintf("numeric(%d, %d)", fi.digits.Precision, fi.digits.Scale)
 		}
 	}
-	if d.fieldIsNotNull(fi) {
+	if d.fieldIsNotNull(fi) && !null {
 		res += " NOT NULL"
-	}
-
-	defValue := d.fieldSQLDefault(fi)
-	if defValue != "" && !fi.required {
-		res += fmt.Sprintf(" DEFAULT %v", defValue)
 	}
 
 	if fi.unique || fi.fieldType == fieldtype.One2One {
@@ -154,15 +138,10 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field) string {
 // fieldIsNull returns true if the given Field results in a
 // NOT NULL column in database.
 func (d *postgresAdapter) fieldIsNotNull(fi *Field) bool {
-	if fi.fieldType.IsFKRelationType() {
-		return false
+	if fi.required {
+		return true
 	}
-	return true
-}
-
-// fieldSQLDefault returns the SQL default value of the Field
-func (d *postgresAdapter) fieldSQLDefault(fi *Field) string {
-	return pgDefaultValues[fi.fieldType]
+	return false
 }
 
 // tables returns a map of table names of the database

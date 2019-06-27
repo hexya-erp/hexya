@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/hexya-erp/hexya/src/models/operator"
+	"github.com/hexya-erp/hexya/src/tools/strutils"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -56,9 +57,9 @@ type dbAdapter interface {
 	// typeSQL returns the SQL type string, including columns constraints if any
 	typeSQL(fi *Field) string
 	// columnSQLDefinition returns the SQL type string, including columns constraints if any
-	columnSQLDefinition(fi *Field) string
-	// fieldSQLDefault returns the SQL default value of the Field
-	fieldSQLDefault(fi *Field) string
+	//
+	// If null is true, then the column will be nullable, whatever the field defines
+	columnSQLDefinition(fi *Field, null bool) string
 	// tables returns a map of table names of the database
 	tables() map[string]bool
 	// columns returns a list of ColumnData for the given tableName
@@ -237,7 +238,7 @@ func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
 // Log the result of the given sql query started at start time with the
 // given args, and error. This function panics after logging if error is not nil.
 func logSQLResult(err error, start time.Time, query string, args ...interface{}) {
-	logCtx := log.New("query", query, "args", args, "duration", time.Now().Sub(start))
+	logCtx := log.New("query", query, "args", strutils.TrimArgs(args), "duration", time.Now().Sub(start))
 	if err != nil {
 		// We don't log.Panic to keep db error information in recovery
 		logCtx.Error("Error while executing query", "error", err)

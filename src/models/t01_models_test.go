@@ -111,23 +111,23 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("OnChangeName", "",
-			func(rc *RecordCollection) FieldMap {
-				res := make(FieldMap)
-				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
+			func(rc *RecordCollection) *ModelData {
+				res := NewModelData(rc.Model())
+				res.Set("DecoratedName", rc.Call("PrefixedUser", "User").([]string)[0])
 				return res
 			})
 
 		user.AddMethod("ComputeDecoratedName", "",
-			func(rc *RecordCollection) FieldMap {
-				res := make(FieldMap)
-				res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
+			func(rc *RecordCollection) *ModelData {
+				res := NewModelData(rc.Model())
+				res.Set("DecoratedName", rc.Call("PrefixedUser", "User").([]string)[0])
 				return res
 			})
 
 		user.AddMethod("ComputeAge", "",
-			func(rc *RecordCollection) FieldMap {
-				res := make(FieldMap)
-				res["Age"] = rc.Get("Profile").(*RecordCollection).Get("Age").(int16)
+			func(rc *RecordCollection) *ModelData {
+				res := NewModelData(rc.Model())
+				res.Set("Age", rc.Get("Profile").(*RecordCollection).Get("Age").(int16))
 				return res
 			})
 
@@ -142,8 +142,8 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("ComputeNum", "Dummy method",
-			func(rc *RecordCollection) FieldMap {
-				return FieldMap{}
+			func(rc *RecordCollection) *ModelData {
+				return NewModelData(rc.model)
 			})
 
 		user.AddMethod("EndlessRecursion", "Endless recursive method for tests",
@@ -173,23 +173,23 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		user.AddMethod("ComputeCoolType", "",
-			func(rc *RecordCollection) FieldMap {
-				res := make(FieldMap)
+			func(rc *RecordCollection) *ModelData {
+				res := NewModelData(rc.model)
 				if rc.Get("IsCool").(bool) {
-					res["CoolType"] = "cool"
+					res.Set("CoolType", "cool")
 				} else {
-					res["CoolType"] = "no-cool"
+					res.Set("CoolType", "no-cool")
 				}
 				return res
 			})
 
 		user.AddMethod("OnChangeCoolType", "",
-			func(rc *RecordCollection) FieldMap {
-				res := make(FieldMap)
+			func(rc *RecordCollection) *ModelData {
+				res := NewModelData(rc.model)
 				if rc.Get("CoolType").(string) == "cool" {
-					res["IsCool"] = true
+					res.Set("IsCool", true)
 				} else {
-					res["IsCool"] = false
+					res.Set("IsCool", false)
 				}
 				return res
 			})
@@ -238,18 +238,16 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		post.AddMethod("ComputeRead", "",
-			func(rc *RecordCollection) FieldMap {
+			func(rc *RecordCollection) *ModelData {
 				var read bool
 				if !rc.Get("LastRead").(dates.Date).IsZero() {
 					read = true
 				}
-				return FieldMap{
-					"Read": read,
-				}
+				return NewModelData(rc.model).Set("Read", read)
 			})
 
 		post.Methods().MustGet("Create").Extend("",
-			func(rc *RecordCollection, data FieldMapper) *RecordCollection {
+			func(rc *RecordCollection, data RecordData) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
@@ -266,14 +264,14 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		post.AddMethod("ComputeTagsNames", "",
-			func(rc *RecordCollection) FieldMap {
+			func(rc *RecordCollection) *ModelData {
 				var res string
 				for _, rec := range rc.Records() {
 					for _, tag := range rec.Get("Tags").(RecordSet).Collection().Records() {
 						res += tag.Get("Name").(string) + " "
 					}
 				}
-				return FieldMap{"TagsNames": res}
+				return NewModelData(rc.model).Set("TagsNames", res)
 			})
 
 		tag.AddMethod("CheckRate",
@@ -298,10 +296,8 @@ func TestModelDeclaration(t *testing.T) {
 
 		cv.AddMethod("ComputeOther",
 			`Dummy compute function`,
-			func(rc *RecordCollection) FieldMap {
-				return FieldMap{
-					"Other": "Other information",
-				}
+			func(rc *RecordCollection) *ModelData {
+				return NewModelData(rc.model).Set("Other", "Other information")
 			})
 
 		user.AddFields(map[string]FieldDefinition{
@@ -336,7 +332,7 @@ func TestModelDeclaration(t *testing.T) {
 			"Size":      FloatField{},
 			"Education": TextField{String: "Educational Background"},
 		})
-		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums > 0) OR (IS_PREMIUM = false))",
+		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums IS NOT NULL AND nums > 0) OR (IS_PREMIUM = false))",
 			"Premium users must have positive nums")
 
 		profile.AddFields(map[string]FieldDefinition{
@@ -372,7 +368,7 @@ func TestModelDeclaration(t *testing.T) {
 
 		comment.AddFields(map[string]FieldDefinition{
 			"Post": Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"Text": TextField{},
+			"Text": CharField{},
 		})
 
 		tag.AddFields(map[string]FieldDefinition{
@@ -485,10 +481,10 @@ func TestFieldModification(t *testing.T) {
 		nameField.SetInverse(Registry.MustGet("User").Methods().MustGet("InverseSetAge"))
 		nameField.SetInverse(nil)
 		sizeField := Registry.MustGet("User").Fields().MustGet("Size")
-		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 1})
+		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 2})
 		So(sizeField.updates[len(sizeField.updates)-1], ShouldContainKey, "digits")
 		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Precision, ShouldEqual, 6)
-		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Scale, ShouldEqual, 1)
+		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Scale, ShouldEqual, 2)
 		userField := Registry.MustGet("Post").Fields().MustGet("User")
 		userField.SetOnDelete(Cascade)
 		checkUpdates(userField, "onDelete", Cascade)

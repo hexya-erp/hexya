@@ -265,12 +265,12 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 		destVals.SetMapIndex(reflect.ValueOf(colName), val)
 	}
 	if writeDB {
-		// Change zero values to NULL if writing to DB for nullable M2O/O2O
+		// Change zero values to NULL if writing to DB when applicable
 		for colName, fMapValue := range *fMap {
 			fi := m.getRelatedFieldInfo(colName)
 			val := reflect.ValueOf(fMapValue)
 			switch {
-			case fi.fieldType.IsFKRelationType() && val.Kind() == reflect.Int64 && val.Int() == 0 && !fi.required:
+			case fi.fieldType.IsFKRelationType() && val.Kind() == reflect.Int64 && val.Int() == 0:
 				val = reflect.ValueOf((*interface{})(nil))
 				destVals.SetMapIndex(reflect.ValueOf(colName), val)
 			}

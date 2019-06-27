@@ -24,6 +24,7 @@ import (
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
+	"github.com/hexya-erp/hexya/src/tools/nbutils"
 )
 
 const (
@@ -92,20 +93,25 @@ func declareBaseComputeMethods() {
 
 	model.AddMethod("ComputeLastUpdate",
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
-		func(rc *RecordCollection) FieldMap {
+		func(rc *RecordCollection) *ModelData {
+			res := NewModelData(rc.model)
 			if !rc.Get("WriteDate").(dates.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("WriteDate").(dates.DateTime)}
+				res.Set("LastUpdate", rc.Get("WriteDate").(dates.DateTime))
+				return res
 			}
 			if !rc.Get("CreateDate").(dates.DateTime).IsZero() {
-				return FieldMap{"LastUpdate": rc.Get("CreateDate").(dates.DateTime)}
+				res.Set("LastUpdate", rc.Get("CreateDate").(dates.DateTime))
+				return res
 			}
-			return FieldMap{"LastUpdate": dates.Now()}
+			res.Set("LastUpdate", dates.Now())
+			return res
 		})
 
 	model.AddMethod("ComputeDisplayName",
 		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
-		func(rc *RecordCollection) FieldMap {
-			return FieldMap{"DisplayName": rc.Call("NameGet")}
+		func(rc *RecordCollection) *ModelData {
+			res := NewModelData(rc.model).Set("DisplayName", rc.Call("NameGet"))
+			return res
 		})
 
 }
@@ -117,21 +123,21 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
 		Returns the created RecordCollection.`,
-		func(rc *RecordCollection, data FieldMapper) *RecordCollection {
+		func(rc *RecordCollection, data RecordData) *RecordCollection {
 			return rc.create(data)
 		})
 
 	commonMixin.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
-		func(rc *RecordCollection, fields []string) []FieldMap {
-			var res []FieldMap
+		func(rc *RecordCollection, fields []string) []RecordData {
+			var res []RecordData
 			// Check if we have id in fields, and add it otherwise
 			fields = addIDIfNotPresent(fields)
 			// Do the actual reading
 			for _, rec := range rc.Records() {
-				fData := make(FieldMap)
+				fData := NewModelData(rc.model)
 				for _, fName := range fields {
-					fData[fName] = rec.Get(fName)
+					fData.Underlying().Set(fName, rec.Get(fName))
 				}
 				res = append(res, fData)
 			}
@@ -163,7 +169,7 @@ func declareCRUDMethods() {
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
 		Data can be either a struct pointer or a FieldMap.`,
-		func(rc *RecordCollection, data FieldMapper) bool {
+		func(rc *RecordCollection, data RecordData) bool {
 			return rc.update(data)
 		})
 
@@ -176,11 +182,11 @@ func declareCRUDMethods() {
 	commonMixin.AddMethod("Copy",
 		`Copy duplicates the given record
 		It panics if rs is not a singleton`,
-		func(rc *RecordCollection, overrides FieldMapper) *RecordCollection {
+		func(rc *RecordCollection, overrides RecordData) *RecordCollection {
 			rc.EnsureOne()
 			oVal := reflect.ValueOf(overrides)
 			if !oVal.IsValid() || (oVal.Kind() != reflect.Struct && oVal.IsNil()) {
-				overrides = make(FieldMap)
+				overrides = NewModelData(rc.model)
 			}
 
 			// Prevent infinite recursion if we have circular references
@@ -214,16 +220,17 @@ func declareCRUDMethods() {
 
 			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64), rc.query.ctxArgsSlug())
 			fMap.RemovePK()
-			fMap.MergeWith(overrides.Underlying(), rc.model)
+			fMap.MergeWith(overrides.Underlying().FieldMap, rc.model)
+			cData := NewModelData(rc.model, fMap)
 			// Reload original record to prevent cache discrepancies
 			rc.Load()
 
 			// Create our duplicated record
-			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", fMap).(RecordSet).Collection()
+			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", cData).(RecordSet).Collection()
 
 			// Duplicate one2one and one2many records
 			for _, fi := range rc.model.fields.registryByName {
-				if _, inOverrides := overrides.Underlying().Get(fi.name, rc.model); inOverrides {
+				if _, inOverrides := overrides.Underlying().FieldMap.Get(fi.name, rc.model); inOverrides {
 					continue
 				}
 				if fi.noCopy {
@@ -234,7 +241,7 @@ func declareCRUDMethods() {
 					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
 				case fieldtype.One2Many:
 					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
-						rec.Call("Copy", FieldMap{fi.reverseFK: newRs.Ids()[0]})
+						rec.Call("Copy", NewModelData(fi.relatedModel).Set(fi.reverseFK, newRs.Ids()[0]))
 					}
 				}
 			}
@@ -279,7 +286,6 @@ func declareRecordSetMethods() {
 				cond = cond.AndCond(additionalCond.Underlying())
 			}
 			return rc.Model().Search(rc.Env(), cond).Limit(limit)
-
 		})
 
 	commonMixin.AddMethod("FieldsGet",
@@ -316,11 +322,11 @@ func declareRecordSetMethods() {
 
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
-		func(rc *RecordCollection) FieldMap {
+		func(rc *RecordCollection) *ModelData {
 			res := make(FieldMap)
 			rc.applyDefaults(&res, false)
 			rc.model.convertValuesToFieldType(&res, false)
-			return res
+			return NewModelData(rc.model, res)
 		})
 }
 
@@ -362,10 +368,8 @@ func declareRecordSetSpecificMethods() {
 		`Onchange returns the values that must be modified according to each field's Onchange
 		method in the pseudo-record given as params.Values`,
 		func(rc *RecordCollection, params OnchangeParams) OnchangeResult {
-			values := params.Values
-			rc.model.convertValuesToFieldType(&values, false)
-			data := NewModelData(rc.model)
-			data.FieldMap = values
+			values := params.Values.Underlying().FieldMap
+			data := NewModelDataFromRS(rc, values)
 			if rc.IsNotEmpty() {
 				data.Set("ID", rc.ids[0])
 			}
@@ -378,11 +382,11 @@ func declareRecordSetSpecificMethods() {
 						continue
 					}
 					if fi.inverse != "" {
-						fVal, _ := data.Get(field)
+						fVal := data.Get(field)
 						rs.Call(fi.inverse, fVal)
 					}
 					res := rs.Call(fi.onChange)
-					resMap := res.(FieldMapper).Underlying()
+					resMap := res.(RecordData).Underlying().FieldMap
 					val := resMap.JSONized(rs.Collection().Model())
 					data.FieldMap.MergeWith(val, rs.Collection().Model())
 					retValues.MergeWith(val, rs.Collection().Model())
@@ -390,7 +394,7 @@ func declareRecordSetSpecificMethods() {
 			})
 			retValues.RemovePK()
 			return OnchangeResult{
-				Value: retValues,
+				Value: NewModelDataFromRS(rc, retValues),
 			}
 		})
 }
@@ -597,16 +601,14 @@ func declareEnvironmentMethods() {
 
 // ConvertLimitToInt converts the given limit as interface{} to an int
 func ConvertLimitToInt(limit interface{}) int {
-	var lim int
-	switch limit.(type) {
-	case bool:
-		lim = -1
-	case int:
-		lim = limit.(int)
-	default:
-		lim = 80
+	if l, ok := limit.(bool); ok && !l {
+		return -1
 	}
-	return lim
+	val, err := nbutils.CastToInteger(limit)
+	if err != nil {
+		return 80
+	}
+	return int(val)
 }
 
 // FieldInfo is the exportable field information struct
@@ -645,12 +647,12 @@ type FieldsGetArgs struct {
 
 // OnchangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
-	Values   FieldMap          `json:"values"`
+	Values   RecordData        `json:"values"`
 	Fields   []string          `json:"field_name"`
 	Onchange map[string]string `json:"field_onchange"`
 }
 
 // OnchangeResult is the result struct type of the Onchange function
 type OnchangeResult struct {
-	Value FieldMapper `json:"value"`
+	Value RecordData `json:"value"`
 }

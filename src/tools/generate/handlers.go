@@ -21,6 +21,7 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 	"Aggregates":       aggregatesMethodHandler,
 	"First":            firstMethodHandler,
 	"All":              allMethodHandler,
+	"DefaultGet":       defaultGetMethodHandler,
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
@@ -232,5 +233,30 @@ func aggregatesMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 		IParamsTypes:  "...models.FieldNamer",
 		ReturnString:  fmt.Sprintf("[]%s.%sGroupAggregateRow", PoolInterfacesPackage, modelData.Name),
 		IReturnString: fmt.Sprintf("[]%sGroupAggregateRow", modelData.Name),
+	})
+}
+
+// defaultGetMethodHandler returns the specific methodData for the DefaultGet method.
+func defaultGetMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "DefaultGet"
+	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
+	iReturnString := fmt.Sprintf("%sData", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:          name,
+		IParamsTypes:  "",
+		ParamsTypes:   "",
+		ReturnString:  returnString,
+		IReturnString: iReturnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name:           name,
+		Doc:            fmt.Sprintf(`// DefaultGet returns a %sData with the default values for the model.`, modelData.Name),
+		ToDeclare:      false,
+		Params:         "",
+		ParamsWithType: "",
+		ReturnAsserts:  "resTyped, _ := res.(*models.ModelData)",
+		Returns:        fmt.Sprintf("resTyped.Wrap().(%s.%sData)", PoolInterfacesPackage, modelData.Name),
+		ReturnString:   returnString,
+		Call:           "Call",
 	})
 }

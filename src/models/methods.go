@@ -271,34 +271,32 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 		val = reflect.New(fnctArgType).Elem()
 		val.Field(0).Set(reflect.ValueOf(at.Underlying()))
 		return val
-	case FieldMapper:
-		var fm FieldMapper
+	case RecordData:
+		var fm RecordData
 		if fnctArgType == reflect.TypeOf(fm) {
-			// Target is a FieldMapper nothing to change
+			// Target is a RecordData nothing to change
 			return reflect.ValueOf(at)
 		}
-		if fnctArgType.Kind() == reflect.Map {
-			// Target is a FieldMap, so we give the FieldMap of this FieldMapper
+		if fnctArgType == reflect.TypeOf(new(ModelData)) {
+			// Target is a *ModelData so we send Underlying
 			return reflect.ValueOf(at.Underlying())
 		}
-		// => Target is a m.MyModelData interface
-		if fm, ok := at.(FieldMap); ok {
-			// Given arg is a FieldMap, so we map to our modelData
-			val = mapToModelData(rc, fm, fnctArgType)
+		// => Target is a typed RecordData
+		if fm, ok := at.(*ModelData); ok {
+			// Given arg is a ModelData, so we wrap it
+			val = reflect.ValueOf(fm.Wrap())
 			return val
 		}
 		// Given arg is already a typed ModelData
 		return reflect.ValueOf(arg)
 	case RecordSet:
+		if fnctArgType == reflect.TypeOf((*RecordSet)(nil)).Elem() {
+			return reflect.ValueOf(at)
+		}
 		if fnctArgType == reflect.TypeOf(new(RecordCollection)) {
 			return reflect.ValueOf(at.Collection())
 		}
-		if fnctArgType.Kind() == reflect.Struct {
-			val = reflect.New(fnctArgType).Elem()
-			val.Field(0).Set(reflect.ValueOf(at.Collection()))
-			return val
-		}
-		return reflect.ValueOf(arg)
+		return reflect.ValueOf(at.Collection().Wrap())
 	case nil:
 		return reflect.Zero(fnctArgType)
 	default:
