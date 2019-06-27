@@ -15,10 +15,10 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
-	"github.com/gin-gonic/gin/json"
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 )
 
