@@ -22,5 +22,5 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	RunTests(m, "tests")
+	RunTests(m, "tests", nil)
 }

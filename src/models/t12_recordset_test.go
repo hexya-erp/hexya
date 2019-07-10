@@ -295,6 +295,14 @@ func TestSearchRecordSet(t *testing.T) {
 					So(ujData.Get("Profile").(RecordSet).Collection().Get("ID"), ShouldEqual, userJane.Get("Profile").(RecordSet).Collection().Get("ID"))
 					So(ujData.Has("Profile"), ShouldBeTrue)
 				})
+				Convey("Reading an empty RecordSet should return zero value", func() {
+					empty := env.Pool("User")
+					So(empty.Get("Name"), ShouldEqual, "")
+				})
+				Convey("Reading an invalid RecordSet should return zero value", func() {
+					empty := &RecordCollection{model: Registry.MustGet("User")}
+					So(empty.Get("Name"), ShouldEqual, "")
+				})
 			})
 
 			Convey("Testing search all users", func() {
@@ -599,6 +607,14 @@ func TestUpdateRecordSet(t *testing.T) {
 				So(john.Get("IsStaff"), ShouldBeFalse)
 				john.Set("IsStaff", true)
 				So(john.Get("IsStaff"), ShouldBeTrue)
+			})
+			Convey("Updating an empty RecordSet should do nothing", func() {
+				empty := env.Pool("User")
+				So(func() { empty.Set("Name", "Foo") }, ShouldNotPanic)
+				So(func() {
+					empty.Call("Write", NewModelData(userModel).
+						Set("Name", "Bar"))
+				}, ShouldNotPanic)
 			})
 			Convey("Multiple updates at once on users", func() {
 				cond := env.Pool("User").Model().Field("Name").Equals("Jane A. Smith").Or().Field("Name").Equals("John Smith")

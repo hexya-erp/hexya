@@ -32,7 +32,7 @@ var driver, user, password, prefix, debug string
 //     func TestMain(m *testing.M) {
 //	       tests.RunTests(m, "my_module")
 //     }
-func RunTests(m *testing.M, moduleName string) {
+func RunTests(m *testing.M, moduleName string, preHookFnct func()) {
 	var res int
 	defer func() {
 		TearDownTests(moduleName)
@@ -42,6 +42,9 @@ func RunTests(m *testing.M, moduleName string) {
 		os.Exit(res)
 	}()
 	InitializeTests(moduleName)
+	if preHookFnct != nil {
+		preHookFnct()
+	}
 	res = m.Run()
 
 }
@@ -91,6 +94,7 @@ func InitializeTests(moduleName string) {
 	models.BootStrap()
 	models.SyncDatabase()
 	resourceDir, _ := filepath.Abs(filepath.Join(".", "res"))
+	server.ResourceDir = resourceDir
 	server.LoadDataRecords(resourceDir)
 	server.LoadDemoRecords(resourceDir)
 
