@@ -191,10 +191,9 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() || fi.isRelatedField() {
+		if !fi.isSettable() || fi.isComputedField() || fi.isRelatedField() {
 			continue
 		}
-
 		if _, ok := fMap.Get(fName, rc.model); ok {
 			// we have the field in the given data, so we don't apply defaults
 			continue
@@ -288,9 +287,13 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 
 // update updates the database with the given data and returns the number of updated rows.
 // It panics in case of error.
+// It returns without changes if rc is empty
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
 func (rc *RecordCollection) update(data RecordData) bool {
+	if rc.IsEmpty() {
+		return true
+	}
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
 	// process create data for FK relations if any
 	data = rc.createFKRelationRecords(data)
@@ -474,7 +477,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 	// Make the update for each record
 	for ref, upMap := range updateMap {
 		rs := rc.env.Pool(ref.model.name).withIds([]int64{ref.id})
-		rs.Call("Write", NewModelData(ref.model, upMap))
+		rs.Call("Write", NewModelDataFromRS(rs, upMap))
 	}
 }
 
@@ -790,9 +793,12 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
 func (rc *RecordCollection) Get(fieldName string) interface{} {
+	fi := rc.model.getRelatedFieldInfo(fieldName)
+	if !rc.IsValid() {
+		return reflect.Zero(fi.structField.Type).Interface()
+	}
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	rc.Fetch()
-	fi := rc.model.getRelatedFieldInfo(fieldName)
 	var res interface{}
 
 	switch {
