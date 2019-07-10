@@ -269,14 +269,14 @@ func LoadPOFile(fileName string) {
 // GetAllCustomTranslations returns all custom translations by lang and by modules
 func GetAllCustomTranslations() map[string]map[string]map[string]string {
 	res := make(map[string]map[string]map[string]string)
-	for key, val := range Registry.custom {
+	for key := range Registry.custom {
 		if res[key.lang] == nil {
 			res[key.lang] = make(map[string]map[string]string)
 		}
 		if res[key.lang][key.module] == nil {
 			res[key.lang][key.module] = make(map[string]string)
 		}
-		res[key.lang][key.module][key.id] = val
+		res[key.lang][key.module][key.id] = Registry.TranslateCustom(key.lang, key.id, key.module)
 	}
 	return res
 }
