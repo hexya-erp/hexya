@@ -268,6 +268,10 @@ func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg inte
 			// Target is a Conditioner nothing to change
 			return reflect.ValueOf(at)
 		}
+		if fnctArgType == reflect.TypeOf(new(Condition)) {
+			// Target is a pointer to an untyped Condition
+			return reflect.ValueOf(at.Underlying())
+		}
 		val = reflect.New(fnctArgType).Elem()
 		val.Field(0).Set(reflect.ValueOf(at.Underlying()))
 		return val

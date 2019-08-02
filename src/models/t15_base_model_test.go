@@ -87,7 +87,7 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fInfo.Help, ShouldEqual, "The user's username")
 				So(fInfo.Type, ShouldEqual, fieldtype.Char)
 				fInfos := userJane.Call("FieldsGet", FieldsGetArgs{}).(map[string]*FieldInfo)
-				So(fInfos, ShouldHaveLength, 33)
+				So(fInfos, ShouldHaveLength, 34)
 			})
 			Convey("NameGet", func() {
 				So(userJane.Get("DisplayName"), ShouldEqual, "Jane A. Smith")
@@ -96,7 +96,7 @@ func TestBaseModelMethods(t *testing.T) {
 			})
 			Convey("DefaultGet", func() {
 				defaults := userJane.Call("DefaultGet").(*ModelData)
-				So(defaults.FieldMap, ShouldHaveLength, 11)
+				So(defaults.FieldMap, ShouldHaveLength, 12)
 				So(defaults.FieldMap, ShouldContainKey, "status_json")
 				So(defaults.FieldMap["status_json"], ShouldEqual, 12)
 				So(defaults.FieldMap, ShouldContainKey, "hexya_external_id")
@@ -407,6 +407,13 @@ func TestBaseModelMethods(t *testing.T) {
 				So(func() { env.Pool("User").convertToRecordSet("", "Profile") }, ShouldPanic)
 				res = env.Pool("User").convertToRecordSet(userJane.Get("Profile"), "Profile")
 				So(res.Ids()[0], ShouldEqual, profileID)
+			})
+			Convey("EnsureOne", func() {
+				So(func() { userJane.EnsureOne() }, ShouldNotPanic)
+				So(func() { env.Pool("User").EnsureOne() }, ShouldPanic)
+				users := env.Pool("User").SearchAll()
+				So(users.Len(), ShouldBeGreaterThan, 0)
+				So(func() { users.EnsureOne() }, ShouldPanic)
 			})
 		}), ShouldBeNil)
 	})

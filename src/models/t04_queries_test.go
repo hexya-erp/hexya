@@ -150,8 +150,11 @@ func TestConditions(t *testing.T) {
 				rs := env.Pool("User")
 				Convey("Equals", func() {
 					rs = rs.Search(rs.Model().Field("Name").Equals("John"))
-					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name = ?`)
+					cond := rs.Condition()
+					res := rs.CallMulti("SQLFromCondition", cond)
+					sql := res[0]
+					args := res[1]
+					So(sql, ShouldEqual, `"user".name = ?`)
 					So(args, ShouldContain, "John")
 				})
 				Convey("NotEquals", func() {

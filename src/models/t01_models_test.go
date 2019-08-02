@@ -336,6 +336,7 @@ func TestModelDeclaration(t *testing.T) {
 			"IsPremium": BooleanField{},
 			"Nums":      IntegerField{GoType: new(int)},
 			"Size":      FloatField{},
+			"Mana":      FloatField{GoType: new(float32)},
 			"Education": TextField{String: "Educational Background"},
 		})
 		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums IS NOT NULL AND nums > 0) OR (IS_PREMIUM = false))",
