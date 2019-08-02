@@ -38,8 +38,8 @@ var ResourceDir string
 // This struct is used to register modules.
 type Module struct {
 	Name     string
-	PreInit  func()
-	PostInit func()
+	PreInit  func() // Function to be run before bootstrap but after all calls to init
+	PostInit func() // Function to be run after initialisation is complete and before server starts
 }
 
 // A ModulesList is a list of Module objects

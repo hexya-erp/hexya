@@ -455,7 +455,7 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 		fieldsList[i] = f
 		i++
 	}
-	fieldExprs, allExprs := q.selectData(fieldsList, false)
+	fieldExprs, allExprs := q.selectData(fieldsList, true)
 	// Build up the query
 	// Fields
 	fieldsSQL := q.fieldsGroupSQL(fieldExprs, fields)

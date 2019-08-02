@@ -354,7 +354,7 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field 
 			"model", fc.model.name, "field", name, "ours", our, "theirs", their)
 	}
 
-	modelNames := []string{our, their}
+	modelNames := []string{fc.model.name, mf.RelationModel.Underlying().name}
 	sort.Strings(modelNames)
 	m2mRelModName := mf.M2MLinkModelName
 	if m2mRelModName == "" {
