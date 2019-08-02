@@ -191,14 +191,11 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() || fi.isComputedField() || fi.isRelatedField() {
+		if !fi.isSettable() || fi.isComputedField() || (fi.isRelatedField() && !fi.isContextedField()) {
 			continue
 		}
 		if _, ok := fMap.Get(fName, rc.model); ok {
 			// we have the field in the given data, so we don't apply defaults
-			continue
-		}
-		if !fi.required && !fi.isReadOnly() && create {
 			continue
 		}
 		val, exists := ctxDefaults[fi.json]
@@ -428,16 +425,16 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 		createdPaths := make(map[string]bool)
 		// Create related records
 		for _, path := range fields {
-			vals, prefix := rc.relatedRecordMap(fMap, path)
+			vals, prefix := rec.relatedRecordMap(fMap, path)
 			if createdPaths[prefix] {
 				continue
 			}
 			model, id, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path, rc.query.ctxArgsSlug())
 			if err != nil {
 				// Record does not exist, we create it on the fly instead of updating
-				fp := rc.model.getRelatedFieldInfo(prefix)
-				nr := rc.createRelatedRecord(prefix, NewModelDataFromRS(rc.env.Pool(fp.relatedModelName), vals))
-				rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix, nr.Ids()[0], rc.query.ctxArgsSlug())
+				fp := rec.model.getRelatedFieldInfo(prefix)
+				nr := rec.createRelatedRecord(prefix, NewModelDataFromRS(rec.env.Pool(fp.relatedModelName), vals))
+				rec.env.cache.setX2MValue(rec.model.name, rec.ids[0], prefix, nr.Ids()[0], rc.query.ctxArgsSlug())
 				createdPaths[prefix] = true
 				continue
 			}
@@ -1048,6 +1045,12 @@ func (rc *RecordCollection) fieldsGroupOperators(fields []string) map[string]str
 // Condition returns the query condition associated with this RecordSet.
 func (rc *RecordCollection) Condition() *Condition {
 	return rc.query.cond
+}
+
+// SQLFromCondition returns the WHERE clause sql and arguments corresponding to
+// the given condition.
+func (rc *RecordCollection) SQLFromCondition(c *Condition) (string, SQLParams) {
+	return rc.query.conditionSQLClause(c)
 }
 
 // Records returns the slice of RecordCollection singletons that constitute this

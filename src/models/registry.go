@@ -537,6 +537,11 @@ func (m *Model) RemoveSQLConstraint(name string) {
 	delete(m.sqlConstraints, fmt.Sprintf("%s_mancon", name))
 }
 
+// TableName return the db table name
+func (m *Model) TableName() string {
+	return m.tableName
+}
+
 // Underlying returns the underlying Model data object, i.e. itself
 func (m *Model) Underlying() *Model {
 	return m

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 )
@@ -219,6 +220,28 @@ func (md *ModelData) Underlying() *ModelData {
 	return md
 }
 
+// fixFieldValue changes the given value for the given field by applying several fixes
+func fixFieldValue(v interface{}, fi *Field) interface{} {
+	if _, ok := v.(bool); ok && fi.fieldType != fieldtype.Boolean {
+		// Client returns false when empty
+		v = reflect.Zero(fi.structField.Type).Interface()
+	}
+	if _, ok := v.([]byte); ok && fi.fieldType == fieldtype.Float {
+		// DB can return numeric types as []byte
+		switch fi.structField.Type.Kind() {
+		case reflect.Float64:
+			if res, err := strconv.ParseFloat(string(v.([]byte)), 64); err == nil {
+				v = res
+			}
+		case reflect.Float32:
+			if res, err := strconv.ParseFloat(string(v.([]byte)), 32); err == nil {
+				v = float32(res)
+			}
+		}
+	}
+	return v
+}
+
 // NewModelData returns a pointer to a new instance of ModelData
 // for the given model. If FieldMaps are given they are added to
 // the ModelData.
@@ -227,11 +250,8 @@ func NewModelData(model Modeler, fm ...FieldMap) *ModelData {
 	for _, f := range fm {
 		for k, v := range f {
 			fi := model.Underlying().getRelatedFieldInfo(k)
-			if _, ok := v.(bool); ok && fi.fieldType != fieldtype.Boolean {
-				// Client returns false when empty
-				v = reflect.Zero(fi.structField.Type).Interface()
-			}
-			fMap[model.Underlying().JSONizeFieldName(k)] = v
+			v = fixFieldValue(v, fi)
+			fMap[fi.json] = v
 		}
 	}
 	return &ModelData{
@@ -254,10 +274,7 @@ func NewModelDataFromRS(rs RecordSet, fm ...FieldMap) *ModelData {
 			if fi.isRelationField() {
 				v = rs.Collection().convertToRecordSet(v, fi.relatedModelName)
 			}
-			if _, ok := v.(bool); ok && fi.fieldType != fieldtype.Boolean {
-				// Client returns false when empty
-				v = reflect.Zero(fi.structField.Type).Interface()
-			}
+			v = fixFieldValue(v, fi)
 			fMap[fi.json] = v
 		}
 	}

@@ -139,6 +139,16 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
 				So(func() { userWill.Set("DecoratedName", "FooBar") }, ShouldPanic)
 			})
+			Convey("Checking that a computed field can trigger another one", func() {
+				jane := users.Search(users.Model().Field("Email").Equals("jane.smith@example.com"))
+				post := jane.Get("Posts").(RecordSet).Collection().Records()[0]
+				So(jane.Get("Name"), ShouldEqual, "Jane A. Smith")
+				So(post.Get("WriterAge"), ShouldEqual, 24)
+				jane.Get("Profile").(RecordSet).Collection().Set("Age", 25)
+				So(post.Get("WriterAge"), ShouldEqual, 25)
+				jane.Set("Age", int16(24))
+				So(post.Get("WriterAge"), ShouldEqual, 24)
+			})
 		}), ShouldBeNil)
 	})
 }

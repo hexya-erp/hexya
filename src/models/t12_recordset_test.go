@@ -345,6 +345,11 @@ func TestSearchRecordSet(t *testing.T) {
 				So(recs[1].Get("City"), ShouldEqual, "")
 				So(recs[2].Get("City"), ShouldEqual, "")
 			})
+			Convey("Testing browse with empty ids", func() {
+				var ids []int64
+				user := env.Pool("User").Model().Browse(env, ids)
+				So(user.Len(), ShouldEqual, 0)
+			})
 		}), ShouldBeNil)
 	})
 	group1 := security.Registry.NewGroup("group1", "Group 1")
@@ -448,7 +453,12 @@ func TestAdvancedQueries(t *testing.T) {
 			})
 			Convey("Empty recordset with IN operator", func() {
 				profile := env.Pool("Profile")
-				users := env.Pool("User").Search(env.Pool("User").Model().Field("Profile").In(profile))
+				users := env.Pool("User").Search(
+					env.Pool("User").Model().Field("Profile").In(profile))
+				So(users.Len(), ShouldEqual, 0)
+				users = env.Pool("User").Search(
+					env.Pool("User").Model().Field("Profile").In(profile).
+						And().Field("IsStaff").Equals(false))
 				So(users.Len(), ShouldEqual, 0)
 			})
 			Convey("M2O chain", func() {
@@ -528,10 +538,20 @@ func TestAdvancedQueries(t *testing.T) {
 				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").In(tags.Ids()))
 				So(posts.Len(), ShouldEqual, 2)
 			})
+			Convey("Condition on m2m relation with IN operator and empty ids", func() {
+				var tagIds []int64
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").In(tagIds))
+				So(posts.Len(), ShouldEqual, 0)
+			})
 			Convey("Condition on m2m relation with IN operator and recordset", func() {
 				tags := tag1.Union(tag2)
 				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").In(tags))
 				So(posts.Len(), ShouldEqual, 2)
+			})
+			Convey("Condition on m2m relation with IN operator and empty recordset", func() {
+				tags := env.Pool("Tag")
+				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags").In(tags))
+				So(posts.Len(), ShouldEqual, 0)
 			})
 			Convey("M2M Chain", func() {
 				posts := env.Pool("Post").Search(env.Pool("Post").Model().Field("Tags.Name").Equals("Trending"))

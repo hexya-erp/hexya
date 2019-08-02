@@ -143,6 +143,8 @@ func TestTypes(t *testing.T) {
 					"Profile":  false,
 					"LastPost": nil,
 					"Password": false,
+					"Size":     []byte("12.34"),
+					"Mana":     []byte("234.5"),
 				})
 			}), ShouldBeNil)
 			So(johnValues.Get("Nums"), ShouldEqual, 13)
@@ -151,8 +153,14 @@ func TestTypes(t *testing.T) {
 			So(johnValues.Get("Profile").(RecordSet).IsEmpty(), ShouldBeTrue)
 			So(johnValues.Has("LastPost"), ShouldBeTrue)
 			So(johnValues.Get("LastPost").(RecordSet).IsEmpty(), ShouldBeTrue)
-			So(johnValues.Get("Password"), ShouldEqual, "")
 			So(johnValues.Has("Password"), ShouldBeTrue)
+			So(johnValues.Get("Password"), ShouldEqual, "")
+			So(johnValues.Has("Size"), ShouldBeTrue)
+			So(johnValues.Get("Size"), ShouldEqual, 12.34)
+			So(johnValues.Get("Size"), ShouldHaveSameTypeAs, *new(float64))
+			So(johnValues.Has("Mana"), ShouldBeTrue)
+			So(johnValues.Get("Mana"), ShouldEqual, 234.5)
+			So(johnValues.Get("Mana"), ShouldHaveSameTypeAs, *new(float32))
 		})
 		Convey("Testing Create feature of ModelData", func() {
 			johnValues := NewModelData(Registry.MustGet("User")).

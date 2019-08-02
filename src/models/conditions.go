@@ -277,6 +277,12 @@ func (c ConditionField) AddOperator(op operator.Operator, data interface{}) *Con
 	cond := c.cs.cond
 	data = sanitizeArgs(data, op.IsMulti())
 	if data != nil && op.IsMulti() && reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0 {
+		// field in [] => ID = -1
+		cond.predicates = []predicate{{
+			exprs:    []string{"id"},
+			operator: operator.Equals,
+			arg:      -1,
+		}}
 		return &cond
 	}
 	cond.predicates = append(cond.predicates, predicate{

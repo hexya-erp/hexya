@@ -69,8 +69,7 @@ type {{ .Name }}Set interface {
 // {{ .Name }}Data is used to hold values of an {{ .Name }} object instance
 // when creating or updating a {{ .Name }}Set.
 type {{ .Name }}Data interface {
-	// Underlying returns the object converted to a FieldMap.
-	Underlying() *models.ModelData
+	models.RecordData
 	// Get returns the value of the given field.
 	//
 	// The field can be either its name or is JSON name.

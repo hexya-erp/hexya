@@ -254,8 +254,8 @@ func defaultGetMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 		ToDeclare:      false,
 		Params:         "",
 		ParamsWithType: "",
-		ReturnAsserts:  "resTyped, _ := res.(*models.ModelData)",
-		Returns:        fmt.Sprintf("resTyped.Wrap().(%s.%sData)", PoolInterfacesPackage, modelData.Name),
+		ReturnAsserts:  "resTyped, _ := res.(models.RecordData)",
+		Returns:        fmt.Sprintf("resTyped.Underlying().Wrap().(%s.%sData)", PoolInterfacesPackage, modelData.Name),
 		ReturnString:   returnString,
 		Call:           "Call",
 	})

@@ -71,8 +71,13 @@ func InitializeTests(moduleName string) {
 	}
 	dbName := fmt.Sprintf("%s_%s_tests", prefix, moduleName)
 	debug = os.Getenv("HEXYA_DEBUG")
+	logTests := os.Getenv("HEXYA_LOG")
 
 	viper.Set("LogLevel", "panic")
+	if logTests != "" {
+		viper.Set("LogLevel", "info")
+		viper.Set("LogStdout", true)
+	}
 	if debug != "" {
 		viper.Set("Debug", true)
 		viper.Set("LogLevel", "debug")
@@ -85,6 +90,7 @@ func InitializeTests(moduleName string) {
 	db.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbName))
 	db.Close()
 
+	server.PreInit()
 	models.DBConnect(driver, models.ConnectionParams{
 		DBName:   dbName,
 		User:     user,
@@ -98,7 +104,7 @@ func InitializeTests(moduleName string) {
 	server.LoadDataRecords(resourceDir)
 	server.LoadDemoRecords(resourceDir)
 
-	server.PostInitModules()
+	server.PostInit()
 }
 
 // TearDownTests tears down the tests for the given module
