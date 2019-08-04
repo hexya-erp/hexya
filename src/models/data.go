@@ -21,10 +21,10 @@ import (
 func LoadCSVDataFile(fileName string) {
 	log.Info("Importing data file", "fileName", fileName)
 	csvFile, err := os.Open(fileName)
-	defer csvFile.Close()
 	if err != nil {
 		log.Panic("Unable to open CSV data file", "error", err, "fileName", fileName)
 	}
+	defer csvFile.Close()
 
 	elements := strings.Split(filepath.Base(fileName), "_")
 	modelName := strings.Split(elements[0], ".")[0]
@@ -75,7 +75,7 @@ func LoadCSVDataFile(fileName string) {
 			rec := rc.Search(rc.Model().Field("HexyaExternalID").Equals(externalID)).Limit(1)
 			switch {
 			case rec.Len() == 0:
-				rc.applyDefaults(&values, false)
+				rc.applyDefaults(&values, true)
 				rc.Call("Create", NewModelData(rc.model, values))
 			case rec.Len() == 1:
 				if version > rec.Get("HexyaVersion").(int) || update {
