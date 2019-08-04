@@ -191,7 +191,10 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 
 	// 2. Apply defaults from context (if exists) or default function
 	for fName, fi := range Registry.MustGet(rc.ModelName()).fields.registryByJSON {
-		if !fi.isSettable() || fi.isComputedField() || (fi.isRelatedField() && !fi.isContextedField()) {
+		if !fi.isSettable() {
+			continue
+		}
+		if create && (fi.isComputedField() || (fi.isRelatedField() && !fi.isContextedField())) {
 			continue
 		}
 		if _, ok := fMap.Get(fName, rc.model); ok {
