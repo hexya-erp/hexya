@@ -174,6 +174,18 @@ func TestRelatedNonStoredFields(t *testing.T) {
 				So(pUsersRecs[1].Equals(userWill), ShouldBeTrue)
 				So(pUsersRecs[2].Equals(userJane), ShouldBeTrue)
 			})
+			Convey("Checking that we can chain related fields", func() {
+				post := h.Post().Search(env, q.Post().Title().Equals("1st Post"))
+				So(post.Len(), ShouldEqual, 1)
+				So(post.WriterMoney(), ShouldEqual, 12345)
+			})
+			Convey("Checking that we can chain on a related M2O", func() {
+				userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
+				comment := h.Comment().Search(env, q.Comment().Text().Equals("First Comment"))
+				So(comment.Len(), ShouldEqual, 1)
+				So(comment.WriterMoney(), ShouldEqual, 12345)
+				So(comment.PostWriter().Equals(userJane), ShouldBeTrue)
+			})
 		}), ShouldBeNil)
 	})
 }

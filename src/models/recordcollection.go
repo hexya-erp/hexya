@@ -731,7 +731,7 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 	}
 
 	rSet = rSet.withIds(ids)
-	rSet.loadRelationFields(fields)
+	rSet.loadRelationFields(subFields)
 	if prefetch {
 		return rc
 	}
