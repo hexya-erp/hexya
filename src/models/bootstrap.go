@@ -409,15 +409,28 @@ func setupSecurity() {
 		if fetchExists {
 			loadMeth.AllowGroup(security.GroupEveryone, fetchMeth)
 		}
+	}
+	UpdateContextModelsSecurity()
+}
 
-		if model.isContext() {
-			baseModel := model.fields.MustGet("Record").relatedModel
-			model.methods.MustGet("Create").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
-			model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
-			model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Load"))
-			model.methods.MustGet("Write").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Write"))
-			model.methods.MustGet("Unlink").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Unlink"))
+// UpdateContextModelsSecurity synchronizes the methods permissions of context models with their base model.
+func UpdateContextModelsSecurity() {
+	for _, model := range Registry.registryByName {
+		if !model.isContext() {
+			continue
 		}
+		baseModel := model.fields.MustGet("Record").relatedModel
+		for _, methName := range []string{"Create", "Load", "Write", "Unlink"} {
+			method := model.methods.MustGet(methName)
+			method.AllowGroup(security.GroupEveryone, baseModel.methods.MustGet(methName))
+			for grp := range baseModel.methods.MustGet(methName).groups {
+				method.AllowGroup(grp)
+			}
+			for cGroup := range baseModel.methods.MustGet(methName).groupsCallers {
+				method.AllowGroup(cGroup.group, cGroup.caller)
+			}
+		}
+		model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
 	}
 }
 

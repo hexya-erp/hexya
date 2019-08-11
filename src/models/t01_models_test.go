@@ -372,12 +372,15 @@ func TestModelDeclaration(t *testing.T) {
 			"TagsNames":       CharField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeTagsNames")},
 			"WriterAge": IntegerField{Compute: post.Methods().MustGet("ComputeWriterAge"),
 				Depends: []string{"User.Age"}, Stored: true, GoType: new(int16)},
+			"WriterMoney": FloatField{Related: "User.PMoney"},
 		})
 		post.SetDefaultOrder("Title")
 
 		comment.AddFields(map[string]FieldDefinition{
-			"Post": Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"Text": CharField{},
+			"Post":        Many2OneField{RelationModel: Registry.MustGet("Post")},
+			"PostWriter":  Many2OneField{RelationModel: Registry.MustGet("User"), Related: "Post.User"},
+			"WriterMoney": FloatField{Related: "PostWriter.PMoney"},
+			"Text":        CharField{},
 		})
 
 		tag.AddFields(map[string]FieldDefinition{

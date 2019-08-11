@@ -30,14 +30,15 @@ import (
 //
 // This method removes duplicates and change all field names to their json names.
 func (rc *RecordCollection) substituteRelatedFields(fields []string) ([]string, map[string]string) {
-	res := make(map[string]string)
+	resFields := make([]string, len(fields))
+	resSubsts := make(map[string]string)
 	for i, field := range fields {
 		relPath := jsonizePath(rc.model, rc.substituteRelatedInPath(field))
-		res[relPath] = field
-		fields[i] = relPath
+		resSubsts[relPath] = field
+		resFields[i] = relPath
 	}
-	fields = rc.addIntermediatePaths(fields)
-	return fields, res
+	resFields = rc.addIntermediatePaths(resFields)
+	return resFields, resSubsts
 }
 
 // addIntermediatePaths adds the paths that compose fields and returns a new slice.
@@ -81,11 +82,7 @@ func (rc *RecordCollection) substituteRelatedFieldsInMap(fMap FieldMap) FieldMap
 	res := make(FieldMap)
 	for field, value := range fMap {
 		// Inflate our related fields
-		fi := rc.model.getRelatedFieldInfo(field)
-		path := field
-		if fi.relatedPath != "" {
-			path = fi.relatedPath
-		}
+		path := rc.substituteRelatedInPath(field)
 		inflatedPath := jsonizePath(rc.model, path)
 		res[inflatedPath] = value
 	}
@@ -127,14 +124,23 @@ func (rc *RecordCollection) substituteRelatedInQuery() *RecordCollection {
 // substituteRelatedInPath recursively substitutes path for its related value.
 // If path is not a related field, it is returned as is.
 func (rc *RecordCollection) substituteRelatedInPath(path string) string {
-	fi := rc.model.getRelatedFieldInfo(path)
-	if !fi.isRelatedField() {
-		return path
-	}
 	exprs := strings.Split(path, ExprSep)
-	newPath := strings.Join(exprs[:len(exprs)-1], ExprSep) + ExprSep + fi.relatedPath
-	newPath = strings.TrimLeft(newPath, ExprSep)
-	return rc.substituteRelatedInPath(newPath)
+	prefix := exprs[0]
+	fi := rc.model.getRelatedFieldInfo(prefix)
+	if fi.isRelatedField() {
+		newPath := fi.relatedPath
+		if len(exprs) > 1 {
+			newPath = newPath + ExprSep + strings.Join(exprs[1:], ExprSep)
+		}
+		return rc.substituteRelatedInPath(newPath)
+	}
+	if len(exprs) == 1 {
+		return prefix
+	}
+	suffix := strings.Join(exprs[1:], ExprSep)
+	model := rc.Model().getRelatedModelInfo(prefix)
+	res := prefix + ExprSep + rc.Env().Pool(model.name).substituteRelatedInPath(suffix)
+	return res
 }
 
 // createRelatedRecord creates Records at the given path, starting from this recordset.

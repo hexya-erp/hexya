@@ -188,6 +188,7 @@ func init() {
 		"Comments":        models.One2ManyField{RelationModel: h.Comment(), ReverseFK: "Post"},
 		"LastCommentText": models.TextField{Related: "Comments.Text"},
 		"LastTagName":     models.CharField{Related: "Tags.Name"},
+		"WriterMoney":     models.FloatField{Related: "User.PMoney"},
 	})
 
 	h.Post().Methods().Create().Extend("",
@@ -204,8 +205,10 @@ func init() {
 
 	comment := h.Comment().DeclareModel()
 	comment.AddFields(map[string]models.FieldDefinition{
-		"Post": models.Many2OneField{RelationModel: h.Post()},
-		"Text": models.TextField{},
+		"Post":        models.Many2OneField{RelationModel: h.Post()},
+		"PostWriter":  models.Many2OneField{RelationModel: h.User(), Related: "Post.User"},
+		"WriterMoney": models.FloatField{Related: "PostWriter.PMoney"},
+		"Text":        models.TextField{},
 	})
 
 	tag := h.Tag().DeclareModel()
