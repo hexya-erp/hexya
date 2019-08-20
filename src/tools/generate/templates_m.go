@@ -35,7 +35,7 @@ type {{ .Name }}Set interface {
 	{{- end }}
 	{{- range .AllMethods }}
 	{{ .Doc }}
-	{{ .Name }}({{ .IParamsTypes }}) ({{ .IReturnString }})
+	{{ .Name }}({{ .IParamsWithTypes }}) ({{ .IReturnString }})
 	{{- end }}
 	// Super returns a RecordSet with a modified callstack so that call to the current
 	// method will execute the next method layer.

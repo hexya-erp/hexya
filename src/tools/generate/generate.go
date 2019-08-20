@@ -35,18 +35,18 @@ type fieldData struct {
 
 // A methodData describes a method in a RecordSet
 type methodData struct {
-	Name           string
-	Doc            string
-	Params         string
-	ParamsWithType string
-	ParamsTypes    string
-	IParamsTypes   string
-	ReturnAsserts  string
-	Returns        string
-	ReturnString   string
-	IReturnString  string
-	Call           string
-	ToDeclare      bool
+	Name             string
+	Doc              string
+	Params           string
+	ParamsWithType   string
+	IParamsWithTypes string
+	ParamsTypes      string
+	ReturnAsserts    string
+	Returns          string
+	ReturnString     string
+	IReturnString    string
+	Call             string
+	ToDeclare        bool
 }
 
 // an operatorDef defines an operator func
@@ -171,7 +171,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			handler(modelData, depsMap)
 			continue
 		}
-		var params, paramsWithType, iParamsType, paramsType, call, returns, returnAsserts, returnString, iReturnString string
+		var params, paramsWithType, iParamsWithType, paramsType, call, returns, returnAsserts, returnString, iReturnString string
 		for _, astParam := range methodASTData.Params {
 			paramType := astParam.Type.Type
 			iParamType := trimInterfacePackagePrefix(paramType)
@@ -186,7 +186,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			}
 			params += p
 			paramsWithType += fmt.Sprintf("%s %s,", astParam.Name, paramType)
-			iParamsType += fmt.Sprintf("%s,", iParamType)
+			iParamsWithType += fmt.Sprintf("%s %s,", astParam.Name, iParamType)
 			paramsType += fmt.Sprintf("%s,", paramType)
 			(*depsMap)[astParam.Type.ImportPath] = true
 		}
@@ -223,11 +223,12 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 			}
 		}
 		modelData.AllMethods = append(modelData.AllMethods, methodData{
-			Name:          methodName,
-			ParamsTypes:   strings.TrimRight(paramsType, ","),
-			IParamsTypes:  strings.TrimRight(iParamsType, ","),
-			ReturnString:  strings.TrimSuffix(returnString, ","),
-			IReturnString: strings.TrimSuffix(iReturnString, ","),
+			Name:             methodName,
+			Doc:              methodASTData.Doc,
+			ParamsTypes:      strings.TrimRight(paramsType, ","),
+			IParamsWithTypes: strings.TrimRight(iParamsWithType, ","),
+			ReturnString:     strings.TrimSuffix(returnString, ","),
+			IReturnString:    strings.TrimSuffix(iReturnString, ","),
 		})
 		modelData.Methods = append(modelData.Methods, methodData{
 			Name:           methodName,
