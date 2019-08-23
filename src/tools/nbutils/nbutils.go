@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+
+	"github.com/cockroachdb/apd/v2"
 )
 
 // CastToInteger casts the given val to int64 if it is
@@ -58,9 +60,45 @@ type Digits struct {
 
 // ToPrecision returns the given digits as a precision float:
 //
-// Digits{Scale: 6, Precision: 2} => 0.01
+// Digits{Precision: 6, Scale: 2} => 0.01
 func (d Digits) ToPrecision() float64 {
-	return math.Pow10(int(-d.Precision))
+	return math.Pow10(int(-d.Scale))
+}
+
+var ctx = apd.Context{
+	MaxExponent: apd.MaxExponent,
+	MinExponent: apd.MinExponent,
+	Traps:       apd.DefaultTraps,
+	Rounding:    apd.RoundHalfUp,
+	Precision:   128,
+}
+
+// applyDecimalOperation applies fnct to value with the given precision and returns the result as a float
+func applyDecimalOperation(value, precision float64, fnct func(d, x *apd.Decimal) (apd.Condition, error)) float64 {
+	val, err := apd.New(0, 0).SetFloat64(value)
+	if err != nil {
+		panic(fmt.Errorf("error while rounding %f: %s", value, err))
+	}
+	prec, err := apd.New(0, 0).SetFloat64(precision)
+	if err != nil {
+		panic(fmt.Errorf("error while rounding precision %f: %s", precision, err))
+	}
+	normalized := apd.New(0, 0)
+	_, err = ctx.Quo(normalized, val, prec)
+	if err != nil {
+		panic(fmt.Errorf("error while rounding %f: %s", value, err))
+	}
+	_, err = fnct(normalized, normalized)
+	if err != nil {
+		panic(fmt.Errorf("error while rounding %f: %s", value, err))
+	}
+	ctx.Mul(normalized, normalized, prec)
+	res, err := normalized.Float64()
+	if err != nil {
+		panic(fmt.Errorf("error while rounding %f: %s", value, err))
+	}
+	return res
+
 }
 
 // Round rounds the given val to the given precision, which is a float such as :
@@ -68,8 +106,7 @@ func (d Digits) ToPrecision() float64 {
 // - 0.01 to round at the nearest 100th
 // - 10 to round at the nearest ten
 func Round(value float64, precision float64) float64 {
-	val := value / precision
-	return math.Round(val) * precision
+	return applyDecimalOperation(value, precision, ctx.RoundToIntegralExact)
 }
 
 // Ceil rounds up the given val to the given precision, which is a float such as :
@@ -77,17 +114,15 @@ func Round(value float64, precision float64) float64 {
 // - 0.01 to round at the nearest 100th
 // - 10 to round at the nearest ten
 func Ceil(value float64, precision float64) float64 {
-	val := value / precision
-	return math.Ceil(val) * precision
+	return applyDecimalOperation(value, precision, ctx.Ceil)
 }
 
 // Floor rounds down the given val to the given precision, which is a float such as :
 //
 // - 0.01 to round at the nearest 100th
 // - 10 to round at the nearest ten
-func Floor(value float64, precision float64) float64 {
-	val := value / precision
-	return math.Floor(val) * precision
+func Floor(value, precision float64) float64 {
+	return applyDecimalOperation(value, precision, ctx.Floor)
 }
 
 // Compare 'value1' and 'value2' after rounding them according to the
