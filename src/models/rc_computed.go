@@ -14,7 +14,12 @@
 
 package models
 
-import "github.com/hexya-erp/hexya/src/tools/typesutils"
+import (
+	"fmt"
+	"sort"
+
+	"github.com/hexya-erp/hexya/src/tools/typesutils"
+)
 
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
@@ -40,21 +45,27 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 		return
 	}
 	// Find record fields to update from the modified fields of fMap
-	fieldNames := fMap.Keys()
-	toUpdate := make(map[computeData]bool)
-	for _, fieldName := range fieldNames {
+	var toUpdateKeys []string
+	toUpdateData := make(map[string]computeData)
+	for _, fieldName := range fMap.Keys() {
 		refFieldInfo, ok := rc.model.fields.Get(fieldName)
 		if !ok {
 			continue
 		}
 		for _, dep := range refFieldInfo.dependencies {
-			toUpdate[dep] = true
+			key := fmt.Sprintf("%s-%s-%s", dep.model.name, dep.path, dep.compute)
+			toUpdateKeys = append(toUpdateKeys, key)
+			toUpdateData[key] = dep
 		}
 	}
 
+	// Order the computeData to have deterministic recomputation
+	sort.Strings(toUpdateKeys)
+
 	// Compute all that must be computed and store the values
 	rc.Fetch()
-	for cData := range toUpdate {
+	for _, key := range toUpdateKeys {
+		cData := toUpdateData[key]
 		recs := rc
 		if cData.path != "" {
 			recs = rc.Env().Pool(cData.model.name).Search(rc.Model().Field(cData.path).In(rc.Ids()))
@@ -66,13 +77,13 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 			}
 			continue
 		}
-		updateStoredFields(recs, cData.compute)
+		recs.updateStoredFields(cData.compute)
 	}
 }
 
 // updateStoredFields calls the given computeMethod on recs and stores the values.
-func updateStoredFields(recs *RecordCollection, computeMethod string) {
-	for _, rec := range recs.Records() {
+func (rc *RecordCollection) updateStoredFields(computeMethod string) {
+	for _, rec := range rc.Records() {
 		retVal := rec.Call(computeMethod)
 		data := retVal.(RecordData).Underlying()
 		// Check if the values actually changed
