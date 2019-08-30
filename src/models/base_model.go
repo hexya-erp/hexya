@@ -241,7 +241,7 @@ func declareCRUDMethods() {
 					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
 				case fieldtype.One2Many:
 					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
-						rec.Call("Copy", NewModelData(fi.relatedModel).Set(fi.reverseFK, newRs.Ids()[0]))
+						rec.Call("Copy", NewModelDataFromRS(rc.env.Pool(fi.relatedModel.name)).Set(fi.reverseFK, newRs))
 					}
 				}
 			}
