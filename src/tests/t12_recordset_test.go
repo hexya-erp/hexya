@@ -623,6 +623,13 @@ func TestDeleteRecordSet(t *testing.T) {
 			Convey("Adding unlink permission to user2", func() {
 				h.User().Methods().Unlink().AllowGroup(group1)
 				users := h.User().Search(env, q.User().Name().Equals("John Smith"))
+				So(func() { users.Unlink() }, ShouldPanic)
+			})
+			Convey("Adding permissions to user2 on Profile and Post", func() {
+				h.Profile().Methods().Load().AllowGroup(group1)
+				h.Post().Methods().Load().AllowGroup(group1)
+				h.Post().Methods().Write().AllowGroup(group1)
+				users := h.User().Search(env, q.User().Name().Equals("John Smith"))
 				num := users.Unlink()
 				So(num, ShouldEqual, 1)
 			})
