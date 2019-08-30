@@ -21,6 +21,12 @@ import (
 	"github.com/hexya-erp/hexya/src/tools/typesutils"
 )
 
+// A recomputePair gives a method to apply on a record collection.
+type recomputePair struct {
+	recs   *RecordCollection
+	method string
+}
+
 // computeFieldValues updates the given params with the given computed (non stored) fields
 // or all the computed fields of the model if not given.
 // Returned fieldMap keys are field's JSON name
@@ -40,30 +46,39 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 // processTriggers execute computed fields recomputation (for stored fields) or
 // invalidation (for non stored fields) based on the data of each fields 'Depends'
 // attribute.
-func (rc *RecordCollection) processTriggers(fMap FieldMap) {
+func (rc *RecordCollection) processTriggers(keys []string) {
 	if rc.Env().Context().GetBool("hexya_no_recompute_stored_fields") {
 		return
 	}
-	// Find record fields to update from the modified fields of fMap
-	var toUpdateKeys []string
+	rc.updateStoredFields(rc.retrieveComputeData(keys))
+}
+
+// retrieveComputeData looks up fields that need to be recomputed when the given fields are modified.
+//
+// Returned value is an ordered slice of methods to apply on records
+func (rc *RecordCollection) retrieveComputeData(fields []string) []recomputePair {
+	// Find record fields to update from the modified fields
+	var (
+		toUpdateKeys []string
+		res          []recomputePair
+	)
 	toUpdateData := make(map[string]computeData)
-	for _, fieldName := range fMap.Keys() {
+	for _, fieldName := range fields {
 		refFieldInfo, ok := rc.model.fields.Get(fieldName)
 		if !ok {
 			continue
 		}
 		for _, dep := range refFieldInfo.dependencies {
 			key := fmt.Sprintf("%s-%s-%s", dep.model.name, dep.path, dep.compute)
-			toUpdateKeys = append(toUpdateKeys, key)
-			toUpdateData[key] = dep
+			if _, exists := toUpdateData[key]; !exists {
+				toUpdateKeys = append(toUpdateKeys, key)
+				toUpdateData[key] = dep
+			}
 		}
 	}
-
-	// Order the computeData to have deterministic recomputation
+	// Order the computeData keys to have deterministic recomputation
 	sort.Strings(toUpdateKeys)
-
 	// Compute all that must be computed and store the values
-	rc.Fetch()
 	for _, key := range toUpdateKeys {
 		cData := toUpdateData[key]
 		recs := rc
@@ -77,14 +92,28 @@ func (rc *RecordCollection) processTriggers(fMap FieldMap) {
 			}
 			continue
 		}
-		recs.updateStoredFields(cData.compute)
+		recs.Fetch()
+		res = append(res, recomputePair{recs: recs, method: cData.compute})
+	}
+	return res
+}
+
+// updateStoredFields applies each method on each record defined by compPairs
+func (rc *RecordCollection) updateStoredFields(compPairs []recomputePair) {
+	for _, rp := range compPairs {
+		if rp.recs.IsEmpty() {
+			// recs have been fetched in retrieveComputeData
+			// if it is empty now, it must be because the records have been unlinked in between
+			continue
+		}
+		rp.recs.applyMethod(rp.method)
 	}
 }
 
-// updateStoredFields calls the given computeMethod on recs and stores the values.
-func (rc *RecordCollection) updateStoredFields(computeMethod string) {
+// applyMethod calls the method on this recordset.
+func (rc *RecordCollection) applyMethod(methodName string) {
 	for _, rec := range rc.Records() {
-		retVal := rec.Call(computeMethod)
+		retVal := rec.Call(methodName)
 		data := retVal.(RecordData).Underlying()
 		// Check if the values actually changed
 		var doUpdate bool

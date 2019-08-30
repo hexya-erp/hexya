@@ -70,7 +70,7 @@ func init() {
 			Default: models.DefaultValue(int16(12))},
 		"IsStaff":  models.BooleanField{String: isStaffString, Help: IsStaffHelp},
 		"IsActive": models.BooleanField{},
-		"Profile":  models.One2OneField{RelationModel: h.Profile()},
+		"Profile":  models.One2OneField{OnDelete: models.SetNull, RelationModel: h.Profile()},
 		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
 			Inverse: user.Methods().InverseSetAge(),
 			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},

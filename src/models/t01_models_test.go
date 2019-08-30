@@ -317,7 +317,7 @@ func TestModelDeclaration(t *testing.T) {
 			"IsStaff":  BooleanField{},
 			"IsActive": BooleanField{},
 			"Profile": One2OneField{RelationModel: Registry.MustGet("Profile"),
-				OnDelete: Restrict, Required: true},
+				OnDelete: SetNull, Required: true},
 			"Age": IntegerField{Compute: user.Methods().MustGet("ComputeAge"),
 				Inverse: user.Methods().MustGet("InverseSetAge"),
 				Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},

@@ -135,6 +135,20 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill.Load()
 				So(userWill.Get("Age"), ShouldEqual, 34)
 			})
+			Convey("Checking that unlinking a record recomputes their dependencies", func() {
+				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
+				userWill.Get("Profile").(RecordSet).Collection().Call("Unlink")
+				So(userWill.Get("Age"), ShouldEqual, 0)
+			})
+			Convey("Recreating a profile for userWill", func() {
+				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
+				willProfileData := NewModelData(profileModel).
+					Set("Age", 36).
+					Set("Money", 5100)
+				willProfile := env.Pool("Profile").Call("Create", willProfileData)
+				userWill.Set("Profile", willProfile)
+				So(userWill.Get("Age"), ShouldEqual, 36)
+			})
 			Convey("Checking that setting a computed field with no inverse panics", func() {
 				userWill := users.Search(users.Model().Field("Email").Equals("will.smith@example.com"))
 				So(func() { userWill.Set("DecoratedName", "FooBar") }, ShouldPanic)

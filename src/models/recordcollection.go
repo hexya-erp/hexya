@@ -114,7 +114,7 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	rSet.createReverseRelationRecords(data)
 	// compute stored fields
 	rSet.processInverseMethods(fMap)
-	rSet.processTriggers(fMap)
+	rSet.processTriggers(fMap.Keys())
 	rSet.CheckConstraints()
 	return rSet
 }
@@ -317,7 +317,7 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	// process create data for reverse relations if any
 	rSet.createReverseRelationRecords(data)
 	// compute stored fields
-	rSet.processTriggers(fMap)
+	rSet.processTriggers(fMap.Keys())
 	rSet.CheckConstraints()
 	return true
 }
@@ -565,12 +565,16 @@ func (rc *RecordCollection) unlink() int64 {
 	if rSet.IsEmpty() {
 		return 0
 	}
+	// get recomputate data to update after unlinking
+	compData := rc.retrieveComputeData(rc.model.fields.allJSONNames())
 	sql, args := rSet.query.deleteQuery()
 	res := rSet.env.cr.Execute(sql, args...)
 	num, _ := res.RowsAffected()
 	for _, id := range ids {
 		rc.env.cache.invalidateRecord(rc.model, id)
 	}
+	// Update stored fields that referenced this recordset
+	rc.updateStoredFields(compData)
 	return num
 }
 
@@ -897,6 +901,10 @@ func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 			fields = append(fields, rc.model.fields.storedFieldNames()...)
 		}
 		rc.Load(field)
+		if rc.IsEmpty() {
+			// rc might now be empty if it has just been deleted
+			return nil, true
+		}
 		dbCalled = true
 	}
 	return rc.env.cache.get(rc.model, rc.ids[0], field, rc.query.ctxArgsSlug()), dbCalled

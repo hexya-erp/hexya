@@ -186,7 +186,7 @@ func declareCRUDMethods() {
 			rc.EnsureOne()
 			oVal := reflect.ValueOf(overrides)
 			if !oVal.IsValid() || (oVal.Kind() != reflect.Struct && oVal.IsNil()) {
-				overrides = NewModelData(rc.model)
+				overrides = NewModelDataFromRS(rc)
 			}
 
 			// Prevent infinite recursion if we have circular references
@@ -221,7 +221,7 @@ func declareCRUDMethods() {
 			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64), rc.query.ctxArgsSlug())
 			fMap.RemovePK()
 			fMap.MergeWith(overrides.Underlying().FieldMap, rc.model)
-			cData := NewModelData(rc.model, fMap)
+			cData := NewModelDataFromRS(rc, fMap)
 			// Reload original record to prevent cache discrepancies
 			rc.Load()
 
@@ -241,7 +241,7 @@ func declareCRUDMethods() {
 					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
 				case fieldtype.One2Many:
 					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
-						rec.Call("Copy", NewModelData(fi.relatedModel).Set(fi.reverseFK, newRs.Ids()[0]))
+						rec.Call("Copy", NewModelDataFromRS(rc.env.Pool(fi.relatedModel.name)).Set(fi.reverseFK, newRs))
 					}
 				}
 			}

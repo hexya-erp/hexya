@@ -856,6 +856,8 @@ func TestDeleteRecordSet(t *testing.T) {
 	Convey("Checking unlink access permissions", t, func() {
 		So(SimulateInNewEnvironment(2, func(env Environment) {
 			userModel := Registry.MustGet("User")
+			profileModel := Registry.MustGet("Profile")
+			postModel := Registry.MustGet("Post")
 
 			Convey("Checking that user 2 cannot unlink records", func() {
 				userModel.methods.MustGet("Load").AllowGroup(group1)
@@ -864,6 +866,13 @@ func TestDeleteRecordSet(t *testing.T) {
 			})
 			Convey("Adding unlink permission to user2", func() {
 				userModel.methods.MustGet("Unlink").AllowGroup(group1)
+				users := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
+				So(func() { users.Call("Unlink") }, ShouldPanic)
+			})
+			Convey("Adding permissions to user2 on Profile and Post", func() {
+				profileModel.methods.MustGet("Load").AllowGroup(group1)
+				postModel.methods.MustGet("Load").AllowGroup(group1)
+				postModel.methods.MustGet("Write").AllowGroup(group1)
 				users := env.Pool("User").Search(env.Pool("User").Model().Field("Name").Equals("John Smith"))
 				num := users.Call("Unlink")
 				So(num, ShouldEqual, 1)
