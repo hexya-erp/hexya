@@ -257,7 +257,7 @@ func (rc *RecordCollection) addContextsFieldsValues(fMap FieldMap) FieldMap {
 // Each method is only executed once, even if it is called by several fields.
 // It panics as soon as one constraint fails.
 func (rc *RecordCollection) CheckConstraints() {
-	if rc.env.context.GetBool("skip_check_constraints") {
+	if rc.env.context.GetBool("hexya_skip_check_constraints") {
 		return
 	}
 	methods := make(map[string]bool)
@@ -754,6 +754,10 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 	for _, rec := range rc.Records() {
 		id := rec.ids[0]
 		for _, fieldName := range fields {
+			fi := rc.model.getRelatedFieldInfo(fieldName)
+			if !fi.fieldType.IsNonStoredRelationType() {
+				continue
+			}
 			thisRC := rec
 			exprs := strings.Split(fieldName, ExprSep)
 			if len(exprs) > 1 {
@@ -762,7 +766,6 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 				thisRC.Call("Load", []string{prefix})
 				thisRC = thisRC.Get(prefix).(RecordSet).Collection()
 			}
-			fi := rc.model.getRelatedFieldInfo(fieldName)
 			switch fi.fieldType {
 			case fieldtype.One2Many:
 				relRC := rc.env.Pool(fi.relatedModelName)
@@ -787,8 +790,6 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 					relID = relRC.ids[0]
 				}
 				rc.env.cache.updateEntry(rc.model, id, fieldName, relID, rc.query.ctxArgsSlug())
-			default:
-				continue
 			}
 		}
 	}
@@ -900,7 +901,7 @@ func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 		if all {
 			fields = append(fields, rc.model.fields.storedFieldNames()...)
 		}
-		rc.Load(field)
+		rc.Load(fields...)
 		if rc.IsEmpty() {
 			// rc might now be empty if it has just been deleted
 			return nil, true
@@ -936,7 +937,7 @@ func (rc *RecordCollection) First() *ModelData {
 	}
 	fields := rc.model.fields.allJSONNames()
 	rc.Load(fields...)
-	res := NewModelData(rc.model)
+	res := NewModelDataFromRS(rc)
 	for _, f := range fields {
 		res.Set(f, rc.Get(f))
 	}

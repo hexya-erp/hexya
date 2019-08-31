@@ -203,6 +203,12 @@ func TestModelDeclaration(t *testing.T) {
 				}
 			})
 
+		user.Methods().MustGet("Copy").Extend("",
+			func(rc *RecordCollection, overrides RecordData) *RecordCollection {
+				overrides.Underlying().Set("Name", fmt.Sprintf("%s (copy)", rc.Get("Name").(string)))
+				return rc.Super().Call("Copy", overrides).(RecordSet).Collection()
+			})
+
 		activeMI.AddMethod("IsActivated", "",
 			func(rc *RecordCollection) bool {
 				return rc.Get("Active").(bool)

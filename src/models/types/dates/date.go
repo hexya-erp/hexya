@@ -27,7 +27,7 @@ func (d Date) String() string {
 	return strings.Trim(string(bs), "\"")
 }
 
-// ToDate returns the Date of this DateTime
+// ToDateTime returns the Date of this DateTime
 func (d Date) ToDateTime() DateTime {
 	return DateTime{d.Time}
 }
@@ -46,9 +46,9 @@ func (d Date) MarshalJSON() ([]byte, error) {
 // Especially handles empty Date.
 func (d Date) Value() (driver.Value, error) {
 	if d.IsZero() {
-		return driver.Value(time.Time{}), nil
+		return time.Time{}, nil
 	}
-	return driver.Value(d.Time), nil
+	return d.Time, nil
 }
 
 // Scan casts the database output to a Date

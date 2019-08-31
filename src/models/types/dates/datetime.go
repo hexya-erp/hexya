@@ -46,9 +46,9 @@ func (d DateTime) MarshalJSON() ([]byte, error) {
 // Especially handles empty DateTime.
 func (d DateTime) Value() (driver.Value, error) {
 	if d.IsZero() {
-		return driver.Value(time.Time{}), nil
+		return time.Time{}, nil
 	}
-	return driver.Value(d.Time), nil
+	return d.Time, nil
 }
 
 // Scan casts the database output to a DateTime
@@ -247,14 +247,14 @@ func (d DateTime) StartOfMonth() DateTime {
 	}
 }
 
-// StartOfYear returns the DateTime corresponding to the beginning of the day, at 00:00
+// StartOfDay returns the DateTime corresponding to the beginning of the day, at 00:00
 func (d DateTime) StartOfDay() DateTime {
 	return DateTime{
 		Time: time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, d.Location()),
 	}
 }
 
-// StartOfMonth returns the DateTime corresponding to the beginning of the current our
+// StartOfHour returns the DateTime corresponding to the beginning of the current hour
 func (d DateTime) StartOfHour() DateTime {
 	return DateTime{
 		Time: time.Date(d.Year(), d.Month(), d.Day(), d.Hour(), 0, 0, 0, d.Location()),
