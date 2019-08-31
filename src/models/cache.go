@@ -317,16 +317,6 @@ func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) inter
 	}
 }
 
-// getRecord returns the whole record specified by modelName and id
-// as it is currently in cache.
-func (c *cache) getRecord(mi *Model, id int64, ctxSlug string) FieldMap {
-	res := make(FieldMap)
-	for _, fName := range c.data[mi.name][id].Keys() {
-		res[fName] = c.get(mi, id, fName, ctxSlug)
-	}
-	return res
-}
-
 // checkIfInCache returns true if all fields given by fieldNames are available
 // in cache for all the records with the given ids in the given model.
 func (c *cache) checkIfInCache(mi *Model, ids []int64, fieldNames []string, ctxSlug string, strict bool) bool {

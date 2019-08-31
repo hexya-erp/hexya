@@ -754,6 +754,10 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 	for _, rec := range rc.Records() {
 		id := rec.ids[0]
 		for _, fieldName := range fields {
+			fi := rc.model.getRelatedFieldInfo(fieldName)
+			if !fi.fieldType.IsNonStoredRelationType() {
+				continue
+			}
 			thisRC := rec
 			exprs := strings.Split(fieldName, ExprSep)
 			if len(exprs) > 1 {
@@ -762,7 +766,6 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 				thisRC.Call("Load", []string{prefix})
 				thisRC = thisRC.Get(prefix).(RecordSet).Collection()
 			}
-			fi := rc.model.getRelatedFieldInfo(fieldName)
 			switch fi.fieldType {
 			case fieldtype.One2Many:
 				relRC := rc.env.Pool(fi.relatedModelName)
@@ -787,8 +790,6 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 					relID = relRC.ids[0]
 				}
 				rc.env.cache.updateEntry(rc.model, id, fieldName, relID, rc.query.ctxArgsSlug())
-			default:
-				continue
 			}
 		}
 	}
@@ -900,7 +901,7 @@ func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 		if all {
 			fields = append(fields, rc.model.fields.storedFieldNames()...)
 		}
-		rc.Load(field)
+		rc.Load(fields...)
 		if rc.IsEmpty() {
 			// rc might now be empty if it has just been deleted
 			return nil, true
