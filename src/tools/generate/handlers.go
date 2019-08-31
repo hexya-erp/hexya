@@ -15,6 +15,7 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 	"Create":           createMethodHandler,
 	"Write":            writeMethodHandler,
 	"Copy":             copyMethodHandler,
+	"CopyData":         copyDataMethodHandler,
 	"CartesianProduct": cartesianProductMethodHandler,
 	"Sorted":           sortedMethodHandler,
 	"Filtered":         filteredMethodHandler,
@@ -122,6 +123,31 @@ func copyMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 		ParamsWithType: fmt.Sprintf("overrides %s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnAsserts:  fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, returnString),
 		Returns:        "resTyped",
+		ReturnString:   returnString,
+		Call:           "Call",
+	})
+}
+
+// copyDataMethodHandler returns the specific methodData for the CopyData method.
+func copyDataMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+	name := "CopyData"
+	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
+	iReturnString := fmt.Sprintf("%sData", modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:             name,
+		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("%sData", modelData.Name),
+		ReturnString:     returnString,
+		IReturnString:    iReturnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name:           name,
+		Doc:            `// CopyData copies given record's data with all its fields values, overriding values with overrides.`,
+		ToDeclare:      false,
+		Params:         "overrides",
+		ParamsWithType: fmt.Sprintf("overrides %s.%sData", PoolInterfacesPackage, modelData.Name),
+		ReturnAsserts:  "resTyped, _ := res.(models.RecordData)",
+		Returns:        fmt.Sprintf("resTyped.Underlying().Wrap().(%s.%sData)", PoolInterfacesPackage, modelData.Name),
 		ReturnString:   returnString,
 		Call:           "Call",
 	})

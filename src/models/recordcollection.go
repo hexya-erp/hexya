@@ -257,7 +257,7 @@ func (rc *RecordCollection) addContextsFieldsValues(fMap FieldMap) FieldMap {
 // Each method is only executed once, even if it is called by several fields.
 // It panics as soon as one constraint fails.
 func (rc *RecordCollection) CheckConstraints() {
-	if rc.env.context.GetBool("skip_check_constraints") {
+	if rc.env.context.GetBool("hexya_skip_check_constraints") {
 		return
 	}
 	methods := make(map[string]bool)
@@ -936,7 +936,7 @@ func (rc *RecordCollection) First() *ModelData {
 	}
 	fields := rc.model.fields.allJSONNames()
 	rc.Load(fields...)
-	res := NewModelData(rc.model)
+	res := NewModelDataFromRS(rc)
 	for _, f := range fields {
 		res.Set(f, rc.Get(f))
 	}

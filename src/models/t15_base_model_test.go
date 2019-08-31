@@ -65,16 +65,20 @@ func TestBaseModelMethods(t *testing.T) {
 				So(allCount, ShouldEqual, 3)
 			})
 			Convey("Copy", func() {
-				newProfile := userJane.Get("Profile").(RecordSet).Collection().Call("Copy", NewModelData(profileModel))
+				newProfile := userJane.Get("Profile").(RecordSet).Collection().Call("Copy", NewModelData(profileModel)).(RecordSet).Collection()
+				So(newProfile.Equals(userJane.Get("Profile").(RecordSet).Collection()), ShouldBeFalse)
 				userJane.Call("Write", NewModelData(userModel).Set("Password", "Jane's Password"))
 				userJaneCopy := userJane.Call("Copy", NewModelData(userModel).
 					Set("Name", "Jane's Copy").
-					Set("Email2", "js@example.com").
-					Set("Profile", newProfile)).(RecordSet).Collection()
-				So(userJaneCopy.Get("Name"), ShouldEqual, "Jane's Copy")
+					Set("Email2", "js@example.com")).(RecordSet).Collection()
+				So(userJaneCopy.IsEmpty(), ShouldBeFalse)
+				So(userJaneCopy.Equals(userJane), ShouldBeFalse)
+				So(userJaneCopy.Get("Name"), ShouldEqual, "Jane A. Smith (copy)")
 				So(userJaneCopy.Get("Email"), ShouldEqual, "jane.smith@example.com")
 				So(userJaneCopy.Get("Email2"), ShouldEqual, "js@example.com")
 				So(userJaneCopy.Get("Password"), ShouldBeBlank)
+				So(userJaneCopy.Get("Profile").(RecordSet).Collection().Equals(userJane.Get("Profile").(RecordSet)), ShouldBeFalse)
+				So(userJaneCopy.Get("Profile.Age"), ShouldEqual, 24)
 				So(userJaneCopy.Get("Age"), ShouldEqual, 24)
 				So(userJaneCopy.Get("Nums"), ShouldEqual, 2)
 				So(userJaneCopy.Get("Posts").(RecordSet).Collection().Len(), ShouldEqual, 2)

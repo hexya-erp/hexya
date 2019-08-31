@@ -179,72 +179,54 @@ func declareCRUDMethods() {
 			return rc.unlink()
 		})
 
-	commonMixin.AddMethod("Copy",
-		`Copy duplicates the given record
-		It panics if rs is not a singleton`,
-		func(rc *RecordCollection, overrides RecordData) *RecordCollection {
+	commonMixin.AddMethod("CopyData",
+		`CopyData copies given record's data with all its fields values.
+
+        overrides contains field values to override in the original values of the copied record.`,
+		func(rc *RecordCollection, overrides RecordData) *ModelData {
 			rc.EnsureOne()
+			// Handle case when overrides is nil
 			oVal := reflect.ValueOf(overrides)
 			if !oVal.IsValid() || (oVal.Kind() != reflect.Struct && oVal.IsNil()) {
 				overrides = NewModelDataFromRS(rc)
 			}
 
-			// Prevent infinite recursion if we have circular references
-			if !rc.Env().Context().HasKey("__copy_data_seen") {
-				rc = rc.WithContext("__copy_data_seen", map[string]bool{})
-			}
-			seenMap := rc.Env().Context().Get("__copy_data_seen").(map[string]bool)
-			if seenMap[fmt.Sprintf("%s,%d", rc.ModelName(), rc.Ids()[0])] {
-				return rc.env.Pool(rc.ModelName())
-			}
-			seenMap[fmt.Sprintf("%s,%d", rc.ModelName(), rc.Ids()[0])] = true
-			rc = rc.WithContext("__copy_data_seen", seenMap)
-
-			// Create a slice of fields to copy directly
-			var fields []string
+			// Create the RecordData
+			res := NewModelDataFromRS(rc)
 			for _, fi := range rc.model.fields.registryByName {
+				if overrides.Underlying().Has(fi.json) {
+					// Overrides are applied below
+					continue
+				}
 				if fi.noCopy || fi.isComputedField() {
-					continue
-				}
-				if fi.fieldType == fieldtype.One2One || fi.fieldType.IsReverseRelationType() {
-					// These fields will be copied after duplication
-					continue
-				}
-				fields = append(fields, fi.json)
-			}
-
-			// We invalidate the cache in case we have noCopy fields that have
-			// been loaded previously
-			rc.env.cache.invalidateRecord(rc.model, rc.Get("id").(int64))
-			rc.Load(fields...)
-
-			fMap := rc.env.cache.getRecord(rc.Model(), rc.Get("id").(int64), rc.query.ctxArgsSlug())
-			fMap.RemovePK()
-			fMap.MergeWith(overrides.Underlying().FieldMap, rc.model)
-			cData := NewModelDataFromRS(rc, fMap)
-			// Reload original record to prevent cache discrepancies
-			rc.Load()
-
-			// Create our duplicated record
-			newRs := rc.WithContext("hexya_force_compute_write", true).Call("Create", cData).(RecordSet).Collection()
-
-			// Duplicate one2one and one2many records
-			for _, fi := range rc.model.fields.registryByName {
-				if _, inOverrides := overrides.Underlying().FieldMap.Get(fi.name, rc.model); inOverrides {
-					continue
-				}
-				if fi.noCopy {
 					continue
 				}
 				switch fi.fieldType {
 				case fieldtype.One2One:
-					newRs.Set(fi.name, rc.Get(fi.json).(RecordSet).Collection().Call("Copy", nil))
-				case fieldtype.One2Many:
+					// One2one related records must be copied to avoid duplicate keys on FK
+					res = res.Create(fi.json, rc.Get(fi.json).(RecordSet).Collection().Call("CopyData", nil).(RecordData).Underlying())
+				case fieldtype.One2Many, fieldtype.Rev2One:
 					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
-						rec.Call("Copy", NewModelDataFromRS(rc.env.Pool(fi.relatedModel.name)).Set(fi.reverseFK, newRs))
+						res = res.Create(fi.json, rec.Call("CopyData", nil).(RecordData).Underlying().Unset(fi.reverseFK))
 					}
+				default:
+					res.Set(fi.json, rc.Get(fi.json))
 				}
 			}
+			// Apply overrides
+			res.RemovePK()
+			res.MergeWith(overrides.Underlying().FieldMap, rc.model)
+			return res
+		})
+
+	commonMixin.AddMethod("Copy",
+		`Copy duplicates the given records.
+
+        overrides contains field values to override in the original values of the copied record.`,
+		func(rc *RecordCollection, overrides RecordData) *RecordCollection {
+			rc.EnsureOne()
+			data := rc.Call("CopyData", overrides).(RecordData).Underlying()
+			newRs := rc.Call("Create", data).(RecordSet).Collection()
 			return newRs
 		})
 }
