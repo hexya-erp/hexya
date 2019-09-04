@@ -40,6 +40,8 @@ type RecordSet interface {
 	Env() Environment
 	// Len returns the number of records in this RecordSet
 	Len() int
+	// IsValid returns true if this RecordSet has been initialized.
+	IsValid() bool
 	// IsEmpty returns true if this RecordSet has no records
 	IsEmpty() bool
 	// IsNotEmpty returns true if this RecordSet has at least one record

@@ -22,7 +22,6 @@ import (
 	"sync"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
-	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -193,7 +192,6 @@ func (fc *FieldsCollection) register(fInfo *Field) {
 // Field holds the meta information about a field
 type Field struct {
 	model            *Model
-	acl              *security.AccessControlList
 	name             string
 	json             string
 	description      string
@@ -370,7 +368,6 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 
 	newMI := &Model{
 		name:         relModelName,
-		acl:          security.NewAccessControlList(),
 		tableName:    strutils.SnakeCase(relModelName),
 		fields:       newFieldsCollection(),
 		methods:      newMethodsCollection(),
@@ -384,7 +381,6 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	ourField := &Field{
 		name:             field1,
 		json:             strutils.SnakeCase(field1) + "_id",
-		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
@@ -402,7 +398,6 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	theirField := &Field{
 		name:             field2,
 		json:             strutils.SnakeCase(field2) + "_id",
-		acl:              security.NewAccessControlList(),
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
@@ -428,7 +423,6 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	name := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
 	newModel := Model{
 		name:          name,
-		acl:           fi.model.acl,
 		rulesRegistry: newRecordRuleRegistry(),
 		tableName:     strutils.SnakeCase(name),
 		fields:        newFieldsCollection(),
@@ -440,7 +434,6 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	pkField := &Field{
 		name:      "ID",
 		json:      "id",
-		acl:       security.NewAccessControlList(),
 		model:     &newModel,
 		required:  true,
 		noCopy:    true,
@@ -455,7 +448,6 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	fkField := &Field{
 		name:             "Record",
 		json:             "record_id",
-		acl:              security.NewAccessControlList(),
 		model:            &newModel,
 		required:         true,
 		noCopy:           true,
@@ -473,7 +465,6 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	newModel.fields.add(fkField)
 	valueField := *fi
 	valueField.model = &newModel
-	valueField.acl = security.NewAccessControlList()
 	valueField.compute = ""
 	valueField.embed = false
 	valueField.stored = false
@@ -490,7 +481,6 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		ctField := &Field{
 			name:      ctName,
 			json:      strutils.SnakeCase(ctName),
-			acl:       security.NewAccessControlList(),
 			model:     &newModel,
 			noCopy:    true,
 			fieldType: fieldtype.Char,

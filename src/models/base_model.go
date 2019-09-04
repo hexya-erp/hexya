@@ -545,7 +545,7 @@ func declareSearchMethods() {
 
 	commonMixin.AddMethod("SQLFromCondition",
 		`SQLFromCondition returns the WHERE clause sql and arguments corresponding to
-			the given condition.`,
+		the given condition.`,
 		func(rc *RecordCollection, c *Condition) (string, SQLParams) {
 			return rc.SQLFromCondition(c)
 		})

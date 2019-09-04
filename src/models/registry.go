@@ -113,7 +113,6 @@ func newModelCollection() *modelCollection {
 type Model struct {
 	name           string
 	options        Option
-	acl            *security.AccessControlList
 	rulesRegistry  *recordRuleRegistry
 	tableName      string
 	fields         *FieldsCollection
@@ -593,7 +592,6 @@ func createModel(name string, options Option) *Model {
 	mi := &Model{
 		name:           name,
 		options:        options,
-		acl:            security.NewAccessControlList(),
 		rulesRegistry:  newRecordRuleRegistry(),
 		tableName:      strutils.SnakeCase(name),
 		fields:         newFieldsCollection(),
@@ -605,7 +603,6 @@ func createModel(name string, options Option) *Model {
 	pk := &Field{
 		name:      "ID",
 		json:      "id",
-		acl:       security.NewAccessControlList(),
 		model:     mi,
 		required:  true,
 		noCopy:    true,

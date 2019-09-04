@@ -340,6 +340,14 @@ var _ models.RecordSet = {{ .Name }}Set{}
 // {{ .Name }}SetHexyaFunc is a dummy function to uniquely match interfaces.
 func (s {{ .Name }}Set) {{ .Name }}SetHexyaFunc() {}
 
+// IsValid returns true if this RecordSet has been initialized.
+func (s {{ .Name }}Set) IsValid() bool {
+	if s.RecordCollection == nil {
+		return false
+	}
+	return s.RecordCollection.IsValid()
+}
+
 // Records returns a slice with all the records of this RecordSet, as singleton
 // RecordSets
 func (s {{ .Name }}Set) Records() []{{ .InterfacesPackageName }}.{{ .Name }}Set {

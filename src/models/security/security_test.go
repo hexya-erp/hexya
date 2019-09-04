@@ -20,50 +20,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestAccessControlList(t *testing.T) {
-	Convey("Testing Access Control Lists", t, func() {
-		gr := NewGroupCollection()
-		acl := NewAccessControlList()
-		group1 := gr.NewGroup("group1_test", "Group 1")
-		group1Inherit := gr.NewGroup("group1_inherited", "Group 1 Inherited", group1)
-		group2 := gr.NewGroup("group2_test", "Group 2")
-		acl.AddPermission(group1, Read)
-		acl.AddPermission(group2, All)
-		So(acl.perms, ShouldHaveLength, 3)
-		So(acl.perms[group1], ShouldEqual, Read)
-		So(acl.perms[group2], ShouldEqual, All)
-		So(acl.perms[GroupEveryone], ShouldEqual, All)
-
-		Convey("Adding permissions to groups", func() {
-			acl.AddPermission(group1, Write)
-			So(acl.perms[group1], ShouldEqual, Read|Write)
-		})
-
-		Convey("Removing permissions from groups", func() {
-			acl.RemovePermission(group2, Read)
-			So(acl.perms[group2], ShouldEqual, Write|Unlink)
-			acl.RemovePermission(group1, Write|Unlink)
-			So(acl.perms[group1], ShouldEqual, Read)
-		})
-
-		Convey("Replacing permissions in groups", func() {
-			acl.ReplacePermission(group2, Read)
-			So(acl.perms[group2], ShouldEqual, Read)
-			acl.ReplacePermission(group1, Write)
-			So(acl.perms[group1], ShouldEqual, Write)
-		})
-
-		Convey("Checking permissions", func() {
-			So(acl.CheckPermission(group1, Read), ShouldBeTrue)
-			So(acl.CheckPermission(group1Inherit, Read), ShouldBeTrue)
-			So(acl.CheckPermission(group2, Read|Write), ShouldBeTrue)
-			So(acl.CheckPermission(group2, All), ShouldBeTrue)
-			So(acl.CheckPermission(group1, Read|Write), ShouldBeFalse)
-			So(acl.CheckPermission(group1Inherit, Read|Unlink), ShouldBeFalse)
-		})
-	})
-}
-
 func TestGroupRegistry(t *testing.T) {
 	group1 := Registry.NewGroup("group1_test", "Group 1")
 	group2 := Registry.NewGroup("group2_test", "Group 2")

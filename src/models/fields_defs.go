@@ -9,7 +9,6 @@ import (
 	"sort"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
-	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
@@ -656,7 +655,6 @@ func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 	json, _ := getJSONAndString(name, fieldtype.NoType, "", "")
 	fInfo := &Field{
 		model: fc.model,
-		acl:   security.NewAccessControlList(),
 		name:  name,
 		json:  json,
 		structField: reflect.StructField{
@@ -713,7 +711,6 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 	}
 	fInfo := &Field{
 		model:         fc.model,
-		acl:           security.NewAccessControlList(),
 		name:          name,
 		json:          json,
 		description:   str,
