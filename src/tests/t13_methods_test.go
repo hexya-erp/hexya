@@ -20,6 +20,7 @@ import (
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/pool/h"
+	"github.com/hexya-erp/pool/m"
 	"github.com/hexya-erp/pool/q"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -247,6 +248,25 @@ func TestMixedInModels(t *testing.T) {
 				janeProfile.SetActive(true)
 				So(janeProfile.Active(), ShouldEqual, true)
 				So(janeProfile.IsActivated(), ShouldEqual, true)
+			})
+		}), ShouldBeNil)
+	})
+}
+
+func TestInvalidRecordSets(t *testing.T) {
+	Convey("Testing Invalid Recordsets", t, func() {
+		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+			rc := models.InvalidRecordCollection("User")
+			rs := rc.Wrap("User").(m.UserSet)
+			Convey("Getting a field on an invalid RecordSet should return empty value", func() {
+				So(rs.Name(), ShouldEqual, "")
+			})
+			Convey("Getting a relation field on an invalid RecordSet should return invalid recordset", func() {
+				profile := rs.Profile()
+				So(profile.IsValid(), ShouldBeFalse)
+			})
+			Convey("Calling a method on an invalid RecordSet should panic", func() {
+				So(func() { rs.PrefixedUser(">>") }, ShouldPanic)
 			})
 		}), ShouldBeNil)
 	})

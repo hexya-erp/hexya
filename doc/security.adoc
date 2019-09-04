@@ -20,15 +20,11 @@ permissions of the groups.
 
 === Mechanisms
 
-Permissions are given to groups by three distinct mechanisms:
+Permissions are given to groups by two distinct mechanisms:
 
 Method Execution Control::
 Model methods can be executed only by members of given groups. This includes
 CRUD methods.
-
-Field Access Control::
-Fields in models can be given `Read` and/or `Write` permissions to specific
-groups to fine tune their access.
 
 Record Rules::
 Grant permissions (`Read`, `Write`, `Unlink`) on some records of a model only

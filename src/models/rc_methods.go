@@ -37,6 +37,9 @@ func (rc *RecordCollection) Call(methName string, args ...interface{}) interface
 // with the given arguments and return the result as []interface{}.
 func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
 	log.Debug("Calling Recordset method", "model", rc.model.name, "method", methName, "ids", rc.ids, "args", strutils.TrimArgs(args))
+	if !rc.IsValid() {
+		panic(fmt.Errorf("you cannot call a method on an invalid RecordSet. Model: %s, Method: %s", rc.model.name, methName))
+	}
 	rc.env.checkRecursion()
 	startTime := time.Now()
 	methInfo, ok := rc.model.methods.Get(methName)

@@ -800,7 +800,11 @@ func (rc *RecordCollection) loadRelationFields(fields []string) {
 func (rc *RecordCollection) Get(fieldName string) interface{} {
 	fi := rc.model.getRelatedFieldInfo(fieldName)
 	if !rc.IsValid() {
-		return reflect.Zero(fi.structField.Type).Interface()
+		res := reflect.Zero(fi.structField.Type).Interface()
+		if fi.isRelationField() {
+			res = rc.convertToRecordSet(res, fi.relatedModelName)
+		}
+		return res
 	}
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	rc.Fetch()
@@ -843,6 +847,9 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 // ConvertToRecordSet the given val which can be of type *interface{}(nil) int64, []int64
 // for the given related model name
 func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName string) *RecordCollection {
+	if rc.env == nil {
+		return InvalidRecordCollection(relatedModelName)
+	}
 	res := newRecordCollection(rc.Env(), relatedModelName)
 	switch r := val.(type) {
 	case *interface{}, nil, bool:

@@ -499,3 +499,23 @@ func TestTypeConversionInMethodCall(t *testing.T) {
 		}), ShouldBeNil)
 	})
 }
+
+func TestInvalidRecordSets(t *testing.T) {
+	Convey("Testing Invalid Recordsets", t, func() {
+		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			rc := InvalidRecordCollection("User")
+			Convey("Getting a field on an invalid RecordSet should return empty value", func() {
+				So(rc.Get("Name"), ShouldEqual, "")
+			})
+			Convey("Getting a relation field on an invalid RecordSet should return invalid recordset", func() {
+				profile, ok := rc.Get("Profile").(*RecordCollection)
+				So(ok, ShouldBeTrue)
+				So(profile.IsValid(), ShouldBeFalse)
+				So(profile.model.name, ShouldEqual, "Profile")
+			})
+			Convey("Calling a method on an invalid RecordSet should panic", func() {
+				So(func() { rc.Call("PrefixedUser", ">>") }, ShouldPanic)
+			})
+		}), ShouldBeNil)
+	})
+}

@@ -233,7 +233,6 @@ func addMixinFields(mixinModel, model *Model) {
 			delete(model.fields.registryByName, existingFI.name)
 		}
 		newFI.model = model
-		newFI.acl = security.NewAccessControlList()
 		if newFI.fieldType == fieldtype.Many2Many {
 			m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(newFI.m2mRelModel.name, model.name,
 				newFI.relatedModelName, newFI.m2mOurField.name, newFI.m2mTheirField.name, false)
@@ -242,10 +241,6 @@ func addMixinFields(mixinModel, model *Model) {
 			newFI.m2mTheirField = m2mTheirField
 		}
 		model.fields.add(&newFI)
-		// We add the permissions of the mixin to the target model
-		for group, perm := range fi.acl.Permissions() {
-			newFI.acl.AddPermission(group, perm)
-		}
 	}
 }
 
@@ -264,7 +259,6 @@ func inflateEmbeddings() {
 				newFI := Field{
 					name:        relName,
 					json:        relFI.json,
-					acl:         security.NewAccessControlList(),
 					model:       model,
 					stored:      fi.stored,
 					structField: relFI.structField,
@@ -329,7 +323,6 @@ func inflateContexts() {
 			o2mField := &Field{
 				name:             fieldName,
 				json:             strutils.SnakeCase(fieldName),
-				acl:              security.NewAccessControlList(),
 				model:            mi,
 				fieldType:        fieldtype.One2Many,
 				relatedModelName: contextsModel.name,
