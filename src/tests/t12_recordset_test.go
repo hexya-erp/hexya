@@ -604,10 +604,25 @@ func TestUpdateRecordSet(t *testing.T) {
 func TestDeleteRecordSet(t *testing.T) {
 	Convey("Delete user John Smith", t, func() {
 		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
-			users := h.User().Search(env, q.User().Name().Equals("John Smith"))
-			num := users.Unlink()
 			Convey("Number of deleted record should be 1", func() {
+				users := h.User().Search(env, q.User().Name().Equals("John Smith"))
+				num := users.Unlink()
 				So(num, ShouldEqual, 1)
+			})
+			Convey("Deleted RecordSet should update themselves when reloading", func() {
+				userJohn := h.User().Search(env, q.User().Name().Equals("John Smith"))
+				userJohn2 := h.User().Search(env, q.User().Name().Equals("John Smith"))
+				users := h.User().Search(env, q.User().Name().Equals("John Smith").Or().Name().Equals("Jane A. Smith"))
+				So(userJohn.Len(), ShouldEqual, 1)
+				So(userJohn2.Len(), ShouldEqual, 1)
+				So(users.Len(), ShouldEqual, 2)
+				userJohn.Unlink()
+				userJohn.ForceLoad()
+				So(userJohn.Len(), ShouldEqual, 0)
+				userJohn2.ForceLoad()
+				So(userJohn2.Len(), ShouldEqual, 0)
+				users.ForceLoad()
+				So(users.Len(), ShouldEqual, 1)
 			})
 		}), ShouldBeNil)
 	})

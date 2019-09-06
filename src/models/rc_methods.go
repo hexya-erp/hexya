@@ -49,10 +49,10 @@ func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []in
 
 	methLayer := methInfo.topLayer
 	if rc.env.super {
-		if !ok {
+		methLayer = methInfo.getNextLayer(rc.env.currentLayer)
+		if methLayer == nil {
 			log.Panic("Missing layer", "method", methName, "model", rc.model.name)
 		}
-		methLayer = methInfo.getNextLayer(rc.env.currentLayer)
 	}
 
 	newEnv := rc.Env()
