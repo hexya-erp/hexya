@@ -43,7 +43,7 @@ All parameters passed as command line arguments or env variables will be set in 
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		if writeConfigFile(projectDir); err != nil {
+		if err = writeConfigFile(projectDir); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -56,7 +56,7 @@ var projectCleanCmd = &cobra.Command{
 	Long: `Clean the current directory from all generated and test artifacts.
 You should use this command before committing your work.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runCommand("go", "mod", "edit", "-dropreplace", "github.com/hexya-erp/pool@v1.0.0")
+		runCommand("go", "mod", "edit", "-dropreplace", "github.com/hexya-erp/pool@v1.0.2")
 		if err := removeProjectDir(PoolDirRel); err != nil {
 			fmt.Println(err)
 		}
