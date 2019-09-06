@@ -22,6 +22,12 @@ type {{ .Name }}Set interface {
 	models.RecordSet
 	// {{ .Name }}SetHexyaFunc is a dummy function to uniquely match interfaces.
 	{{ .Name }}SetHexyaFunc()
+	// ForceLoad reloads the cache for the given fields and updates the ids of this {{ .Name }}Set.
+	//
+	// If no fields are given, all DB columns of the {{ .Name }} model are retrieved.
+	//
+	// It also returns this {{ .Name }}Set.
+	ForceLoad(fields ...string) {{ .Name }}Set
 	{{- range .Fields }}
 	// {{ .Name }} is a getter for the value of the "{{ .Name }}" field of the first
 	// record in this RecordSet. It returns the Go zero value if the RecordSet is empty.

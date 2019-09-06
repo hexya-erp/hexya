@@ -155,16 +155,6 @@ func declareCRUDMethods() {
 			return rc.Load(fields...)
 		})
 
-	commonMixin.AddMethod("ForceLoad",
-		`ForceLoad query all data of the RecordCollection and store in cache.
-		fields are the fields to retrieve in the expression format,
-		i.e. "User.Profile.Age" or "user_id.profile_id.age".
-		If no fields are given, all DB columns of the RecordCollection's
-		model are retrieved.`,
-		func(rc *RecordCollection, fields ...string) *RecordCollection {
-			return rc.Load(fields...)
-		})
-
 	commonMixin.AddMethod("Write",
 		`Write is the base implementation of the 'Write' method which updates
 		records in the database with the given data.
