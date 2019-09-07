@@ -89,8 +89,9 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	// process create data for FK relations if any
 	data = rc.createFKRelationRecords(data)
 
-	fMap := data.Underlying().FieldMap.Copy()
-	rc.applyDefaults(&fMap, true)
+	newData := data.Underlying().Copy()
+	rc.applyDefaults(newData, true)
+	fMap := newData.Underlying().FieldMap
 	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
 	fMap = rc.addEmbeddedfields(fMap)
@@ -175,7 +176,7 @@ func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 // applyDefaults adds the default value to the given fMap values which
 // are not in fMap. If create is true, default
 // value is set only if the field is required or readonly (and not in fMap).
-func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
+func (rc *RecordCollection) applyDefaults(md *ModelData, create bool) {
 	// 1. Create a map with default values from context
 	ctxDefaults := make(FieldMap)
 	for ctxKey, ctxVal := range rc.env.context.ToMap() {
@@ -197,19 +198,19 @@ func (rc *RecordCollection) applyDefaults(fMap *FieldMap, create bool) {
 		if create && (fi.isComputedField() || (fi.isRelatedField() && !fi.isContextedField())) {
 			continue
 		}
-		if _, ok := fMap.Get(fName, rc.model); ok {
+		if md.Has(fName) {
 			// we have the field in the given data, so we don't apply defaults
 			continue
 		}
 		val, exists := ctxDefaults[fi.json]
 		if exists {
-			fMap.Set(fName, val, rc.model)
+			md.Set(fName, val)
 			continue
 		}
 		if fi.defaultFunc == nil {
 			continue
 		}
-		fMap.Set(fName, fi.defaultFunc(rc.Env()), rc.model)
+		md.Set(fName, fi.defaultFunc(rc.Env()))
 	}
 }
 

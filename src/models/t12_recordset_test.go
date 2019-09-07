@@ -571,7 +571,7 @@ func TestAdvancedQueries(t *testing.T) {
 			Convey("Testing M2O-M2O-M2O", func() {
 				So(jane.Get("Profile.BestPost.User").(RecordSet).Collection().Equals(jane), ShouldBeTrue)
 				So(john.Get("Profile.BestPost.User").(RecordSet).Collection().IsEmpty(), ShouldBeTrue)
-				johnProfile := env.Pool("Profile").Call("Create", NewModelData(users.Model()))
+				johnProfile := env.Pool("Profile").Call("Create", NewModelData(Registry.MustGet("Profile")))
 				john.Set("Profile", johnProfile)
 				So(john.Get("Profile.BestPost.User").(RecordSet).Collection().Get("Email"), ShouldBeEmpty)
 			})

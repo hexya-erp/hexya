@@ -52,7 +52,7 @@ func RunTests(m *testing.M, moduleName string, preHookFnct func()) {
 // InitializeTests initializes a database for the tests of the given module.
 // You probably want to use RunTests instead.
 func InitializeTests(moduleName string) {
-	fmt.Printf("Initializing database for module %s\n", moduleName)
+	fmt.Printf("Initializing tests for module %s\n", moduleName)
 	driver = os.Getenv("HEXYA_DB_DRIVER")
 	if driver == "" {
 		driver = "postgres"
@@ -86,8 +86,17 @@ func InitializeTests(moduleName string) {
 	logging.Initialize()
 
 	db := sqlx.MustConnect(driver, fmt.Sprintf("dbname=postgres sslmode=disable user=%s password=%s", user, password))
-	db.MustExec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
-	db.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbName))
+	keepDB := os.Getenv("HEXYA_KEEP_TEST_DB") != ""
+	var dbExists bool
+	err := db.Get(&dbExists, fmt.Sprintf("SELECT TRUE FROM pg_database WHERE datname = '%s'", dbName))
+	if err != nil {
+		fmt.Println(err)
+	}
+	if !dbExists || !keepDB {
+		fmt.Println("Creating database", dbName)
+		db.MustExec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName))
+		db.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbName))
+	}
 	db.Close()
 
 	server.PreInit()
@@ -98,12 +107,15 @@ func InitializeTests(moduleName string) {
 		SSLMode:  "disable",
 	})
 	models.BootStrap()
-	models.SyncDatabase()
-	resourceDir, _ := filepath.Abs(filepath.Join(".", "res"))
-	server.ResourceDir = resourceDir
-	server.LoadDataRecords(resourceDir)
-	server.LoadDemoRecords(resourceDir)
-
+	if !dbExists || !keepDB {
+		fmt.Println("Upgrading schemas in database", dbName)
+		models.SyncDatabase()
+		fmt.Println("Loading resources into database", dbName)
+		resourceDir, _ := filepath.Abs(filepath.Join(".", "res"))
+		server.ResourceDir = resourceDir
+		server.LoadDataRecords(resourceDir)
+		server.LoadDemoRecords(resourceDir)
+	}
 	server.PostInit()
 }
 
