@@ -727,7 +727,7 @@ Defines the field as required depending on the returned values of the given func
 +
 If the second parameter is not nil, the condition is passed as is to the client for evaluation.
 +
-If the second parameter is nili, then the first returned argument will define if the field is required.
+If the second parameter is nil, then the first returned argument will define if the field is required.
 
 `ReadOnly` bool::
 This field will be shown as read only on all views.
