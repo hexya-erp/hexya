@@ -69,7 +69,7 @@ func (rc *RecordCollection) retrieveComputeData(fields []string) []recomputePair
 			continue
 		}
 		for _, dep := range refFieldInfo.dependencies {
-			key := fmt.Sprintf("%s-%s-%s", dep.model.name, dep.path, dep.compute)
+			key := fmt.Sprintf("%s-%s-%s-%t", dep.model.name, dep.path, dep.compute, dep.stored)
 			if _, exists := toUpdateData[key]; !exists {
 				toUpdateKeys = append(toUpdateKeys, key)
 				toUpdateData[key] = dep
