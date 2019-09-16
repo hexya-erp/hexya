@@ -173,10 +173,23 @@ func (rc *RecordCollection) addEmbeddedfields(fMap FieldMap) FieldMap {
 	return fMap
 }
 
-// applyDefaults adds the default value to the given fMap values which
-// are not in fMap. If create is true, default
-// value is set only if the field is required or readonly (and not in fMap).
+// applyDefaults adds the default values to the given ModelData values which
+// are not already set.
+//
+// If create is true, default values are not set for computed fields.
 func (rc *RecordCollection) applyDefaults(md *ModelData, create bool) {
+	defaults := rc.WithContext("hexya_ignore_computed_defaults", create).Call("DefaultGet").(RecordData).Underlying()
+	defaults.MergeWith(md)
+	*md = *defaults
+}
+
+// getDefaults returns the default values for a new record, taking into account
+// the context and fields default functions.
+//
+// If create is true, default values are not given for computed fields.
+func (rc *RecordCollection) getDefaults(create bool) *ModelData {
+	md := NewModelData(rc.model)
+
 	// 1. Create a map with default values from context
 	ctxDefaults := make(FieldMap)
 	for ctxKey, ctxVal := range rc.env.context.ToMap() {
@@ -198,12 +211,7 @@ func (rc *RecordCollection) applyDefaults(md *ModelData, create bool) {
 		if create && (fi.isComputedField() || (fi.isRelatedField() && !fi.isContextedField())) {
 			continue
 		}
-		if md.Has(fName) {
-			// we have the field in the given data, so we don't apply defaults
-			continue
-		}
-		val, exists := ctxDefaults[fi.json]
-		if exists {
+		if val, exists := ctxDefaults[fi.json]; exists {
 			md.Set(fName, val)
 			continue
 		}
@@ -212,6 +220,7 @@ func (rc *RecordCollection) applyDefaults(md *ModelData, create bool) {
 		}
 		md.Set(fName, fi.defaultFunc(rc.Env()))
 	}
+	return md
 }
 
 // applyContexts adds filtering on contexts when applicable to this RecordSet query.
@@ -292,7 +301,7 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
 func (rc *RecordCollection) update(data RecordData) bool {
-	if rc.IsEmpty() {
+	if rc.ForceLoad("ID").IsEmpty() {
 		return true
 	}
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
@@ -703,7 +712,7 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 	if !rc.prefetchRC.IsEmpty() && len(rc.ids) > 0 {
 		// We have a prefetch recordSet and our ids are already fetched
 		prefetch = true
-		rSet = rc.prefetchRC.WithEnv(rc.Env())
+		rSet = rc.Union(rc.prefetchRC).WithEnv(rc.Env())
 	}
 	rSet = rSet.addRecordRuleConditions(rc.env.uid, security.Read)
 	if len(rSet.query.orders) == 0 {
@@ -738,6 +747,7 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 	rSet = rSet.withIds(ids)
 	rSet.loadRelationFields(subFields)
 	if prefetch {
+		*rc = *rSet.Intersect(rc)
 		return rc
 	}
 	return rSet

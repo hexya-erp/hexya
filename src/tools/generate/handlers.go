@@ -26,14 +26,14 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
-func searchMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func searchMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "Search"
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
 		ParamsTypes:      fmt.Sprintf("%s.%sCondition", PoolQueryPackage, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("%s.%sCondition", PoolQueryPackage, modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("condition %s.%sCondition", PoolQueryPackage, modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
@@ -51,14 +51,14 @@ func searchMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // createMethodHandler returns the specific methodData for the Create method.
-func createMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func createMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "Create"
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("%sData", modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("data %sData", modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
@@ -78,13 +78,13 @@ func createMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // writeMethodHandler returns the specific methodData for the Write method.
-func writeMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func writeMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "Write"
 	returnString := "bool"
 	iReturnString := "bool"
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
-		IParamsWithTypes: fmt.Sprintf("%sData", modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("data %sData", modelData.Name),
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
@@ -104,14 +104,14 @@ func writeMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // copyMethodHandler returns the specific methodData for the Copy method.
-func copyMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func copyMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "Copy"
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("%sData", modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("overrides %sData", modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
@@ -129,14 +129,14 @@ func copyMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // copyDataMethodHandler returns the specific methodData for the CopyData method.
-func copyDataMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func copyDataMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "CopyData"
 	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sData", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("%sData", modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("overrides %sData", modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
@@ -162,7 +162,7 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
 		ParamsTypes:      fmt.Sprintf("string, operator.Operator, %s.%sCondition, int", PoolQueryPackage, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("string, operator.Operator, %s.%sCondition, int", PoolQueryPackage, modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("name string, op operator.Operator, additionalCond %s.%sCondition, limit int", PoolQueryPackage, modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
@@ -186,7 +186,7 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // firstMethodHandler returns the specific methodData for the First method.
-func firstMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func firstMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "First"
 	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sData", modelData.Name)
@@ -198,7 +198,7 @@ func firstMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // allMethodHandler returns the specific methodData for the First method.
-func allMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func allMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "All"
 	returnString := fmt.Sprintf("[]%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("[]%sData", modelData.Name)
@@ -210,60 +210,60 @@ func allMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // cartesianProductMethodHandler returns the specific methodData for the CartesianProduct method.
-func cartesianProductMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func cartesianProductMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "CartesianProduct"
 	returnString := fmt.Sprintf("[]%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("[]%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
 		ParamsTypes:      fmt.Sprintf("...%s.%sSet", PoolInterfacesPackage, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("...%sSet", modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("others...%sSet", modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
 }
 
 // sortedMethodHandler returns the specific methodData for the Sorted method.
-func sortedMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func sortedMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "Sorted"
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
-		ParamsTypes:      fmt.Sprintf("func(%s.%sSet, %sSet) bool", PoolInterfacesPackage, modelData.Name, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("func(%sSet, %sSet) bool", modelData.Name, modelData.Name),
+		ParamsTypes:      fmt.Sprintf("func(%s.%sSet, %s.%sSet) bool", PoolInterfacesPackage, modelData.Name, PoolInterfacesPackage, modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("less func(%sSet, %sSet) bool", modelData.Name, modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
 }
 
 // filteredMethodHandler returns the specific methodData for the Sorted method.
-func filteredMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func filteredMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "Filtered"
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
 		ParamsTypes:      fmt.Sprintf("func(%s.%sSet) bool", PoolInterfacesPackage, modelData.Name),
-		IParamsWithTypes: fmt.Sprintf("func(%sSet) bool", modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("test func(%sSet) bool", modelData.Name),
 		ReturnString:     returnString,
 		IReturnString:    iReturnString,
 	})
 }
 
 // aggregatesMethodHandler returns the specific methodData for the Aggregates method.
-func aggregatesMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func aggregatesMethodHandler(modelData *modelData, _ *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             "Aggregates",
 		ParamsTypes:      "...models.FieldNamer",
-		IParamsWithTypes: "...models.FieldNamer",
+		IParamsWithTypes: "fieldNames ...models.FieldNamer",
 		ReturnString:     fmt.Sprintf("[]%s.%sGroupAggregateRow", PoolInterfacesPackage, modelData.Name),
 		IReturnString:    fmt.Sprintf("[]%sGroupAggregateRow", modelData.Name),
 	})
 }
 
 // defaultGetMethodHandler returns the specific methodData for the DefaultGet method.
-func defaultGetMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func defaultGetMethodHandler(modelData *modelData, _ *map[string]bool) {
 	name := "DefaultGet"
 	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sData", modelData.Name)

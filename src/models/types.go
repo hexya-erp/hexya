@@ -183,6 +183,7 @@ func (md *ModelData) Set(field string, value interface{}) *ModelData {
 // It returns the given ModelData so that calls can be chained
 func (md *ModelData) Unset(field string) *ModelData {
 	md.FieldMap.Delete(field, md.Model)
+	delete(md.ToCreate, md.Model.JSONizeFieldName(field))
 	return md
 }
 
@@ -209,6 +210,28 @@ func (md *ModelData) Copy() *ModelData {
 		Model:    md.Model,
 		FieldMap: md.FieldMap.Copy(),
 		ToCreate: ntc,
+	}
+}
+
+// MergeWith updates this ModelData with the given other ModelData.
+// If a key of the other ModelData already exists here, the value is overridden,
+// otherwise, the key is inserted with its json name.
+func (md *ModelData) MergeWith(other *ModelData) {
+	// 1. We unset all entries existing in other to remove both FieldMap and ToCreate entries
+	for field := range other.FieldMap {
+		if md.Has(field) {
+			md.Unset(field)
+		}
+	}
+	for field := range other.ToCreate {
+		if md.Has(field) {
+			md.Unset(field)
+		}
+	}
+	// 2. We set other values in md
+	md.FieldMap.MergeWith(other.FieldMap, other.Model)
+	for field, toCreate := range other.ToCreate {
+		md.ToCreate[field] = append(md.ToCreate[field], toCreate...)
 	}
 }
 

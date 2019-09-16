@@ -248,6 +248,13 @@ func (d {{ $.Name }}Data) Copy() {{ .InterfacesPackageName }}.{{ $.Name }}Data {
 	}
 }
 
+// MergeWith updates this {{ $.Name }}Data with the given other {{ $.Name }}Data
+// If a field of the other {{ $.Name }}Data already exists here, the value is overridden,
+// otherwise, the field is inserted.
+func (d {{ $.Name }}Data) MergeWith(other {{ .InterfacesPackageName }}.{{ $.Name }}Data) {
+	d.ModelData.MergeWith(other.Underlying())
+}
+
 {{ range .Fields }}
 // {{ .Name }} returns the value of the {{ .Name }} field.
 // If this {{ .Name }} is not set in this {{ $.Name }}Data, then

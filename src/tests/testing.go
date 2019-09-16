@@ -107,12 +107,12 @@ func InitializeTests(moduleName string) {
 		SSLMode:  "disable",
 	})
 	models.BootStrap()
+	resourceDir, _ := filepath.Abs(filepath.Join(".", "res"))
+	server.ResourceDir = resourceDir
 	if !dbExists || !keepDB {
 		fmt.Println("Upgrading schemas in database", dbName)
 		models.SyncDatabase()
 		fmt.Println("Loading resources into database", dbName)
-		resourceDir, _ := filepath.Abs(filepath.Join(".", "res"))
-		server.ResourceDir = resourceDir
 		server.LoadDataRecords(resourceDir)
 		server.LoadDemoRecords(resourceDir)
 	}
