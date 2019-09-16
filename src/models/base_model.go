@@ -205,7 +205,7 @@ func declareCRUDMethods() {
 			}
 			// Apply overrides
 			res.RemovePK()
-			res.MergeWith(overrides.Underlying().FieldMap, rc.model)
+			res.MergeWith(overrides.Underlying())
 			return res
 		})
 
@@ -295,9 +295,7 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("DefaultGet",
 		`DefaultGet returns a Params map with the default values for the model.`,
 		func(rc *RecordCollection) *ModelData {
-			res := NewModelDataFromRS(rc)
-			rc.applyDefaults(res, false)
-			rc.model.convertValuesToFieldType(&res.Underlying().FieldMap, false)
+			res := rc.getDefaults(rc.Env().Context().GetBool("hexya_ignore_computed_defaults"))
 			return res
 		})
 }

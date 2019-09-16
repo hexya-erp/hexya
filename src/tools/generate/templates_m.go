@@ -96,6 +96,10 @@ type {{ .Name }}Data interface {
 	Unset(field string) {{ .Name }}Data
 	// Copy returns a copy of this {{ .Name }}Data	
 	Copy() {{ .Name }}Data
+	// MergeWith updates this {{ $.Name }}Data with the given other {{ $.Name }}Data
+	// If a field of the other {{ $.Name }}Data already exists here, the value is overridden,
+	// otherwise, the field is inserted.
+	MergeWith(other {{ $.Name }}Data) 
 	// Keys returns the {{ .Name }}Data keys as a slice of strings
 	Keys() (res []string)
 	// OrderedKeys returns the keys of this {{ .Name }}Data ordered.
