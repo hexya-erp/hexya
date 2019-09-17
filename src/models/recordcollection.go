@@ -747,7 +747,7 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 	rSet = rSet.withIds(ids)
 	rSet.loadRelationFields(subFields)
 	if prefetch {
-		*rc = *rSet.Intersect(rc)
+		*rc = *rSet.Intersect(rc).WithEnv(rc.Env())
 		return rc
 	}
 	return rSet
