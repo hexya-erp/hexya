@@ -142,9 +142,9 @@ func (rc *RecordCollection) applyMethod(methodName string) {
 // processInverseMethods executes inverse methods of fields in the given
 // FieldMap if it exists. It returns a new FieldMap to be used by Create/Write
 // instead of the original one.
-func (rc *RecordCollection) processInverseMethods(fMap FieldMap) {
-	md := NewModelData(rc.model, fMap)
-	for fieldName := range fMap {
+func (rc *RecordCollection) processInverseMethods(data RecordData) {
+	md := NewModelDataFromRS(rc, data.Underlying().FieldMap)
+	for _, fieldName := range md.Underlying().Keys() {
 		fi := rc.model.getRelatedFieldInfo(fieldName)
 		if !fi.isComputedField() || rc.Env().Context().GetBool("hexya_force_compute_write") {
 			continue

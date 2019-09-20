@@ -262,7 +262,7 @@ func (d {{ $.Name }}Data) MergeWith(other {{ .InterfacesPackageName }}.{{ $.Name
 func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
 	val := d.ModelData.Get("{{ .Name }}")
 {{- if .IsRS }}	
-	if !d.Has("{{ .Name }}") || val == (*interface{})(nil) {
+	if !d.Has("{{ .Name }}") || val == nil || val == (*interface{})(nil) {
 		val = models.InvalidRecordCollection("{{ .RelModel }}")
 	}
 	return val.(models.RecordSet).Collection().Wrap().({{ .Type }})

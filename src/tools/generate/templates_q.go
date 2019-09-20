@@ -98,6 +98,13 @@ type ConditionStart struct {
 	*models.ConditionStart
 }
 
+// NewCondition returns a valid empty Condition
+func (cs ConditionStart) NewCondition() Condition {
+	return Condition {
+		Condition: &models.Condition{},
+	}
+}
+
 {{ range .Fields }}
 // {{ .Name }} adds the "{{ .Name }}" field to the Condition
 func (cs ConditionStart) {{ .Name }}() p{{ .SanType }}ConditionField {

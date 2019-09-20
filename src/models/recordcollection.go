@@ -114,7 +114,7 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	// process create data for reverse relations if any
 	rSet.createReverseRelationRecords(data)
 	// compute stored fields
-	rSet.processInverseMethods(fMap)
+	rSet.processInverseMethods(data)
 	rSet.processTriggers(fMap.Keys())
 	rSet.CheckConstraints()
 	return rSet
@@ -312,7 +312,7 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	rSet.applyContexts()
 	fMap = rSet.addContextsFieldsValues(fMap)
 	// We process inverse method before we convert RecordSets to ids
-	rSet.processInverseMethods(fMap)
+	rSet.processInverseMethods(data)
 	rSet.model.convertValuesToFieldType(&fMap, true)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
