@@ -114,7 +114,7 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	// process create data for reverse relations if any
 	rSet.createReverseRelationRecords(data)
 	// compute stored fields
-	rSet.processInverseMethods(fMap)
+	rSet.processInverseMethods(data)
 	rSet.processTriggers(fMap.Keys())
 	rSet.CheckConstraints()
 	return rSet
@@ -233,7 +233,7 @@ func (rc *RecordCollection) applyContexts() *RecordCollection {
 		}
 		for ctxName, ctxFunc := range fi.contexts {
 			path := fmt.Sprintf("%sHexyaContexts%s%s", fi.name, ExprSep, ctxName)
-			ctxOrders = append(ctxOrders, path)
+			ctxOrders = append(ctxOrders, fmt.Sprintf("%s DESC", path))
 			cond := rc.model.Field(path).IsNull()
 			if !rc.env.context.GetBool("hexya_default_contexts") {
 				cond = cond.Or().Field(path).Equals(ctxFunc)
@@ -312,7 +312,7 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	rSet.applyContexts()
 	fMap = rSet.addContextsFieldsValues(fMap)
 	// We process inverse method before we convert RecordSets to ids
-	rSet.processInverseMethods(fMap)
+	rSet.processInverseMethods(data)
 	rSet.model.convertValuesToFieldType(&fMap, true)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
@@ -597,15 +597,6 @@ func (rc *RecordCollection) Search(cond *Condition) *RecordCollection {
 	return &rSetVal
 }
 
-// NoDistinct removes the DISTINCT keyword from this RecordSet query.
-// By default, all queries are distinct.
-func (rc *RecordCollection) NoDistinct() *RecordCollection {
-	rSet := *rc
-	rSet.query = rSet.query.clone(&rSet)
-	rSet.query.noDistinct = true
-	return &rSet
-}
-
 // Limit returns a new RecordSet with only the first 'limit' records.
 func (rc *RecordCollection) Limit(limit int) *RecordCollection {
 	rSet := *rc
@@ -671,6 +662,8 @@ func (rc *RecordCollection) SearchAll() *RecordCollection {
 // It panics in case of error
 func (rc *RecordCollection) SearchCount() int {
 	rSet := rc.Limit(0)
+	rSet.applyDefaultOrder()
+	rSet.applyContexts()
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
 	rSet = rSet.substituteRelatedInQuery()
 	sql, args := rSet.query.countQuery()
@@ -715,10 +708,7 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 		rSet = rc.Union(rc.prefetchRC).WithEnv(rc.Env())
 	}
 	rSet = rSet.addRecordRuleConditions(rc.env.uid, security.Read)
-	if len(rSet.query.orders) == 0 {
-		rSet.query.orders = make([]string, len(rSet.model.defaultOrder))
-		copy(rSet.query.orders, rSet.model.defaultOrder)
-	}
+	rSet.applyDefaultOrder()
 
 	fields := make([]string, len(fieldNames))
 	copy(fields, fieldNames)
@@ -751,6 +741,14 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 		return rc
 	}
 	return rSet
+}
+
+// applyDefaultOrder adds the model's default order if this query has no specific order defined
+func (rc *RecordCollection) applyDefaultOrder() {
+	if len(rc.query.orders) == 0 {
+		rc.query.orders = make([]string, len(rc.model.defaultOrder))
+		copy(rc.query.orders, rc.model.defaultOrder)
+	}
 }
 
 // loadRelationFields loads one2many, many2many and rev2one fields from the given fields
@@ -1178,7 +1176,6 @@ func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 		rc.query.fetchAll = false
 		rc.query.limit = 0
 		rc.query.offset = 0
-		rc.query.noDistinct = true
 	}
 	return rc
 }

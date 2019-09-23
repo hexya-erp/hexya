@@ -156,7 +156,6 @@ func TestEnvironment(t *testing.T) {
 				So(post2.Len(), ShouldEqual, 1)
 				So(env.cache.data, ShouldHaveLength, 2)
 				So(env.cache.data["Post"], ShouldHaveLength, 1)
-				So(env.cache.data["Tag"], ShouldHaveLength, 2)
 				tags := env.Pool("Tag").Search(tagModel.Field("Name").In([]string{"Books", "Jane's"}))
 				tags.Fetch()
 				So(tags.Len(), ShouldEqual, 2)

@@ -63,6 +63,9 @@ func TestBaseModelMethods(t *testing.T) {
 				So(countSingle, ShouldEqual, 1)
 				allCount := env.Pool(userModel.name).Call("SearchCount").(int)
 				So(allCount, ShouldEqual, 3)
+				countTags := env.Pool("Tag").WithContext("lang", "fr_FR").
+					Search(Registry.MustGet("Tag").Field("Description").Contains("Nouvelle ")).Call("SearchCount")
+				So(countTags, ShouldEqual, 2)
 			})
 			Convey("Copy", func() {
 				newProfile := userJane.Get("Profile").(RecordSet).Collection().Call("Copy", NewModelData(profileModel)).(RecordSet).Collection()

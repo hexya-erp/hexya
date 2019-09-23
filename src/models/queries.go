@@ -45,17 +45,16 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 // A Query defines the common part an SQL Query, i.e. all that come
 // after the FROM keyword.
 type Query struct {
-	recordSet  *RecordCollection
-	cond       *Condition
-	ctxCond    *Condition
-	fetchAll   bool
-	limit      int
-	offset     int
-	noDistinct bool
-	groups     []string
-	ctxGroups  []string
-	orders     []string
-	ctxOrders  []string
+	recordSet *RecordCollection
+	cond      *Condition
+	ctxCond   *Condition
+	fetchAll  bool
+	limit     int
+	offset    int
+	groups    []string
+	ctxGroups []string
+	orders    []string
+	ctxOrders []string
 }
 
 // clone returns a pointer to a deep copy of this Query
@@ -66,7 +65,6 @@ func (q Query) clone(rc *RecordCollection) *Query {
 	q.cond = &newCond
 	newCtxCond := *q.ctxCond
 	q.ctxCond = &newCtxCond
-	q.noDistinct = false
 	q.recordSet = rc
 	return &q
 }
@@ -238,17 +236,12 @@ func (q *Query) prepareOrderByExprs() ([][]string, []string) {
 			directions[i] = fieldOrder[1]
 		}
 	}
-	ctxExprs, ctxDirs := q.prepareCtxOrderByExprs(false)
-	fExprs = append(fExprs, ctxExprs...)
-	directions = append(directions, ctxDirs...)
 	return fExprs, directions
 }
 
 // prepareCtxOrderByExprs returns the 'ctxOrders' of this query as an expressions slice on
 // the one side and a slice of directions (ASC or DESC) on the other side.
-//
-// if inv is true, the orders are inverted
-func (q *Query) prepareCtxOrderByExprs(inv bool) ([][]string, []string) {
+func (q *Query) prepareCtxOrderByExprs() ([][]string, []string) {
 	fExprs := make([][]string, len(q.ctxOrders))
 	directions := make([]string, len(q.ctxOrders))
 	for i, order := range q.ctxOrders {
@@ -258,13 +251,6 @@ func (q *Query) prepareCtxOrderByExprs(inv bool) ([][]string, []string) {
 		if len(fieldOrder) > 1 {
 			directions[i] = fieldOrder[1]
 		}
-		if inv {
-			if strings.TrimSpace(strings.ToUpper(directions[i])) == "DESC" {
-				directions[i] = "ASC"
-			} else {
-				directions[i] = "DESC"
-			}
-		}
 	}
 	return fExprs, directions
 }
@@ -273,9 +259,9 @@ func (q *Query) prepareCtxOrderByExprs(inv bool) ([][]string, []string) {
 // of this Query
 func (q *Query) sqlOrderByClause() string {
 	fExprs, directions := q.prepareOrderByExprs()
-	resSlice := make([]string, len(q.orders)+len(q.ctxOrders))
+	resSlice := make([]string, len(q.orders))
 	for i, field := range fExprs {
-		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
+		_, _, resSlice[i] = q.joinedFieldExpression(field, true, i)
 		resSlice[i] += fmt.Sprintf(" %s", directions[i])
 	}
 	if len(resSlice) == 0 {
@@ -285,9 +271,9 @@ func (q *Query) sqlOrderByClause() string {
 }
 
 // sqlCtxOrderByClause returns the sql string for the ORDER BY clause of the ctx fields
-// of this Query with inversed order.
+// of this Query.
 func (q *Query) sqlCtxOrderBy() string {
-	fExprs, directions := q.prepareCtxOrderByExprs(true)
+	fExprs, directions := q.prepareCtxOrderByExprs()
 	resSlice := make([]string, len(q.ctxOrders))
 	for i, field := range fExprs {
 		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
@@ -296,22 +282,22 @@ func (q *Query) sqlCtxOrderBy() string {
 	if len(resSlice) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("ORDER BY %s", strings.Join(resSlice, ", "))
+	return fmt.Sprintf("%s", strings.Join(resSlice, ", "))
 }
 
 // sqlOrderByClauseForGroupBy returns the sql string for the ORDER BY clause
 // of this Query, which should be a group by clause.
 func (q *Query) sqlOrderByClauseForGroupBy(aggFncts map[string]string) string {
 	fExprs, directions := q.prepareOrderByExprs()
-	resSlice := make([]string, len(q.orders)+len(q.ctxOrders))
+	resSlice := make([]string, len(q.orders))
 	for i, field := range fExprs {
 		aggFnct := aggFncts[strings.Join(field, ExprSep)]
 		if aggFnct == "" {
-			jfe, _, _ := q.joinedFieldExpression(field, false, 0)
+			_, _, jfe := q.joinedFieldExpression(field, true, i)
 			resSlice[i] = fmt.Sprintf("%s %s", jfe, directions[i])
 			continue
 		}
-		jfe, _, _ := q.joinedFieldExpression(field, false, 0)
+		_, _, jfe := q.joinedFieldExpression(field, true, i)
 		resSlice[i] = fmt.Sprintf("%s(%s) %s", aggFnct, jfe, directions[i])
 	}
 	if len(resSlice) == 0 {
@@ -330,7 +316,7 @@ func (q *Query) sqlGroupByClause() string {
 	}
 	resSlice := make([]string, len(q.groups))
 	for i, field := range fExprs {
-		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
+		_, _, resSlice[i] = q.joinedFieldExpression(field, true, i)
 	}
 	res := strings.Join(resSlice, ", ")
 	ctxStr := strings.TrimSpace(q.sqlCtxGroupByClause())
@@ -350,7 +336,7 @@ func (q *Query) sqlCtxGroupByClause() string {
 	}
 	resSlice := make([]string, len(q.ctxGroups))
 	for i, field := range fExprs {
-		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
+		_, _, resSlice[i] = q.joinedFieldExpression(field, true, i)
 	}
 	return strings.Join(resSlice, ", ")
 }
@@ -404,6 +390,33 @@ func (q *Query) countQuery() (string, SQLParams) {
 	return countQuery, args
 }
 
+// selectCommonQuery returns the SQL query string and parameters to retrieve
+// the rows pointed at by this Query object.
+// This subquery will be used in selectQuery and selectGroupQuery
+// fields is the list of fields to retrieve.
+//
+// Each field is a dot-separated
+// expression pointing at the field, either as names or columns
+// (e.g. 'User.Name' or 'user_id.name')
+func (q *Query) selectCommonQuery(fields []string) (string, SQLParams, map[string]string) {
+	fieldExprs, allExprs := q.selectData(fields, true)
+	// Build up the query
+	// Fields
+	fieldsSQL, fieldSubsts := q.fieldsSQL(fieldExprs)
+	// Tables
+	tablesSQL, joinsMap := q.tablesSQL(allExprs)
+	// Where clause and args
+	whereSQL, args := q.sqlWhereClause(true)
+	ctxOrderSQL := q.sqlCtxOrderBy()
+	if ctxOrderSQL != "" {
+		ctxOrderSQL = fmt.Sprintf(", %s", ctxOrderSQL)
+	}
+	selQuery := fmt.Sprintf(`SELECT DISTINCT ON (%s.id) %s FROM %s %s ORDER BY %s.id %s`,
+		q.thisTable(), fieldsSQL, tablesSQL, whereSQL, q.thisTable(), ctxOrderSQL)
+	selQuery = strutils.Substitute(selQuery, joinsMap)
+	return selQuery, args, fieldSubsts
+}
+
 // selectQuery returns the SQL query string and parameters to retrieve
 // the rows pointed at by this Query object.
 // fields is the list of fields to retrieve.
@@ -417,23 +430,12 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams, map[string]stri
 	if len(q.groups) > 0 {
 		log.Panic("Calling selectQuery on a Group By query")
 	}
-	fieldExprs, allExprs := q.selectData(fields, true)
-	// Build up the query
-	// Fields
-	fieldsSQL, fieldSubsts := q.fieldsSQL(fieldExprs)
-	// Tables
-	tablesSQL, joinsMap := q.tablesSQL(allExprs)
-	// Where clause and args
-	whereSQL, args := q.sqlWhereClause(true)
+	subQuery, args, substs := q.selectCommonQuery(fields)
 	orderSQL := q.sqlOrderByClause()
 	limitSQL := q.sqlLimitOffsetClause()
-	var distinct string
-	if !q.noDistinct {
-		distinct = "DISTINCT"
-	}
-	selQuery := fmt.Sprintf(`SELECT %s %s FROM %s %s %s %s`, distinct, fieldsSQL, tablesSQL, whereSQL, orderSQL, limitSQL)
-	selQuery = strutils.Substitute(selQuery, joinsMap)
-	return selQuery, args, fieldSubsts
+	selQuery := fmt.Sprintf(`SELECT * FROM (%s) foo %s %s`,
+		subQuery, orderSQL, limitSQL)
+	return selQuery, args, substs
 }
 
 // selectGroupQuery returns the SQL query string and parameters to retrieve
@@ -455,21 +457,24 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 		fieldsList[i] = f
 		i++
 	}
-	fieldExprs, allExprs := q.selectData(fieldsList, true)
+	// Get base query
+	baseQuery, baseArgs, _ := q.selectCommonQuery(fieldsList)
+
+	fieldExprs, _ := q.selectData(fieldsList, true)
 	// Build up the query
 	// Fields
 	fieldsSQL := q.fieldsGroupSQL(fieldExprs, fields)
-	// Tables
-	tablesSQL, joinsMap := q.tablesSQL(allExprs)
-	// Where clause and args
-	whereSQL, args := q.sqlWhereClause(true)
 	// Group by clause
 	groupSQL := q.sqlGroupByClause()
 	orderSQL := q.sqlOrderByClauseForGroupBy(fields)
+	ctxOrderSQL := q.sqlCtxOrderBy()
+	if ctxOrderSQL != "" {
+		ctxOrderSQL = fmt.Sprintf(", %s", ctxOrderSQL)
+	}
 	limitSQL := q.sqlLimitOffsetClause()
-	selQuery := fmt.Sprintf(`WITH group_query as (SELECT %s FROM %s %s GROUP BY %s %s %s) SELECT * FROM group_query WHERE __rank = 1`, fieldsSQL, tablesSQL, whereSQL, groupSQL, orderSQL, limitSQL)
-	selQuery = strutils.Substitute(selQuery, joinsMap)
-	return selQuery, args
+	selQuery := fmt.Sprintf(`SELECT %s, count(1) AS __count FROM (%s) base GROUP BY %s %s %s`,
+		fieldsSQL, baseQuery, groupSQL, orderSQL, limitSQL)
+	return selQuery, baseArgs
 }
 
 // selectData returns for this query:
@@ -479,11 +484,18 @@ func (q *Query) selectData(fields []string, withCtx bool) ([][]string, [][]strin
 	q.substituteChildOfPredicates()
 	// Get all expressions, first given by fields
 	fieldExprs := make([][]string, len(fields))
+	fieldsExprsMap := make(map[string][]string)
 	for i, f := range fields {
 		fieldExprs[i] = jsonizeExpr(q.recordSet.model, strings.Split(f, ExprSep))
+		fieldsExprsMap[strings.Join(fieldExprs[i], ExprSep)] = fieldExprs[i]
 	}
-	// Add 'order by' exprs
-	fieldExprs = append(fieldExprs, q.getOrderByExpressions(withCtx)...)
+	// Add 'order by' exprs removing duplicates
+	oExprs := q.getOrderByExpressions(withCtx)
+	for _, oExpr := range oExprs {
+		if _, ok := fieldsExprsMap[strings.Join(oExpr, ExprSep)]; !ok {
+			fieldExprs = append(fieldExprs, oExpr)
+		}
+	}
 	// Then given by condition
 	allExprs := append(fieldExprs, q.cond.getAllExpressions(q.recordSet.model)...)
 	return fieldExprs, allExprs
@@ -544,20 +556,15 @@ func (q *Query) fieldsSQL(fieldExprs [][]string) (string, map[string]string) {
 // Parameter must be with the following format (column names):
 // [['user_id', 'name'] ['id'] ['profile_id', 'age']]
 func (q *Query) fieldsGroupSQL(fieldExprs [][]string, aggFncts map[string]string) string {
-	fStr := make([]string, len(fieldExprs)+2)
+	fStr := make([]string, len(fieldExprs))
 	for i, exprs := range fieldExprs {
 		aggFnct := aggFncts[strings.Join(exprs, ExprSep)]
-		joins := q.generateTableJoins(exprs)
-		lastJoin := joins[len(joins)-1]
 		if aggFnct == "" {
-			fStr[i] = fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
+			fStr[i] = strings.Join(exprs, sqlSep)
 			continue
 		}
-		fStr[i] = fmt.Sprintf("%s(%s.%s) AS %s", aggFnct, lastJoin.alias, lastJoin.expr, strings.Join(exprs, sqlSep))
+		fStr[i] = fmt.Sprintf("%s(%s) AS %s", aggFnct, strings.Join(exprs, sqlSep), strings.Join(exprs, sqlSep))
 	}
-	fStr[len(fieldExprs)] = "count(1) AS __count"
-	curTable := q.generateTableJoins([]string{"id"})[0]
-	fStr[len(fieldExprs)+1] = fmt.Sprintf("rank() OVER (PARTITION BY min(%s.id) %s) AS __rank", curTable.alias, q.sqlCtxOrderBy())
 	return strings.Join(fStr, ", ")
 }
 
@@ -695,6 +702,12 @@ func (q *Query) tablesSQL(fExprs [][]string) (string, map[string]string) {
 		}
 	}
 	return res, joinsMap
+}
+
+// thisTable returns the quoted table name of this query's recordset table
+func (q *Query) thisTable() string {
+	adapter := adapters[db.DriverName()]
+	return adapter.quoteTableName(q.recordSet.model.tableName)
 }
 
 // isEmpty returns true if this query is empty

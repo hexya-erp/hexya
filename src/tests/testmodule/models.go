@@ -178,17 +178,17 @@ func init() {
 
 	post := h.Post().DeclareModel()
 	post.AddFields(map[string]models.FieldDefinition{
-		"User":            models.Many2OneField{RelationModel: h.User()},
-		"Title":           models.CharField{Required: true},
-		"Content":         models.HTMLField{},
-		"Tags":            models.Many2ManyField{RelationModel: h.Tag()},
-		"Abstract":        models.TextField{},
-		"Attachment":      models.BinaryField{},
-		"LastRead":        models.DateField{},
-		"Comments":        models.One2ManyField{RelationModel: h.Comment(), ReverseFK: "Post"},
-		"LastCommentText": models.TextField{Related: "Comments.Text"},
-		"LastTagName":     models.CharField{Related: "Tags.Name"},
-		"WriterMoney":     models.FloatField{Related: "User.PMoney"},
+		"User":             models.Many2OneField{RelationModel: h.User()},
+		"Title":            models.CharField{Required: true},
+		"Content":          models.HTMLField{},
+		"Tags":             models.Many2ManyField{RelationModel: h.Tag()},
+		"Abstract":         models.TextField{},
+		"Attachment":       models.BinaryField{},
+		"LastRead":         models.DateField{},
+		"Comments":         models.One2ManyField{RelationModel: h.Comment(), ReverseFK: "Post"},
+		"FirstCommentText": models.TextField{Related: "Comments.Text"},
+		"FirstTagName":     models.CharField{Related: "Tags.Name"},
+		"WriterMoney":      models.FloatField{Related: "User.PMoney"},
 	})
 
 	h.Post().Methods().Create().Extend("",
@@ -212,6 +212,7 @@ func init() {
 	})
 
 	tag := h.Tag().DeclareModel()
+	tag.SetDefaultOrder("Name DESC", "ID ASC")
 	tag.AddFields(map[string]models.FieldDefinition{
 		"Name":        models.CharField{Constraint: tag.Methods().CheckNameDescription()},
 		"BestPost":    models.Many2OneField{RelationModel: h.Post()},

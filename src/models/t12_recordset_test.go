@@ -113,7 +113,7 @@ func TestCreateRecordSet(t *testing.T) {
 					"Post": post1,
 					"Text": "Third Comment",
 				}))
-				So(post1.Get("LastCommentText").(string), ShouldEqual, "Third Comment")
+				So(post1.Get("LastCommentText").(string), ShouldEqual, "First Comment")
 				So(post1.Get("Comments").(RecordSet).Len(), ShouldEqual, 3)
 			})
 			Convey("Creating a user Will Smith", func() {
