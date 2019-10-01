@@ -65,17 +65,6 @@ func (fm *FieldMap) RemovePKIfZero() {
 	}
 }
 
-// JSONized returns a new field map identical to this one but
-// with all its keys switched to the JSON name of the fields
-func (fm *FieldMap) JSONized(model *Model) FieldMap {
-	res := make(FieldMap)
-	for f, v := range *fm {
-		jsonFieldName := model.JSONizeFieldName(f)
-		res[jsonFieldName] = v
-	}
-	return res
-}
-
 // Get returns the value of the given field referring to the given model.
 // field can be either a field name (or path) or a field JSON name (or path).
 // The second returned value is true if the field has been found in the FieldMap

@@ -133,21 +133,23 @@ func TestBaseModelMethods(t *testing.T) {
 			Convey("Onchange", func() {
 				Convey("Testing with existing RecordSet", func() {
 					res := userJane.Call("Onchange", OnchangeParams{
-						Fields:   []string{"Name", "CoolType"},
-						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   NewModelData(userModel, FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false, "DecoratedName": false}),
+						Fields:   []string{"Name", "CoolType", "Age"},
+						Onchange: map[string]string{"Name": "1", "CoolType": "1", "Age": "1"},
+						Values:   NewModelData(userModel, FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false, "DecoratedName": false, "Profile": false, "Age": int16(24)}),
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying().FieldMap
-					So(fMap, ShouldHaveLength, 2)
+					So(fMap, ShouldHaveLength, 3)
 					So(fMap, ShouldContainKey, "decorated_name")
 					So(fMap["decorated_name"], ShouldEqual, "User: William [<jane.smith@example.com>]")
 					So(fMap, ShouldContainKey, "is_cool")
 					So(fMap["is_cool"], ShouldEqual, true)
+					So(fMap, ShouldContainKey, "age")
+					So(fMap["age"], ShouldEqual, int16(0))
 				})
 				Convey("Testing with new RecordSet", func() {
 					res := env.Pool("User").Call("Onchange", OnchangeParams{
-						Fields:   []string{"Name", "Email", "CoolType"},
-						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
+						Fields:   []string{"Name", "Email", "CoolType", "Nums", "Nums"},
+						Onchange: map[string]string{"Name": "1", "CoolType": "1", "Nums": "1"},
 						Values:   NewModelData(userModel, FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false, "DecoratedName": false}),
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying().FieldMap
@@ -175,6 +177,10 @@ func TestBaseModelMethods(t *testing.T) {
 				So(tag1.Call("CheckRecursion").(bool), ShouldBeFalse)
 				So(tag2.Call("CheckRecursion").(bool), ShouldBeFalse)
 				So(tag3.Call("CheckRecursion").(bool), ShouldBeFalse)
+				tagNeg := env.Pool("Tag").Call("New", NewModelData(tagModel).
+					Set("Name", "Tag1").
+					Set("Parent", tag2)).(RecordSet).Collection()
+				So(tagNeg.Call("CheckRecursion").(bool), ShouldBeTrue)
 			})
 			Convey("Browse", func() {
 				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordSet).Collection()
