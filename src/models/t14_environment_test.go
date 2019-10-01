@@ -242,13 +242,6 @@ X2M Links
 			})
 		}), ShouldBeNil)
 	})
-	Convey("Testing SimulateWithDummyRecord", t, func() {
-		err := SimulateWithDummyRecord(security.SuperUserID, NewModelData(Registry.MustGet("User")), func(rs RecordSet) {
-			panic("oh no !")
-		})
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldStartWith, "oh no !")
-	})
 	Convey("Checking error types", t, func() {
 		nice := new(notInCacheError)
 		So(nice.Error(), ShouldEqual, "requested value not in cache")

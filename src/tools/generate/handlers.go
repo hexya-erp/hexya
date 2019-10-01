@@ -13,6 +13,7 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 	"Search":           searchMethodHandler,
 	"SearchByName":     searchByNameMethodHandler,
 	"Create":           createMethodHandler,
+	"New":              newMethodHandler,
 	"Write":            writeMethodHandler,
 	"Copy":             copyMethodHandler,
 	"CopyData":         copyDataMethodHandler,
@@ -66,6 +67,33 @@ func createMethodHandler(modelData *modelData, _ *map[string]bool) {
 		Name: name,
 		Doc: fmt.Sprintf(`// Create inserts a %s record in the database from the given data.
 // Returns the created %sSet.`,
+			modelData.Name, modelData.Name),
+		ToDeclare:      false,
+		Params:         "data",
+		ParamsWithType: fmt.Sprintf("data %s.%sData", PoolInterfacesPackage, modelData.Name),
+		ReturnAsserts:  fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, returnString),
+		Returns:        "resTyped",
+		ReturnString:   returnString,
+		Call:           "Call",
+	})
+}
+
+// newMethodHandler returns the specific methodData for the New method.
+func newMethodHandler(modelData *modelData, _ *map[string]bool) {
+	name := "New"
+	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
+	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
+	modelData.AllMethods = append(modelData.AllMethods, methodData{
+		Name:             name,
+		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
+		IParamsWithTypes: fmt.Sprintf("data %sData", modelData.Name),
+		ReturnString:     returnString,
+		IReturnString:    iReturnString,
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name: name,
+		Doc: fmt.Sprintf(`// New creates a %s record in memory from the given data.
+// Such %sSet has a negative ID and cannot be reloaded from the database`,
 			modelData.Name, modelData.Name),
 		ToDeclare:      false,
 		Params:         "data",

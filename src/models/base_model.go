@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/hexya-erp/hexya/src/i18n"
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
@@ -119,6 +120,13 @@ func declareBaseComputeMethods() {
 // declareCRUDMethods declares RecordSet CRUD methods
 func declareCRUDMethods() {
 	commonMixin := Registry.MustGet("CommonMixin")
+
+	commonMixin.AddMethod("New",
+		`New creates a memory only record from the given data.
+		Such a record has a negative ID and cannot be loaded from database.`,
+		func(rc *RecordCollection, data RecordData) *RecordCollection {
+			return rc.new(data)
+		})
 
 	commonMixin.AddMethod("Create",
 		`Create inserts a record in the database from the given data.
@@ -314,6 +322,10 @@ func declareRecordSetSpecificMethods() {
 				// No Parent field in model, so no loop
 				return true
 			}
+			if rc.hasNegIds {
+				// We have a negative id, so we can't have a loop
+				return true
+			}
 			// We use direct SQL query to bypass access control
 			query := fmt.Sprintf(`SELECT parent_id FROM %s WHERE id = ?`, adapters[db.DriverName()].quoteTableName(rc.model.tableName))
 			rc.Load("Parent")
@@ -343,28 +355,82 @@ func declareRecordSetSpecificMethods() {
 			if rc.IsNotEmpty() {
 				data.Set("ID", rc.ids[0])
 			}
-			retValues := make(FieldMap)
+			retValues := NewModelDataFromRS(rc)
 
-			SimulateWithDummyRecord(rc.Env().Uid(), data, func(rs RecordSet) {
-				for _, field := range params.Fields {
-					fi := rs.Collection().Model().Fields().MustGet(field)
-					if fi.onChange == "" {
-						continue
-					}
+			err := SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
+				var rs *RecordCollection
+				if id, _ := nbutils.CastToInteger(data.Get("ID")); id != 0 {
+					rs = rc.WithEnv(env).withIds([]int64{id})
+					rs.WithContext("hexya_force_compute_write", true).update(data)
+				} else {
+					rs = rc.WithEnv(env).new(data)
+				}
+				// Set inverse fields
+				for field := range values {
+					fi := rs.Collection().Model().getRelatedFieldInfo(field)
 					if fi.inverse != "" {
 						fVal := data.Get(field)
 						rs.Call(fi.inverse, fVal)
 					}
-					res := rs.Call(fi.onChange)
-					resMap := res.(RecordData).Underlying().FieldMap
-					val := resMap.JSONized(rs.Collection().Model())
-					data.FieldMap.MergeWith(val, rs.Collection().Model())
-					retValues.MergeWith(val, rs.Collection().Model())
+				}
+				todo := params.Fields
+				done := make(map[string]bool)
+				// Apply onchanges or compute
+				for len(todo) > 0 {
+					field := todo[0]
+					todo = todo[1:]
+					if done[field] {
+						continue
+					}
+					done[field] = true
+					if params.Onchange[field] == "" {
+						continue
+					}
+					fi := rs.Collection().Model().getRelatedFieldInfo(field)
+					fnct := fi.onChange
+					if fnct == "" {
+						fnct = fi.compute
+					}
+					if fnct == "" {
+						continue
+					}
+					rrs := rs
+					toks := strings.Split(field, ExprSep)
+					if len(toks) > 1 {
+						rrs = rs.Get(strings.Join(toks[:len(toks)-1], ExprSep)).(RecordSet).Collection()
+					}
+					vals := rrs.Call(fnct).(RecordData)
+					for f := range vals.Underlying().FieldMap {
+						if !done[f] {
+							todo = append(todo, f)
+						}
+					}
+					rrs.WithContext("hexya_force_compute_write", true).Call("Write", vals)
+				}
+				// Collect modified values
+				for field, val := range values {
+					fi := rs.Collection().Model().getRelatedFieldInfo(field)
+					newVal := rs.Get(field)
+					switch {
+					case fi.fieldType.IsRelationType():
+						v := rs.convertToRecordSet(val, fi.relatedModelName)
+						nv := rs.convertToRecordSet(newVal, fi.relatedModelName)
+						if !v.Equals(nv) {
+							retValues.Set(field, newVal)
+						}
+					default:
+						if val != newVal {
+							retValues.Set(field, newVal)
+						}
+					}
 				}
 			})
-			retValues.RemovePK()
+			if err != nil {
+				panic(err)
+			}
+			retValues.Unset("ID")
 			return OnchangeResult{
-				Value: NewModelDataFromRS(rc, retValues),
+				Value: retValues,
 			}
 		})
 }

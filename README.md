@@ -53,7 +53,7 @@ Search the database using the type-safe query builder and update records directl
 myUsers := h.User().Search(env,
 	q.User().Name().Contains("John").
 		And().Email().NotEquals("contact@example.com"))
-for myUser := range myUsers.Records() {
+for _, myUser := range myUsers.Records() {
     if myUser.IsStaff() {
         myUser.SetEmail("contact@example.com")
     }	

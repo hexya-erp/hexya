@@ -38,6 +38,7 @@ type RecordCollection struct {
 	ids        []int64
 	fetched    bool
 	filtered   bool
+	hasNegIds  bool
 }
 
 // String returns the string representation of a RecordSet
@@ -73,6 +74,21 @@ func (rc *RecordCollection) clone() *RecordCollection {
 	res := &rSet
 	res.query = rc.query.clone(res)
 	return res
+}
+
+// new returns a new RecordCollection that is valid only in memory.
+// Such RecordCollection is identified as having a negative ID.
+func (rc *RecordCollection) new(data RecordData) *RecordCollection {
+	rc.InvalidateCache()
+	rc.env.nextNegativeID--
+	id := rc.env.nextNegativeID
+	newData := data.Underlying().Copy()
+	fMap := newData.Underlying().FieldMap
+	fMap["id"] = id
+	rc.model.convertValuesToFieldType(&fMap, false)
+	rSet := rc.withIds([]int64{id})
+	rc.env.cache.addRecord(rc.model, id, fMap, rSet.query.ctxArgsSlug())
+	return rSet
 }
 
 // create inserts a new record in the database with the given data.
@@ -301,7 +317,7 @@ func (rc *RecordCollection) addAccessFieldsCreateData(fMap *FieldMap) {
 // This function is private and low level. It should not be called directly.
 // Instead use rs.Call("Write")
 func (rc *RecordCollection) update(data RecordData) bool {
-	if rc.ForceLoad("ID").IsEmpty() {
+	if !rc.hasNegIds && rc.ForceLoad("ID").IsEmpty() {
 		return true
 	}
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Write)
@@ -363,10 +379,12 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 			return
 		}
 	}
-	sql, args := rc.query.updateQuery(fMap)
-	res := rc.env.cr.Execute(sql, args...)
-	if num, _ := res.RowsAffected(); num == 0 {
-		log.Panic("Unexpected noop on update (num = 0)", "model", rc.ModelName(), "values", fMap, "query", sql, "args", args)
+	if !rc.hasNegIds {
+		sql, args := rc.query.updateQuery(fMap)
+		res := rc.env.cr.Execute(sql, args...)
+		if num, _ := res.RowsAffected(); num == 0 {
+			log.Panic("Unexpected noop on update (num = 0)", "model", rc.ModelName(), "values", fMap, "query", sql, "args", args)
+		}
 	}
 	for _, rec := range rc.Records() {
 		for k, v := range fMap {
@@ -577,9 +595,12 @@ func (rc *RecordCollection) unlink() int64 {
 	}
 	// get recomputate data to update after unlinking
 	compData := rc.retrieveComputeData(rc.model.fields.allJSONNames())
-	sql, args := rSet.query.deleteQuery()
-	res := rSet.env.cr.Execute(sql, args...)
-	num, _ := res.RowsAffected()
+	var num int64
+	if !rSet.hasNegIds {
+		sql, args := rSet.query.deleteQuery()
+		res := rSet.env.cr.Execute(sql, args...)
+		num, _ = res.RowsAffected()
+	}
 	for _, id := range ids {
 		rc.env.cache.invalidateRecord(rc.model, id)
 	}
@@ -696,6 +717,9 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 	if rc.query.isEmpty() {
 		// Never load RecordSets without query.
 		return rc
+	}
+	if rc.hasNegIds {
+		log.Panic("Trying to load a memory RecordSet created by New", "model", rc.model, "ids", rc.ids)
 	}
 	if len(rc.query.groups) > 0 {
 		log.Panic("Trying to load a grouped query", "model", rc.model, "groups", rc.query.groups)
@@ -912,7 +936,8 @@ func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName
 func (rc *RecordCollection) get(field string, all bool) (interface{}, bool) {
 	rc.Fetch()
 	var dbCalled bool
-	if !rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}, rc.query.ctxArgsSlug(), true) {
+	isInCache := rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field}, rc.query.ctxArgsSlug(), true)
+	if !rc.hasNegIds && !isInCache {
 		fields := []string{field}
 		if all {
 			fields = append(fields, rc.model.fields.storedFieldNames()...)
@@ -1153,10 +1178,16 @@ func (rc *RecordCollection) GetRecord(externalID string) *RecordCollection {
 func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 	// Remove 0 and duplicate ids
 	idsMap := make(map[int64]bool)
-	var newIds []int64
+	var (
+		newIds    []int64
+		hasNegIds bool
+	)
 	for _, id := range ids {
 		if id == 0 {
 			continue
+		}
+		if id < 0 {
+			hasNegIds = true
 		}
 		if !idsMap[id] {
 			newIds = append(newIds, id)
@@ -1169,6 +1200,7 @@ func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 	rc.fetched = true
 	rc.filtered = false
 	if len(newIds) > 0 {
+		rc.hasNegIds = hasNegIds
 		for _, id := range rc.ids {
 			rc.env.cache.updateEntry(rc.model, id, "id", id, rc.query.ctxArgsSlug())
 		}
