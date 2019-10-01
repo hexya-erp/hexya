@@ -116,12 +116,26 @@ func TestBaseModelMethods(t *testing.T) {
 				So(defaults.FieldMap, ShouldContainKey, "is_staff")
 				So(defaults.FieldMap["is_staff"], ShouldEqual, false)
 			})
+			Convey("New", func() {
+				dummyUser := env.Pool("User").Call("New", NewModelData(userModel).
+					Set("Name", "DummyUser").
+					Set("Email", "du@example.com")).(RecordSet).Collection()
+				So(dummyUser.Get("Name"), ShouldEqual, "DummyUser")
+				So(dummyUser.Get("Email"), ShouldEqual, "du@example.com")
+				So(dummyUser.Get("Email2"), ShouldBeEmpty)
+				So(dummyUser.Ids()[0], ShouldBeLessThan, 0)
+				So(func() { dummyUser.ForceLoad() }, ShouldPanic)
+				So(func() { dummyUser.Set("Email2", "du2@example.com") }, ShouldNotPanic)
+				So(dummyUser.Get("Email2"), ShouldEqual, "du2@example.com")
+				So(dummyUser.Get("DecoratedName"), ShouldEqual, "User: DummyUser [<du@example.com>]")
+				So(func() { dummyUser.unlink() }, ShouldNotPanic)
+			})
 			Convey("Onchange", func() {
 				Convey("Testing with existing RecordSet", func() {
 					res := userJane.Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   NewModelData(userModel, FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false}),
+						Values:   NewModelData(userModel, FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false, "DecoratedName": false}),
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying().FieldMap
 					So(fMap, ShouldHaveLength, 2)
@@ -134,7 +148,7 @@ func TestBaseModelMethods(t *testing.T) {
 					res := env.Pool("User").Call("Onchange", OnchangeParams{
 						Fields:   []string{"Name", "Email", "CoolType"},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1"},
-						Values:   NewModelData(userModel, FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false}),
+						Values:   NewModelData(userModel, FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false, "DecoratedName": false}),
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying().FieldMap
 					So(fMap, ShouldHaveLength, 2)

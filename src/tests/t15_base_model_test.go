@@ -19,6 +19,20 @@ func TestBaseModelMethods(t *testing.T) {
 	Convey("Testing base model methods", t, func() {
 		So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
+			Convey("New", func() {
+				dummyUser := h.User().NewSet(env).New(h.User().NewData().
+					SetName("DummyUser").
+					SetEmail("du@example.com"))
+				So(dummyUser.Name(), ShouldEqual, "DummyUser")
+				So(dummyUser.Email(), ShouldEqual, "du@example.com")
+				So(dummyUser.Email2(), ShouldBeEmpty)
+				So(dummyUser.Ids()[0], ShouldBeLessThan, 0)
+				So(func() { dummyUser.ForceLoad() }, ShouldPanic)
+				So(func() { dummyUser.SetEmail2("du2@example.com") }, ShouldNotPanic)
+				So(dummyUser.Email2(), ShouldEqual, "du2@example.com")
+				So(dummyUser.DecoratedName(), ShouldEqual, "User: DummyUser [<du@example.com>]")
+				So(func() { dummyUser.Unlink() }, ShouldNotPanic)
+			})
 			Convey("Copy", func() {
 				newProfile := userJane.Profile().Copy(nil)
 				userJane.Write(h.User().NewData().SetPassword("Jane's Password"))
