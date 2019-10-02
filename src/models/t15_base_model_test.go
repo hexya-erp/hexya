@@ -94,7 +94,7 @@ func TestBaseModelMethods(t *testing.T) {
 				So(fInfo.Help, ShouldEqual, "The user's username")
 				So(fInfo.Type, ShouldEqual, fieldtype.Char)
 				fInfos := userJane.Call("FieldsGet", FieldsGetArgs{}).(map[string]*FieldInfo)
-				So(fInfos, ShouldHaveLength, 34)
+				So(fInfos, ShouldHaveLength, 35)
 			})
 			Convey("NameGet", func() {
 				So(userJane.Get("DisplayName"), ShouldEqual, "Jane A. Smith")
@@ -158,6 +158,23 @@ func TestBaseModelMethods(t *testing.T) {
 					So(fMap["decorated_name"], ShouldEqual, "User:  [<>]")
 					So(fMap, ShouldContainKey, "is_cool")
 					So(fMap["is_cool"], ShouldEqual, true)
+				})
+				Convey("Testing with new RecordSet and related field", func() {
+					post := env.Pool("Post").SearchAll().Limit(1)
+					res := env.Pool("User").Call("Onchange", OnchangeParams{
+						Fields:   []string{"Name", "Email", "CoolType", "Nums", "Nums", "Mana"},
+						Onchange: map[string]string{"Name": "1", "CoolType": "1", "Nums": "1", "Mana": "1"},
+						Values: NewModelData(userModel, FieldMap{"Name": "", "Email": "", "CoolType": "cool",
+							"IsCool": false, "DecoratedName": false, "Mana": float32(12.3), "BestProfilePost": false}),
+					}).(OnchangeResult)
+					fMap := res.Value.Underlying().FieldMap
+					So(fMap, ShouldHaveLength, 3)
+					So(fMap, ShouldContainKey, "decorated_name")
+					So(fMap["decorated_name"], ShouldEqual, "User:  [<>]")
+					So(fMap, ShouldContainKey, "is_cool")
+					So(fMap["is_cool"], ShouldEqual, true)
+					So(fMap, ShouldContainKey, "best_profile_post_id")
+					So(fMap["best_profile_post_id"].(RecordSet).Collection().Equals(post), ShouldBeTrue)
 				})
 			})
 			Convey("CheckRecursion", func() {
