@@ -843,11 +843,11 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 	rc.Fetch()
 	var res interface{}
 
+	exprs := strings.Split(fieldName, ExprSep)
 	switch {
 	case rc.IsEmpty():
 		res = reflect.Zero(fi.structField.Type).Interface()
 	case fi.isComputedField() && !fi.isStored():
-		exprs := strings.Split(fieldName, ExprSep)
 		prefix := strings.Join(exprs[:len(exprs)-1], ExprSep)
 		relRC := rc
 		if prefix != "" {
@@ -859,6 +859,14 @@ func (rc *RecordCollection) Get(fieldName string) interface{} {
 	case fi.isRelatedField():
 		res = rc.Get(rc.substituteRelatedInPath(fieldName))
 	default:
+		if rc.hasNegIds && len(exprs) > 1 {
+			// We have a negative ID, but we fetch a related field
+			// So we delegate to the related model to prevent fetching ourselves in the DB
+			relRs := rc.Get(exprs[0])
+			if relRs.(RecordSet).IsNotEmpty() {
+				return relRs.(RecordSet).Collection().Get(strings.Join(exprs[1:], ExprSep))
+			}
+		}
 		// If value is not in cache we fetch the whole model to speed up later calls to Get,
 		// except for the case of non stored relation fields, where we only load the requested field.
 		all := !fi.fieldType.IsNonStoredRelationType()

@@ -203,6 +203,18 @@ func TestModelDeclaration(t *testing.T) {
 				}
 			})
 
+		user.AddMethod("OnChangeMana", "",
+			func(rc *RecordCollection) *ModelData {
+				res := NewModelData(rc.model)
+				post := rc.env.Pool("Post").SearchAll().Limit(1)
+				prof := rc.env.Pool("Profile").Call("Create",
+					NewModelData(Registry.MustGet("Profile")).
+						Set("BestPost", post))
+				prof.(RecordSet).Collection().InvalidateCache()
+				res.Set("Profile", prof)
+				return res
+			})
+
 		user.Methods().MustGet("Copy").Extend("",
 			func(rc *RecordCollection, overrides RecordData) *RecordCollection {
 				overrides.Underlying().Set("Name", fmt.Sprintf("%s (copy)", rc.Get("Name").(string)))
@@ -273,8 +285,8 @@ func TestModelDeclaration(t *testing.T) {
 			func(rc *RecordCollection) *ModelData {
 				var res string
 				for _, rec := range rc.Records() {
-					for _, tag := range rec.Get("Tags").(RecordSet).Collection().Records() {
-						res += tag.Get("Name").(string) + " "
+					for _, tg := range rec.Get("Tags").(RecordSet).Collection().Records() {
+						res += tg.Get("Name").(string) + " "
 					}
 				}
 				return NewModelData(rc.model).Set("TagsNames", res)
@@ -338,12 +350,13 @@ func TestModelDeclaration(t *testing.T) {
 				Compute:  user.Methods().MustGet("ComputeCoolType"),
 				Inverse:  user.Methods().MustGet("InverseCoolType"),
 				OnChange: user.Methods().MustGet("OnChangeCoolType")},
-			"Email2":    CharField{},
-			"IsPremium": BooleanField{},
-			"Nums":      IntegerField{GoType: new(int)},
-			"Size":      FloatField{},
-			"Mana":      FloatField{GoType: new(float32)},
-			"Education": TextField{String: "Educational Background"},
+			"Email2":          CharField{},
+			"IsPremium":       BooleanField{},
+			"Nums":            IntegerField{GoType: new(int)},
+			"Size":            FloatField{},
+			"BestProfilePost": Many2OneField{RelationModel: Registry.MustGet("Post"), Related: "Profile.BestPost"},
+			"Mana":            FloatField{GoType: new(float32), OnChange: user.Methods().MustGet("OnChangeMana")},
+			"Education":       TextField{String: "Educational Background"},
 		})
 		user.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums IS NOT NULL AND nums > 0) OR (IS_PREMIUM = false))",
 			"Premium users must have positive nums")
