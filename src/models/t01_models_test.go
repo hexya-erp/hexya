@@ -572,7 +572,7 @@ func TestSequences(t *testing.T) {
 		So(testSeq.Increment, ShouldEqual, 3)
 		So(testSeq.Start, ShouldEqual, 14)
 		testSeq.Drop()
-		_, ok = Registry.GetSequence("TestSequence")
-		So(ok, ShouldBeFalse)
+		So(func() { Registry.MustGetSequence("TestSequence") }, ShouldPanic)
+		CreateSequence("TestSequence", 5, 13)
 	})
 }

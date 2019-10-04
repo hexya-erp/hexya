@@ -463,6 +463,31 @@ func TestBaseModelMethods(t *testing.T) {
 	})
 }
 
+func TestPostBootSequences(t *testing.T) {
+	Convey("Testing manual sequences after bootstrap", t, func() {
+		testSeq := Registry.MustGetSequence("Test")
+		testSeq.Drop()
+		seq := CreateSequence("ManualSequence", 1, 1)
+		So(seq.JSON, ShouldEqual, "manual_sequence_manseq")
+		So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
+		So(testAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "manual_sequence_manseq")
+		So(seq.NextValue(), ShouldEqual, 1)
+		So(seq.NextValue(), ShouldEqual, 2)
+		seq.Alter(2, 5)
+		So(seq.NextValue(), ShouldEqual, 5)
+		So(seq.NextValue(), ShouldEqual, 7)
+		So(func() { CreateSequence("ManualSequence", 1, 1) }, ShouldPanic)
+		seq.Drop()
+		So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 0)
+	})
+	Convey("Boot sequences cannot be altered or dropped after bootstrap", t, func() {
+		bootSeq := Registry.MustGetSequence("TestSequence")
+		So(bootSeq.boot, ShouldBeTrue)
+		So(func() { bootSeq.Alter(3, 4) }, ShouldPanic)
+		So(func() { bootSeq.Drop() }, ShouldPanic)
+	})
+}
+
 func TestFreeTransientModels(t *testing.T) {
 	transientModelTimeout = 1500 * time.Millisecond
 	// Restart workerloop with a very small period

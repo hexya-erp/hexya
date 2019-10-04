@@ -17,6 +17,8 @@ func SyncDatabase() {
 	dbTables := adapter.tables()
 	// Create or update sequences
 	updateDBSequences()
+	// Load manual sequences from DB
+	loadManualSequencesFromDB()
 	// Create or update existing tables
 	for tableName, model := range Registry.registryByTableName {
 		if model.isMixin() || model.isManual() {
@@ -88,8 +90,8 @@ func updateDBSequences() {
 			continue
 		}
 		exists := false
-		for _, dbSeq := range adapter.sequences("%_manseq") {
-			if sequence.JSON == dbSeq {
+		for _, dbSeq := range adapter.sequences("%_bootseq") {
+			if sequence.JSON == dbSeq.Name {
 				exists = true
 			}
 		}
@@ -99,19 +101,31 @@ func updateDBSequences() {
 		}
 		adapter.alterSequence(sequence.JSON, sequence.Increment, sequence.Start)
 	}
-	// Drop unused sequences
-	for _, dbSeq := range adapter.sequences("%_manseq") {
+	// Drop unused boot sequences
+	for _, dbSeq := range adapter.sequences("%_bootseq") {
 		var sequenceExists bool
 		for _, sequence := range Registry.sequences {
-			if sequence.JSON != dbSeq || !sequence.boot {
-				continue
+			if sequence.JSON == dbSeq.Name {
+				sequenceExists = true
+				break
 			}
-			sequenceExists = true
-			break
 		}
 		if !sequenceExists {
-			adapter.dropSequence(dbSeq)
+			adapter.dropSequence(dbSeq.Name)
 		}
+	}
+}
+
+// loadManualSequencesFromDB fetches manual sequences from DB and updates registry
+func loadManualSequencesFromDB() {
+	adapter := adapters[db.DriverName()]
+	for _, dbSeq := range adapter.sequences("%_manseq") {
+		seq := &Sequence{
+			JSON:      dbSeq.Name,
+			Start:     dbSeq.StartValue,
+			Increment: dbSeq.Increment,
+		}
+		Registry.addSequence(seq)
 	}
 }
 

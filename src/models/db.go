@@ -49,6 +49,13 @@ type ColumnData struct {
 	ColumnDefault sql.NullString
 }
 
+// A seqData holds the data of a sequence in the database
+type seqData struct {
+	Name       string `db:"sequence_name"`
+	StartValue int64  `db:"start_value"`
+	Increment  int64  `db:"increment"`
+}
+
 type dbAdapter interface {
 	// connectionString returns the connection string for the given parameters
 	connectionString(ConnectionParams) string
@@ -87,7 +94,7 @@ type dbAdapter interface {
 	// nextSequenceValue returns the next value of the given given sequence
 	nextSequenceValue(name string) int64
 	// sequences returns a list of all sequences matching the given SQL pattern
-	sequences(pattern string) []string
+	sequences(pattern string) []seqData
 	// childrenIdsQuery returns a query that finds all descendant of the given
 	// a record from table including itself. The query has a placeholder for the
 	// record's ID

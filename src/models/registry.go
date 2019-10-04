@@ -73,7 +73,12 @@ func (mc *modelCollection) MustGet(nameOrJSON string) *Model {
 func (mc *modelCollection) GetSequence(nameOrJSON string) (s *Sequence, ok bool) {
 	s, ok = mc.sequences[nameOrJSON]
 	if !ok {
-		s, ok = mc.sequences[nameOrJSON]
+		jsonBoot := strutils.SnakeCase(nameOrJSON) + "_bootseq"
+		s, ok = mc.sequences[jsonBoot]
+		if !ok {
+			jsonMan := strutils.SnakeCase(nameOrJSON) + "_manseq"
+			s, ok = mc.sequences[jsonMan]
+		}
 	}
 	return
 }
@@ -97,6 +102,16 @@ func (mc *modelCollection) add(mi *Model) {
 	mc.registryByTableName[mi.tableName] = mi
 	mi.methods.model = mi
 	mi.fields.model = mi
+}
+
+// add the given Model to the modelCollection
+func (mc *modelCollection) addSequence(s *Sequence) {
+	if _, exists := mc.GetSequence(s.JSON); exists {
+		log.Panic("Trying to add already existing sequence", "sequence", s.JSON)
+	}
+	mc.Lock()
+	defer mc.Unlock()
+	mc.sequences[s.JSON] = s
 }
 
 // newModelCollection returns a pointer to a new modelCollection
@@ -420,7 +435,7 @@ func (m *Model) SetDefaultOrder(orders ...string) {
 // fieldName may be a dot separated path from this model.
 // It panics if the path is invalid.
 func (m *Model) JSONizeFieldName(fieldName string) string {
-	return jsonizePath(m, string(fieldName))
+	return jsonizePath(m, fieldName)
 }
 
 // Field starts a condition on this model
@@ -625,7 +640,6 @@ func createModel(name string, options Option) *Model {
 // bootstrap and cannot be modified afterwards. The latter will be
 // created, updated or dropped immediately.
 type Sequence struct {
-	Name      string
 	JSON      string
 	Increment int64
 	Start     int64
@@ -635,25 +649,24 @@ type Sequence struct {
 // CreateSequence creates a new Sequence in the database and returns a pointer to it
 func CreateSequence(name string, increment, start int64) *Sequence {
 	var boot bool
+	suffix := "manseq"
 	if !Registry.bootstrapped {
 		boot = true
+		suffix = "bootseq"
 	}
-	json := fmt.Sprintf("%s_manseq", strutils.SnakeCase(name))
+	json := fmt.Sprintf("%s_%s", strutils.SnakeCase(name), suffix)
 	seq := &Sequence{
-		Name:      name,
 		JSON:      json,
 		Increment: increment,
 		Start:     start,
 		boot:      boot,
 	}
-	Registry.Lock()
-	defer Registry.Unlock()
-	Registry.sequences[name] = seq
 	if !boot {
 		// Create the sequence on the fly if we already bootstrapped.
 		// Otherwise, this will be done in Bootstrap
 		adapters[db.DriverName()].createSequence(seq.JSON, seq.Increment, seq.Start)
 	}
+	Registry.addSequence(seq)
 	return seq
 }
 
@@ -661,7 +674,7 @@ func CreateSequence(name string, increment, start int64) *Sequence {
 func (s *Sequence) Drop() {
 	Registry.Lock()
 	defer Registry.Unlock()
-	delete(Registry.sequences, s.Name)
+	delete(Registry.sequences, s.JSON)
 	if Registry.bootstrapped {
 		// Drop the sequence on the fly if we already bootstrapped.
 		// Otherwise, this will be done in Bootstrap

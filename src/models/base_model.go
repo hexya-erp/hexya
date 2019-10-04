@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/hexya-erp/hexya/src/i18n"
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/operator"
@@ -74,13 +75,11 @@ func declareBaseMixin() {
 }
 
 func declareModelMixin() {
-	idSeq := CreateSequence("HexyaExternalID", 1, 1)
-
 	modelMixin := NewMixinModel("ModelMixin")
 	modelMixin.AddFields(map[string]FieldDefinition{
 		"HexyaExternalID": CharField{Unique: true, Index: true, NoCopy: true, Required: true,
 			Default: func(env Environment) interface{} {
-				return fmt.Sprintf("__hexya_external_id__%d", idSeq.NextValue())
+				return uuid.New().String()
 			},
 		},
 		"HexyaVersion": IntegerField{GoType: new(int)},

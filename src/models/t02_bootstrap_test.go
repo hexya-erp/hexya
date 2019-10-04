@@ -40,6 +40,11 @@ func unBootStrap() {
 			}
 		}
 	}
+	for seqName, seq := range Registry.sequences {
+		if strings.HasSuffix(seq.JSON, "_manseq") {
+			delete(Registry.sequences, seqName)
+		}
+	}
 }
 
 func TestIllegalMethods(t *testing.T) {
@@ -146,6 +151,9 @@ func TestBootStrap(t *testing.T) {
 	// Creating a dummy table to check that it is correctly removed by Bootstrap
 	dbExecuteNoTx("CREATE TABLE IF NOT EXISTS shouldbedeleted (id serial NOT NULL PRIMARY KEY)")
 
+	// Creating a manual sequence that must be loaded in the registry
+	dbExecuteNoTx(`CREATE SEQUENCE test_manseq INCREMENT BY 5 START WITH 1`)
+
 	Convey("Database creation should run fine", t, func() {
 		Convey("Dummy table should exist", func() {
 			So(testAdapter.tables(), ShouldContainKey, "shouldbedeleted")
@@ -191,6 +199,19 @@ func TestBootStrap(t *testing.T) {
 		Convey("Table constraints should have been created", func() {
 			So(testAdapter.constraints("%_mancon"), ShouldHaveLength, 1)
 			So(testAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
+		})
+		Convey("Boot Sequence should be created", func() {
+			So(testAdapter.sequences("%_bootseq"), ShouldHaveLength, 1)
+			So(testAdapter.sequences("%_bootseq")[0].Name, ShouldEqual, "test_sequence_bootseq")
+		})
+		Convey("Manual sequences should be loaded in registry", func() {
+			So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
+			So(testAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "test_manseq")
+			seq, ok := Registry.GetSequence("Test")
+			So(ok, ShouldBeTrue)
+			So(seq.JSON, ShouldEqual, "test_manseq")
+			So(seq.Increment, ShouldEqual, 5)
+			So(seq.Start, ShouldEqual, 1)
 		})
 		Convey("Applying DB modifications", func() {
 			unBootStrap()

@@ -12,6 +12,7 @@ require (
 	github.com/gin-contrib/pprof v0.0.0-20181223171755-ea03ef73484d
 	github.com/gin-contrib/sessions v0.0.0-20190101140330-dc5246754963
 	github.com/gin-gonic/gin v1.3.0
+	github.com/google/uuid v1.1.1
 	github.com/hexya-erp/pool v1.0.2
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmoiron/sqlx v1.2.0
