@@ -235,9 +235,9 @@ func (d *postgresAdapter) nextSequenceValue(name string) int64 {
 }
 
 // sequences returns a list of all sequences matching the given SQL pattern
-func (d *postgresAdapter) sequences(pattern string) []string {
-	query := "SELECT sequence_name FROM information_schema.sequences WHERE sequence_name ILIKE ?"
-	var res []string
+func (d *postgresAdapter) sequences(pattern string) []seqData {
+	query := "SELECT sequence_name, start_value, increment FROM information_schema.sequences WHERE sequence_name ILIKE ?"
+	var res []seqData
 	dbSelectNoTx(&res, query, pattern)
 	return res
 }

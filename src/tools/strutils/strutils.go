@@ -149,11 +149,11 @@ func IsIn(str string, lst ...string) bool {
 func TrimArgs(args []interface{}) []string {
 	argStr := make([]string, len(args))
 	for i, arg := range args {
-		str := []byte(fmt.Sprintf("%v", arg))
+		str := fmt.Sprintf("%v", arg)
 		if len(str) > 30 {
-			argStr[i] = string([]byte(str)[:30]) + "..."
+			argStr[i] = str[:30] + "..."
 		} else {
-			argStr[i] = string(str)
+			argStr[i] = str
 		}
 	}
 	return argStr
