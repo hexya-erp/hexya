@@ -118,11 +118,11 @@ func TestI18N(t *testing.T) {
 func TestLanguagesData(t *testing.T) {
 	Convey("Testing languages data", t, func() {
 		Convey("Registering and overriding locales", func() {
-			So(locales, ShouldHaveLength, 79)
+			So(locales, ShouldHaveLength, 78)
 			So(locales, ShouldContainKey, "nl")
 			So(locales, ShouldNotContainKey, "wz")
 			all := GetAllLanguageList()
-			So(all, ShouldHaveLength, 79)
+			So(all, ShouldHaveLength, 78)
 			So(all, ShouldNotContain, "wz")
 			So(RegisterLocale(&Locale{
 				Name:      "New Locale",
@@ -134,11 +134,11 @@ func TestLanguagesData(t *testing.T) {
 				ISOCode:   "nl",
 				Direction: LangDirectionLTR,
 			}), ShouldBeNil)
-			So(locales, ShouldHaveLength, 80)
+			So(locales, ShouldHaveLength, 79)
 			So(locales, ShouldContainKey, "nl")
 			So(locales, ShouldContainKey, "wz")
 			all = GetAllLanguageList()
-			So(all, ShouldHaveLength, 80)
+			So(all, ShouldHaveLength, 79)
 			So(all, ShouldContain, "wz")
 			os.Remove("testdata/server/i18n/testModule")
 		})
