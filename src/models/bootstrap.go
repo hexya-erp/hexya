@@ -46,6 +46,9 @@ func BootStrap() {
 	if Registry.bootstrapped == true {
 		log.Panic("Trying to bootstrap models twice !")
 	}
+	// loadManualSequencesFromDB locks registry, so we call it first
+	loadManualSequencesFromDB()
+
 	Registry.Lock()
 	defer Registry.Unlock()
 
@@ -451,6 +454,23 @@ func checkFieldMethodsExist() {
 				model.methods.MustGet(field.inverse)
 			}
 		}
+	}
+}
+
+// loadManualSequencesFromDB fetches manual sequences from DB and updates registry
+func loadManualSequencesFromDB() {
+	if db == nil {
+		// Happens when bootstrapping models without DB for tests
+		return
+	}
+	adapter := adapters[db.DriverName()]
+	for _, dbSeq := range adapter.sequences("%_manseq") {
+		seq := &Sequence{
+			JSON:      dbSeq.Name,
+			Start:     dbSeq.StartValue,
+			Increment: dbSeq.Increment,
+		}
+		Registry.addSequence(seq)
 	}
 }
 
