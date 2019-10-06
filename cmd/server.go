@@ -80,6 +80,7 @@ func StartServer() {
 	connectToDB()
 	i18n.BootStrap()
 	models.BootStrap()
+	models.RunWorkerLoop()
 	server.LoadTranslations(resourceDir, i18n.Langs)
 	server.LoadInternalResources(resourceDir)
 	views.BootStrap()

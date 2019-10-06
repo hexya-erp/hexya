@@ -21,7 +21,6 @@ func (f TestFieldMap) Underlying() FieldMap {
 }
 
 func unBootStrap() {
-	workerStop <- true
 	Registry.bootstrapped = false
 	for _, mi := range Registry.registryByName {
 		if mi.options&ContextsModel > 0 {
