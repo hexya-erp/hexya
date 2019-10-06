@@ -490,13 +490,13 @@ func TestPostBootSequences(t *testing.T) {
 
 func TestFreeTransientModels(t *testing.T) {
 	transientModelTimeout = 1500 * time.Millisecond
-	// Restart workerloop with a very small period
-	workerStop <- true
-	workloop(400 * time.Millisecond)
+	// Start workerloop with a very small period
+	workerFunctions = []WorkerFunction{NewWorkerFunction(FreeTransientModels, 400*time.Millisecond)}
+	RunWorkerLoop()
 
 	var wizID int64
 	Convey("Test freeing transient models", t, func() {
-		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			wizModel := env.Pool("Wizard")
 			Convey("Creating a transient record", func() {
 				wiz := wizModel.Call("Create", NewModelData(wizModel.model).
@@ -515,7 +515,10 @@ func TestFreeTransientModels(t *testing.T) {
 				wiz.Load()
 				So(wiz.IsEmpty(), ShouldBeTrue)
 			})
-		})
+		}), ShouldBeNil)
 	})
-	workerStop <- true
+	StopWorkerLoop()
+	if workerStop != nil {
+		t.Fail()
+	}
 }
