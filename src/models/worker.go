@@ -61,19 +61,19 @@ func RunWorkerLoop() {
 	workerStop = make(chan struct{})
 	for _, workerFunc := range workerFunctions {
 		workerGroup.Add(1)
-		go func() {
-			ticker := time.NewTicker(workerFunc.LoopPeriod())
+		go func(wf WorkerFunction) {
+			ticker := time.NewTicker(wf.LoopPeriod())
 			defer ticker.Stop()
 			for {
 				select {
 				case <-ticker.C:
-					workerFunc.Run()
+					wf.Run()
 				case <-workerStop:
 					workerGroup.Done()
 					return
 				}
 			}
-		}()
+		}(workerFunc)
 	}
 }
 

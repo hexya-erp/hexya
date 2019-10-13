@@ -67,18 +67,17 @@ func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value int
 	fi := mi.fields.MustGet(jsonName)
 	switch fi.fieldType {
 	case fieldtype.One2Many:
-		switch ids := value.(type) {
-		case int64:
-			// Related field through O2M, we do not have the complete O2M set.
-			// ids is a single int64 here.
-			c.updateEntry(fi.relatedModel, ids, fi.jsonReverseFK, id, ctxSlug)
-			c.setX2MValue(mi.name, id, jsonName, ids, ctxSlug)
-		case []int64:
-			for _, relID := range ids {
-				c.updateEntry(fi.relatedModel, relID, fi.jsonReverseFK, id, ctxSlug)
-			}
-			c.setDataValue(mi.name, id, jsonName, true)
+		ids := value.([]int64)
+		for _, relID := range ids {
+			c.updateEntry(fi.relatedModel, relID, fi.jsonReverseFK, id, ctxSlug)
 		}
+		if len(ids) == 1 {
+			// We have only one ID.
+			// We arbitrarily decide it is a related field through O2M and we do not have the complete O2M set.
+			c.setX2MValue(mi.name, id, jsonName, ids[0], ctxSlug)
+			break
+		}
+		c.setDataValue(mi.name, id, jsonName, true)
 
 	case fieldtype.Rev2One:
 		relID := value.(int64)
@@ -86,18 +85,17 @@ func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value int
 		c.setDataValue(mi.name, id, jsonName, true)
 
 	case fieldtype.Many2Many:
-		switch ids := value.(type) {
-		case int64:
-			// Related field through O2M, we do not have the complete M2M set
-			// ids is a single int64 here.
-			c.addM2MLink(fi, id, []int64{ids})
-			c.setX2MValue(mi.name, id, jsonName, ids, ctxSlug)
-		case []int64:
-			c.removeM2MLinks(fi, id)
+		ids := value.([]int64)
+		if len(ids) == 1 {
+			// We have only one ID.
+			// We arbitrarily decide it is a related field through M2M and we do not have the complete M2M set
 			c.addM2MLink(fi, id, ids)
-			c.setDataValue(mi.name, id, jsonName, true)
+			c.setX2MValue(mi.name, id, jsonName, ids[0], ctxSlug)
+			break
 		}
-
+		c.removeM2MLinks(fi, id)
+		c.addM2MLink(fi, id, ids)
+		c.setDataValue(mi.name, id, jsonName, true)
 	default:
 		c.setDataValue(mi.name, id, jsonName, value)
 	}

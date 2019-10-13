@@ -240,7 +240,7 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 				// Handle variadic function call without last argument
 				break
 			}
-			argsVals[i+1] = convertFunctionArg(rc, fnctVal.Type().In(i+1), args[i])
+			argsVals[i+1] = convertFunctionArg(fnctVal.Type().In(i+1), args[i])
 		}
 
 		var retVal []reflect.Value
@@ -260,7 +260,7 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 }
 
 // convertFunctionArg converts the given argument to match that of fnctArgType.
-func convertFunctionArg(rc *RecordCollection, fnctArgType reflect.Type, arg interface{}) reflect.Value {
+func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value {
 	var val reflect.Value
 	switch at := arg.(type) {
 	case Conditioner:
