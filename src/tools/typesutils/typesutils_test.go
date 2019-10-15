@@ -4,6 +4,8 @@
 package typesutils
 
 import (
+	"database/sql"
+	"reflect"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -207,5 +209,64 @@ func TestIsLessThan(t *testing.T) {
 			So(res, ShouldBeFalse)
 			So(err, ShouldBeNil)
 		})
+	})
+}
+
+type convertTestCase struct {
+	value  interface{}
+	target interface{}
+	isRS   bool
+	result interface{}
+	err    string
+}
+
+var convertTestCases = []convertTestCase{
+	{value: 1, target: new(int), result: 1},
+	{value: nil, target: new(int), result: 0},
+	{value: true, target: new(bool), result: true},
+	{value: false, target: new(bool), result: false},
+	{value: 0, target: new(bool), result: false},
+	{value: 1, target: new(bool), result: true},
+	{value: 1, target: new(float32), result: float32(1)},
+	{value: []byte("1"), target: new(float32), result: float32(1)},
+	{value: []byte("1"), target: new(float64), result: float64(1)},
+	{value: "1", target: new(sql.NullFloat64), result: sql.NullFloat64{Float64: 1, Valid: true}},
+	{value: 1, target: new(int64), result: int64(1), isRS: true},
+	{value: []interface{}{}, target: new(int64), result: int64(0), isRS: true},
+	{value: []interface{}{}, target: new([]int64), result: []int64{}, isRS: true},
+	{value: []int64{1, 2}, target: new([]int64), result: []int64{1, 2}, isRS: true},
+	{value: []int64{1}, target: new(int64), result: int64(1), isRS: true},
+	{value: (*interface{})(nil), target: new(int64), result: int64(0), isRS: true},
+	{value: (*interface{})(nil), target: new([]int64), result: []int64{}, isRS: true},
+}
+
+var convertErrorCases = []convertTestCase{
+	{value: "SOMESTRING", target: new(sql.NullFloat64), err: "unable to scan into target Type: converting driver.Value type string (\"SOMESTRING\") to a float64: invalid syntax"},
+	{value: []byte("STRING"), target: new(float32), err: "strconv.ParseFloat: parsing \"STRING\": invalid syntax"},
+	{value: []byte("STRING"), target: new(float64), err: "strconv.ParseFloat: parsing \"STRING\": invalid syntax"},
+	{value: []interface{}{1}, target: new([]int64), isRS: true, err: "non empty []interface{} given"},
+	{value: "ST", target: new(float32), isRS: true, err: "expected number value, got ST: value ST cannot be casted to int64"},
+	{value: 1, target: new(float64), isRS: true, err: "non consistent type"},
+	{value: false, target: new(int), err: "impossible conversion of false (bool) to int"},
+}
+
+func TestConvert(t *testing.T) {
+	Convey("Testing Convert", t, func() {
+		for _, tc := range convertTestCases {
+			var target = tc.target
+			err := Convert(tc.value, target, tc.isRS)
+			So(err, ShouldBeNil)
+			targetVal := reflect.ValueOf(target).Elem()
+			So(targetVal.Type(), ShouldEqual, reflect.TypeOf(tc.result))
+			So(reflect.DeepEqual(targetVal.Interface(), tc.result), ShouldBeTrue)
+		}
+	})
+	Convey("Testing conversion errors", t, func() {
+		for _, tc := range convertErrorCases {
+			var target = tc.target
+			err := Convert(tc.value, target, tc.isRS)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, tc.err)
+		}
 	})
 }
