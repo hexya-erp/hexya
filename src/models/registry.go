@@ -15,11 +15,8 @@
 package models
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -27,8 +24,8 @@ import (
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
-	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
+	"github.com/hexya-erp/hexya/src/tools/typesutils"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -246,37 +243,12 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 		}
 		fi := m.getRelatedFieldInfo(colName)
 		fType := fi.structField.Type
-		if fType == reflect.TypeOf(fMapValue) {
-			// If we already have the good type, don't do anything
-			continue
+		typedValue := reflect.New(fType).Interface()
+		err := typesutils.Convert(fMapValue, typedValue, fi.isRelationField())
+		if err != nil {
+			log.Panic(err.Error(), "model", m.name, "field", colName, "type", fType, "value", fMapValue)
 		}
-		var val reflect.Value
-		switch {
-		case fMapValue == nil:
-			// dbValue is null, we put the type zero value instead
-			val = reflect.Zero(fType)
-		case reflect.PtrTo(fType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
-			// the type implements sql.Scanner, so we call Scan
-			valPtr := reflect.New(fType)
-			scanFunc := valPtr.MethodByName("Scan")
-			inArgs := []reflect.Value{reflect.ValueOf(fMapValue)}
-			res := scanFunc.Call(inArgs)
-			if res[0].Interface() != nil {
-				log.Panic("Unable to scan into target Type", "error", res[0].Interface())
-			}
-			val = valPtr.Elem()
-		default:
-			var err error
-			if fi.isRelationField() {
-				val, err = getRelationFieldValue(fMapValue, fType)
-			} else {
-				val, err = getSimpleTypeValue(fMapValue, fType)
-			}
-			if err != nil {
-				log.Panic(err.Error(), "model", m.name, "field", colName, "type", fType, "value", fMapValue)
-			}
-		}
-		destVals.SetMapIndex(reflect.ValueOf(colName), val)
+		destVals.SetMapIndex(reflect.ValueOf(colName), reflect.ValueOf(typedValue).Elem())
 	}
 	if writeDB {
 		// Change zero values to NULL if writing to DB when applicable
@@ -290,74 +262,6 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 			}
 		}
 	}
-}
-
-// getSimpleTypeValue returns value as a reflect.Value with type of targetType
-// It returns an error if the value cannot be converted to the target type
-func getSimpleTypeValue(value interface{}, targetType reflect.Type) (reflect.Value, error) {
-	val := reflect.ValueOf(value)
-	if val.IsValid() {
-		typ := val.Type()
-		switch {
-		case typ.ConvertibleTo(targetType):
-			val = val.Convert(targetType)
-		case targetType.Kind() == reflect.Bool:
-			val = reflect.ValueOf(!reflect.DeepEqual(val.Interface(), reflect.Zero(val.Type()).Interface()))
-		case typ == reflect.TypeOf([]byte{}) && targetType.Kind() == reflect.Float32:
-			// backend may return floats as []byte when stored as numeric
-			fval, err := strconv.ParseFloat(string(value.([]byte)), 32)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			val = reflect.ValueOf(float32(fval))
-		case typ == reflect.TypeOf([]byte{}) && targetType.Kind() == reflect.Float64:
-			// backend may return floats as []byte when stored as numeric
-			fval, err := strconv.ParseFloat(string(value.([]byte)), 64)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			val = reflect.ValueOf(fval)
-		}
-	}
-	return val, nil
-}
-
-// getRelationFieldValue returns value as a reflect.Value with type of targetType
-// It returns an error if the value is not consistent with a relation field value
-// (i.e. is not of type RecordSet or int64 or []int64)
-func getRelationFieldValue(value interface{}, targetType reflect.Type) (reflect.Value, error) {
-	var (
-		val reflect.Value
-		err error
-	)
-	switch tValue := value.(type) {
-	case RecordSet:
-		ids := tValue.Ids()
-		if targetType == reflect.TypeOf(int64(0)) {
-			if len(ids) > 0 {
-				val = reflect.ValueOf(ids[0])
-			} else {
-				val = reflect.ValueOf((*interface{})(nil))
-			}
-		} else if targetType == reflect.TypeOf([]int64{}) {
-			val = reflect.ValueOf(ids)
-		} else {
-			err = errors.New("non consistent type")
-		}
-	case []interface{}:
-		if len(tValue) == 0 {
-			val = reflect.ValueOf((*interface{})(nil))
-			break
-		}
-		err = errors.New("non empty []interface{} given")
-	case []int64, *interface{}:
-		val = reflect.ValueOf(value)
-	default:
-		nbValue, nbErr := nbutils.CastToInteger(tValue)
-		val = reflect.ValueOf(nbValue)
-		err = nbErr
-	}
-	return val, err
 }
 
 // isMixin returns true if this is a mixin model.

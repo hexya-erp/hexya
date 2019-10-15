@@ -15,6 +15,7 @@
 package models
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -32,6 +33,8 @@ type RecordRef struct {
 // RecordSet identifies a type that holds a set of records of
 // a given model.
 type RecordSet interface {
+	sql.Scanner
+	fmt.Stringer
 	// ModelName returns the name of the model of this RecordSet
 	ModelName() string
 	// Ids returns the ids in this set of Records
@@ -132,6 +135,7 @@ type Conditioner interface {
 
 // A RecordData can return a ModelData object through its Underlying() method
 type RecordData interface {
+	sql.Scanner
 	Underlying() *ModelData
 }
 
@@ -145,6 +149,21 @@ type ModelData struct {
 }
 
 var _ RecordData = new(ModelData)
+
+// Scan implements sql.Scanner
+func (md *ModelData) Scan(src interface{}) error {
+	switch val := src.(type) {
+	case nil:
+		return nil
+	case FieldMapper:
+		md.FieldMap = val.Underlying()
+	case map[string]interface{}:
+		md.FieldMap = val
+	default:
+		return fmt.Errorf("unexpected type %T to represent RecordData: %s", src, src)
+	}
+	return nil
+}
 
 // Get returns the value of the given field.
 //

@@ -41,6 +41,56 @@ type RecordCollection struct {
 	hasNegIds  bool
 }
 
+// Scan implements sql.Scanner
+func (rc *RecordCollection) Scan(src interface{}) error {
+	if !rc.IsValid() {
+		return fmt.Errorf("recordset should be valid before scanning %s", src)
+	}
+	switch r := src.(type) {
+	case *interface{}, nil, bool:
+	case []interface{}:
+		if len(r) > 0 {
+			ids := make([]int64, len(r))
+			for i, v := range r {
+				ids[i] = int64(v.(float64))
+			}
+			rc.withIds(ids)
+		}
+	case int64:
+		if r != 0 {
+			rc.withIds([]int64{r})
+		}
+	case int:
+		if r != 0 {
+			rc.withIds([]int64{int64(r)})
+		}
+	case float64:
+		if r != 0 {
+			rc.withIds([]int64{int64(r)})
+		}
+	case []int64:
+		rc.withIds(r)
+	case []int:
+		ids := make([]int64, len(r))
+		for i, v := range r {
+			ids[i] = int64(v)
+		}
+		rc.withIds(ids)
+	case []float64:
+		ids := make([]int64, len(r))
+		for i, v := range r {
+			ids[i] = int64(v)
+		}
+		rc.withIds(ids)
+	case RecordSet:
+		*rc = *r.Collection()
+	default:
+		return fmt.Errorf("unexpected type %T to represent Recordset: %s", src, src)
+	}
+	*rc = *rc.SortedDefault()
+	return nil
+}
+
 // String returns the string representation of a RecordSet
 func (rc *RecordCollection) String() string {
 	idsStr := make([]string, len(rc.Ids()))
@@ -118,8 +168,8 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	storedFieldMap := filterMapOnStoredFields(rc.model, fMap)
 	// insert in DB
 	var createdId int64
-	sql, args := rc.query.insertQuery(storedFieldMap)
-	rc.env.cr.Get(&createdId, sql, args...)
+	query, args := rc.query.insertQuery(storedFieldMap)
+	rc.env.cr.Get(&createdId, query, args...)
 
 	rc.env.cache.addRecord(rc.model, createdId, storedFieldMap, rc.query.ctxArgsSlug())
 	rSet := rc.withIds([]int64{createdId})
@@ -380,10 +430,10 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 		}
 	}
 	if !rc.hasNegIds {
-		sql, args := rc.query.updateQuery(fMap)
-		res := rc.env.cr.Execute(sql, args...)
+		query, args := rc.query.updateQuery(fMap)
+		res := rc.env.cr.Execute(query, args...)
 		if num, _ := res.RowsAffected(); num == 0 {
-			log.Panic("Unexpected noop on update (num = 0)", "model", rc.ModelName(), "values", fMap, "query", sql, "args", args)
+			log.Panic("Unexpected noop on update (num = 0)", "model", rc.ModelName(), "values", fMap, "query", query, "args", args)
 		}
 	}
 	for _, rec := range rc.Records() {
@@ -597,8 +647,8 @@ func (rc *RecordCollection) unlink() int64 {
 	compData := rc.retrieveComputeData(rc.model.fields.allJSONNames())
 	var num int64
 	if !rSet.hasNegIds {
-		sql, args := rSet.query.deleteQuery()
-		res := rSet.env.cr.Execute(sql, args...)
+		query, args := rSet.query.deleteQuery()
+		res := rSet.env.cr.Execute(query, args...)
 		num, _ = res.RowsAffected()
 	}
 	for _, id := range ids {
@@ -687,9 +737,9 @@ func (rc *RecordCollection) SearchCount() int {
 	rSet.applyContexts()
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
 	rSet = rSet.substituteRelatedInQuery()
-	sql, args := rSet.query.countQuery()
+	query, args := rSet.query.countQuery()
 	var res int
-	rSet.env.cr.Get(&res, sql, args...)
+	rSet.env.cr.Get(&res, query, args...)
 	return res
 }
 
@@ -744,8 +794,8 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...string) *RecordCollection {
 	subFields, _ := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields)
-	sql, args, substs := rSet.query.selectQuery(dbFields)
-	rows := dbQuery(rSet.env.cr.tx, sql, args...)
+	query, args, substs := rSet.query.selectQuery(dbFields)
+	rows := dbQuery(rSet.env.cr.tx, query, args...)
 	defer rows.Close()
 	var ids []int64
 	for rows.Next() {
@@ -892,46 +942,8 @@ func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName
 		return InvalidRecordCollection(relatedModelName)
 	}
 	res := newRecordCollection(rc.Env(), relatedModelName)
-	switch r := val.(type) {
-	case *interface{}, nil, bool:
-	case []interface{}:
-		if len(r) > 0 {
-			ids := make([]int64, len(r))
-			for i, v := range r {
-				ids[i] = int64(v.(float64))
-			}
-			res = res.withIds(ids).SortedDefault()
-		}
-	case int64:
-		if r != 0 {
-			res = res.withIds([]int64{r})
-		}
-	case int:
-		if r != 0 {
-			res = res.withIds([]int64{int64(r)})
-		}
-	case float64:
-		if r != 0 {
-			res = res.withIds([]int64{int64(r)})
-		}
-	case []int64:
-		res = res.withIds(r).SortedDefault()
-	case []int:
-		ids := make([]int64, len(r))
-		for i, v := range r {
-			ids[i] = int64(v)
-		}
-		res = res.withIds(ids).SortedDefault()
-	case []float64:
-		ids := make([]int64, len(r))
-		for i, v := range r {
-			ids[i] = int64(v)
-		}
-		res = res.withIds(ids).SortedDefault()
-	case RecordSet:
-		res = r.Collection()
-	default:
-		log.Panic("unexpected type", "value", r, "type", fmt.Sprintf("%T", r))
+	if err := res.Scan(val); err != nil {
+		log.Panic("Error while converting to RecordSet", "error", err)
 	}
 	return res
 }
@@ -1022,9 +1034,9 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldNamer) []GroupAggregat
 	rSet = rSet.fixGroupByOrders(subFields...)
 
 	fieldsOperatorMap := rSet.fieldsGroupOperators(dbFields)
-	sql, args := rSet.query.selectGroupQuery(fieldsOperatorMap)
+	query, args := rSet.query.selectGroupQuery(fieldsOperatorMap)
 	var res []GroupAggregateRow
-	rows := dbQuery(rSet.env.cr.tx, sql, args...)
+	rows := dbQuery(rSet.env.cr.tx, query, args...)
 	defer rows.Close()
 
 	for rows.Next() {
