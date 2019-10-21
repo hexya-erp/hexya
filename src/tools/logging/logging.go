@@ -185,8 +185,6 @@ func LogPanicData(panicData interface{}) error {
 	log.Error("Hexya panicked", "msg", msg)
 
 	stackTrace := stack(1)
-	//log.Error(fmt.Sprintf("Stack trace:\n%s", stackTrace))
-	//
 	fullMsg := fmt.Sprintf("%s\n\n%s", msg, stackTrace)
 	return exceptions.UserError{
 		Message: msg,

@@ -172,6 +172,17 @@ func SimulateInNewEnvironment(uid int64, fnct func(Environment)) (rError error) 
 	defer func() {
 		env.rollback()
 		if r := recover(); r != nil {
+			if err, ok := r.(error); ok && adapters[db.DriverName()].isSerializationError(err) {
+				// Transaction error. We try again even if we rollback anyway
+				// to be as close as ExecuteInNewEnvironment as possible
+				env.retries++
+				if env.retries < DBSerializationMaxRetries {
+					if SimulateInNewEnvironment(uid, fnct) == nil {
+						rError = nil
+						return
+					}
+				}
+			}
 			rError = logging.LogPanicData(r)
 			return
 		}
