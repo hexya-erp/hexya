@@ -43,7 +43,6 @@ type Environment struct {
 	super          bool
 	currentLayer   *methodLayer
 	previousMethod *Method
-	retries        uint8
 	recursions     uint8
 	nextNegativeID int64
 }
@@ -138,16 +137,20 @@ func newEnvironment(uid int64) Environment {
 // rolls it back otherwise, returning an arror. Database serialization
 // errors are automatically retried several times before returning an
 // error if they still occur.
-func ExecuteInNewEnvironment(uid int64, fnct func(Environment)) (rError error) {
+func ExecuteInNewEnvironment(uid int64, fnct func(Environment)) error {
+	return doExecuteInNewEnvironment(uid, 0, fnct)
+}
+
+func doExecuteInNewEnvironment(uid int64, retries uint8, fnct func(Environment)) (rError error) {
 	env := newEnvironment(uid)
 	defer func() {
 		if r := recover(); r != nil {
 			env.rollback()
 			if err, ok := r.(error); ok && adapters[db.DriverName()].isSerializationError(err) {
 				// Transaction error
-				env.retries++
-				if env.retries < DBSerializationMaxRetries {
-					if ExecuteInNewEnvironment(uid, fnct) == nil {
+				retries++
+				if retries < DBSerializationMaxRetries {
+					if doExecuteInNewEnvironment(uid, retries, fnct) == nil {
 						rError = nil
 						return
 					}
@@ -159,7 +162,7 @@ func ExecuteInNewEnvironment(uid int64, fnct func(Environment)) (rError error) {
 		env.commit()
 	}()
 	fnct(env)
-	return
+	return nil
 }
 
 // SimulateInNewEnvironment executes the given fnct in a new Environment
@@ -167,11 +170,26 @@ func ExecuteInNewEnvironment(uid int64, fnct func(Environment)) (rError error) {
 //
 // This function always rolls back the transaction but returns an error
 // only if fnct panicked during its execution.
-func SimulateInNewEnvironment(uid int64, fnct func(Environment)) (rError error) {
+func SimulateInNewEnvironment(uid int64, fnct func(Environment)) error {
+	return doSimulateInNewEnvironment(uid, 0, fnct)
+}
+
+func doSimulateInNewEnvironment(uid int64, retries uint8, fnct func(Environment)) (rError error) {
 	env := newEnvironment(uid)
 	defer func() {
 		env.rollback()
 		if r := recover(); r != nil {
+			if err, ok := r.(error); ok && adapters[db.DriverName()].isSerializationError(err) {
+				// Transaction error. We try again even if we rollback anyway
+				// to be as close as ExecuteInNewEnvironment as possible
+				retries++
+				if retries < DBSerializationMaxRetries {
+					if doSimulateInNewEnvironment(uid, retries, fnct) == nil {
+						rError = nil
+						return
+					}
+				}
+			}
 			rError = logging.LogPanicData(r)
 			return
 		}

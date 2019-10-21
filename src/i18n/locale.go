@@ -4,6 +4,7 @@
 package i18n
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -48,6 +49,19 @@ const (
 //       3,2     -> 1234,56,789
 //       3,2,0   -> 12,34,56,789
 type NumberGrouping []int
+
+// MarshalJSON function for the NumberGrouping type that should marshal as string.
+func (nb NumberGrouping) MarshalJSON() ([]byte, error) {
+	res := bytes.NewBufferString(`"[`)
+	for i, n := range nb {
+		res.WriteString(fmt.Sprintf("%d", n))
+		if i != len(nb)-1 {
+			res.WriteByte(',')
+		}
+	}
+	res.WriteString(`]"`)
+	return res.Bytes(), nil
+}
 
 // Locale defines the parameters of a language locale
 type Locale struct {

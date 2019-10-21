@@ -4,6 +4,7 @@
 package i18n
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/hexya-erp/hexya/src/models/types/dates"
@@ -79,5 +80,10 @@ func TestLocale(t *testing.T) {
 			So(fr.FormatMonetary(1234567.789, eur), ShouldEqual, "1 234 567,79 €")
 			So(ja.FormatMonetary(1234567.789, yen), ShouldEqual, "¥ 1,234,568")
 		})
+	})
+	Convey("Testing number grouping JSON Marshalling", t, func() {
+		b, err := json.Marshal(NumberGrouping{1, 2, 3})
+		So(err, ShouldBeNil)
+		So(string(b), ShouldEqual, `"[1,2,3]"`)
 	})
 }
