@@ -54,18 +54,12 @@ type NumberGrouping []int
 func (nb NumberGrouping) MarshalJSON() ([]byte, error) {
 	res := bytes.NewBufferString(`"[`)
 	for i, n := range nb {
-		if _, err := res.WriteString(fmt.Sprintf("%d", n)); err != nil {
-			return nil, err
-		}
+		res.WriteString(fmt.Sprintf("%d", n))
 		if i != len(nb)-1 {
-			if err := res.WriteByte(','); err != nil {
-				return nil, err
-			}
+			res.WriteByte(',')
 		}
 	}
-	if _, err := res.WriteString(`]"`); err != nil {
-		return nil, err
-	}
+	res.WriteString(`]"`)
 	return res.Bytes(), nil
 }
 

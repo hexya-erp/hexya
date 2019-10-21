@@ -19,6 +19,7 @@ import (
 
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
+	"github.com/lib/pq"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -247,5 +248,43 @@ X2M Links
 		So(nice.Error(), ShouldEqual, "requested value not in cache")
 		nepe := new(nonExistentPathError)
 		So(nepe.Error(), ShouldEqual, "requested path is broken")
+	})
+	Convey("Testing db error retries", t, func() {
+		Convey("ExecuteInNewEnvironment should retry db errors up to max retries", func() {
+			var retries uint8
+			So(doExecuteInNewEnvironment(security.SuperUserID, 0, func(env Environment) {
+				retries++
+				panic(&pq.Error{Code: "40001"})
+			}), ShouldNotBeNil)
+			So(retries, ShouldEqual, DBSerializationMaxRetries)
+		})
+		Convey("ExecuteInNewEnvironment should retry db errors and stop when ok", func() {
+			var retries uint8
+			So(doExecuteInNewEnvironment(security.SuperUserID, 0, func(env Environment) {
+				retries++
+				if retries < 3 {
+					panic(&pq.Error{Code: "40001"})
+				}
+			}), ShouldBeNil)
+			So(retries, ShouldEqual, 3)
+		})
+		Convey("SimulateInNewEnvironment should retry db errors up to max retries", func() {
+			var retries uint8
+			So(doSimulateInNewEnvironment(security.SuperUserID, 0, func(env Environment) {
+				retries++
+				panic(&pq.Error{Code: "40001"})
+			}), ShouldNotBeNil)
+			So(retries, ShouldEqual, DBSerializationMaxRetries)
+		})
+		Convey("SimulateInNewEnvironment should retry db errors and stop when ok", func() {
+			var retries uint8
+			So(doSimulateInNewEnvironment(security.SuperUserID, 0, func(env Environment) {
+				retries++
+				if retries < 3 {
+					panic(&pq.Error{Code: "40001"})
+				}
+			}), ShouldBeNil)
+			So(retries, ShouldEqual, 3)
+		})
 	})
 }
