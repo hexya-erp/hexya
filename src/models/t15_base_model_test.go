@@ -215,6 +215,9 @@ func TestBaseModelMethods(t *testing.T) {
 					Field("Name").Like("J% Smith")).(RecordSet).Collection()
 				So(usersJ.Records(), ShouldHaveLength, 2)
 				So(usersJ.Equals(johnAndJane), ShouldBeTrue)
+
+				So(InvalidRecordCollection("User").Equals(usersJ), ShouldBeFalse)
+				So(env.Pool("Profile").Equals(userJane), ShouldBeFalse)
 			})
 			Convey("Union", func() {
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
@@ -230,6 +233,9 @@ func TestBaseModelMethods(t *testing.T) {
 				So(all.Intersect(userJane).Equals(userJane), ShouldBeTrue)
 				So(all.Intersect(userJohn).Equals(userJohn), ShouldBeTrue)
 				So(all.Intersect(userWill).Equals(userWill), ShouldBeTrue)
+
+				So(InvalidRecordCollection("User").Union(userJane).IsValid(), ShouldBeFalse)
+				So(func() { env.Pool("Profile").Union(userJane) }, ShouldPanic)
 			})
 			Convey("Subtract", func() {
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
@@ -237,6 +243,9 @@ func TestBaseModelMethods(t *testing.T) {
 				johnAndJane := userJohn.Union(userJane)
 				So(johnAndJane.Subtract(userJane).Equals(userJohn), ShouldBeTrue)
 				So(johnAndJane.Subtract(userJohn).Equals(userJane), ShouldBeTrue)
+
+				So(InvalidRecordCollection("User").Subtract(userJane).IsValid(), ShouldBeFalse)
+				So(func() { env.Pool("Profile").Subtract(userJane) }, ShouldPanic)
 			})
 			Convey("Intersect", func() {
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
@@ -244,6 +253,9 @@ func TestBaseModelMethods(t *testing.T) {
 				johnAndJane := userJohn.Union(userJane)
 				So(johnAndJane.Intersect(userJane).Equals(userJane), ShouldBeTrue)
 				So(johnAndJane.Call("Intersect", userJohn).(RecordSet).Collection().Equals(userJohn), ShouldBeTrue)
+
+				So(InvalidRecordCollection("User").Intersect(userJane).IsValid(), ShouldBeFalse)
+				So(func() { env.Pool("Profile").Intersect(userJane) }, ShouldPanic)
 			})
 			Convey("ConvertLimitToInt", func() {
 				So(ConvertLimitToInt(12), ShouldEqual, 12)
@@ -334,6 +346,10 @@ func TestBaseModelMethods(t *testing.T) {
 				for i, post := range sortedPosts {
 					So(post.Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", i))
 				}
+
+				So(InvalidRecordCollection("Post").Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
+					return rs1.Collection().Get("Title").(string) < rs2.Collection().Get("Title").(string)
+				}).IsValid(), ShouldBeFalse)
 			})
 			Convey("SortedDefault", func() {
 				Convey("With posts", func() {
@@ -427,6 +443,10 @@ func TestBaseModelMethods(t *testing.T) {
 				for i := 0; i < 10; i++ {
 					So(evenPosts[i].Get("Title"), ShouldEqual, fmt.Sprintf("Post no %02d", 2*i))
 				}
+
+				So(InvalidRecordCollection("Post").Filtered(func(rs RecordSet) bool {
+					return true
+				}).IsValid(), ShouldBeFalse)
 			})
 			Convey("CheckExecutionPermissions", func() {
 				res := env.Pool("User").Call("CheckExecutionPermission", Registry.MustGet("User").Methods().MustGet("Load"), []bool{true})

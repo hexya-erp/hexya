@@ -14,6 +14,9 @@ import (
 // and the given `other` RecordCollection. The result is guaranteed to be a
 // set of unique records. The order of the records is kept.
 func (rc *RecordCollection) Union(other RecordSet) *RecordCollection {
+	if !rc.IsValid() {
+		return rc
+	}
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to union RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
@@ -41,6 +44,9 @@ func (rc *RecordCollection) Union(other RecordSet) *RecordCollection {
 // RecordCollection but not in the given 'other' one.
 // The result is guaranteed to be a set of unique records.
 func (rc *RecordCollection) Subtract(other RecordSet) *RecordCollection {
+	if !rc.IsValid() {
+		return rc
+	}
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to subtract RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
@@ -68,6 +74,9 @@ func (rc *RecordCollection) Subtract(other RecordSet) *RecordCollection {
 // Intersect returns a new RecordCollection with only the records that are both
 // in this RecordCollection and in the other RecordSet.
 func (rc *RecordCollection) Intersect(other RecordSet) *RecordCollection {
+	if !rc.IsValid() {
+		return rc
+	}
 	if rc.ModelName() != other.ModelName() {
 		log.Panic("Unable to intersect RecordCollections of different models", "this", rc.ModelName(),
 			"other", other.ModelName())
@@ -135,6 +144,9 @@ func (rc *RecordCollection) Equals(other RecordSet) bool {
 //
 // The less function should return true if rs1 < rs2
 func (rc *RecordCollection) Sorted(less func(rs1 RecordSet, rs2 RecordSet) bool) *RecordCollection {
+	if !rc.IsValid() {
+		return rc
+	}
 	records := rc.Records()
 	sort.Slice(records, func(i, j int) bool {
 		return less(records[i], records[j])
@@ -186,6 +198,9 @@ func (rc *RecordCollection) SortedByField(namer FieldNamer, reverse bool) *Recor
 // to load the fields before doing the filtering. In this case, it might be more efficient
 // to search the database directly with the filter condition.
 func (rc *RecordCollection) Filtered(test func(rs RecordSet) bool) *RecordCollection {
+	if !rc.IsValid() {
+		return rc
+	}
 	res := rc.Env().Pool(rc.ModelName())
 	for _, rec := range rc.Records() {
 		if !test(rec) {

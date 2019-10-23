@@ -56,8 +56,10 @@ func main() {
 			"%A": "Monday",
 			"%a": "Mon",
 		}
-		recMap["date_format"] = strutils.Substitute(recMap["date_format"], dtSubst)
-		recMap["time_format"] = strutils.Substitute(recMap["time_format"], dtSubst)
+		recMap["date_format"] = recMap["date_format"]
+		recMap["time_format"] = recMap["time_format"]
+		recMap["date_format_go"] = strutils.Substitute(recMap["date_format"], dtSubst)
+		recMap["time_format_go"] = strutils.Substitute(recMap["time_format"], dtSubst)
 		dir := recMap["direction"]
 		recMap["direction"] = "LanguageDirectionLTR"
 		if dir == "Right-to-Left" {
@@ -90,6 +92,8 @@ var locales = map[string]*Locale{
 		ISOCode: "{{ .iso_code }}",
 		DateFormat: "{{ .date_format }}",
 		TimeFormat: "{{ .time_format }}",
+		DateFormatGo: "{{ .date_format_go }}",
+		TimeFormatGo: "{{ .time_format_go }}",
 		DecimalPoint: "{{ .decimal_point }}",
 		ThousandsSep: "{{ .thousands_sep }}",
 		Grouping: {{ .grouping }},
