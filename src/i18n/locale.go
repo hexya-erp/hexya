@@ -70,9 +70,11 @@ type Locale struct {
 	ISOCode      string         `json:"iso_code"`
 	WeekStart    time.Weekday   `json:"week_start"`
 	DateFormat   string         `json:"date_format"`
+	DateFormatGo string         `json:"date_format_go"`
 	Direction    LangDirection  `json:"lang_direction"`
 	ThousandsSep string         `json:"thousands_sep"`
 	TimeFormat   string         `json:"time_format"`
+	TimeFormatGo string         `json:"time_format_go"`
 	DecimalPoint string         `json:"decimal_point"`
 	Grouping     NumberGrouping `json:"grouping"`
 }
@@ -148,19 +150,19 @@ func (l *Locale) FormatMonetary(value float64, curr Currency) string {
 
 // FormatDate returns the given date formatted according to this Locale
 func (l *Locale) FormatDate(date dates.Date) string {
-	return date.Format(l.DateFormat)
+	return date.Format(l.DateFormatGo)
 }
 
 // FormatTime returns the time part of the given datetime formatted
 // according to this Locale
 func (l *Locale) FormatTime(datetime dates.DateTime) string {
-	return datetime.Format(l.TimeFormat)
+	return datetime.Format(l.TimeFormatGo)
 }
 
 // FormatDateTime returns the given datetime formatted
 // according to this Locale
 func (l *Locale) FormatDateTime(datetime dates.DateTime) string {
-	return fmt.Sprintf("%s %s", datetime.Format(l.DateFormat), datetime.Format(l.TimeFormat))
+	return fmt.Sprintf("%s %s", datetime.Format(l.DateFormatGo), datetime.Format(l.TimeFormatGo))
 }
 
 // groupDigits splits groups[0] at its last N digits and returns a new slice with, in order:

@@ -66,7 +66,7 @@ func TestLocale(t *testing.T) {
 			dateTime := dates.ParseDateTime("2003-07-12 15:02:00")
 			So(fr.FormatDate(date), ShouldEqual, "12/07/2003")
 			So(en.FormatDate(date), ShouldEqual, "07/12/2003")
-			en.TimeFormat = "03:04:05 PM"
+			en.TimeFormatGo = "03:04:05 PM"
 			So(fr.FormatDateTime(dateTime), ShouldEqual, "12/07/2003 15:02:00")
 			So(en.FormatDateTime(dateTime), ShouldEqual, "07/12/2003 03:02:00 PM")
 			So(fr.FormatTime(dateTime), ShouldEqual, "15:02:00")
