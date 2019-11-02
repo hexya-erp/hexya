@@ -3,7 +3,6 @@ module github.com/hexya-erp/hexya
 go 1.13
 
 require (
-	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/beevik/etree v1.1.0
 	github.com/cockroachdb/apd v1.1.0 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.1
@@ -20,12 +19,9 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190306220146-200a235640ff
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/viper v1.3.1
-	go.uber.org/atomic v1.4.0 // indirect
-	go.uber.org/multierr v1.1.0 // indirect
+	go.uber.org/multierr v1.3.0 // indirect
 	go.uber.org/zap v1.9.1
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5
-	golang.org/x/tools v0.0.0-20190606124116-d0a3d012864b
-	google.golang.org/appengine v1.6.2 // indirect
+	golang.org/x/tools v0.0.0-20191029190741-b9c20aec41a5
+	google.golang.org/appengine v1.6.5 // indirect
 )
-
-replace github.com/hexya-erp/pool v1.0.2 => /home/npiganeau/Progs/hexya/hexya/src/tests/testmodule/pool

@@ -226,7 +226,7 @@ type {{ .Name }}Data struct {
 // Otherwise, a new entry is inserted.
 //
 // It returns the given {{ .Name }}Data so that calls can be chained
-func (d {{ .Name }}Data) Set(field string, value interface{}) {{ .InterfacesPackageName }}.{{ .Name }}Data {
+func (d {{ .Name }}Data) Set(field models.FieldName, value interface{}) {{ .InterfacesPackageName }}.{{ .Name }}Data {
 	return &{{ $.Name }}Data{
 		d.ModelData.Set(field, value),
 	}
@@ -235,7 +235,7 @@ func (d {{ .Name }}Data) Set(field string, value interface{}) {{ .InterfacesPack
 // Unset removes the value of the given field if it exists.
 //
 // It returns the given ModelData so that calls can be chained
-func (d {{ .Name }}Data) Unset(field string) {{ .InterfacesPackageName }}.{{ .Name }}Data {
+func (d {{ .Name }}Data) Unset(field models.FieldName) {{ .InterfacesPackageName }}.{{ .Name }}Data {
 	return &{{ $.Name }}Data{
 		d.ModelData.Unset(field),
 	}
@@ -260,14 +260,14 @@ func (d {{ $.Name }}Data) MergeWith(other {{ .InterfacesPackageName }}.{{ $.Name
 // If this {{ .Name }} is not set in this {{ $.Name }}Data, then
 // the Go zero value for the type is returned.
 func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
-	val := d.ModelData.Get("{{ .Name }}")
+	val := d.ModelData.Get(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"))
 {{- if .IsRS }}	
-	if !d.Has("{{ .Name }}") || val == nil || val == (*interface{})(nil) {
+	if !d.Has(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")) || val == nil || val == (*interface{})(nil) {
 		val = models.InvalidRecordCollection("{{ .RelModel }}")
 	}
 	return val.(models.RecordSet).Collection().Wrap().({{ .Type }})
 {{- else }}
-	if !d.Has("{{ .Name }}") {
+	if !d.Has(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")) {
 		return *new({{ .Type }})
 	}
 	return val.({{ .Type }})
@@ -276,20 +276,20 @@ func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
 
 // Has{{ .Name }} returns true if {{ .Name }} is set in this {{ $.Name }}Data
 func (d {{ $.Name }}Data) Has{{ .Name }}() bool {
-	return d.ModelData.Has("{{ .Name }}")
+	return d.ModelData.Has(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"))
 }
 
 // Set{{ .Name }} sets the {{ .Name }} field with the given value.
 // It returns this {{ $.Name }}Data so that calls can be chained.
 func (d {{ $.Name }}Data) Set{{ .Name }}(value {{ .Type }}) {{ $.InterfacesPackageName }}.{{ $.Name }}Data {
-	d.ModelData.Set("{{ .Name }}", value)
+	d.ModelData.Set(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"), value)
 	return d
 }
 
 // Unset{{ .Name }} removes the value of the {{ .Name }} field if it exists.
 // It returns this {{ $.Name }}Data so that calls can be chained.
 func (d {{ $.Name }}Data) Unset{{ .Name }}() {{ $.InterfacesPackageName }}.{{ $.Name }}Data {
-	d.ModelData.Unset("{{ .Name }}")
+	d.ModelData.Unset(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"))
 	return d
 }
 
@@ -299,7 +299,7 @@ func (d {{ $.Name }}Data) Unset{{ .Name }}() {{ $.InterfacesPackageName }}.{{ $.
 //
 // This method can be called multiple times to create multiple records
 func (d {{ $.Name }}Data) Create{{ .Name }}(related {{ $.InterfacesPackageName }}.{{ .RelModel }}Data) {{ $.InterfacesPackageName }}.{{ $.Name }}Data {
-	d.ModelData.Create("{{ .Name }}", related.Underlying())
+	d.ModelData.Create(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"), related.Underlying())
 	return d
 }
 {{- end }}
@@ -360,7 +360,7 @@ func (s {{ .Name }}Set) IsValid() bool {
 // If no fields are given, all DB columns of the {{ .Name }} model are retrieved.
 //
 // It also returns this {{ .Name }}Set.
-func (s {{ .Name }}Set) ForceLoad(fields ...string) {{ .InterfacesPackageName }}.{{ .Name }}Set {
+func (s {{ .Name }}Set) ForceLoad(fields ...models.FieldName) {{ .InterfacesPackageName }}.{{ .Name }}Set {
 	s.RecordCollection.ForceLoad(fields...)
 	return s
 }
@@ -433,7 +433,7 @@ func (s {{ .Name}}Set) Filtered(test func(rs {{ .InterfacesPackageName }}.{{ .Na
 }
 
 // Aggregates returns the result of this {{ .Name }}Set query, which must by a grouped query.
-func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldNamer) []{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow {
+func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldName) []{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow {
 	lines := s.RecordCollection.Aggregates(fieldNames...)
 	res := make([]{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow, len(lines))
 	for i, l := range lines {
@@ -453,9 +453,9 @@ func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldNamer) []{{ .Interf
 // record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
 func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
 {{- if .IsRS }}
-	res, _ := s.RecordCollection.Get("{{ .Name }}").(models.RecordSet).Collection().Wrap("{{ .RelModel }}").({{ .Type }})
+	res, _ := s.RecordCollection.Get(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")).(models.RecordSet).Collection().Wrap("{{ .RelModel }}").({{ .Type }})
 {{- else }}
-	res, _ := s.RecordCollection.Get("{{ .Name }}").({{ .Type }}) 
+	res, _ := s.RecordCollection.Get(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")).({{ .Type }}) 
 {{- end }}
 	return res 
 }
@@ -466,7 +466,7 @@ func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
 //
 // Set{{ .Name }} panics if the RecordSet is empty.
 func (s {{ $.Name }}Set) Set{{ .Name }}(value {{ .Type }}) {
-	s.RecordCollection.Set("{{ .Name }}", value)
+	s.RecordCollection.Set(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"), value)
 }
 {{ end }}
 
@@ -496,7 +496,7 @@ func (s {{ .Name }}Set) ModelData(fMap models.FieldMap) {{ .InterfacesPackageNam
 		models.NewModelData(models.Registry.MustGet("{{ .Name }}")),
 	}
 	for k, v := range fMap {
-		res.Set(k, v)
+		res.Set(models.Registry.MustGet("{{ $.Name }}").FieldName(k), v)
 	}
 	return res
 }

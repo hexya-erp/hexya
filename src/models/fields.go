@@ -370,13 +370,13 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	}
 
 	newMI := &Model{
-		name:         relModelName,
-		tableName:    strutils.SnakeCase(relModelName),
-		fields:       newFieldsCollection(),
-		methods:      newMethodsCollection(),
-		options:      Many2ManyLinkModel | SystemModel,
-		sqlErrors:    make(map[string]string),
-		defaultOrder: []orderPredicate{{field: ID}},
+		name:            relModelName,
+		tableName:       strutils.SnakeCase(relModelName),
+		fields:          newFieldsCollection(),
+		methods:         newMethodsCollection(),
+		options:         Many2ManyLinkModel | SystemModel,
+		sqlErrors:       make(map[string]string),
+		defaultOrderStr: []string{"ID"},
 	}
 	if mixin {
 		newMI.options |= MixinModel
@@ -425,14 +425,14 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	}
 	name := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
 	newModel := Model{
-		name:          name,
-		rulesRegistry: newRecordRuleRegistry(),
-		tableName:     strutils.SnakeCase(name),
-		fields:        newFieldsCollection(),
-		methods:       newMethodsCollection(),
-		options:       ContextsModel | SystemModel,
-		sqlErrors:     make(map[string]string),
-		defaultOrder:  []orderPredicate{{field: ID}},
+		name:            name,
+		rulesRegistry:   newRecordRuleRegistry(),
+		tableName:       strutils.SnakeCase(name),
+		fields:          newFieldsCollection(),
+		methods:         newMethodsCollection(),
+		options:         ContextsModel | SystemModel,
+		sqlErrors:       make(map[string]string),
+		defaultOrderStr: []string{"ID"},
 	}
 	pkField := &Field{
 		name:      "ID",

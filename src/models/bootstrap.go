@@ -58,6 +58,7 @@ func BootStrap() {
 	syncRelatedFieldInfo()
 	inflateContexts()
 	updateRelatedPaths()
+	updateDefaultOrder()
 	bootStrapMethods()
 	processDepends()
 	checkFieldMethodsExist()
@@ -440,6 +441,16 @@ func updateRelatedPaths() {
 				field.relatedPath = model.FieldName(field.relatedPathStr)
 			}
 		}
+	}
+}
+
+// updateDefaultOrder sets defaultOrder from defaultOrderStr
+func updateDefaultOrder() {
+	for _, model := range Registry.registryByName {
+		if model.isM2MLink() {
+			continue
+		}
+		model.defaultOrder = model.ordersFromStrings(model.defaultOrderStr)
 	}
 }
 

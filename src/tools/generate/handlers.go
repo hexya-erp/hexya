@@ -283,8 +283,8 @@ func filteredMethodHandler(modelData *modelData, _ *map[string]bool) {
 func aggregatesMethodHandler(modelData *modelData, _ *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             "Aggregates",
-		ParamsTypes:      "...models.FieldNamer",
-		IParamsWithTypes: "fieldNames ...models.FieldNamer",
+		ParamsTypes:      "...models.FieldName",
+		IParamsWithTypes: "fieldNames ...models.FieldName",
 		ReturnString:     fmt.Sprintf("[]%s.%sGroupAggregateRow", PoolInterfacesPackage, modelData.Name),
 		IReturnString:    fmt.Sprintf("[]%sGroupAggregateRow", modelData.Name),
 	})

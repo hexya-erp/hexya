@@ -86,7 +86,7 @@ type fieldName struct {
 	json string
 }
 
-// String returns the field's name
+// Name returns the field's name
 func (f fieldName) Name() string {
 	return f.name
 }
@@ -270,6 +270,11 @@ func (md *ModelData) MergeWith(other *ModelData) {
 	for field, toCreate := range other.ToCreate {
 		md.ToCreate[field] = append(md.ToCreate[field], toCreate...)
 	}
+}
+
+// FieldNames returns the ModelData keys as a slice of FieldNames.
+func (md *ModelData) FieldNames() FieldNames {
+	return md.FieldMap.FieldNames(md.Model)
 }
 
 // MarshalJSON function for ModelData. Returns the FieldMap.

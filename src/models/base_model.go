@@ -401,7 +401,7 @@ func declareRecordSetSpecificMethods() {
 					// Values
 					if fnct != "" {
 						vals := rrs.Call(fnct).(RecordData)
-						for _, f := range vals.Underlying().FieldNames(rrs.model) {
+						for _, f := range vals.Underlying().FieldNames() {
 							if !done[f.JSON()] {
 								todo = append(todo, f)
 							}

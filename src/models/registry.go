@@ -123,16 +123,17 @@ func newModelCollection() *modelCollection {
 // A Model is the definition of a business object (e.g. a partner, a sale order, etc.)
 // including fields and methods.
 type Model struct {
-	name           string
-	options        Option
-	rulesRegistry  *recordRuleRegistry
-	tableName      string
-	fields         *FieldsCollection
-	methods        *MethodsCollection
-	mixins         []*Model
-	sqlConstraints map[string]sqlConstraint
-	sqlErrors      map[string]string
-	defaultOrder   []orderPredicate
+	name            string
+	options         Option
+	rulesRegistry   *recordRuleRegistry
+	tableName       string
+	fields          *FieldsCollection
+	methods         *MethodsCollection
+	mixins          []*Model
+	sqlConstraints  map[string]sqlConstraint
+	sqlErrors       map[string]string
+	defaultOrderStr []string
+	defaultOrder    []orderPredicate
 }
 
 // An sqlConstraint holds the data needed to create a table constraint in the database
@@ -328,7 +329,7 @@ func (m *Model) Methods() *MethodsCollection {
 // Give the order fields in separate strings, such as
 // model.SetDefaultOrder("Name desc", "date asc", "id")
 func (m *Model) SetDefaultOrder(orders ...string) {
-	m.defaultOrder = m.ordersFromStrings(orders)
+	m.defaultOrderStr = orders
 }
 
 // ordersFromStrings returns the given order by exprs as a slice of order structs
@@ -531,15 +532,15 @@ func (m *Model) InheritModel(mixInModel Modeler) {
 // by parsing the given struct pointer.
 func createModel(name string, options Option) *Model {
 	mi := &Model{
-		name:           name,
-		options:        options,
-		rulesRegistry:  newRecordRuleRegistry(),
-		tableName:      strutils.SnakeCase(name),
-		fields:         newFieldsCollection(),
-		methods:        newMethodsCollection(),
-		sqlConstraints: make(map[string]sqlConstraint),
-		sqlErrors:      make(map[string]string),
-		defaultOrder:   []orderPredicate{{field: ID}},
+		name:            name,
+		options:         options,
+		rulesRegistry:   newRecordRuleRegistry(),
+		tableName:       strutils.SnakeCase(name),
+		fields:          newFieldsCollection(),
+		methods:         newMethodsCollection(),
+		sqlConstraints:  make(map[string]sqlConstraint),
+		sqlErrors:       make(map[string]string),
+		defaultOrderStr: []string{"ID"},
 	}
 	pk := &Field{
 		name:      "ID",
