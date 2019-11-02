@@ -21,6 +21,10 @@ import (
 var (
 	// Testing is true if we are testing the framework
 	Testing bool
+	// ID is a FieldName that represents the PK of a model
+	ID = fieldName{name: "ID", json: "id"}
+	// Name is a fieldName that represents the Name field of a model
+	Name = fieldName{name: "Name", json: "name"}
 )
 
 // jsonizeExpr returns an expression slice with field names changed to the fields json names
@@ -53,7 +57,7 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 		if len(p.exprs) == 0 {
 			continue
 		}
-		fi := mi.getRelatedFieldInfo(strings.Join(p.exprs, ExprSep))
+		fi := mi.getRelatedFieldInfo(joinFieldNames(p.exprs, ExprSep))
 		if !fi.isRelationField() {
 			continue
 		}
@@ -68,14 +72,14 @@ func addNameSearchesToCondition(mi *Model, cond *Condition) {
 
 // addNameSearchToExprs modifies the given exprs to search on the name of the related record
 // if it points to a relation field.
-func addNameSearchToExprs(fi *Field, exprs []string) []string {
+func addNameSearchToExprs(fi *Field, exprs []FieldName) []FieldName {
 	relFI, exists := fi.relatedModel.fields.Get("name")
 	if !exists {
 		return exprs
 	}
-	exprsToAppend := []string{"name"}
+	exprsToAppend := []FieldName{Name}
 	if relFI.isRelatedField() {
-		exprsToAppend = strings.Split(relFI.relatedPath, ExprSep)
+		exprsToAppend = splitFieldNames(relFI.relatedPath, ExprSep)
 	}
 	exprs = append(exprs, exprsToAppend...)
 	return exprs
@@ -92,16 +96,17 @@ func jsonizePath(mi *Model, path string) string {
 
 // filterOnDBFields returns the given fields slice with only stored fields.
 // This function also adds the "id" field to the list if not present unless dontAddID is true
-func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
-	var res []string
+func filterOnDBFields(mi *Model, fields []FieldName, dontAddID ...bool) []FieldName {
+	var res []FieldName
 	// Check if fields are stored
 	for _, field := range fields {
-		fieldExprs := jsonizeExpr(mi, strings.Split(field, ExprSep))
-		fi := mi.fields.MustGet(fieldExprs[0])
+		fieldExprs := splitFieldNames(field, ExprSep)
+		fi := mi.fields.MustGet(fieldExprs[0].JSON())
+		fn := mi.FieldName(fi.json)
 		// Single field
 		if len(fieldExprs) == 1 {
 			if fi.isStored() {
-				res = append(res, fi.json)
+				res = append(res, fn)
 			}
 			continue
 		}
@@ -110,8 +115,8 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 		if fi.relatedModel == nil {
 			log.Panic("Field is not a relation in model", "field", fieldExprs[0], "model", mi.name)
 		}
-		subFieldName := strings.Join(fieldExprs[1:], ExprSep)
-		subFieldRes := filterOnDBFields(fi.relatedModel, []string{subFieldName}, dontAddID...)
+		subFieldName := joinFieldNames(fieldExprs[1:], ExprSep)
+		subFieldRes := filterOnDBFields(fi.relatedModel, []FieldName{subFieldName}, dontAddID...)
 		if len(subFieldRes) == 0 {
 			// Our last expr is not stored after all, we don't add anything
 			continue
@@ -119,12 +124,12 @@ func filterOnDBFields(mi *Model, fields []string, dontAddID ...bool) []string {
 
 		if !fi.isStored() {
 			// We re-add our first expr as it has been removed above (not stored)
-			res = append(res, fi.json)
+			res = append(res, fn)
 		}
 		for _, sfr := range subFieldRes {
-			resExprs := []string{fi.json}
+			resExprs := []FieldName{fn}
 			resExprs = append(resExprs, sfr)
-			res = append(res, strings.Join(resExprs, ExprSep))
+			res = append(res, joinFieldNames(resExprs, ExprSep))
 		}
 	}
 	if len(dontAddID) == 0 || !dontAddID[0] {
@@ -149,52 +154,25 @@ func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
 
 // addIDIfNotPresent returns a new fields slice including ID if it
 // is not already present. Otherwise returns the original slice.
-func addIDIfNotPresent(fields []string) []string {
+func addIDIfNotPresent(fields []FieldName) []FieldName {
 	var hadID bool
 	for _, fName := range fields {
-		if fName == "id" || fName == "ID" {
+		if fName.JSON() == "id" {
 			hadID = true
 		}
 	}
 	if !hadID {
-		fields = append(fields, "id")
+		fields = append(fields, ID)
 	}
 	return fields
 }
 
-// convertToStringSlice converts the given FieldNamer slice into a slice of strings
-func convertToStringSlice(fieldNames []FieldNamer) []string {
-	res := make([]string, len(fieldNames))
-	for i, v := range fieldNames {
-		res[i] = string(v.FieldName())
-	}
-	return res
-}
-
-// ConvertToFieldNameSlice converts the given string fields slice into a slice of FieldNames
-func ConvertToFieldNameSlice(fields []string) []FieldNamer {
-	res := make([]FieldNamer, len(fields))
-	for i, v := range fields {
-		res[i] = FieldName(v)
-	}
-	return res
-}
-
-// convertToFieldNamerSlice converts the given FieldName fields slice into a slice of FieldNamers
-func convertToFieldNamerSlice(fields []FieldName) []FieldNamer {
-	res := make([]FieldNamer, len(fields))
-	for i, v := range fields {
-		res[i] = v
-	}
-	return res
-}
-
 // getGroupCondition returns the condition to retrieve the individual aggregated rows in vals
 // knowing that they were grouped by groups and that we had the given initial condition
-func getGroupCondition(groups []string, vals map[string]interface{}, initialCondition *Condition) *Condition {
+func getGroupCondition(groups []FieldName, vals map[string]interface{}, initialCondition *Condition) *Condition {
 	res := initialCondition
 	for _, group := range groups {
-		res = res.And().Field(group).Equals(vals[group])
+		res = res.And().Field(group).Equals(vals[group.JSON()])
 	}
 	return res
 }
@@ -259,7 +237,7 @@ func appendPredicateToSerial(res []interface{}, predicate predicate) []interface
 	if predicate.isCond {
 		res = append(res, serializePredicates(predicate.cond.predicates)...)
 	} else {
-		res = append(res, []interface{}{strings.Join(predicate.exprs, ExprSep), predicate.operator, predicate.arg})
+		res = append(res, []interface{}{joinFieldNames(predicate.exprs, ExprSep).JSON(), predicate.operator, predicate.arg})
 	}
 	return res
 }
@@ -292,5 +270,34 @@ func cartesianProductSlices(records ...[]*RecordCollection) []*RecordCollection 
 	default:
 		return cartesianProductSlices(records[0], cartesianProductSlices(records[1:]...))
 	}
+}
 
+// joinFieldNames returns a field name that is the join of fn with sep
+func joinFieldNames(fn []FieldName, sep string) FieldName {
+	var ntoks, jtoks []string
+	for _, f := range fn {
+		ntoks = append(ntoks, f.Name())
+		jtoks = append(jtoks, f.JSON())
+	}
+	return fieldName{
+		name: strings.Join(ntoks, sep),
+		json: strings.Join(jtoks, sep),
+	}
+}
+
+// splitFieldNames splits the field name at sep, returning the result as a slice
+func splitFieldNames(f FieldName, sep string) []FieldName {
+	ntoks := strings.Split(f.Name(), sep)
+	jtoks := strings.Split(f.JSON(), sep)
+	if len(ntoks) != len(jtoks) {
+		log.Panic("name and json paths lengths are inconsistent", "fieldName", f)
+	}
+	res := make([]FieldName, len(ntoks))
+	for i := 0; i < len(ntoks); i++ {
+		res[i] = fieldName{
+			name: ntoks[i],
+			json: jtoks[i],
+		}
+	}
+	return res
 }

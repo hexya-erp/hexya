@@ -55,11 +55,11 @@ type RecordSet interface {
 	Collection() *RecordCollection
 	// Get returns the value of the given fieldName for the first record of this RecordCollection.
 	// It returns the type's zero value if the RecordCollection is empty.
-	Get(string) interface{}
+	Get(FieldName) interface{}
 	// Set sets field given by fieldName to the given value. If the RecordSet has several
 	// Records, all of them will be updated. Each call to Set makes an update query in the
 	// database. It panics if it is called on an empty RecordSet.
-	Set(string, interface{})
+	Set(FieldName, interface{})
 	// T translates the given string to the language specified by
 	// the 'lang' key of rc.Env().Context(). If for any reason the
 	// string cannot be translated, then src is returned.
@@ -73,26 +73,45 @@ type RecordSet interface {
 	EnsureOne()
 }
 
-// A FieldName is a type representing field names in models.
-type FieldName string
-
-// FieldName makes a FieldName instance a FieldNamer
-func (fn FieldName) FieldName() FieldName {
-	return fn
+// A FieldName is a type that can represents a field in a model.
+// It can yield the field name or the field's JSON name as a string
+type FieldName interface {
+	Name() string
+	JSON() string
 }
 
-// String function for FieldName
-func (fn FieldName) String() string {
-	return string(fn)
+// fieldName is a simple implementation of FieldName
+type fieldName struct {
+	name string
+	json string
 }
 
-var _ FieldNamer = FieldName("")
+// String returns the field's name
+func (f fieldName) Name() string {
+	return f.name
+}
 
-// A FieldNamer is a type that can yield a FieldName through
-// its FieldName() method
-type FieldNamer interface {
-	fmt.Stringer
-	FieldName() FieldName
+// JSON returns the field's json name
+func (f fieldName) JSON() string {
+	return f.json
+}
+
+// FieldNames is a slice of FieldName that can be sorted
+type FieldNames []FieldName
+
+// Len returns the length of the FieldName slice
+func (f FieldNames) Len() int {
+	return len(f)
+}
+
+// Less returns true if f[i] < f[j]. FieldNames are ordered by JSON names
+func (f FieldNames) Less(i, j int) bool {
+	return f[i].JSON() < f[j].JSON()
+}
+
+// Swap i and j indexes
+func (f FieldNames) Swap(i, j int) {
+	f[i], f[j] = f[j], f[i]
 }
 
 // A GroupAggregateRow holds a row of results of a query with a group by clause
@@ -168,20 +187,19 @@ func (md *ModelData) Scan(src interface{}) error {
 // Get returns the value of the given field.
 //
 // The field can be either its name or is JSON name.
-func (md *ModelData) Get(field string) interface{} {
-	res, _ := md.FieldMap.Get(field, md.Model)
+func (md *ModelData) Get(field FieldName) interface{} {
+	res, _ := md.FieldMap.Get(field)
 	return res
 }
 
 // Has returns true if this ModelData has values for the given field.
 //
 // The field can be either its name or is JSON name.
-func (md *ModelData) Has(field string) bool {
-	if _, ok := md.FieldMap.Get(field, md.Model); ok {
+func (md *ModelData) Has(field FieldName) bool {
+	if _, ok := md.FieldMap.Get(field); ok {
 		return true
 	}
-	fJSON := md.Model.JSONizeFieldName(field)
-	if _, ok := md.ToCreate[fJSON]; ok {
+	if _, ok := md.ToCreate[field.JSON()]; ok {
 		return true
 	}
 	return false
@@ -192,17 +210,17 @@ func (md *ModelData) Has(field string) bool {
 // Otherwise, a new entry is inserted.
 //
 // It returns the given ModelData so that calls can be chained
-func (md *ModelData) Set(field string, value interface{}) *ModelData {
-	md.FieldMap.Set(field, value, md.Model)
+func (md *ModelData) Set(field FieldName, value interface{}) *ModelData {
+	md.FieldMap.Set(field, value)
 	return md
 }
 
 // Unset removes the value of the given field if it exists.
 //
 // It returns the given ModelData so that calls can be chained
-func (md *ModelData) Unset(field string) *ModelData {
-	md.FieldMap.Delete(field, md.Model)
-	delete(md.ToCreate, md.Model.JSONizeFieldName(field))
+func (md *ModelData) Unset(field FieldName) *ModelData {
+	md.FieldMap.Delete(field)
+	delete(md.ToCreate, field.JSON())
 	return md
 }
 
@@ -210,12 +228,12 @@ func (md *ModelData) Unset(field string) *ModelData {
 // a related record on the fly and link it to this field.
 //
 // This method can be called multiple times to create multiple records
-func (md *ModelData) Create(field string, related *ModelData) *ModelData {
+func (md *ModelData) Create(field FieldName, related *ModelData) *ModelData {
 	fi := md.Model.getRelatedFieldInfo(field)
 	if related.Model != fi.relatedModel {
 		log.Panic("create data must be of the model of the relation field", "fieldModel", fi.relatedModel, "dataModel", related.Model)
 	}
-	md.ToCreate[fi.json] = append(md.ToCreate[fi.json], related)
+	md.ToCreate[field.JSON()] = append(md.ToCreate[field.JSON()], related)
 	return md
 }
 
@@ -238,13 +256,13 @@ func (md *ModelData) Copy() *ModelData {
 func (md *ModelData) MergeWith(other *ModelData) {
 	// 1. We unset all entries existing in other to remove both FieldMap and ToCreate entries
 	for field := range other.FieldMap {
-		if md.Has(field) {
-			md.Unset(field)
+		if md.Has(md.Model.FieldName(field)) {
+			md.Unset(md.Model.FieldName(field))
 		}
 	}
 	for field := range other.ToCreate {
-		if md.Has(field) {
-			md.Unset(field)
+		if md.Has(md.Model.FieldName(field)) {
+			md.Unset(md.Model.FieldName(field))
 		}
 	}
 	// 2. We set other values in md
@@ -293,7 +311,7 @@ func NewModelData(model Modeler, fm ...FieldMap) *ModelData {
 	fMap := make(FieldMap)
 	for _, f := range fm {
 		for k, v := range f {
-			fi := model.Underlying().getRelatedFieldInfo(k)
+			fi := model.Underlying().getRelatedFieldInfo(model.Underlying().FieldName(k))
 			v = fixFieldValue(v, fi)
 			fMap[fi.json] = v
 		}
@@ -314,7 +332,7 @@ func NewModelDataFromRS(rs RecordSet, fm ...FieldMap) *ModelData {
 	fMap := make(FieldMap)
 	for _, f := range fm {
 		for k, v := range f {
-			fi := rs.Collection().Model().getRelatedFieldInfo(k)
+			fi := rs.Collection().Model().getRelatedFieldInfo(rs.Collection().Model().FieldName(k))
 			if fi.isRelationField() {
 				v = rs.Collection().convertToRecordSet(v, fi.relatedModelName)
 			}

@@ -27,3 +27,5 @@ require (
 	golang.org/x/tools v0.0.0-20190606124116-d0a3d012864b
 	google.golang.org/appengine v1.6.2 // indirect
 )
+
+replace github.com/hexya-erp/pool v1.0.2 => /home/npiganeau/Progs/hexya/hexya/src/tests/testmodule/pool

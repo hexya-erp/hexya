@@ -30,7 +30,8 @@ func unBootStrap() {
 		}
 		for _, fi := range mi.fields.registryByName {
 			if fi.contexts != nil && len(fi.contexts) > 0 {
-				fi.relatedPath = ""
+				fi.relatedPathStr = ""
+				fi.relatedPath = nil
 				continue
 			}
 			if strings.HasSuffix(fi.name, "HexyaContexts") {
@@ -102,6 +103,36 @@ func TestIllegalMethods(t *testing.T) {
 		nameField.SetOnchange(userModel.Methods().MustGet("OnChangeName"))
 		processUpdates()
 
+		nameField.SetOnchangeWarning(userModel.Methods().MustGet("OnChangeName"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeWarning(userModel.Methods().MustGet("UpdateCity"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeWarning(userModel.Methods().MustGet("NoReturnValue"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeWarning(userModel.Methods().MustGet("TwoReturnValues"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeWarning(userModel.Methods().MustGet("OnChangeNameWarning"))
+		processUpdates()
+
+		nameField.SetOnchangeFilters(userModel.Methods().MustGet("OnChangeName"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeFilters(userModel.Methods().MustGet("UpdateCity"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeFilters(userModel.Methods().MustGet("NoReturnValue"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeFilters(userModel.Methods().MustGet("TwoReturnValues"))
+		processUpdates()
+		So(checkComputeMethodsSignature, ShouldPanic)
+		nameField.SetOnchangeFilters(userModel.Methods().MustGet("OnChangeNameFilters"))
+		processUpdates()
+
 		ageField := userModel.Fields().MustGet("Age")
 		ageField.SetCompute(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
@@ -119,7 +150,7 @@ func TestIllegalMethods(t *testing.T) {
 		processUpdates()
 
 		dnField := userModel.Fields().MustGet("DecoratedName")
-		dnField.SetCompute(userModel.Methods().MustGet("SubSetSuper"))
+		dnField.SetCompute(userModel.Methods().MustGet("TwoReturnValues"))
 		processUpdates()
 		So(checkComputeMethodsSignature, ShouldPanic)
 		dnField.SetCompute(userModel.Methods().MustGet("ComputeDecoratedName"))
@@ -159,8 +190,7 @@ func TestBootStrap(t *testing.T) {
 		})
 		Convey("Bootstrap should not panic", func() {
 			BootStrap()
-			//So(BootStrap, ShouldNotPanic)
-			So(SyncDatabase, ShouldNotPanic)
+			SyncDatabase()
 		})
 		Convey("Boostrapping twice should panic", func() {
 			So(BootStrapped(), ShouldBeTrue)
@@ -227,7 +257,8 @@ func TestBootStrap(t *testing.T) {
 			})
 			textField := Registry.MustGet("Comment").Fields().MustGet("Text")
 			textField.SetFieldType(fieldtype.Text)
-			So(BootStrap, ShouldNotPanic)
+			BootStrap()
+			//So(BootStrap, ShouldNotPanic)
 			So(contentField.required, ShouldBeFalse)
 			So(profileField.required, ShouldBeFalse)
 			So(numsField.index, ShouldBeFalse)

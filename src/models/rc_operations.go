@@ -5,7 +5,6 @@ package models
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/hexya-erp/hexya/src/tools/typesutils"
 )
@@ -163,14 +162,11 @@ func (rc *RecordCollection) Sorted(less func(rs1 RecordSet, rs2 RecordSet) bool)
 func (rc *RecordCollection) SortedDefault() *RecordCollection {
 	return rc.Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
 		for _, order := range Registry.MustGet(rs1.ModelName()).defaultOrder {
-			tokens := strings.Split(order+" asc", " ")
-			order = tokens[0]
-			reverse := strings.ToLower(tokens[1]) == "desc"
-			if eq, _ := typesutils.AreEqual(rs1.Collection().Get(order), rs2.Collection().Get(order)); eq {
+			if eq, _ := typesutils.AreEqual(rs1.Collection().Get(order.field), rs2.Collection().Get(order.field)); eq {
 				continue
 			}
-			lt, _ := typesutils.IsLessThan(rs1.Collection().Get(order), rs2.Collection().Get(order))
-			return (lt && !reverse) || (!lt && reverse)
+			lt, _ := typesutils.IsLessThan(rs1.Collection().Get(order.field), rs2.Collection().Get(order.field))
+			return (lt && !order.desc) || (!lt && order.desc)
 		}
 		return false
 	})
@@ -178,9 +174,9 @@ func (rc *RecordCollection) SortedDefault() *RecordCollection {
 
 // SortedByField returns a new record set with the same records as rc but sorted by the given field.
 // If reverse is true, the sort is done in reversed order
-func (rc *RecordCollection) SortedByField(namer FieldNamer, reverse bool) *RecordCollection {
+func (rc *RecordCollection) SortedByField(name FieldName, reverse bool) *RecordCollection {
 	return rc.Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
-		lt, err := typesutils.IsLessThan(rs1.Collection().Get(namer.String()), rs2.Collection().Get(namer.String()))
+		lt, err := typesutils.IsLessThan(rs1.Collection().Get(name), rs2.Collection().Get(name))
 		if err != nil {
 			log.Panic("Unable to sort recordset", "recordset", rc, "error", err)
 		}

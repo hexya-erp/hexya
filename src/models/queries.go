@@ -39,7 +39,13 @@ func (p SQLParams) Extend(p2 SQLParams) SQLParams {
 	pi := []interface{}(p)
 	pi2 := []interface{}(p2)
 	res := append(pi, pi2...)
-	return SQLParams(res)
+	return res
+}
+
+// An orderPredicate in a query. e.g. "name ASC".
+type orderPredicate struct {
+	field FieldName
+	desc  bool
 }
 
 // A Query defines the common part an SQL Query, i.e. all that come
@@ -51,10 +57,10 @@ type Query struct {
 	fetchAll  bool
 	limit     int
 	offset    int
-	groups    []string
-	ctxGroups []string
-	orders    []string
-	ctxOrders []string
+	groups    []FieldName
+	ctxGroups []FieldName
+	orders    []orderPredicate
+	ctxOrders []orderPredicate
 }
 
 // clone returns a pointer to a deep copy of this Query
@@ -140,8 +146,7 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		return q.conditionSQLClause(p.cond)
 	}
 
-	exprs := jsonizeExpr(q.recordSet.model, p.exprs)
-	fi := q.recordSet.model.getRelatedFieldInfo(strings.Join(exprs, ExprSep))
+	fi := q.recordSet.model.getRelatedFieldInfo(joinFieldNames(p.exprs, ExprSep))
 	if fi.fieldType.IsFKRelationType() {
 		// If we have a relation type with a 0 as foreign key, we substitute for nil
 		if valInt, err := nbutils.CastToInteger(p.arg); err == nil && valInt == 0 {
@@ -153,7 +158,7 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 		sql  string
 		args SQLParams
 	)
-	field, _, _ := q.joinedFieldExpression(exprs, false, 0)
+	field, _, _ := q.joinedFieldExpression(p.exprs, false, 0)
 
 	adapter := adapters[db.DriverName()]
 	arg := q.evaluateConditionArgFunctions(p)
@@ -223,46 +228,15 @@ func (q *Query) sqlLimitOffsetClause() string {
 	return res
 }
 
-// prepareOrderByExprs returns the 'orders' of this query as an expressions slice on
-// the one side and a slice of directions (ASC or DESC) on the other side.
-func (q *Query) prepareOrderByExprs() ([][]string, []string) {
-	fExprs := make([][]string, len(q.orders))
-	directions := make([]string, len(q.orders))
-	for i, order := range q.orders {
-		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
-		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
-		fExprs[i] = oExprs
-		if len(fieldOrder) > 1 {
-			directions[i] = fieldOrder[1]
-		}
-	}
-	return fExprs, directions
-}
-
-// prepareCtxOrderByExprs returns the 'ctxOrders' of this query as an expressions slice on
-// the one side and a slice of directions (ASC or DESC) on the other side.
-func (q *Query) prepareCtxOrderByExprs() ([][]string, []string) {
-	fExprs := make([][]string, len(q.ctxOrders))
-	directions := make([]string, len(q.ctxOrders))
-	for i, order := range q.ctxOrders {
-		fieldOrder := strings.Split(strings.TrimSpace(order), " ")
-		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(fieldOrder[0], ExprSep))
-		fExprs[i] = oExprs
-		if len(fieldOrder) > 1 {
-			directions[i] = fieldOrder[1]
-		}
-	}
-	return fExprs, directions
-}
-
 // sqlOrderByClause returns the sql string for the ORDER BY clause
 // of this Query
 func (q *Query) sqlOrderByClause() string {
-	fExprs, directions := q.prepareOrderByExprs()
 	resSlice := make([]string, len(q.orders))
-	for i, field := range fExprs {
-		_, _, resSlice[i] = q.joinedFieldExpression(field, true, i)
-		resSlice[i] += fmt.Sprintf(" %s", directions[i])
+	for i, order := range q.orders {
+		_, _, resSlice[i] = q.joinedFieldExpression(splitFieldNames(order.field, ExprSep), true, i)
+		if order.desc {
+			resSlice[i] += " DESC"
+		}
 	}
 	if len(resSlice) == 0 {
 		return ""
@@ -273,11 +247,12 @@ func (q *Query) sqlOrderByClause() string {
 // sqlCtxOrderByClause returns the sql string for the ORDER BY clause of the ctx fields
 // of this Query.
 func (q *Query) sqlCtxOrderBy() string {
-	fExprs, directions := q.prepareCtxOrderByExprs()
 	resSlice := make([]string, len(q.ctxOrders))
-	for i, field := range fExprs {
-		resSlice[i], _, _ = q.joinedFieldExpression(field, false, 0)
-		resSlice[i] += fmt.Sprintf(" %s", directions[i])
+	for i, order := range q.ctxOrders {
+		resSlice[i], _, _ = q.joinedFieldExpression(splitFieldNames(order.field, ExprSep), false, 0)
+		if order.desc {
+			resSlice[i] += " DESC"
+		}
 	}
 	if len(resSlice) == 0 {
 		return ""
@@ -288,17 +263,22 @@ func (q *Query) sqlCtxOrderBy() string {
 // sqlOrderByClauseForGroupBy returns the sql string for the ORDER BY clause
 // of this Query, which should be a group by clause.
 func (q *Query) sqlOrderByClauseForGroupBy(aggFncts map[string]string) string {
-	fExprs, directions := q.prepareOrderByExprs()
 	resSlice := make([]string, len(q.orders))
-	for i, field := range fExprs {
-		aggFnct := aggFncts[strings.Join(field, ExprSep)]
+	for i, order := range q.orders {
+		aggFnct := aggFncts[order.field.JSON()]
 		if aggFnct == "" {
-			_, _, jfe := q.joinedFieldExpression(field, true, i)
-			resSlice[i] = fmt.Sprintf("%s %s", jfe, directions[i])
+			_, _, jfe := q.joinedFieldExpression(splitFieldNames(order.field, ExprSep), true, i)
+			if order.desc {
+				jfe += " DESC"
+			}
+			resSlice[i] = jfe
 			continue
 		}
-		_, _, jfe := q.joinedFieldExpression(field, true, i)
-		resSlice[i] = fmt.Sprintf("%s(%s) %s", aggFnct, jfe, directions[i])
+		_, _, jfe := q.joinedFieldExpression(splitFieldNames(order.field, ExprSep), true, i)
+		resSlice[i] = fmt.Sprintf("%s(%s)", aggFnct, jfe)
+		if order.desc {
+			resSlice[i] += " DESC"
+		}
 	}
 	if len(resSlice) == 0 {
 		return ""
@@ -309,9 +289,9 @@ func (q *Query) sqlOrderByClauseForGroupBy(aggFncts map[string]string) string {
 // sqlGroupByClause returns the sql string for the GROUP BY clause
 // of this Query (without the GROUP BY keywords)
 func (q *Query) sqlGroupByClause() string {
-	var fExprs [][]string
+	var fExprs [][]FieldName
 	for _, group := range q.groups {
-		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(group, ExprSep))
+		oExprs := splitFieldNames(group, ExprSep)
 		fExprs = append(fExprs, oExprs)
 	}
 	resSlice := make([]string, len(q.groups))
@@ -329,9 +309,9 @@ func (q *Query) sqlGroupByClause() string {
 // sqlCtxGroupByClause returns the sql string for the GROUP BY clause
 // of contexted fields for this Query (without the GROUP BY keywords)
 func (q *Query) sqlCtxGroupByClause() string {
-	var fExprs [][]string
+	var fExprs [][]FieldName
 	for _, group := range q.ctxGroups {
-		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(group, ExprSep))
+		oExprs := splitFieldNames(group, ExprSep)
 		fExprs = append(fExprs, oExprs)
 	}
 	resSlice := make([]string, len(q.ctxGroups))
@@ -385,7 +365,7 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 // countQuery returns the SQL query string and parameters to count
 // the rows pointed at by this Query object.
 func (q *Query) countQuery() (string, SQLParams) {
-	sql, args, _ := q.selectQuery([]string{"id"})
+	sql, args, _ := q.selectQuery([]FieldName{ID})
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM (%s) foo`, sql)
 	return countQuery, args
 }
@@ -398,7 +378,7 @@ func (q *Query) countQuery() (string, SQLParams) {
 // Each field is a dot-separated
 // expression pointing at the field, either as names or columns
 // (e.g. 'User.Name' or 'user_id.name')
-func (q *Query) selectCommonQuery(fields []string) (string, SQLParams, map[string]string) {
+func (q *Query) selectCommonQuery(fields []FieldName) (string, SQLParams, map[string]string) {
 	fieldExprs, allExprs := q.selectData(fields, true)
 	// Build up the query
 	// Fields
@@ -426,7 +406,7 @@ func (q *Query) selectCommonQuery(fields []string) (string, SQLParams, map[strin
 // Each field is a dot-separated
 // expression pointing at the field, either as names or columns
 // (e.g. 'User.Name' or 'user_id.name')
-func (q *Query) selectQuery(fields []string) (string, SQLParams, map[string]string) {
+func (q *Query) selectQuery(fields []FieldName) (string, SQLParams, map[string]string) {
 	if len(q.groups) > 0 {
 		log.Panic("Calling selectQuery on a Group By query")
 	}
@@ -443,19 +423,9 @@ func (q *Query) selectQuery(fields []string) (string, SQLParams, map[string]stri
 // fields is the list of fields to retrieve.
 //
 // This query must have a Group By clause.
-//
-// fields keys are a dot-separated expression pointing at the field, either
-// as names or columns (e.g. 'User.Name' or 'user_id.name').
-// fields values are the SQL aggregate function to use for the field or ""
-func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
+func (q *Query) selectGroupQuery(fieldsList []FieldName, aggFncts map[string]string) (string, SQLParams) {
 	if len(q.groups) == 0 {
 		log.Panic("Calling selectGroupQuery on a query without Group By clause")
-	}
-	fieldsList := make([]string, len(fields))
-	i := 0
-	for f := range fields {
-		fieldsList[i] = f
-		i++
 	}
 	// Get base query
 	baseQuery, baseArgs, _ := q.selectCommonQuery(fieldsList)
@@ -463,14 +433,10 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 	fieldExprs, _ := q.selectData(fieldsList, true)
 	// Build up the query
 	// Fields
-	fieldsSQL := q.fieldsGroupSQL(fieldExprs, fields)
+	fieldsSQL := q.fieldsGroupSQL(fieldExprs, aggFncts)
 	// Group by clause
 	groupSQL := q.sqlGroupByClause()
-	orderSQL := q.sqlOrderByClauseForGroupBy(fields)
-	ctxOrderSQL := q.sqlCtxOrderBy()
-	if ctxOrderSQL != "" {
-		ctxOrderSQL = fmt.Sprintf(", %s", ctxOrderSQL)
-	}
+	orderSQL := q.sqlOrderByClauseForGroupBy(aggFncts)
 	limitSQL := q.sqlLimitOffsetClause()
 	selQuery := fmt.Sprintf(`SELECT %s, count(1) AS __count FROM (%s) base GROUP BY %s %s %s`,
 		fieldsSQL, baseQuery, groupSQL, orderSQL, limitSQL)
@@ -480,19 +446,19 @@ func (q *Query) selectGroupQuery(fields map[string]string) (string, SQLParams) {
 // selectData returns for this query:
 // - Expressions defined by the given fields and that must appear in the field list of the select clause.
 // - All expressions that also include expressions used in the where clause.
-func (q *Query) selectData(fields []string, withCtx bool) ([][]string, [][]string) {
+func (q *Query) selectData(fields []FieldName, withCtx bool) ([][]FieldName, [][]FieldName) {
 	q.substituteChildOfPredicates()
 	// Get all expressions, first given by fields
-	fieldExprs := make([][]string, len(fields))
-	fieldsExprsMap := make(map[string][]string)
+	fieldExprs := make([][]FieldName, len(fields))
+	fieldsExprsMap := make(map[string][]FieldName)
 	for i, f := range fields {
-		fieldExprs[i] = jsonizeExpr(q.recordSet.model, strings.Split(f, ExprSep))
-		fieldsExprsMap[strings.Join(fieldExprs[i], ExprSep)] = fieldExprs[i]
+		fieldExprs[i] = splitFieldNames(f, ExprSep)
+		fieldsExprsMap[joinFieldNames(fieldExprs[i], ExprSep).JSON()] = fieldExprs[i]
 	}
 	// Add 'order by' exprs removing duplicates
 	oExprs := q.getOrderByExpressions(withCtx)
 	for _, oExpr := range oExprs {
-		if _, ok := fieldsExprsMap[strings.Join(oExpr, ExprSep)]; !ok {
+		if _, ok := fieldsExprsMap[joinFieldNames(oExpr, ExprSep).JSON()]; !ok {
 			fieldExprs = append(fieldExprs, oExpr)
 		}
 	}
@@ -540,7 +506,7 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 //
 // Second returned field is a map with the aliases used if the nominal "user_id__name"
 // alias type gives a string longer than 64 chars
-func (q *Query) fieldsSQL(fieldExprs [][]string) (string, map[string]string) {
+func (q *Query) fieldsSQL(fieldExprs [][]FieldName) (string, map[string]string) {
 	fStr := make([]string, len(fieldExprs))
 	substs := make(map[string]string)
 	for i, field := range fieldExprs {
@@ -555,15 +521,15 @@ func (q *Query) fieldsSQL(fieldExprs [][]string) (string, map[string]string) {
 // in a select query with a GROUP BY clause.
 // Parameter must be with the following format (column names):
 // [['user_id', 'name'] ['id'] ['profile_id', 'age']]
-func (q *Query) fieldsGroupSQL(fieldExprs [][]string, aggFncts map[string]string) string {
+func (q *Query) fieldsGroupSQL(fieldExprs [][]FieldName, aggFncts map[string]string) string {
 	fStr := make([]string, len(fieldExprs))
 	for i, exprs := range fieldExprs {
-		aggFnct := aggFncts[strings.Join(exprs, ExprSep)]
+		aggFnct := aggFncts[joinFieldNames(exprs, ExprSep).JSON()]
 		if aggFnct == "" {
-			fStr[i] = strings.Join(exprs, sqlSep)
+			fStr[i] = joinFieldNames(exprs, sqlSep).JSON()
 			continue
 		}
-		fStr[i] = fmt.Sprintf("%s(%s) AS %s", aggFnct, strings.Join(exprs, sqlSep), strings.Join(exprs, sqlSep))
+		fStr[i] = fmt.Sprintf("%s(%s) AS %s", aggFnct, joinFieldNames(exprs, sqlSep).JSON(), joinFieldNames(exprs, sqlSep).JSON())
 	}
 	return strings.Join(fStr, ", ")
 }
@@ -575,29 +541,29 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]string, aggFncts map[string]string
 // If withAlias is true, then returns fields with its alias. In this case, aliasIndex is used
 // to define aliases when the nominal "profile_id__user_id__name" is longer than 64 chars.
 // Returned second argument is the nominal alias and third argument is the alias actually used.
-func (q *Query) joinedFieldExpression(exprs []string, withAlias bool, aliasIndex int) (string, string, string) {
+func (q *Query) joinedFieldExpression(exprs []FieldName, withAlias bool, aliasIndex int) (string, string, string) {
 	joins := q.generateTableJoins(exprs)
 	lastJoin := joins[len(joins)-1]
 	if withAlias {
-		fAlias := strings.Join(exprs, sqlSep)
+		fAlias := joinFieldNames(exprs, sqlSep).JSON()
 		oldAlias := fAlias
 		if len(fAlias) > maxSQLidentifierLength {
 			fAlias = fmt.Sprintf("f%d", aliasIndex)
 		}
-		return fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr, fAlias), oldAlias, fAlias
+		return fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr.JSON(), fAlias), oldAlias, fAlias
 	}
-	return fmt.Sprintf("%s.%s", lastJoin.alias, lastJoin.expr), "", ""
+	return fmt.Sprintf("%s.%s", lastJoin.alias, lastJoin.expr.JSON()), "", ""
 }
 
 // generateTableJoins transforms a list of fields expression into a list of tableJoins
 // ['user_id' 'profile_id' 'age'] => []tableJoins{CurrentTable User Profile}
-func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
+func (q *Query) generateTableJoins(fieldExprs []FieldName) []tableJoin {
 	adapter := adapters[db.DriverName()]
 	var joins []tableJoin
 	curMI := q.recordSet.model
 	// Create the tableJoin for the current table
 	currentTableName := adapter.quoteTableName(curMI.tableName)
-	var curExpr string
+	var curExpr FieldName
 	if len(fieldExprs) > 0 {
 		curExpr = fieldExprs[0]
 	}
@@ -611,9 +577,9 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 	alias := curMI.tableName
 	exprsLen := len(fieldExprs)
 	for i, expr := range fieldExprs {
-		fi, ok := curMI.fields.Get(expr)
+		fi, ok := curMI.fields.Get(expr.JSON())
 		if !ok {
-			log.Panic("Unparsable Expression", "expr", strings.Join(fieldExprs, ExprSep))
+			log.Panic("Unparsable Expression", "expr", joinFieldNames(fieldExprs, ExprSep))
 		}
 		if fi.relatedModel == nil || (i == exprsLen-1 && fi.fieldType.IsFKRelationType()) {
 			// Don't create an extra join if our field is not a relation field
@@ -621,18 +587,18 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 			break
 		}
 
-		var field, otherField string
-		var tjExpr string
+		var field, otherField FieldName
+		var tjExpr FieldName
 		if i < exprsLen-1 {
 			tjExpr = fieldExprs[i+1]
 		}
 		switch fi.fieldType {
 		case fieldtype.Many2One, fieldtype.One2One:
-			field, otherField = "id", expr
+			field, otherField = ID, expr
 		case fieldtype.One2Many, fieldtype.Rev2One:
-			field, otherField = jsonizePath(fi.relatedModel, fi.reverseFK), "id"
-			if tjExpr == "" {
-				tjExpr = "id"
+			field, otherField = fi.relatedModel.FieldName(fi.reverseFK), ID
+			if tjExpr == nil {
+				tjExpr = ID
 			}
 		case fieldtype.Many2Many:
 			// Add relation table join
@@ -641,18 +607,18 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 			tj := tableJoin{
 				tableName:  relationTableName,
 				joined:     true,
-				field:      jsonizePath(fi.m2mRelModel, fi.m2mOurField.name),
+				field:      fi.m2mRelModel.FieldName(fi.m2mOurField.name),
 				otherTable: curTJ,
-				otherField: "id",
+				otherField: ID,
 				alias:      adapter.quoteTableName(alias),
-				expr:       jsonizePath(fi.m2mRelModel, fi.m2mTheirField.name),
+				expr:       fi.m2mRelModel.FieldName(fi.m2mTheirField.name),
 			}
 			joins = append(joins, tj)
 			curTJ = &tj
 			// Add relation to other table
-			field, otherField = "id", jsonizePath(fi.m2mRelModel, fi.m2mTheirField.name)
-			if tjExpr == "" {
-				tjExpr = "id"
+			field, otherField = ID, fi.m2mRelModel.FieldName(fi.m2mTheirField.name)
+			if tjExpr == nil {
+				tjExpr = ID
 			}
 		}
 
@@ -680,7 +646,7 @@ func (q *Query) generateTableJoins(fieldExprs []string) []tableJoin {
 // Returned FROM clause uses table alias such as "Tn" and second argument is the
 // mapping between aliases in tableJoin objects and the new "Tn" aliases. This
 // mapping is necessary to keep table alias < 63 chars which is postgres limit.
-func (q *Query) tablesSQL(fExprs [][]string) (string, map[string]string) {
+func (q *Query) tablesSQL(fExprs [][]FieldName) (string, map[string]string) {
 	adapter := adapters[db.DriverName()]
 	var (
 		res        string
@@ -742,23 +708,20 @@ func (q *Query) sideDataIsEmpty() bool {
 
 // substituteConditionExprs substitutes all occurrences of each substMap keys in
 // its conditions 1st exprs with the corresponding substMap value.
-func (q *Query) substituteConditionExprs(substMap map[string][]string) {
+func (q *Query) substituteConditionExprs(substMap map[FieldName][]FieldName) {
 	q.cond.substituteExprs(q.recordSet.model, substMap)
 	for i, order := range q.orders {
-		orderPath := strings.Split(strings.TrimSpace(order), " ")[0]
-		jsonPath := jsonizePath(q.recordSet.model, orderPath)
 		for k, v := range substMap {
-			if jsonPath == k {
-				q.orders[i] = strings.Replace(q.orders[i], orderPath, strings.Join(v, ExprSep), -1)
+			if order.field.JSON() == k.JSON() {
+				q.orders[i].field = joinFieldNames(v, ExprSep)
 				break
 			}
 		}
 	}
 	for i, group := range q.groups {
-		jsonPath := jsonizePath(q.recordSet.model, group)
 		for k, v := range substMap {
-			if jsonPath == k {
-				q.groups[i] = strings.Replace(q.groups[i], group, strings.Join(v, ExprSep), -1)
+			if group.JSON() == k.JSON() {
+				q.groups[i] = joinFieldNames(v, ExprSep)
 				break
 			}
 		}
@@ -785,7 +748,7 @@ func (q *Query) evaluateConditionArgFunctions(p predicate) interface{} {
 
 // getAllExpressions returns all expressions used in this query,
 // both in the condition and the order by clause.
-func (q *Query) getAllExpressions() [][]string {
+func (q *Query) getAllExpressions() [][]FieldName {
 	return append(q.getOrderByExpressions(true),
 		append(q.getGroupByExpressions(), q.cond.getAllExpressions(q.recordSet.model)...)...)
 }
@@ -793,11 +756,10 @@ func (q *Query) getAllExpressions() [][]string {
 // getOrderByExpressions returns all expressions used in order by clause of this query.
 //
 // If withCtx is true, ctxOrder expressions are also returned
-func (q *Query) getOrderByExpressions(withCtx bool) [][]string {
-	var exprs [][]string
+func (q *Query) getOrderByExpressions(withCtx bool) [][]FieldName {
+	var exprs [][]FieldName
 	for _, order := range q.orders {
-		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
-		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
+		oExprs := splitFieldNames(order.field, ExprSep)
 		exprs = append(exprs, oExprs)
 	}
 	if withCtx {
@@ -807,22 +769,20 @@ func (q *Query) getOrderByExpressions(withCtx bool) [][]string {
 }
 
 // getOrderByExpressions returns expressions used in context order by clause of this query.
-func (q *Query) getCtxOrderByExpressions() [][]string {
-	var exprs [][]string
+func (q *Query) getCtxOrderByExpressions() [][]FieldName {
+	var exprs [][]FieldName
 	for _, order := range q.ctxOrders {
-		orderField := strings.Split(strings.TrimSpace(order), " ")[0]
-		oExprs := jsonizeExpr(q.recordSet.model, strings.Split(orderField, ExprSep))
+		oExprs := splitFieldNames(order.field, ExprSep)
 		exprs = append(exprs, oExprs)
 	}
 	return exprs
 }
 
 // getGroupByExpressions returns all expressions used in group by clause of this query.
-func (q *Query) getGroupByExpressions() [][]string {
-	var exprs [][]string
+func (q *Query) getGroupByExpressions() [][]FieldName {
+	var exprs [][]FieldName
 	for _, group := range q.groups {
-		gExprs := jsonizeExpr(q.recordSet.model, strings.Split(group, ExprSep))
-		exprs = append(exprs, gExprs)
+		exprs = append(exprs, splitFieldNames(group, ExprSep))
 	}
 	return exprs
 }

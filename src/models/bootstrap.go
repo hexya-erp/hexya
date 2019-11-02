@@ -54,8 +54,10 @@ func BootStrap() {
 	inflateEmbeddings()
 	processUpdates()
 	updateFieldDefs()
+	updateRelatedPaths()
 	syncRelatedFieldInfo()
 	inflateContexts()
+	updateRelatedPaths()
 	bootStrapMethods()
 	processDepends()
 	checkFieldMethodsExist()
@@ -257,13 +259,13 @@ func inflateEmbeddings() {
 					continue
 				}
 				newFI := Field{
-					name:        relName,
-					json:        relFI.json,
-					model:       model,
-					stored:      fi.stored,
-					structField: relFI.structField,
-					noCopy:      true,
-					relatedPath: fmt.Sprintf("%s%s%s", fi.name, ExprSep, relName),
+					name:           relName,
+					json:           relFI.json,
+					model:          model,
+					stored:         fi.stored,
+					structField:    relFI.structField,
+					noCopy:         true,
+					relatedPathStr: fmt.Sprintf("%s%s%s", fi.name, ExprSep, relName),
 				}
 				if existingFI, ok := model.fields.Get(relName); ok {
 					if existingFI.fieldType != fieldtype.NoType {
@@ -293,11 +295,13 @@ func syncRelatedFieldInfo() {
 			newFI := *mi.getRelatedFieldInfo(fi.relatedPath)
 			newFI.name = fi.name
 			newFI.json = fi.json
-			newFI.relatedPath = fi.relatedPath
+			newFI.relatedPathStr = fi.relatedPathStr
 			newFI.stored = fi.stored
 			newFI.model = mi
 			newFI.noCopy = true
 			newFI.onChange = ""
+			newFI.onChangeWarning = ""
+			newFI.onChangeFilters = ""
 			newFI.index = false
 			newFI.compute = ""
 			newFI.constraint = ""
@@ -319,10 +323,10 @@ func inflateContexts() {
 			contextsModel := createContextsModel(fi, fi.contexts)
 			createContextsTreeView(fi, fi.contexts)
 			// We copy execution permission on CRUD methods to the context model
-			fieldName := fmt.Sprintf("%sHexyaContexts", fi.name)
+			fName := fmt.Sprintf("%sHexyaContexts", fi.name)
 			o2mField := &Field{
-				name:             fieldName,
-				json:             strutils.SnakeCase(fieldName),
+				name:             fName,
+				json:             strutils.SnakeCase(fName),
 				model:            mi,
 				fieldType:        fieldtype.One2Many,
 				relatedModelName: contextsModel.name,
@@ -330,12 +334,13 @@ func inflateContexts() {
 				reverseFK:        "Record",
 				jsonReverseFK:    "record_id",
 				structField: reflect.StructField{
-					Name: fieldName,
+					Name: fName,
 					Type: reflect.TypeOf([]int64{}),
 				},
 			}
 			mi.fields.add(o2mField)
-			fi.relatedPath = fmt.Sprintf("%s%s%s", fieldName, ExprSep, fi.name)
+			relPath := fmt.Sprintf("%s%s%s", fName, ExprSep, fi.name)
+			fi.relatedPathStr = relPath
 			fi.index = false
 			fi.unique = false
 		}
@@ -403,11 +408,11 @@ func setupSecurity() {
 			loadMeth.AllowGroup(security.GroupEveryone, fetchMeth)
 		}
 	}
-	UpdateContextModelsSecurity()
+	updateContextModelsSecurity()
 }
 
-// UpdateContextModelsSecurity synchronizes the methods permissions of context models with their base model.
-func UpdateContextModelsSecurity() {
+// updateContextModelsSecurity synchronizes the methods permissions of context models with their base model.
+func updateContextModelsSecurity() {
 	for _, model := range Registry.registryByName {
 		if !model.isContext() {
 			continue
@@ -427,6 +432,17 @@ func UpdateContextModelsSecurity() {
 	}
 }
 
+// updateRelatedPaths sets relatedPath from relatedPathStr
+func updateRelatedPaths() {
+	for _, model := range Registry.registryByName {
+		for _, field := range model.fields.registryByName {
+			if field.relatedPathStr != "" {
+				field.relatedPath = model.FieldName(field.relatedPathStr)
+			}
+		}
+	}
+}
+
 // checkFieldMethodsExist checks that all methods referenced by fields,
 // such as Compute, Constraint or Onchange exist.
 func checkFieldMethodsExist() {
@@ -434,6 +450,12 @@ func checkFieldMethodsExist() {
 		for _, field := range model.fields.registryByName {
 			if field.onChange != "" {
 				model.methods.MustGet(field.onChange)
+			}
+			if field.onChangeWarning != "" {
+				model.methods.MustGet(field.onChangeWarning)
+			}
+			if field.onChangeFilters != "" {
+				model.methods.MustGet(field.onChangeFilters)
 			}
 			if field.constraint != "" {
 				model.methods.MustGet(field.constraint)

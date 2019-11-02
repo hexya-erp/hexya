@@ -132,7 +132,7 @@ type Model struct {
 	mixins         []*Model
 	sqlConstraints map[string]sqlConstraint
 	sqlErrors      map[string]string
-	defaultOrder   []string
+	defaultOrder   []orderPredicate
 }
 
 // An sqlConstraint holds the data needed to create a table constraint in the database
@@ -147,10 +147,8 @@ type sqlConstraint struct {
 // - If skipLast is true, getRelatedModelInfo does not follow the last part of the path
 // - If the last part of path is a non relational field, it is simply ignored, whatever
 // the value of skipLast.
-//
-// Paths can be formed from field names or JSON names.
-func (m *Model) getRelatedModelInfo(path string, skipLast ...bool) *Model {
-	if path == "" {
+func (m *Model) getRelatedModelInfo(path FieldName, skipLast ...bool) *Model {
+	if path == nil {
 		return m
 	}
 	var skip bool
@@ -158,24 +156,23 @@ func (m *Model) getRelatedModelInfo(path string, skipLast ...bool) *Model {
 		skip = skipLast[0]
 	}
 
-	exprs := strings.Split(path, ExprSep)
-	jsonizeExpr(m, exprs)
-	fi := m.fields.MustGet(exprs[0])
+	exprs := splitFieldNames(path, ExprSep)
+	fi := m.fields.MustGet(exprs[0].JSON())
 	if fi.relatedModel == nil || (len(exprs) == 1 && skip) {
 		// The field is a non relational field, so we are already
 		// on the related Model. Or we have only 1 exprs and we skip the last one.
 		return m
 	}
 	if len(exprs) > 1 {
-		return fi.relatedModel.getRelatedModelInfo(strings.Join(exprs[1:], ExprSep), skipLast...)
+		return fi.relatedModel.getRelatedModelInfo(joinFieldNames(exprs[1:], ExprSep), skipLast...)
 	}
 	return fi.relatedModel
 }
 
 // getRelatedFieldIfo returns the Field of the related field when
 // following path. Path can be formed from field names or JSON names.
-func (m *Model) getRelatedFieldInfo(path string) *Field {
-	colExprs := strings.Split(path, ExprSep)
+func (m *Model) getRelatedFieldInfo(path FieldName) *Field {
+	colExprs := splitFieldNames(path, ExprSep)
 	var rmi *Model
 	num := len(colExprs)
 	if len(colExprs) > 1 {
@@ -183,7 +180,7 @@ func (m *Model) getRelatedFieldInfo(path string) *Field {
 	} else {
 		rmi = m
 	}
-	fi := rmi.fields.MustGet(colExprs[num-1])
+	fi := rmi.fields.MustGet(colExprs[num-1].JSON())
 	return fi
 }
 
@@ -241,7 +238,7 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 			// Hack to manage client returning false instead of nil
 			fMapValue = nil
 		}
-		fi := m.getRelatedFieldInfo(colName)
+		fi := m.getRelatedFieldInfo(m.FieldName(colName))
 		fType := fi.structField.Type
 		typedValue := reflect.New(fType).Interface()
 		err := typesutils.Convert(fMapValue, typedValue, fi.isRelationField())
@@ -253,7 +250,7 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 	if writeDB {
 		// Change zero values to NULL if writing to DB when applicable
 		for colName, fMapValue := range *fMap {
-			fi := m.getRelatedFieldInfo(colName)
+			fi := m.getRelatedFieldInfo(m.FieldName(colName))
 			val := reflect.ValueOf(fMapValue)
 			switch {
 			case fi.fieldType.IsFKRelationType() && val.Kind() == reflect.Int64 && val.Int() == 0:
@@ -331,7 +328,21 @@ func (m *Model) Methods() *MethodsCollection {
 // Give the order fields in separate strings, such as
 // model.SetDefaultOrder("Name desc", "date asc", "id")
 func (m *Model) SetDefaultOrder(orders ...string) {
-	m.defaultOrder = orders
+	m.defaultOrder = m.ordersFromStrings(orders)
+}
+
+// ordersFromStrings returns the given order by exprs as a slice of order structs
+func (m *Model) ordersFromStrings(exprs []string) []orderPredicate {
+	res := make([]orderPredicate, len(exprs))
+	for i, o := range exprs {
+		toks := strings.Split(o, " ")
+		var desc bool
+		if len(toks) > 1 && strings.ToLower(toks[1]) == "desc" {
+			desc = true
+		}
+		res[i] = orderPredicate{field: m.FieldName(toks[0]), desc: desc}
+	}
+	return res
 }
 
 // JSONizeFieldName returns the json name of the given fieldName
@@ -342,9 +353,20 @@ func (m *Model) JSONizeFieldName(fieldName string) string {
 	return jsonizePath(m, fieldName)
 }
 
+// FieldName returns a FieldName for the field with the given name.
+// name may be a dot separated path from this model.
+// It returns nil if the name is empty and panics if the path is invalid.
+func (m *Model) FieldName(name string) FieldName {
+	if name == "" {
+		return nil
+	}
+	jsonName := jsonizePath(m, name)
+	return fieldName{name: name, json: jsonName}
+}
+
 // Field starts a condition on this model
-func (m *Model) Field(name string) *ConditionField {
-	newExprs := strings.Split(name, ExprSep)
+func (m *Model) Field(name FieldName) *ConditionField {
+	newExprs := splitFieldNames(name, ExprSep)
 	cp := ConditionField{}
 	cp.exprs = append(cp.exprs, newExprs...)
 	return &cp
@@ -356,15 +378,15 @@ func (m *Model) Field(name string) *ConditionField {
 // If no fields are given, then all fields are returned.
 //
 // The result map is indexed by the fields JSON names.
-func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
+func (m *Model) FieldsGet(fields ...FieldName) map[string]*FieldInfo {
 	if len(fields) == 0 {
-		for jName := range m.fields.registryByJSON {
-			fields = append(fields, FieldName(jName))
+		for n := range m.fields.registryByName {
+			fields = append(fields, m.FieldName(n))
 		}
 	}
 	res := make(map[string]*FieldInfo)
 	for _, f := range fields {
-		fInfo := m.fields.MustGet(f.String())
+		fInfo := m.fields.MustGet(f.Name())
 		var relation string
 		if fInfo.relatedModel != nil {
 			relation = fInfo.relatedModel.name
@@ -402,11 +424,11 @@ func (m *Model) FieldsGet(fields ...FieldNamer) map[string]*FieldInfo {
 
 // FilteredOn adds a condition with a table join on the given field and
 // filters the result with the given condition
-func (m *Model) FilteredOn(field string, condition *Condition) *Condition {
+func (m *Model) FilteredOn(field FieldName, condition *Condition) *Condition {
 	res := Condition{predicates: make([]predicate, len(condition.predicates))}
 	i := 0
 	for _, p := range condition.predicates {
-		p.exprs = append([]string{field}, p.exprs...)
+		p.exprs = append([]FieldName{field}, p.exprs...)
 		res.predicates[i] = p
 		i++
 	}
@@ -517,7 +539,7 @@ func createModel(name string, options Option) *Model {
 		methods:        newMethodsCollection(),
 		sqlConstraints: make(map[string]sqlConstraint),
 		sqlErrors:      make(map[string]string),
-		defaultOrder:   []string{"id"},
+		defaultOrder:   []orderPredicate{{field: ID}},
 	}
 	pk := &Field{
 		name:      "ID",
@@ -619,10 +641,11 @@ func (s *Sequence) NextValue() int64 {
 // FreeTransientModels remove transient models records from database which are
 // older than the given timeout.
 func FreeTransientModels() {
-	for _, val := range Registry.registryByName {
-		if val.isTransient() {
+	for _, model := range Registry.registryByName {
+		if model.isTransient() {
 			ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
-				val.Search(env, val.Field("CreateDate").Lower(dates.Now().Add(-transientModelTimeout))).Call("Unlink")
+				createDate := model.FieldName("CreateDate")
+				model.Search(env, model.Field(createDate).Lower(dates.Now().Add(-transientModelTimeout))).Call("Unlink")
 			})
 		}
 	}
