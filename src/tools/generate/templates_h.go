@@ -260,14 +260,14 @@ func (d {{ $.Name }}Data) MergeWith(other {{ .InterfacesPackageName }}.{{ $.Name
 // If this {{ .Name }} is not set in this {{ $.Name }}Data, then
 // the Go zero value for the type is returned.
 func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
-	val := d.ModelData.Get(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"))
+	val := d.ModelData.Get(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"))
 {{- if .IsRS }}	
-	if !d.Has(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")) || val == nil || val == (*interface{})(nil) {
+	if !d.Has(models.NewFieldName("{{ .Name }}", "{{ .JSON }}")) || val == nil || val == (*interface{})(nil) {
 		val = models.InvalidRecordCollection("{{ .RelModel }}")
 	}
 	return val.(models.RecordSet).Collection().Wrap().({{ .Type }})
 {{- else }}
-	if !d.Has(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")) {
+	if !d.Has(models.NewFieldName("{{ .Name }}", "{{ .JSON }}")) {
 		return *new({{ .Type }})
 	}
 	return val.({{ .Type }})
@@ -276,20 +276,20 @@ func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
 
 // Has{{ .Name }} returns true if {{ .Name }} is set in this {{ $.Name }}Data
 func (d {{ $.Name }}Data) Has{{ .Name }}() bool {
-	return d.ModelData.Has(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"))
+	return d.ModelData.Has(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"))
 }
 
 // Set{{ .Name }} sets the {{ .Name }} field with the given value.
 // It returns this {{ $.Name }}Data so that calls can be chained.
 func (d {{ $.Name }}Data) Set{{ .Name }}(value {{ .Type }}) {{ $.InterfacesPackageName }}.{{ $.Name }}Data {
-	d.ModelData.Set(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"), value)
+	d.ModelData.Set(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"), value)
 	return d
 }
 
 // Unset{{ .Name }} removes the value of the {{ .Name }} field if it exists.
 // It returns this {{ $.Name }}Data so that calls can be chained.
 func (d {{ $.Name }}Data) Unset{{ .Name }}() {{ $.InterfacesPackageName }}.{{ $.Name }}Data {
-	d.ModelData.Unset(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"))
+	d.ModelData.Unset(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"))
 	return d
 }
 
@@ -299,7 +299,7 @@ func (d {{ $.Name }}Data) Unset{{ .Name }}() {{ $.InterfacesPackageName }}.{{ $.
 //
 // This method can be called multiple times to create multiple records
 func (d {{ $.Name }}Data) Create{{ .Name }}(related {{ $.InterfacesPackageName }}.{{ .RelModel }}Data) {{ $.InterfacesPackageName }}.{{ $.Name }}Data {
-	d.ModelData.Create(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"), related.Underlying())
+	d.ModelData.Create(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"), related.Underlying())
 	return d
 }
 {{- end }}
@@ -453,9 +453,9 @@ func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldName) []{{ .Interfa
 // record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
 func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
 {{- if .IsRS }}
-	res, _ := s.RecordCollection.Get(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")).(models.RecordSet).Collection().Wrap("{{ .RelModel }}").({{ .Type }})
+	res, _ := s.RecordCollection.Get(models.NewFieldName("{{ .Name }}", "{{ .JSON }}")).(models.RecordSet).Collection().Wrap("{{ .RelModel }}").({{ .Type }})
 {{- else }}
-	res, _ := s.RecordCollection.Get(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}")).({{ .Type }}) 
+	res, _ := s.RecordCollection.Get(models.NewFieldName("{{ .Name }}", "{{ .JSON }}")).({{ .Type }}) 
 {{- end }}
 	return res 
 }
@@ -466,7 +466,7 @@ func (s {{ $.Name }}Set) {{ .Name }}() {{ .Type }} {
 //
 // Set{{ .Name }} panics if the RecordSet is empty.
 func (s {{ $.Name }}Set) Set{{ .Name }}(value {{ .Type }}) {
-	s.RecordCollection.Set(models.Registry.MustGet("{{ $.Name }}").FieldName("{{ .Name }}"), value)
+	s.RecordCollection.Set(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"), value)
 }
 {{ end }}
 

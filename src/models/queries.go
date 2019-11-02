@@ -427,10 +427,14 @@ func (q *Query) selectGroupQuery(fieldsList []FieldName, aggFncts map[string]str
 	if len(q.groups) == 0 {
 		log.Panic("Calling selectGroupQuery on a query without Group By clause")
 	}
+	// Recompute fieldsList, addy group bys
+	fieldExprs, _ := q.selectData(fieldsList, true)
+	fieldsList = []FieldName{}
+	for _, fe := range fieldExprs {
+		fieldsList = append(fieldsList, joinFieldNames(fe, ExprSep))
+	}
 	// Get base query
 	baseQuery, baseArgs, _ := q.selectCommonQuery(fieldsList)
-
-	fieldExprs, _ := q.selectData(fieldsList, true)
 	// Build up the query
 	// Fields
 	fieldsSQL := q.fieldsGroupSQL(fieldExprs, aggFncts)
@@ -460,6 +464,14 @@ func (q *Query) selectData(fields []FieldName, withCtx bool) ([][]FieldName, [][
 	for _, oExpr := range oExprs {
 		if _, ok := fieldsExprsMap[joinFieldNames(oExpr, ExprSep).JSON()]; !ok {
 			fieldExprs = append(fieldExprs, oExpr)
+			fieldsExprsMap[joinFieldNames(oExpr, ExprSep).JSON()] = oExpr
+		}
+	}
+	// Add 'group by' exprs removing duplicates
+	gExprs := q.getGroupByExpressions()
+	for _, gExpr := range gExprs {
+		if _, ok := fieldsExprsMap[joinFieldNames(gExpr, ExprSep).JSON()]; !ok {
+			fieldExprs = append(fieldExprs, gExpr)
 		}
 	}
 	// Then given by condition

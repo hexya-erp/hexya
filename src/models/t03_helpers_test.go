@@ -216,4 +216,25 @@ func TestTypes(t *testing.T) {
 			So(err.Error(), ShouldEqual, "unexpected type string to represent RecordData: wrong")
 		})
 	})
+	Convey("Testing FieldNames", t, func() {
+		Convey("Creating a new FieldName", func() {
+			fn := NewFieldName("Name", "json")
+			So(fn.Name(), ShouldEqual, "Name")
+			So(fn.JSON(), ShouldEqual, "json")
+		})
+		Convey("Unmarshalling FieldNames", func() {
+			data := []byte(`["name1", "name2"]`)
+			var fn FieldNames
+			err := json.Unmarshal(data, &fn)
+			So(err, ShouldBeNil)
+			So(fn, ShouldHaveLength, 2)
+			So(fn[0].Name(), ShouldEqual, "name1")
+			So(fn[0].JSON(), ShouldEqual, "name1")
+			So(fn[1].Name(), ShouldEqual, "name2")
+			So(fn[1].JSON(), ShouldEqual, "name2")
+			data = []byte(`{}`)
+			err = json.Unmarshal(data, &fn)
+			So(err, ShouldNotBeNil)
+		})
+	})
 }

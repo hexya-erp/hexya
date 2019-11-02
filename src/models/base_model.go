@@ -136,7 +136,7 @@ func declareCRUDMethods() {
 
 	commonMixin.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
-		func(rc *RecordCollection, fields []FieldName) []RecordData {
+		func(rc *RecordCollection, fields FieldNames) []RecordData {
 			var res []RecordData
 			// Check if we have id in fields, and add it otherwise
 			fields = addIDIfNotPresent(fields)
@@ -704,13 +704,13 @@ type FieldInfo struct {
 // FieldsGetArgs is the args struct for the FieldsGet method
 type FieldsGetArgs struct {
 	// Fields is a list of fields to document, all if empty or not provided
-	Fields []FieldName `json:"allfields"`
+	Fields FieldNames `json:"allfields"`
 }
 
 // OnchangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
 	Values   RecordData        `json:"values"`
-	Fields   []FieldName       `json:"field_name"`
+	Fields   FieldNames        `json:"field_name"`
 	Onchange map[string]string `json:"field_onchange"`
 }
 

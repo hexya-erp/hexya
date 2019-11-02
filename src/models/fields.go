@@ -338,9 +338,9 @@ func checkFieldInfo(fi *Field) {
 	}
 }
 
-// jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
+// SnakeCaseFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
-func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
+func SnakeCaseFieldName(fName string, typ fieldtype.Type) string {
 	res := strutils.SnakeCase(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"

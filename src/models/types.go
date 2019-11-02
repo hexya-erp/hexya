@@ -96,6 +96,11 @@ func (f fieldName) JSON() string {
 	return f.json
 }
 
+// NewFieldName returns a fieldName instance with the given name and json
+func NewFieldName(name, json string) FieldName {
+	return fieldName{name: name, json: json}
+}
+
 // FieldNames is a slice of FieldName that can be sorted
 type FieldNames []FieldName
 
@@ -112,6 +117,18 @@ func (f FieldNames) Less(i, j int) bool {
 // Swap i and j indexes
 func (f FieldNames) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
+}
+
+// UnmarshalJSON for the FieldNames type
+func (f *FieldNames) UnmarshalJSON(data []byte) error {
+	var aux []string
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	for _, v := range aux {
+		*f = append(*f, NewFieldName(v, v))
+	}
+	return nil
 }
 
 // A GroupAggregateRow holds a row of results of a query with a group by clause

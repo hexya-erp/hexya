@@ -777,7 +777,7 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 // empty strings, in which case the latters are returned.
 func getJSONAndString(name string, typ fieldtype.Type, json, str string) (string, string) {
 	if json == "" {
-		json = snakeCaseFieldName(name, typ)
+		json = SnakeCaseFieldName(name, typ)
 	}
 	if str == "" {
 		str = strutils.Title(name)

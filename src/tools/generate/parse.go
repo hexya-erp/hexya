@@ -102,6 +102,7 @@ type FieldASTData struct {
 	Selection   map[string]string
 	RelModel    string
 	Type        TypeData
+	FType       fieldtype.Type
 	IsRS        bool
 	MixinField  bool
 	EmbedField  bool
@@ -360,10 +361,12 @@ func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 		case *ast.CompositeLit:
 			fieldParams = fd.Elts
 		}
+		fType := fieldtype.Type(strings.ToLower(typeStr))
 		fData := FieldASTData{
-			Name: fieldName,
+			Name:  fieldName,
+			FType: fType,
 			Type: TypeData{
-				Type:       fieldtype.Type(strings.ToLower(typeStr)).DefaultGoType().String(),
+				Type:       fType.DefaultGoType().String(),
 				ImportPath: importPath,
 			},
 		}
