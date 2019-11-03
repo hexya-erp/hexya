@@ -37,7 +37,7 @@ func declareModels() {
 		func(rc *models.RecordCollection, prefix string) []string {
 			var res []string
 			for _, u := range rc.Records() {
-				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get("Name")))
+				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get(models.Name)))
 			}
 			return res
 		})
@@ -46,7 +46,7 @@ func declareModels() {
 		func(rc *models.RecordCollection, prefix string) []string {
 			res := rc.Super().Call("PrefixedUser", prefix).([]string)
 			for i, u := range rc.Records() {
-				email := u.Get("Email").(string)
+				email := u.Get(rc.Model().FieldName("Email")).(string)
 				res[i] = fmt.Sprintf("%s %s", res[i], rc.Call("DecorateEmail", email))
 			}
 			return res
@@ -88,23 +88,23 @@ func declareModels() {
 	user.AddMethod("ComputeAge", "",
 		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
-			res["Age"] = rc.Get("Profile").(*models.RecordCollection).Get("Age").(int16)
+			res["Age"] = rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Get(rc.Model().FieldName("Age")).(int16)
 			return models.NewModelDataFromRS(rc, res)
 		})
 
 	user.AddMethod("InverseSetAge", "",
 		func(rc *models.RecordCollection, age int16) {
-			rc.Get("Profile").(*models.RecordCollection).Set("Age", age)
+			rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Set(rc.Model().FieldName("Age"), age)
 		})
 
 	user.AddMethod("UpdateCity", "",
 		func(rc *models.RecordCollection, value string) {
-			rc.Get("Profile").(*models.RecordCollection).Set("City", value)
+			rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Set(rc.Model().FieldName("City"), value)
 		})
 
 	activeMI.AddMethod("IsActivated", "",
 		func(rc *models.RecordCollection) bool {
-			return rc.Get("Active").(bool)
+			return rc.Get(rc.Model().FieldName("Active")).(bool)
 		})
 
 	addressMI.AddMethod("SayHello", "",
@@ -115,13 +115,13 @@ func declareModels() {
 	printAddress := addressMI.AddEmptyMethod("PrintAddress")
 	printAddress.DeclareMethod("",
 		func(rc *models.RecordCollection) string {
-			return fmt.Sprintf("%s, %s %s", rc.Get("Street"), rc.Get("Zip"), rc.Get("City"))
+			return fmt.Sprintf("%s, %s %s", rc.Get(rc.Model().FieldName("Street")), rc.Get(rc.Model().FieldName("Zip")), rc.Get(rc.Model().FieldName("City")))
 		})
 
 	profile.AddMethod("PrintAddress", "",
 		func(rc *models.RecordCollection) string {
 			res := rc.Super().Call("PrintAddress").(string)
-			return fmt.Sprintf("%s, %s", res, rc.Get("Country"))
+			return fmt.Sprintf("%s, %s", res, rc.Get(rc.Model().FieldName("Country")))
 		})
 
 	addressMI.Methods().MustGet("PrintAddress").Extend("",
@@ -150,7 +150,7 @@ func declareModels() {
 	tag.AddMethod("CheckRate",
 		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
 		func(rc *models.RecordCollection) {
-			if rc.Get("Rate").(float32) < 0 || rc.Get("Rate").(float32) > 10 {
+			if rc.Get(rc.Model().FieldName("Rate")).(float32) < 0 || rc.Get(rc.Model().FieldName("Rate")).(float32) > 10 {
 				log.Panic("Tag rate must be between 0 and 10")
 			}
 		})
@@ -158,7 +158,7 @@ func declareModels() {
 	tag.AddMethod("CheckNameDescription",
 		`CheckNameDescription checks that the description of a tag is not equal to its name`,
 		func(rc *models.RecordCollection) {
-			if rc.Get("Name").(string) == rc.Get("Description").(string) {
+			if rc.Get(rc.Model().FieldName("Name")).(string) == rc.Get(rc.Model().FieldName("Description")).(string) {
 				log.Panic("Tag name and description must be different")
 			}
 		})

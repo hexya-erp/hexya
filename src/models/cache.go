@@ -379,7 +379,7 @@ func (c *cache) getRelatedRefCommon(mi *Model, id int64, path string, ctxSlug st
 				return nil, 0, "", notInCacheError{}
 			}
 		}
-		relMI := mi.getRelatedModelInfo(exprs[0])
+		relMI := mi.getRelatedModelInfo(mi.FieldName(exprs[0]))
 		if fkID == 0 {
 			return nil, 0, "", nonExistentPathError{}
 		}

@@ -33,9 +33,9 @@ func TestTypes(t *testing.T) {
 				"IsStaff": false,
 			}
 			Convey("MustGet", func() {
-				So(func() { testMap.MustGet("Name", Registry.MustGet("User")) }, ShouldNotPanic)
-				So(func() { testMap.MustGet("NoField", Registry.MustGet("User")) }, ShouldPanic)
-				So(func() { testMap.MustGet("Profile", Registry.MustGet("User")) }, ShouldPanic)
+				So(func() { testMap.MustGet(Registry.MustGet("User").FieldName("Name")) }, ShouldNotPanic)
+				So(func() { testMap.MustGet(Registry.MustGet("User").FieldName("NoField")) }, ShouldPanic)
+				So(func() { testMap.MustGet(Registry.MustGet("User").FieldName("Profile")) }, ShouldPanic)
 			})
 			Convey("RemovePKIfZero", func() {
 				testMap["id"] = int64(12)
@@ -67,12 +67,12 @@ func TestTypes(t *testing.T) {
 				So(keys, ShouldContain, "Nums")
 			})
 			Convey("FieldNames", func() {
-				keys := testMap.FieldNames()
+				keys := testMap.FieldNames(Registry.MustGet("User"))
 				So(keys, ShouldHaveLength, 4)
-				So(keys, ShouldContain, FieldName("Email"))
-				So(keys, ShouldContain, FieldName("IsStaff"))
-				So(keys, ShouldContain, FieldName("Name"))
-				So(keys, ShouldContain, FieldName("Nums"))
+				So(keys, ShouldContain, Registry.MustGet("User").FieldName("Email"))
+				So(keys, ShouldContain, Registry.MustGet("User").FieldName("IsStaff"))
+				So(keys, ShouldContain, Registry.MustGet("User").FieldName("Name"))
+				So(keys, ShouldContain, Registry.MustGet("User").FieldName("Nums"))
 			})
 			Convey("Values", func() {
 				keys := testMap.Values()
@@ -84,24 +84,25 @@ func TestTypes(t *testing.T) {
 			})
 		})
 		Convey("Checking ModelData methods", func() {
+			numsField := Registry.MustGet("User").FieldName("Nums")
 			johnValues := NewModelData(Registry.MustGet("User")).
-				Set("Email", "jsmith2@example.com").
-				Set("Nums", 13).
-				Set("IsStaff", false)
-			So(johnValues.Has("Nums"), ShouldBeTrue)
-			So(johnValues.Get("Nums"), ShouldEqual, 13)
+				Set(Registry.MustGet("User").FieldName("Email"), "jsmith2@example.com").
+				Set(numsField, 13).
+				Set(Registry.MustGet("User").FieldName("IsStaff"), false)
+			So(johnValues.Has(numsField), ShouldBeTrue)
+			So(johnValues.Get(numsField), ShouldEqual, 13)
 			jv2 := johnValues.Copy()
-			johnValues.Unset("Nums")
-			So(johnValues.Has("Nums"), ShouldBeFalse)
-			So(johnValues.Get("Nums"), ShouldEqual, nil)
-			So(jv2.Has("Nums"), ShouldBeTrue)
-			So(jv2.Get("Nums"), ShouldEqual, 13)
+			johnValues.Unset(numsField)
+			So(johnValues.Has(numsField), ShouldBeFalse)
+			So(johnValues.Get(numsField), ShouldEqual, nil)
+			So(jv2.Has(numsField), ShouldBeTrue)
+			So(jv2.Get(numsField), ShouldEqual, 13)
 		})
 		Convey("Checking JSON marshalling of a ModelData", func() {
 			johnValues := NewModelData(Registry.MustGet("User")).
-				Set("Email", "jsmith2@example.com").
-				Set("Nums", 13).
-				Set("IsStaff", false)
+				Set(Registry.MustGet("User").FieldName("Email"), "jsmith2@example.com").
+				Set(Registry.MustGet("User").FieldName("Nums"), 13).
+				Set(Registry.MustGet("User").FieldName("IsStaff"), false)
 			jData, err := json.Marshal(johnValues)
 			So(err, ShouldBeNil)
 			var fm FieldMap
@@ -124,14 +125,14 @@ func TestTypes(t *testing.T) {
 				"LastPost": nil,
 				"Password": false,
 			})
-			So(johnValues.Get("Nums"), ShouldEqual, 13)
-			So(johnValues.Has("Nums"), ShouldBeTrue)
-			So(johnValues.Get("Profile"), ShouldEqual, 0)
-			So(johnValues.Has("Profile"), ShouldBeTrue)
-			So(johnValues.Get("LastPost"), ShouldEqual, nil)
-			So(johnValues.Has("LastPost"), ShouldBeTrue)
-			So(johnValues.Get("Password"), ShouldEqual, "")
-			So(johnValues.Has("Password"), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Nums")), ShouldEqual, 13)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Nums")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Profile")), ShouldEqual, 0)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Profile")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("LastPost")), ShouldEqual, nil)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("LastPost")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Password")), ShouldEqual, "")
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Password")), ShouldBeTrue)
 		})
 		Convey("Checking NewModelDataFromRS with FieldMap", func() {
 			var johnValues *ModelData
@@ -147,52 +148,52 @@ func TestTypes(t *testing.T) {
 					"Mana":     []byte("234.5"),
 				})
 			}), ShouldBeNil)
-			So(johnValues.Get("Nums"), ShouldEqual, 13)
-			So(johnValues.Has("Nums"), ShouldBeTrue)
-			So(johnValues.Has("Profile"), ShouldBeTrue)
-			So(johnValues.Get("Profile").(RecordSet).IsEmpty(), ShouldBeTrue)
-			So(johnValues.Has("LastPost"), ShouldBeTrue)
-			So(johnValues.Get("LastPost").(RecordSet).IsEmpty(), ShouldBeTrue)
-			So(johnValues.Has("Password"), ShouldBeTrue)
-			So(johnValues.Get("Password"), ShouldEqual, "")
-			So(johnValues.Has("Size"), ShouldBeTrue)
-			So(johnValues.Get("Size"), ShouldEqual, 12.34)
-			So(johnValues.Get("Size"), ShouldHaveSameTypeAs, *new(float64))
-			So(johnValues.Has("Mana"), ShouldBeTrue)
-			So(johnValues.Get("Mana"), ShouldEqual, 234.5)
-			So(johnValues.Get("Mana"), ShouldHaveSameTypeAs, *new(float32))
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Nums")), ShouldEqual, 13)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Nums")), ShouldBeTrue)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Profile")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Profile")).(RecordSet).IsEmpty(), ShouldBeTrue)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("LastPost")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("LastPost")).(RecordSet).IsEmpty(), ShouldBeTrue)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Password")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Password")), ShouldEqual, "")
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Size")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Size")), ShouldEqual, 12.34)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Size")), ShouldHaveSameTypeAs, *new(float64))
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Mana")), ShouldBeTrue)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Mana")), ShouldEqual, 234.5)
+			So(johnValues.Get(Registry.MustGet("User").FieldName("Mana")), ShouldHaveSameTypeAs, *new(float32))
 		})
 		Convey("Testing Create feature of ModelData", func() {
 			johnValues := NewModelData(Registry.MustGet("User")).
-				Set("Email", "jsmith2@example.com").
-				Set("Nums", 13).
-				Set("IsStaff", false).
-				Create("Profile", NewModelData(Registry.MustGet("Profile")).
-					Set("Age", 23).
-					Set("Money", 12345).
-					Set("Street", "165 5th Avenue").
-					Set("City", "New York").
-					Set("Zip", "0305").
-					Set("Country", "USA")).
-				Create("Posts", NewModelData(Registry.MustGet("Post")).
-					Set("Title", "1st Post").
-					Set("Content", "Content of first post")).
-				Create("Posts", NewModelData(Registry.MustGet("Post")).
-					Set("Title", "2nd Post").
-					Set("Content", "Content of second post"))
-			So(johnValues.Has("Email"), ShouldBeTrue)
-			So(johnValues.Has("Profile"), ShouldBeTrue)
-			So(johnValues.Has("Posts"), ShouldBeTrue)
+				Set(Registry.MustGet("User").FieldName("Email"), "jsmith2@example.com").
+				Set(Registry.MustGet("User").FieldName("Nums"), 13).
+				Set(Registry.MustGet("User").FieldName("IsStaff"), false).
+				Create(Registry.MustGet("User").FieldName("Profile"), NewModelData(Registry.MustGet("Profile")).
+					Set(Registry.MustGet("Profile").FieldName("Age"), 23).
+					Set(Registry.MustGet("Profile").FieldName("Money"), 12345).
+					Set(Registry.MustGet("Profile").FieldName("Street"), "165 5th Avenue").
+					Set(Registry.MustGet("Profile").FieldName("City"), "New York").
+					Set(Registry.MustGet("Profile").FieldName("Zip"), "0305").
+					Set(Registry.MustGet("Profile").FieldName("Country"), "USA")).
+				Create(Registry.MustGet("User").FieldName("Posts"), NewModelData(Registry.MustGet("Post")).
+					Set(Registry.MustGet("Post").FieldName("Title"), "1st Post").
+					Set(Registry.MustGet("Post").FieldName("Content"), "Content of first post")).
+				Create(Registry.MustGet("User").FieldName("Posts"), NewModelData(Registry.MustGet("Post")).
+					Set(Registry.MustGet("Post").FieldName("Title"), "2nd Post").
+					Set(Registry.MustGet("Post").FieldName("Content"), "Content of second post"))
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Email")), ShouldBeTrue)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Profile")), ShouldBeTrue)
+			So(johnValues.Has(Registry.MustGet("User").FieldName("Posts")), ShouldBeTrue)
 
 			So(func() {
 				NewModelData(Registry.MustGet("User")).
-					Create("Profile", NewModelData(Registry.MustGet("Post")).
-						Set("Age", 23).
-						Set("Money", 12345).
-						Set("Street", "165 5th Avenue").
-						Set("City", "New York").
-						Set("Zip", "0305").
-						Set("Country", "USA"))
+					Create(Registry.MustGet("User").FieldName("Profile"), NewModelData(Registry.MustGet("Post")).
+						Set(Registry.MustGet("Profile").FieldName("Age"), 23).
+						Set(Registry.MustGet("Profile").FieldName("Money"), 12345).
+						Set(Registry.MustGet("Profile").FieldName("Street"), "165 5th Avenue").
+						Set(Registry.MustGet("Profile").FieldName("City"), "New York").
+						Set(Registry.MustGet("Profile").FieldName("Zip"), "0305").
+						Set(Registry.MustGet("Profile").FieldName("Country"), "USA"))
 			}, ShouldPanic)
 		})
 		Convey("Testing ModelData Scanning", func() {
@@ -215,11 +216,25 @@ func TestTypes(t *testing.T) {
 			So(err.Error(), ShouldEqual, "unexpected type string to represent RecordData: wrong")
 		})
 	})
-	Convey("Testing helper functions", t, func() {
-		names := []string{"Name", "Email"}
-		fields := ConvertToFieldNameSlice(names)
-		So(fields, ShouldHaveLength, 2)
-		So(fields, ShouldContain, FieldName("Name"))
-		So(fields, ShouldContain, FieldName("Email"))
+	Convey("Testing FieldNames", t, func() {
+		Convey("Creating a new FieldName", func() {
+			fn := NewFieldName("Name", "json")
+			So(fn.Name(), ShouldEqual, "Name")
+			So(fn.JSON(), ShouldEqual, "json")
+		})
+		Convey("Unmarshalling FieldNames", func() {
+			data := []byte(`["name1", "name2"]`)
+			var fn FieldNames
+			err := json.Unmarshal(data, &fn)
+			So(err, ShouldBeNil)
+			So(fn, ShouldHaveLength, 2)
+			So(fn[0].Name(), ShouldEqual, "name1")
+			So(fn[0].JSON(), ShouldEqual, "name1")
+			So(fn[1].Name(), ShouldEqual, "name2")
+			So(fn[1].JSON(), ShouldEqual, "name2")
+			data = []byte(`{}`)
+			err = json.Unmarshal(data, &fn)
+			So(err, ShouldNotBeNil)
+		})
 	})
 }

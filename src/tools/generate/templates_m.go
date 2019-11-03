@@ -27,7 +27,7 @@ type {{ .Name }}Set interface {
 	// If no fields are given, all DB columns of the {{ .Name }} model are retrieved.
 	//
 	// It also returns this {{ .Name }}Set.
-	ForceLoad(fields ...string) {{ .Name }}Set
+	ForceLoad(fields ...models.FieldName) {{ .Name }}Set
 	{{- range .Fields }}
 	// {{ .Name }} is a getter for the value of the "{{ .Name }}" field of the first
 	// record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
@@ -79,21 +79,21 @@ type {{ .Name }}Data interface {
 	// Get returns the value of the given field.
 	//
 	// The field can be either its name or is JSON name.
-	Get(field string) interface{}
+	Get(field models.FieldName) interface{}
 	// Has returns true if a value is set for the given field.
 	//
 	// The field can be either its name or is JSON name.
-	Has(field string) bool
+	Has(field models.FieldName) bool
 	// Set sets the given field with the given value.
 	// If the field already exists, then it is updated with value.
 	// Otherwise, a new entry is inserted.
 	//
 	// It returns the given {{ .Name }}Data so that calls can be chained
-	Set(field string, value interface{}) {{ .Name }}Data
+	Set(field models.FieldName, value interface{}) {{ .Name }}Data
 	// Unset removes the value of the given field if it exists.
 	//
 	// It returns the given ModelData so that calls can be chained
-	Unset(field string) {{ .Name }}Data
+	Unset(field models.FieldName) {{ .Name }}Data
 	// Copy returns a copy of this {{ .Name }}Data	
 	Copy() {{ .Name }}Data
 	// MergeWith updates this {{ $.Name }}Data with the given other {{ $.Name }}Data
@@ -107,8 +107,8 @@ type {{ .Name }}Data interface {
 	// This has the convenient side effect of having shorter paths come before longer paths,
 	// which is particularly useful when creating or updating related records.
 	OrderedKeys() []string
-	// FieldNames returns the {{ .Name }}Data keys as a slice of FieldNamer.
-	FieldNames() (res []models.FieldNamer)
+	// FieldNames returns the {{ .Name }}Data keys as a slice of FieldNames.
+	FieldNames() models.FieldNames
 {{- range .Fields }}
 	// {{ .Name }} returns the value of the {{ .Name }} field.
 	// If this {{ .Name }} is not set in this {{ $.Name }}Data, then

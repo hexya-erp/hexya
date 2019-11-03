@@ -28,27 +28,29 @@ type FieldDefinition interface {
 // Binary fields are stored in the database. Consider other disk based
 // alternatives if you have a large amount of data to store.
 type BinaryField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	GoType        interface{}
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	GoType          interface{}
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a binary field for the given FieldsCollection with the given name.
@@ -60,27 +62,29 @@ func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle boolean fields as checkboxes.
 type BooleanField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	GoType        interface{}
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	GoType          interface{}
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a boolean field for the given FieldsCollection with the given name.
@@ -96,29 +100,31 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle Char fields as single line inputs.
 type CharField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	Size          int
-	GoType        interface{}
-	Translate     bool
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	Size            int
+	GoType          interface{}
+	Translate       bool
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a char field for the given FieldsCollection with the given name.
@@ -132,28 +138,30 @@ func (cf CharField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle Date fields with a date picker.
 type DateField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	GoType        interface{}
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	GroupOperator   string
+	NoCopy          bool
+	GoType          interface{}
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a date field for the given FieldsCollection with the given name.
@@ -167,28 +175,30 @@ func (df DateField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle DateTime fields with a date and time picker.
 type DateTimeField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	GoType        interface{}
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	GroupOperator   string
+	NoCopy          bool
+	GoType          interface{}
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a datetime field for the given FieldsCollection with the given name.
@@ -200,29 +210,31 @@ func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) *Field {
 
 // A FloatField is a field for storing decimal numbers.
 type FloatField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	Digits        nbutils.Digits
-	GoType        interface{}
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	GroupOperator   string
+	NoCopy          bool
+	Digits          nbutils.Digits
+	GoType          interface{}
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField adds this datetime field for the given FieldsCollection with the given name.
@@ -240,29 +252,31 @@ func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle HTML fields with multi-line HTML editors.
 type HTMLField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	Size          int
-	GoType        interface{}
-	Translate     bool
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	Size            int
+	GoType          interface{}
+	Translate       bool
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a html field for the given FieldsCollection with the given name.
@@ -274,28 +288,30 @@ func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) *Field {
 
 // An IntegerField is a field for storing non decimal numbers.
 type IntegerField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	GroupOperator string
-	NoCopy        bool
-	GoType        interface{}
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	GroupOperator   string
+	NoCopy          bool
+	GoType          interface{}
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a datetime field for the given FieldsCollection with the given name.
@@ -331,6 +347,8 @@ type Many2ManyField struct {
 	M2MOurField      string
 	M2MTheirField    string
 	OnChange         Methoder
+	OnChangeWarning  Methoder
+	OnChangeFilters  Methoder
 	Constraint       Methoder
 	Filter           Conditioner
 	Inverse          Methoder
@@ -378,29 +396,31 @@ func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field 
 //
 // Clients are expected to handle many2one fields with a combo-box.
 type Many2OneField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	RelationModel Modeler
-	Embed         bool
-	OnDelete      OnDeleteAction
-	OnChange      Methoder
-	Constraint    Methoder
-	Filter        Conditioner
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	RelationModel   Modeler
+	Embed           bool
+	OnDelete        OnDeleteAction
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Filter          Conditioner
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a many2one field for the given FieldsCollection with the given name.
@@ -434,27 +454,29 @@ func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle one2many fields with a table.
 type One2ManyField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	Copy          bool
-	RelationModel Modeler
-	ReverseFK     string
-	OnChange      Methoder
-	Constraint    Methoder
-	Filter        Conditioner
-	Inverse       Methoder
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	Copy            bool
+	RelationModel   Modeler
+	ReverseFK       string
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Filter          Conditioner
+	Inverse         Methoder
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a one2many field for the given FieldsCollection with the given name.
@@ -478,29 +500,31 @@ func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle one2one fields with a combo-box.
 type One2OneField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	RelationModel Modeler
-	Embed         bool
-	OnDelete      OnDeleteAction
-	OnChange      Methoder
-	Constraint    Methoder
-	Filter        Conditioner
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	RelationModel   Modeler
+	Embed           bool
+	OnDelete        OnDeleteAction
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Filter          Conditioner
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a one2one field for the given FieldsCollection with the given name.
@@ -535,27 +559,29 @@ func (of One2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle rev2one fields with a combo-box.
 type Rev2OneField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	Copy          bool
-	RelationModel Modeler
-	ReverseFK     string
-	OnChange      Methoder
-	Constraint    Methoder
-	Filter        Conditioner
-	Inverse       Methoder
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	Copy            bool
+	RelationModel   Modeler
+	ReverseFK       string
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Filter          Conditioner
+	Inverse         Methoder
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a rev2one field for the given FieldsCollection with the given name.
@@ -578,28 +604,30 @@ func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
 //
 // Clients are expected to handle selection fields with a combo-box or radio buttons.
 type SelectionField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	Selection     types.Selection
-	SelectionFunc func() types.Selection
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	Selection       types.Selection
+	SelectionFunc   func() types.Selection
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a selection field for the given FieldsCollection with the given name.
@@ -615,29 +643,31 @@ func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field 
 //
 // Clients are expected to handle text fields as multi-line inputs.
 type TextField struct {
-	JSON          string
-	String        string
-	Help          string
-	Stored        bool
-	Required      bool
-	ReadOnly      bool
-	RequiredFunc  func(Environment) (bool, Conditioner)
-	ReadOnlyFunc  func(Environment) (bool, Conditioner)
-	InvisibleFunc func(Environment) (bool, Conditioner)
-	Unique        bool
-	Index         bool
-	Compute       Methoder
-	Depends       []string
-	Related       string
-	NoCopy        bool
-	Size          int
-	GoType        interface{}
-	Translate     bool
-	OnChange      Methoder
-	Constraint    Methoder
-	Inverse       Methoder
-	Contexts      FieldContexts
-	Default       func(Environment) interface{}
+	JSON            string
+	String          string
+	Help            string
+	Stored          bool
+	Required        bool
+	ReadOnly        bool
+	RequiredFunc    func(Environment) (bool, Conditioner)
+	ReadOnlyFunc    func(Environment) (bool, Conditioner)
+	InvisibleFunc   func(Environment) (bool, Conditioner)
+	Unique          bool
+	Index           bool
+	Compute         Methoder
+	Depends         []string
+	Related         string
+	NoCopy          bool
+	Size            int
+	GoType          interface{}
+	Translate       bool
+	OnChange        Methoder
+	OnChangeWarning Methoder
+	OnChangeFilters Methoder
+	Constraint      Methoder
+	Inverse         Methoder
+	Contexts        FieldContexts
+	Default         func(Environment) interface{}
 }
 
 // DeclareField creates a text field for the given FieldsCollection with the given name.
@@ -684,8 +714,10 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 	comp, _ := val.FieldByName("Compute").Interface().(Methoder)
 	inv, _ := val.FieldByName("Inverse").Interface().(Methoder)
 	onc, _ := val.FieldByName("OnChange").Interface().(Methoder)
+	onw, _ := val.FieldByName("OnChangeWarning").Interface().(Methoder)
+	onf, _ := val.FieldByName("OnChangeFilters").Interface().(Methoder)
 	cons, _ := val.FieldByName("Constraint").Interface().(Methoder)
-	compute, inverse, onchange, constraint := getFuncNames(comp, inv, onc, cons)
+	compute, inverse, onchange, onchangeWarning, onchangeFilters, constraint := getFuncNames(comp, inv, onc, onw, onf, cons)
 
 	var unique bool
 	if uni := val.FieldByName("Unique"); uni.IsValid() {
@@ -710,30 +742,32 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 		noCopy = noc.Bool()
 	}
 	fInfo := &Field{
-		model:         fc.model,
-		name:          name,
-		json:          json,
-		description:   str,
-		help:          val.FieldByName("Help").String(),
-		stored:        val.FieldByName("Stored").Bool(),
-		required:      val.FieldByName("Required").Bool(),
-		readOnly:      val.FieldByName("ReadOnly").Bool(),
-		readOnlyFunc:  val.FieldByName("ReadOnlyFunc").Interface().(func(Environment) (bool, Conditioner)),
-		requiredFunc:  val.FieldByName("RequiredFunc").Interface().(func(Environment) (bool, Conditioner)),
-		invisibleFunc: val.FieldByName("InvisibleFunc").Interface().(func(Environment) (bool, Conditioner)),
-		unique:        unique,
-		index:         val.FieldByName("Index").Bool(),
-		compute:       compute,
-		inverse:       inverse,
-		depends:       val.FieldByName("Depends").Interface().([]string),
-		relatedPath:   val.FieldByName("Related").String(),
-		noCopy:        noCopy,
-		structField:   structField,
-		fieldType:     fieldType,
-		defaultFunc:   val.FieldByName("Default").Interface().(func(Environment) interface{}),
-		onChange:      onchange,
-		constraint:    constraint,
-		contexts:      contexts,
+		model:           fc.model,
+		name:            name,
+		json:            json,
+		description:     str,
+		help:            val.FieldByName("Help").String(),
+		stored:          val.FieldByName("Stored").Bool(),
+		required:        val.FieldByName("Required").Bool(),
+		readOnly:        val.FieldByName("ReadOnly").Bool(),
+		readOnlyFunc:    val.FieldByName("ReadOnlyFunc").Interface().(func(Environment) (bool, Conditioner)),
+		requiredFunc:    val.FieldByName("RequiredFunc").Interface().(func(Environment) (bool, Conditioner)),
+		invisibleFunc:   val.FieldByName("InvisibleFunc").Interface().(func(Environment) (bool, Conditioner)),
+		unique:          unique,
+		index:           val.FieldByName("Index").Bool(),
+		compute:         compute,
+		inverse:         inverse,
+		depends:         val.FieldByName("Depends").Interface().([]string),
+		relatedPathStr:  val.FieldByName("Related").String(),
+		noCopy:          noCopy,
+		structField:     structField,
+		fieldType:       fieldType,
+		defaultFunc:     val.FieldByName("Default").Interface().(func(Environment) interface{}),
+		onChange:        onchange,
+		onChangeWarning: onchangeWarning,
+		onChangeFilters: onchangeFilters,
+		constraint:      constraint,
+		contexts:        contexts,
 	}
 	return fInfo
 }
@@ -743,7 +777,7 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 // empty strings, in which case the latters are returned.
 func getJSONAndString(name string, typ fieldtype.Type, json, str string) (string, string) {
 	if json == "" {
-		json = snakeCaseFieldName(name, typ)
+		json = SnakeCaseFieldName(name, typ)
 	}
 	if str == "" {
 		str = strutils.Title(name)
@@ -753,8 +787,8 @@ func getJSONAndString(name string, typ fieldtype.Type, json, str string) (string
 
 // getFuncNames returns the methods names of the given Methoder instances in the same order.
 // Returns "" if the Methoder is nil
-func getFuncNames(compute, inverse, onchange, constraint Methoder) (string, string, string, string) {
-	var com, inv, onc, con string
+func getFuncNames(compute, inverse, onchange, onchangeWarning, onchangeFilters, constraint Methoder) (string, string, string, string, string, string) {
+	var com, inv, onc, onw, onf, con string
 	if compute != nil {
 		com = compute.Underlying().name
 	}
@@ -764,10 +798,16 @@ func getFuncNames(compute, inverse, onchange, constraint Methoder) (string, stri
 	if onchange != nil {
 		onc = onchange.Underlying().name
 	}
+	if onchangeWarning != nil {
+		onw = onchangeWarning.Underlying().name
+	}
+	if onchangeFilters != nil {
+		onf = onchangeFilters.Underlying().name
+	}
 	if constraint != nil {
 		con = constraint.Underlying().name
 	}
-	return com, inv, onc, con
+	return com, inv, onc, onw, onf, con
 }
 
 // AddFields adds the given fields to the model.
@@ -828,8 +868,8 @@ func (f *Field) setProperty(property string, value interface{}) {
 		f.size = value.(int)
 	case "digits":
 		f.digits = value.(nbutils.Digits)
-	case "relatedPath":
-		f.relatedPath = value.(string)
+	case "relatedPathStr":
+		f.relatedPathStr = value.(string)
 	case "embed":
 		f.embed = value.(bool)
 	case "noCopy":
@@ -840,6 +880,10 @@ func (f *Field) setProperty(property string, value interface{}) {
 		f.onDelete = value.(OnDeleteAction)
 	case "onChange":
 		f.onChange = value.(string)
+	case "onChangeWarning":
+		f.onChangeWarning = value.(string)
+	case "onChangeFilters":
+		f.onChangeFilters = value.(string)
 	case "constraint":
 		f.constraint = value.(string)
 	case "inverse":
@@ -895,7 +939,7 @@ func (f *Field) SetGroupOperator(value string) *Field {
 
 // SetRelated overrides the value of the Related parameter of this Field
 func (f *Field) SetRelated(value string) *Field {
-	f.addUpdate("relatedPath", value)
+	f.addUpdate("relatedPathStr", value)
 	return f
 }
 
@@ -1037,6 +1081,26 @@ func (f *Field) SetOnchange(value Methoder) *Field {
 		methName = value.Underlying().name
 	}
 	f.addUpdate("onChange", methName)
+	return f
+}
+
+// SetOnchangeWarning overrides the value of the OnChangeWarning parameter of this Field
+func (f *Field) SetOnchangeWarning(value Methoder) *Field {
+	var methName string
+	if value != nil {
+		methName = value.Underlying().name
+	}
+	f.addUpdate("onChangeWarning", methName)
+	return f
+}
+
+// SetOnchangeFilters overrides the value of the OnChangeFilters parameter of this Field
+func (f *Field) SetOnchangeFilters(value Methoder) *Field {
+	var methName string
+	if value != nil {
+		methName = value.Underlying().name
+	}
+	f.addUpdate("onChangeFilters", methName)
 	return f
 }
 

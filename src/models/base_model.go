@@ -95,22 +95,22 @@ func declareBaseComputeMethods() {
 		`ComputeLastUpdate returns the last datetime at which the record has been updated.`,
 		func(rc *RecordCollection) *ModelData {
 			res := NewModelData(rc.model)
-			if !rc.Get("WriteDate").(dates.DateTime).IsZero() {
-				res.Set("LastUpdate", rc.Get("WriteDate").(dates.DateTime))
+			if !rc.Get(rc.model.FieldName("WriteDate")).(dates.DateTime).IsZero() {
+				res.Set(rc.model.FieldName("LastUpdate"), rc.Get(rc.model.FieldName("WriteDate")).(dates.DateTime))
 				return res
 			}
-			if !rc.Get("CreateDate").(dates.DateTime).IsZero() {
-				res.Set("LastUpdate", rc.Get("CreateDate").(dates.DateTime))
+			if !rc.Get(rc.model.FieldName("CreateDate")).(dates.DateTime).IsZero() {
+				res.Set(rc.model.FieldName("LastUpdate"), rc.Get(rc.model.FieldName("CreateDate")).(dates.DateTime))
 				return res
 			}
-			res.Set("LastUpdate", dates.Now())
+			res.Set(rc.model.FieldName("LastUpdate"), dates.Now())
 			return res
 		})
 
 	model.AddMethod("ComputeDisplayName",
 		`ComputeDisplayName updates the DisplayName field with the result of NameGet.`,
 		func(rc *RecordCollection) *ModelData {
-			res := NewModelData(rc.model).Set("DisplayName", rc.Call("NameGet"))
+			res := NewModelData(rc.model).Set(rc.model.FieldName("DisplayName"), rc.Call("NameGet"))
 			return res
 		})
 
@@ -136,7 +136,7 @@ func declareCRUDMethods() {
 
 	commonMixin.AddMethod("Read",
 		`Read reads the database and returns a slice of FieldMap of the given model`,
-		func(rc *RecordCollection, fields []string) []RecordData {
+		func(rc *RecordCollection, fields FieldNames) []RecordData {
 			var res []RecordData
 			// Check if we have id in fields, and add it otherwise
 			fields = addIDIfNotPresent(fields)
@@ -158,7 +158,7 @@ func declareCRUDMethods() {
 		i.e. "User.Profile.Age" or "user_id.profile_id.age".
 		If no fields are given, all DB columns of the RecordCollection's
 		model are retrieved.`,
-		func(rc *RecordCollection, fields ...string) *RecordCollection {
+		func(rc *RecordCollection, fields ...FieldName) *RecordCollection {
 			return rc.Load(fields...)
 		})
 
@@ -191,7 +191,8 @@ func declareCRUDMethods() {
 			// Create the RecordData
 			res := NewModelDataFromRS(rc)
 			for _, fi := range rc.model.fields.registryByName {
-				if overrides.Underlying().Has(fi.json) {
+				fName := rc.model.FieldName(fi.name)
+				if overrides.Underlying().Has(fName) {
 					// Overrides are applied below
 					continue
 				}
@@ -201,13 +202,13 @@ func declareCRUDMethods() {
 				switch fi.fieldType {
 				case fieldtype.One2One:
 					// One2one related records must be copied to avoid duplicate keys on FK
-					res = res.Create(fi.json, rc.Get(fi.json).(RecordSet).Collection().Call("CopyData", nil).(RecordData).Underlying())
+					res = res.Create(fName, rc.Get(fName).(RecordSet).Collection().Call("CopyData", nil).(RecordData).Underlying())
 				case fieldtype.One2Many, fieldtype.Rev2One:
-					for _, rec := range rc.Get(fi.json).(RecordSet).Collection().Records() {
-						res = res.Create(fi.json, rec.Call("CopyData", nil).(RecordData).Underlying().Unset(fi.reverseFK))
+					for _, rec := range rc.Get(fName).(RecordSet).Collection().Records() {
+						res = res.Create(fName, rec.Call("CopyData", nil).(RecordData).Underlying().Unset(fi.relatedModel.FieldName(fi.reverseFK)))
 					}
 				default:
-					res.Set(fi.json, rc.Get(fi.json))
+					res.Set(fName, rc.Get(fName))
 				}
 			}
 			// Apply overrides
@@ -236,7 +237,7 @@ func declareRecordSetMethods() {
 		`NameGet retrieves the human readable name of this record.`,
 		func(rc *RecordCollection) string {
 			if _, nameExists := rc.model.fields.Get("Name"); nameExists {
-				switch name := rc.Get("Name").(type) {
+				switch name := rc.Get(rc.model.FieldName("Name")).(type) {
 				case string:
 					return name
 				case fmt.Stringer:
@@ -260,7 +261,7 @@ func declareRecordSetMethods() {
 			if op == "" {
 				op = operator.IContains
 			}
-			cond := rc.Model().Field("Name").AddOperator(op, name)
+			cond := rc.Model().Field(rc.model.FieldName("Name")).AddOperator(op, name)
 			if !additionalCond.Underlying().IsEmpty() {
 				cond = cond.AndCond(additionalCond.Underlying())
 			}
@@ -274,16 +275,15 @@ func declareRecordSetMethods() {
 
 		The result map is indexed by the fields JSON names.`,
 		func(rc *RecordCollection, args FieldsGetArgs) map[string]*FieldInfo {
-			fields := convertToFieldNamerSlice(args.Fields)
 			// Get the field informations
-			res := rc.model.FieldsGet(fields...)
+			res := rc.model.FieldsGet(args.Fields...)
 
 			// Translate attributes when required
 			lang := rc.Env().Context().GetString("lang")
-			for fieldName, fInfo := range res {
-				res[fieldName].Help = i18n.Registry.TranslateFieldHelp(lang, rc.model.name, fieldName, fInfo.Help)
-				res[fieldName].String = i18n.Registry.TranslateFieldDescription(lang, rc.model.name, fieldName, fInfo.String)
-				res[fieldName].Selection = i18n.Registry.TranslateFieldSelection(lang, rc.model.name, fieldName, fInfo.Selection)
+			for fName, fInfo := range res {
+				res[fName].Help = i18n.Registry.TranslateFieldHelp(lang, rc.model.name, fName, fInfo.Help)
+				res[fName].String = i18n.Registry.TranslateFieldDescription(lang, rc.model.name, fName, fInfo.String)
+				res[fName].Selection = i18n.Registry.TranslateFieldSelection(lang, rc.model.name, fName, fInfo.Selection)
 			}
 			return res
 		})
@@ -291,12 +291,11 @@ func declareRecordSetMethods() {
 	commonMixin.AddMethod("FieldGet",
 		`FieldGet returns the definition of the given field.
 		The string, help, and selection (if present) attributes are translated.`,
-		func(rc *RecordCollection, field FieldNamer) *FieldInfo {
+		func(rc *RecordCollection, field FieldName) *FieldInfo {
 			args := FieldsGetArgs{
-				Fields: []FieldName{field.FieldName()},
+				Fields: []FieldName{field},
 			}
-			fJSON := rc.model.JSONizeFieldName(field.String())
-			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[fJSON]
+			return rc.Call("FieldsGet", args).(map[string]*FieldInfo)[field.JSON()]
 		})
 
 	commonMixin.AddMethod("DefaultGet",
@@ -327,7 +326,7 @@ func declareRecordSetSpecificMethods() {
 			}
 			// We use direct SQL query to bypass access control
 			query := fmt.Sprintf(`SELECT parent_id FROM %s WHERE id = ?`, adapters[db.DriverName()].quoteTableName(rc.model.tableName))
-			rc.Load("Parent")
+			rc.Load(rc.model.FieldName("Parent"))
 			for _, record := range rc.Records() {
 				currentID := record.ids[0]
 				for {
@@ -352,23 +351,27 @@ func declareRecordSetSpecificMethods() {
 			values := params.Values.Underlying().FieldMap
 			data := NewModelDataFromRS(rc, values)
 			if rc.IsNotEmpty() {
-				data.Set("ID", rc.ids[0])
+				data.Set(ID, rc.ids[0])
 			}
 			retValues := NewModelDataFromRS(rc)
+			var warnings []string
+			filters := make(map[FieldName]Conditioner)
 
 			err := SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
 				var rs *RecordCollection
-				if id, _ := nbutils.CastToInteger(data.Get("ID")); id != 0 {
+				if id, _ := nbutils.CastToInteger(data.Get(ID)); id != 0 {
 					rs = rc.WithEnv(env).withIds([]int64{id})
+					rs = rs.WithContext("hexya_onchange_origin", rs.First().Wrap())
 					rs.WithContext("hexya_force_compute_write", true).update(data)
 				} else {
 					rs = rc.WithEnv(env).new(data)
 				}
 				// Set inverse fields
 				for field := range values {
-					fi := rs.Collection().Model().getRelatedFieldInfo(field)
+					fName := rs.model.FieldName(field)
+					fi := rs.model.getRelatedFieldInfo(fName)
 					if fi.inverse != "" {
-						fVal := data.Get(field)
+						fVal := data.Get(fName)
 						rs.Call(fi.inverse, fVal)
 					}
 				}
@@ -378,48 +381,63 @@ func declareRecordSetSpecificMethods() {
 				for len(todo) > 0 {
 					field := todo[0]
 					todo = todo[1:]
-					if done[field] {
+					if done[field.JSON()] {
 						continue
 					}
-					done[field] = true
-					if params.Onchange[field] == "" {
+					done[field.JSON()] = true
+					if params.Onchange[field.Name()] == "" && params.Onchange[field.JSON()] == "" {
 						continue
 					}
-					fi := rs.Collection().Model().getRelatedFieldInfo(field)
+					fi := rs.model.getRelatedFieldInfo(field)
 					fnct := fi.onChange
 					if fnct == "" {
 						fnct = fi.compute
 					}
-					if fnct == "" {
-						continue
-					}
 					rrs := rs
-					toks := strings.Split(field, ExprSep)
+					toks := splitFieldNames(field, ExprSep)
 					if len(toks) > 1 {
-						rrs = rs.Get(strings.Join(toks[:len(toks)-1], ExprSep)).(RecordSet).Collection()
+						rrs = rs.Get(joinFieldNames(toks[:len(toks)-1], ExprSep)).(RecordSet).Collection()
 					}
-					vals := rrs.Call(fnct).(RecordData)
-					for f := range vals.Underlying().FieldMap {
-						if !done[f] {
-							todo = append(todo, f)
+					// Values
+					if fnct != "" {
+						vals := rrs.Call(fnct).(RecordData)
+						for _, f := range vals.Underlying().FieldNames() {
+							if !done[f.JSON()] {
+								todo = append(todo, f)
+							}
+						}
+						rrs.WithContext("hexya_force_compute_write", true).Call("Write", vals)
+					}
+					// Warning
+					if fi.onChangeWarning != "" {
+						w := rrs.Call(fi.onChangeWarning).(string)
+						if w != "" {
+							warnings = append(warnings, w)
 						}
 					}
-					rrs.WithContext("hexya_force_compute_write", true).Call("Write", vals)
+					// Filters
+					if fi.onChangeFilters != "" {
+						ff := rrs.Call(fi.onChangeFilters).(map[FieldName]Conditioner)
+						for k, v := range ff {
+							filters[k] = v
+						}
+					}
 				}
 				// Collect modified values
 				for field, val := range values {
-					fi := rs.Collection().Model().getRelatedFieldInfo(field)
-					newVal := rs.Get(field)
+					fName := rs.model.FieldName(field)
+					fi := rs.Collection().Model().getRelatedFieldInfo(fName)
+					newVal := rs.Get(fName)
 					switch {
 					case fi.fieldType.IsRelationType():
 						v := rs.convertToRecordSet(val, fi.relatedModelName)
 						nv := rs.convertToRecordSet(newVal, fi.relatedModelName)
 						if !v.Equals(nv) {
-							retValues.Set(field, newVal)
+							retValues.Set(fName, newVal)
 						}
 					default:
 						if val != newVal {
-							retValues.Set(field, newVal)
+							retValues.Set(fName, newVal)
 						}
 					}
 				}
@@ -427,9 +445,11 @@ func declareRecordSetSpecificMethods() {
 			if err != nil {
 				panic(err)
 			}
-			retValues.Unset("ID")
+			retValues.Unset(ID)
 			return OnchangeResult{
-				Value: retValues,
+				Value:   retValues,
+				Warning: strings.Join(warnings, "\n\n"),
+				Filters: filters,
 			}
 		})
 }
@@ -448,14 +468,14 @@ func declareSearchMethods() {
 		`Browse returns a new RecordSet with only the records with the given ids.
 		Note that this function is just a shorcut for Search on a list of ids.`,
 		func(rc *RecordCollection, ids []int64) *RecordCollection {
-			return rc.Call("Search", rc.Model().Field("ID").In(ids)).(RecordSet).Collection()
+			return rc.Call("Search", rc.Model().Field(ID).In(ids)).(RecordSet).Collection()
 		})
 
 	commonMixin.AddMethod("BrowseOne",
 		`BrowseOne returns a new RecordSet with only the record with the given id.
 		Note that this function is just a shorcut for Search on a given id.`,
 		func(rc *RecordCollection, id int64) *RecordCollection {
-			return rc.Call("Search", rc.Model().Field("ID").Equals(id)).(RecordSet).Collection()
+			return rc.Call("Search", rc.Model().Field(ID).Equals(id)).(RecordSet).Collection()
 		})
 
 	commonMixin.AddMethod("SearchCount",
@@ -482,13 +502,13 @@ func declareSearchMethods() {
 
 	commonMixin.AddMethod("GroupBy",
 		`GroupBy returns a new RecordSet grouped with the given GROUP BY expressions`,
-		func(rc *RecordCollection, exprs ...FieldNamer) *RecordCollection {
+		func(rc *RecordCollection, exprs ...FieldName) *RecordCollection {
 			return rc.GroupBy(exprs...)
 		})
 
 	commonMixin.AddMethod("Aggregates",
 		`Aggregates returns the result of this RecordSet query, which must by a grouped query.`,
-		func(rc *RecordCollection, exprs ...FieldNamer) []GroupAggregateRow {
+		func(rc *RecordCollection, exprs ...FieldName) []GroupAggregateRow {
 			return rc.Aggregates(exprs...)
 		})
 
@@ -566,7 +586,7 @@ func declareSearchMethods() {
 	commonMixin.AddMethod("SortedByField",
 		`SortedByField returns a new record set with the same records as rc but sorted by the given field.
 		If reverse is true, the sort is done in reversed order`,
-		func(rc *RecordCollection, namer FieldNamer, reverse bool) *RecordCollection {
+		func(rc *RecordCollection, namer FieldName, reverse bool) *RecordCollection {
 			return rc.SortedByField(namer, reverse)
 		})
 
@@ -684,17 +704,19 @@ type FieldInfo struct {
 // FieldsGetArgs is the args struct for the FieldsGet method
 type FieldsGetArgs struct {
 	// Fields is a list of fields to document, all if empty or not provided
-	Fields []FieldName `json:"allfields"`
+	Fields FieldNames `json:"allfields"`
 }
 
 // OnchangeParams is the args struct of the Onchange function
 type OnchangeParams struct {
 	Values   RecordData        `json:"values"`
-	Fields   []string          `json:"field_name"`
+	Fields   FieldNames        `json:"field_name"`
 	Onchange map[string]string `json:"field_onchange"`
 }
 
 // OnchangeResult is the result struct type of the Onchange function
 type OnchangeResult struct {
-	Value RecordData `json:"value"`
+	Value   RecordData                `json:"value"`
+	Warning string                    `json:"warning"`
+	Filters map[FieldName]Conditioner `json:"domain"`
 }

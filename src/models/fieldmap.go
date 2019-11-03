@@ -29,14 +29,15 @@ func (fm FieldMap) OrderedKeys() []string {
 	return keys
 }
 
-// FieldNames returns the FieldMap keys as a slice of FieldNamer.
-// As within a FieldMap, the result can be field names or JSON names
-// or a mix of both.
-func (fm FieldMap) FieldNames() (res []FieldNamer) {
+// FieldNames returns the keys of this FieldMap as FieldNames of the given model
+func (fm FieldMap) FieldNames(model *Model) FieldNames {
+	res := make(FieldNames, len(fm))
+	var i int
 	for k := range fm {
-		res = append(res, FieldName(k))
+		res[i] = model.FieldName(k)
+		i++
 	}
-	return
+	return res
 }
 
 // Values returns the FieldMap values as a slice of interface{}
@@ -68,11 +69,10 @@ func (fm *FieldMap) RemovePKIfZero() {
 // Get returns the value of the given field referring to the given model.
 // field can be either a field name (or path) or a field JSON name (or path).
 // The second returned value is true if the field has been found in the FieldMap
-func (fm FieldMap) Get(field string, model *Model) (interface{}, bool) {
-	fi := model.getRelatedFieldInfo(field)
-	val, ok := fm[fi.name]
+func (fm FieldMap) Get(field FieldName) (interface{}, bool) {
+	val, ok := fm[field.Name()]
 	if !ok {
-		val, ok = fm[fi.json]
+		val, ok = fm[field.JSON()]
 		if !ok {
 			return nil, false
 		}
@@ -83,10 +83,10 @@ func (fm FieldMap) Get(field string, model *Model) (interface{}, bool) {
 // MustGet returns the value of the given field referring to the given model.
 // field can be either a field name (or path) or a field JSON name (or path).
 // It panics if the field is not found.
-func (fm FieldMap) MustGet(field string, model *Model) interface{} {
-	val, ok := fm.Get(field, model)
+func (fm FieldMap) MustGet(field FieldName) interface{} {
+	val, ok := fm.Get(field)
 	if !ok {
-		log.Panic("Field not found in FieldMap", "field", field, "fMap", fm, "model", model)
+		log.Panic("Field not found in FieldMap", "field", field.Name(), "fMap", fm)
 	}
 	return val
 }
@@ -95,24 +95,22 @@ func (fm FieldMap) MustGet(field string, model *Model) interface{} {
 // If the field already exists, then it is updated with value.
 // Otherwise, a new entry is inserted in the FieldMap with the
 // JSON name of the field.
-func (fm *FieldMap) Set(field string, value interface{}, model *Model) {
-	fi := model.getRelatedFieldInfo(field)
-	key := fi.name
+func (fm *FieldMap) Set(field FieldName, value interface{}) {
+	key := field.Name()
 	_, ok := (*fm)[key]
 	if !ok {
-		key = fi.json
+		key = field.JSON()
 	}
 	(*fm)[key] = value
 }
 
 // Delete removes the given field from this FieldMap.
 // Calling Del on a non existent field is a no op.
-func (fm *FieldMap) Delete(field string, model *Model) {
-	fi := model.getRelatedFieldInfo(field)
-	key := fi.name
+func (fm *FieldMap) Delete(field FieldName) {
+	key := field.Name()
 	_, ok := (*fm)[key]
 	if !ok {
-		key = fi.json
+		key = field.JSON()
 	}
 	delete(*fm, key)
 }
@@ -122,7 +120,7 @@ func (fm *FieldMap) Delete(field string, model *Model) {
 // otherwise, the key is inserted with its json name.
 func (fm *FieldMap) MergeWith(other FieldMap, model *Model) {
 	for field, value := range other {
-		fm.Set(field, value, model)
+		fm.Set(model.FieldName(field), value)
 	}
 }
 

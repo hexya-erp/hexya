@@ -21,11 +21,11 @@ import "fmt"
 type tableJoin struct {
 	tableName  string
 	joined     bool
-	field      string
+	field      FieldName
 	otherTable *tableJoin
-	otherField string
+	otherField FieldName
 	alias      string
-	expr       string
+	expr       FieldName
 }
 
 // sqlString returns the sql string for the tableJoin Clause
@@ -34,5 +34,5 @@ func (t tableJoin) sqlString() string {
 		return fmt.Sprintf("%s %s ", t.tableName, t.alias)
 	}
 	return fmt.Sprintf("LEFT JOIN %s %s ON %s.%s=%s.%s ", t.tableName, t.alias, t.otherTable.alias,
-		t.otherField, t.alias, t.field)
+		t.otherField.JSON(), t.alias, t.field.JSON())
 }

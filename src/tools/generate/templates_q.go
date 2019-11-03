@@ -109,7 +109,7 @@ func (cs ConditionStart) NewCondition() Condition {
 // {{ .Name }} adds the "{{ .Name }}" field to the Condition
 func (cs ConditionStart) {{ .Name }}() p{{ .SanType }}ConditionField {
 	return p{{ .SanType }}ConditionField{
-		ConditionField: cs.Field("{{ .Name }}"),
+		ConditionField: cs.Field(models.NewFieldName("{{ .Name }}", "{{ .JSON }}")),
 	}
 }
 
@@ -118,7 +118,7 @@ func (cs ConditionStart) {{ .Name }}() p{{ .SanType }}ConditionField {
 // filters the result with the given condition
 func (cs ConditionStart) {{ .Name }}FilteredOn(cond {{ .RelModel }}Condition) Condition {
 	return Condition{
-		Condition: cs.FilteredOn("{{ .Name }}", cond.Underlying()),
+		Condition: cs.FilteredOn(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"), cond.Underlying()),
 	}
 }
 {{ end }}

@@ -98,33 +98,33 @@ func (fc *FieldsCollection) MustGet(name string) *Field {
 
 // storedFieldNames returns a slice with the names of all the stored fields
 // If fields are given, return only names in the list
-func (fc *FieldsCollection) storedFieldNames(fieldNames ...string) []string {
-	var res []string
+func (fc *FieldsCollection) storedFieldNames(fieldNames ...FieldName) []FieldName {
+	var res []FieldName
 	for fName, fi := range fc.registryByName {
 		var keepField bool
 		if len(fieldNames) == 0 {
 			keepField = true
 		} else {
 			for _, f := range fieldNames {
-				if fName == f {
+				if fName == f.Name() {
 					keepField = true
 					break
 				}
 			}
 		}
 		if (fi.isStored() || fi.isRelatedField()) && keepField {
-			res = append(res, fName)
+			res = append(res, fc.model.FieldName(fName))
 		}
 	}
 	return res
 }
 
-// allJSONNames returns a slice with the name of all field's JSON names of this collection
-func (fc *FieldsCollection) allJSONNames() []string {
-	res := make([]string, len(fc.registryByJSON))
+// allFieldNames returns a slice with the name of all field's JSON names of this collection
+func (fc *FieldsCollection) allFieldNames() []FieldName {
+	res := make([]FieldName, len(fc.registryByJSON))
 	var i int
-	for f := range fc.registryByJSON {
-		res[i] = f
+	for f := range fc.registryByName {
+		res[i] = fc.model.FieldName(f)
 		i++
 	}
 	return res
@@ -220,13 +220,16 @@ type Field struct {
 	size             int
 	digits           nbutils.Digits
 	structField      reflect.StructField
-	relatedPath      string
+	relatedPathStr   string
+	relatedPath      FieldName
 	dependencies     []computeData
 	embed            bool
 	noCopy           bool
 	defaultFunc      func(Environment) interface{}
 	onDelete         OnDeleteAction
 	onChange         string
+	onChangeWarning  string
+	onChangeFilters  string
 	constraint       string
 	inverse          string
 	filter           *Condition
@@ -242,7 +245,7 @@ func (f *Field) isComputedField() bool {
 
 // isComputedField returns true if this field is related
 func (f *Field) isRelatedField() bool {
-	return f.relatedPath != ""
+	return f.relatedPath != nil
 }
 
 // isRelationField returns true if this field points to another model
@@ -297,17 +300,17 @@ func (f *Field) isContextedField() bool {
 	return false
 }
 
-// FieldName returns this field name as FieldName type
-func (f *Field) FieldName() FieldName {
-	return FieldName(f.name)
+// JSON returns this field name as FieldName type
+func (f *Field) JSON() string {
+	return f.json
 }
 
 // String method for the Field type. Returns the field's name.
-func (f *Field) String() string {
+func (f *Field) Name() string {
 	return f.name
 }
 
-var _ FieldNamer = new(Field)
+var _ FieldName = new(Field)
 
 // checkFieldInfo makes sanity checks on the given Field.
 // It panics in case of severe error and logs recoverable errors.
@@ -335,9 +338,9 @@ func checkFieldInfo(fi *Field) {
 	}
 }
 
-// jsonizeFieldName returns a snake cased field name, adding '_id' on x2one
+// SnakeCaseFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
-func snakeCaseFieldName(fName string, typ fieldtype.Type) string {
+func SnakeCaseFieldName(fName string, typ fieldtype.Type) string {
 	res := strutils.SnakeCase(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"
@@ -367,13 +370,13 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	}
 
 	newMI := &Model{
-		name:         relModelName,
-		tableName:    strutils.SnakeCase(relModelName),
-		fields:       newFieldsCollection(),
-		methods:      newMethodsCollection(),
-		options:      Many2ManyLinkModel | SystemModel,
-		sqlErrors:    make(map[string]string),
-		defaultOrder: []string{"id"},
+		name:            relModelName,
+		tableName:       strutils.SnakeCase(relModelName),
+		fields:          newFieldsCollection(),
+		methods:         newMethodsCollection(),
+		options:         Many2ManyLinkModel | SystemModel,
+		sqlErrors:       make(map[string]string),
+		defaultOrderStr: []string{"ID"},
 	}
 	if mixin {
 		newMI.options |= MixinModel
@@ -422,14 +425,14 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 	}
 	name := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
 	newModel := Model{
-		name:          name,
-		rulesRegistry: newRecordRuleRegistry(),
-		tableName:     strutils.SnakeCase(name),
-		fields:        newFieldsCollection(),
-		methods:       newMethodsCollection(),
-		options:       ContextsModel | SystemModel,
-		sqlErrors:     make(map[string]string),
-		defaultOrder:  []string{"id"},
+		name:            name,
+		rulesRegistry:   newRecordRuleRegistry(),
+		tableName:       strutils.SnakeCase(name),
+		fields:          newFieldsCollection(),
+		methods:         newMethodsCollection(),
+		options:         ContextsModel | SystemModel,
+		sqlErrors:       make(map[string]string),
+		defaultOrderStr: []string{"ID"},
 	}
 	pkField := &Field{
 		name:      "ID",
@@ -518,7 +521,7 @@ func processDepends() {
 					compute:   fInfo.compute,
 					path:      path,
 				}
-				refModelInfo := mi.getRelatedModelInfo(path)
+				refModelInfo := mi.getRelatedModelInfo(mi.FieldName(path))
 				refField := refModelInfo.fields.MustGet(refName)
 				refField.dependencies = append(refField.dependencies, targetComputeData)
 			}
@@ -553,6 +556,24 @@ func checkComputeMethodsSignature() {
 			}
 		}
 		for _, fi := range model.fields.registryByName {
+			if fi.onChangeWarning == "" {
+				continue
+			}
+			method := fi.model.methods.MustGet(fi.onChangeWarning)
+			if err := checkOnChangeWarningType(method); err != nil {
+				log.Panic(err.Error(), "model", method.model.name, "method", method.name, "field", fi.name)
+			}
+		}
+		for _, fi := range model.fields.registryByName {
+			if fi.onChangeFilters == "" {
+				continue
+			}
+			method := fi.model.methods.MustGet(fi.onChangeFilters)
+			if err := checkOnChangeFiltersType(method); err != nil {
+				log.Panic(err.Error(), "model", method.model.name, "method", method.name, "field", fi.name)
+			}
+		}
+		for _, fi := range model.fields.registryByName {
 			if fi.inverse == "" {
 				continue
 			}
@@ -578,10 +599,52 @@ func checkMethType(method *Method, label string) error {
 		msg = fmt.Sprintf("%s should have no arguments", label)
 	case methType.NumOut() == 0:
 		msg = fmt.Sprintf("%s should return a value", label)
-	case !methType.Out(0).Implements(reflect.TypeOf((*RecordData)(nil)).Elem()):
-		msg = fmt.Sprintf("%s returned value must implement models.RecordData", label)
 	case methType.NumOut() > 1:
 		msg = fmt.Sprintf("Too many return values for %s", label)
+	case !methType.Out(0).Implements(reflect.TypeOf((*RecordData)(nil)).Elem()):
+		msg = fmt.Sprintf("%s returned value must implement models.RecordData", label)
+	}
+	if msg != "" {
+		return errors.New(msg)
+	}
+	return nil
+}
+
+// checkOnChangeWarningType panics if the given method does not have
+// the correct number and type of arguments and returns for a onChangeWarning method
+func checkOnChangeWarningType(method *Method) error {
+	methType := method.methodType
+	var msg string
+	switch {
+	case methType.NumIn() != 1:
+		msg = "OnChangeWarning methods should have no arguments"
+	case methType.NumOut() == 0:
+		msg = "OnChangeWarning methods should return a value"
+	case methType.NumOut() > 1:
+		msg = "Too many return values for OnChangeWarning method"
+	case methType.Out(0) != reflect.TypeOf("string"):
+		msg = "OnChangeWarning methods returned value must be of type string"
+	}
+	if msg != "" {
+		return errors.New(msg)
+	}
+	return nil
+}
+
+// checkOnChangeFiltersType panics if the given method does not have
+// the correct number and type of arguments and returns for a onChangeFilters method
+func checkOnChangeFiltersType(method *Method) error {
+	methType := method.methodType
+	var msg string
+	switch {
+	case methType.NumIn() != 1:
+		msg = "OnChangeFilters methods should have no arguments"
+	case methType.NumOut() == 0:
+		msg = "OnChangeFilters methods should return a value"
+	case methType.NumOut() > 1:
+		msg = "Too many return values for OnChangeFilters method"
+	case methType.Out(0) != reflect.TypeOf(map[FieldName]Conditioner{}):
+		msg = "OnChangeFilters methods returned value must be of type map[models.FieldName]models.Conditioner"
 	}
 	if msg != "" {
 		return errors.New(msg)

@@ -72,14 +72,14 @@ func LoadCSVDataFile(fileName string) {
 			values["hexya_version"] = version
 			// We deliberately call Search directly without Call so as not to be polluted by Search overrides
 			// such as "Active test".
-			rec := rc.Search(rc.Model().Field("HexyaExternalID").Equals(externalID)).Limit(1)
+			rec := rc.Search(rc.Model().Field(rc.model.FieldName("HexyaExternalID")).Equals(externalID)).Limit(1)
 			switch {
 			case rec.Len() == 0:
 				vals := NewModelData(rc.model, values)
 				rc.applyDefaults(vals, true)
 				rc.Call("Create", vals)
 			case rec.Len() == 1:
-				if version > rec.Get("HexyaVersion").(int) || update {
+				if version > rec.Get(rec.model.FieldName("HexyaVersion")).(int) || update {
 					rec.Call("Write", NewModelData(rc.model, values))
 				}
 			}
@@ -94,8 +94,9 @@ func LoadCSVDataFile(fileName string) {
 
 func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int, fileName string) FieldMap {
 	values := make(map[string]interface{})
+	model := Registry.MustGet(modelName)
 	for i := 0; i < len(headers); i++ {
-		fi := Registry.MustGet(modelName).getRelatedFieldInfo(headers[i])
+		fi := model.getRelatedFieldInfo(model.FieldName(headers[i]))
 		var (
 			val interface{}
 			err error
@@ -116,7 +117,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 		case fi.fieldType.IsFKRelationType():
 			val = env.Pool(fi.relatedModelName)
 			if record[i] != "" {
-				relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").Equals(record[i]))
+				relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field(fi.relatedModel.FieldName("HexyaExternalID")).Equals(record[i]))
 				if relRC.Len() != 1 {
 					log.Panic("Unable to find related record from external ID", "fileName", fileName, "line", line, "field", headers[i], "value", record[i])
 				}
@@ -124,7 +125,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 			}
 		case fi.fieldType == fieldtype.Many2Many:
 			ids := strings.Split(record[i], "|")
-			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field("HexyaExternalID").In(ids))
+			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field(fi.relatedModel.FieldName("HexyaExternalID")).In(ids))
 			val = relRC
 		case fi.fieldType == fieldtype.Binary:
 			if record[i] == "" {

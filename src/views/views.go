@@ -89,7 +89,7 @@ func (vr *ViewRef) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &dstArray); err != nil {
 		return err
 	}
-	*vr = ViewRef(dstArray)
+	*vr = dstArray
 	return nil
 }
 
@@ -253,7 +253,7 @@ func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View
 	view := View{
 		Model:  model,
 		Type:   viewType,
-		Fields: []models.FieldNamer{},
+		Fields: []string{},
 		arch:   arch,
 		arches: make(map[string]*etree.Element),
 	}
@@ -263,7 +263,7 @@ func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View
 		if err != nil {
 			log.Panic("unable to create default view", "error", err, "view", xmlStr)
 		}
-		view.Fields = []models.FieldNamer{models.FieldName("name")}
+		view.Fields = []string{"name"}
 		view.arch = arch
 	}
 	view.translateArch()
@@ -339,7 +339,7 @@ type View struct {
 	Priority    uint8
 	arch        *etree.Element
 	FieldParent string
-	Fields      []models.FieldNamer
+	Fields      []string
 	SubViews    map[string]SubViews
 	arches      map[string]*etree.Element
 }
@@ -351,7 +351,7 @@ type SubViews map[ViewType]*View
 func (v *View) populateFieldNames() {
 	fieldElems := v.arch.FindElements("//field")
 	for _, f := range fieldElems {
-		v.Fields = append(v.Fields, models.FieldName(f.SelectAttr("name").Value))
+		v.Fields = append(v.Fields, f.SelectAttr("name").Value)
 	}
 }
 

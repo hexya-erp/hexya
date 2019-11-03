@@ -17,7 +17,6 @@ package models
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/hexya-erp/hexya/src/models/operator"
 )
@@ -31,7 +30,7 @@ const (
 
 // A predicate of a condition in the form 'Field = arg'
 type predicate struct {
-	exprs    []string
+	exprs    []FieldName
 	operator operator.Operator
 	arg      interface{}
 	cond     *Condition
@@ -41,8 +40,8 @@ type predicate struct {
 }
 
 // Field returns the field name of this predicate
-func (p predicate) Field() FieldNamer {
-	return FieldName(strings.Join(p.exprs, ExprSep))
+func (p predicate) Field() FieldName {
+	return joinFieldNames(p.exprs, ExprSep)
 }
 
 // Operator returns the operator of this predicate
@@ -56,11 +55,11 @@ func (p predicate) Argument() interface{} {
 }
 
 // AlterField changes the field of this predicate
-func (p *predicate) AlterField(f FieldNamer) *predicate {
-	if f == nil || f.String() == "" {
+func (p *predicate) AlterField(f FieldName) *predicate {
+	if f == nil || f.Name() == "" {
 		log.Panic("AlterField must be called with a field name", "field", f)
 	}
-	p.exprs = strings.Split(f.String(), ExprSep)
+	p.exprs = splitFieldNames(f, ExprSep)
 	return p
 }
 
@@ -178,7 +177,7 @@ func (c Condition) PredicatesWithField(f *Field) []*predicate {
 	var res []*predicate
 	for i, pred := range c.predicates {
 		if len(pred.exprs) > 0 {
-			if strings.Join(jsonizeExpr(f.model, pred.exprs), ExprSep) == f.json {
+			if joinFieldNames(pred.exprs, ExprSep).JSON() == f.json {
 				res = append(res, &c.predicates[i])
 			}
 		}
@@ -205,7 +204,7 @@ func (c Condition) String() string {
 			res += fmt.Sprintf("(\n%s\n)\n", p.cond.String())
 			continue
 		}
-		res += fmt.Sprintf("%s %s %v\n", strings.Join(p.exprs, ExprSep), p.operator, p.arg)
+		res += fmt.Sprintf("%s %s %v\n", joinFieldNames(p.exprs, ExprSep).Name(), p.operator, p.arg)
 	}
 	return res
 }
@@ -227,8 +226,8 @@ type ConditionStart struct {
 }
 
 // Field adds a field path (dot separated) to this condition
-func (cs ConditionStart) Field(name string) *ConditionField {
-	newExprs := strings.Split(name, ExprSep)
+func (cs ConditionStart) Field(name FieldName) *ConditionField {
+	newExprs := splitFieldNames(name, ExprSep)
 	cp := ConditionField{cs: cs}
 	cp.exprs = append(cp.exprs, newExprs...)
 	return &cp
@@ -236,10 +235,10 @@ func (cs ConditionStart) Field(name string) *ConditionField {
 
 // FilteredOn adds a condition with a table join on the given field and
 // filters the result with the given condition
-func (cs ConditionStart) FilteredOn(field string, condition *Condition) *Condition {
+func (cs ConditionStart) FilteredOn(field FieldName, condition *Condition) *Condition {
 	res := cs.cond
 	for i, p := range condition.predicates {
-		condition.predicates[i].exprs = append([]string{field}, p.exprs...)
+		condition.predicates[i].exprs = append([]FieldName{field}, p.exprs...)
 	}
 	condition.predicates[0].isOr = cs.nextIsOr
 	condition.predicates[0].isNot = cs.nextIsNot
@@ -251,20 +250,20 @@ func (cs ConditionStart) FilteredOn(field string, condition *Condition) *Conditi
 // a field name in a predicate and are about to add an operator.
 type ConditionField struct {
 	cs    ConditionStart
-	exprs []string
+	exprs []FieldName
 }
 
-// FieldName returns the field name of this ConditionField
-func (c ConditionField) FieldName() FieldName {
-	return FieldName(strings.Join(c.exprs, ExprSep))
+// JSON returns the json field name of this ConditionField
+func (c ConditionField) JSON() string {
+	return joinFieldNames(c.exprs, ExprSep).JSON()
 }
 
 // String method for ConditionField
-func (c ConditionField) String() string {
-	return FieldName(strings.Join(c.exprs, ExprSep)).String()
+func (c ConditionField) Name() string {
+	return joinFieldNames(c.exprs, ExprSep).Name()
 }
 
-var _ FieldNamer = ConditionField{}
+var _ FieldName = ConditionField{}
 
 // AddOperator adds a condition value to the condition with the given operator and data
 // If multi is true, a recordset will be converted into a slice of int64
@@ -279,7 +278,7 @@ func (c ConditionField) AddOperator(op operator.Operator, data interface{}) *Con
 	if data != nil && op.IsMulti() && reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0 {
 		// field in [] => ID = -1
 		cond.predicates = []predicate{{
-			exprs:    []string{"id"},
+			exprs:    []FieldName{ID},
 			operator: operator.Equals,
 			arg:      -1,
 		}}
@@ -417,10 +416,10 @@ func (c *Condition) IsEmpty() bool {
 // getAllExpressions returns a list of all exprs used in this condition,
 // and recursively in all subconditions.
 // Expressions are given in field json format
-func (c Condition) getAllExpressions(mi *Model) [][]string {
-	var res [][]string
+func (c Condition) getAllExpressions(mi *Model) [][]FieldName {
+	var res [][]FieldName
 	for _, p := range c.predicates {
-		res = append(res, jsonizeExpr(mi, p.exprs))
+		res = append(res, p.exprs)
 		if p.cond != nil {
 			res = append(res, p.cond.getAllExpressions(mi)...)
 		}
@@ -430,10 +429,10 @@ func (c Condition) getAllExpressions(mi *Model) [][]string {
 
 // substituteExprs recursively replaces condition exprs that match substs keys
 // with the corresponding substs values.
-func (c *Condition) substituteExprs(mi *Model, substs map[string][]string) {
+func (c *Condition) substituteExprs(mi *Model, substs map[FieldName][]FieldName) {
 	for i, p := range c.predicates {
 		for k, v := range substs {
-			if len(p.exprs) > 0 && strings.Join(jsonizeExpr(mi, p.exprs), ExprSep) == k {
+			if len(p.exprs) > 0 && joinFieldNames(p.exprs, ExprSep) == k {
 				c.predicates[i].exprs = v
 			}
 		}
@@ -453,7 +452,7 @@ func (c *Condition) substituteChildOfOperator(rc *RecordCollection) {
 		if p.operator != operator.ChildOf {
 			continue
 		}
-		recModel := rc.model.getRelatedModelInfo(strings.Join(p.exprs, ExprSep))
+		recModel := rc.model.getRelatedModelInfo(joinFieldNames(p.exprs, ExprSep))
 		if !recModel.hasParentField() {
 			// If we have no parent field, then we fetch only the "parent" record
 			c.predicates[i].operator = operator.Equals

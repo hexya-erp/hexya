@@ -169,6 +169,12 @@ func TestSearchRecordSet(t *testing.T) {
 					So(recs[0].Title(), ShouldEqual, "1st Post")
 					So(recs[1].Title(), ShouldEqual, "2nd Post")
 				})
+				Convey("Reading Jane with low level getters", func() {
+					So(userJane.Get(h.User().Fields().Name()), ShouldEqual, "Jane Smith")
+					So(userJane.Get(q.User().Name()), ShouldEqual, "Jane Smith")
+					So(userJane.Get(h.User().Fields().Profile()).(models.RecordSet).Get(h.Profile().Fields().Age()), ShouldEqual, 23)
+					So(userJane.Get(q.User().Profile()).(models.RecordSet).Get(q.Profile().Age()), ShouldEqual, 23)
+				})
 				Convey("Reading Jane with First", func() {
 					ujData := userJane.First()
 					So(ujData.Name(), ShouldEqual, "Jane Smith")
@@ -312,12 +318,12 @@ func TestAdvancedQueries(t *testing.T) {
 			Convey("Conditions on o2m relation", func() {
 				users := h.User().Search(env, q.User().Posts().Equals(jane.Posts().Records()[0]))
 				So(users.Len(), ShouldEqual, 1)
-				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+				So(users.ID(), ShouldEqual, jane.ID())
 			})
 			Convey("Conditions on o2m relation with IN operator", func() {
 				users := h.User().Search(env, q.User().Posts().In(jane.Posts()))
 				So(users.Len(), ShouldEqual, 1)
-				So(users.Get("ID").(int64), ShouldEqual, jane.Get("ID").(int64))
+				So(users.ID(), ShouldEqual, jane.ID())
 			})
 			Convey("Conditions on o2m relation with null", func() {
 				users := h.User().Search(env, q.User().Posts().IsNull())
@@ -395,7 +401,7 @@ func TestUpdateRecordSet(t *testing.T) {
 			Convey("Update on users Jane and John with Write and Set", func() {
 				jane := h.User().Search(env, q.User().Name().Equals("Jane Smith"))
 				So(jane.Len(), ShouldEqual, 1)
-				jane.Set("Name", "Jane A. Smith")
+				jane.SetName("Jane A. Smith")
 				jane.Load()
 				So(jane.Name(), ShouldEqual, "Jane A. Smith")
 				So(jane.Email(), ShouldEqual, "jane.smith@example.com")
