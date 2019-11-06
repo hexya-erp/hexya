@@ -418,6 +418,7 @@ func (m *Model) FieldsGet(fields ...FieldName) map[string]*FieldInfo {
 			ReadOnlyFunc:  fInfo.readOnlyFunc,
 			Required:      fInfo.required,
 			RequiredFunc:  fInfo.requiredFunc,
+			GoType:        fInfo.structField.Type,
 		}
 	}
 	return res

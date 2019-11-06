@@ -219,10 +219,13 @@ func (d *postgresAdapter) dropSequence(name string) {
 
 // alterSequence modifies the DB sequence given by name
 func (d *postgresAdapter) alterSequence(name string, increment, restart int64) {
-	if increment == 0 {
-		log.Panic("Increment must not be zero", "sequenceName", name)
+	query := fmt.Sprintf(`ALTER SEQUENCE %s`, name)
+	if increment != 0 {
+		query += fmt.Sprintf(` INCREMENT BY %d`, increment)
 	}
-	query := fmt.Sprintf(`ALTER SEQUENCE %s INCREMENT BY %d RESTART WITH %d`, name, increment, restart)
+	if restart != 0 {
+		query += fmt.Sprintf(` RESTART WITH %d`, restart)
+	}
 	dbExecuteNoTx(query)
 }
 
