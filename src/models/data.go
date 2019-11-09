@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/security"
 )
 
@@ -104,12 +104,12 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 		switch {
 		case headers[i] == "id":
 			val = record[i]
-		case fi.fieldType == fieldtype.Integer:
+		case fi.fieldType == field.Integer:
 			val, err = strconv.ParseInt(record[i], 0, 64)
 			if err != nil {
 				log.Panic("Error while converting integer", "fileName", fileName, "line", line, "field", headers[i], "value", record[i], "error", err)
 			}
-		case fi.fieldType == fieldtype.Float:
+		case fi.fieldType == field.Float:
 			val, err = strconv.ParseFloat(record[i], 64)
 			if err != nil {
 				log.Panic("Error while converting float", "fileName", fileName, "line", line, "field", headers[i], "value", record[i], "error", err)
@@ -123,11 +123,11 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				}
 				val = relRC
 			}
-		case fi.fieldType == fieldtype.Many2Many:
+		case fi.fieldType == field.Many2Many:
 			ids := strings.Split(record[i], "|")
 			relRC := env.Pool(fi.relatedModelName).Search(fi.relatedModel.Field(fi.relatedModel.FieldName("HexyaExternalID")).In(ids))
 			val = relRC
-		case fi.fieldType == fieldtype.Binary:
+		case fi.fieldType == field.Binary:
 			if record[i] == "" {
 				continue
 			}
@@ -138,7 +138,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 				log.Panic("Unable to open file with binary data", "error", err, "line", line, "field", headers[i], "value", record[i])
 			}
 			val = base64.StdEncoding.EncodeToString(fileContent)
-		case fi.fieldType == fieldtype.Boolean:
+		case fi.fieldType == field.Boolean:
 			val = false
 			if res, _ := strconv.ParseBool(record[i]); res {
 				val = true

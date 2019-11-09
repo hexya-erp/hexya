@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hexya-erp/hexya/src/i18n"
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
@@ -200,10 +200,10 @@ func declareCRUDMethods() {
 					continue
 				}
 				switch fi.fieldType {
-				case fieldtype.One2One:
+				case field.One2One:
 					// One2one related records must be copied to avoid duplicate keys on FK
 					res = res.Create(fName, rc.Get(fName).(RecordSet).Collection().Call("CopyData", nil).(RecordData).Underlying())
-				case fieldtype.One2Many, fieldtype.Rev2One:
+				case field.One2Many, field.Rev2One:
 					for _, rec := range rc.Get(fName).(RecordSet).Collection().Records() {
 						res = res.Create(fName, rec.Call("CopyData", nil).(RecordData).Underlying().Unset(fi.relatedModel.FieldName(fi.reverseFK)))
 					}
@@ -686,7 +686,7 @@ type FieldInfo struct {
 	CompanyDependent bool                                  `json:"company_dependent"`
 	Sortable         bool                                  `json:"sortable"`
 	Translate        bool                                  `json:"translate"`
-	Type             fieldtype.Type                        `json:"type"`
+	Type             field.Type                            `json:"type"`
 	Store            bool                                  `json:"store"`
 	String           string                                `json:"string"`
 	Relation         string                                `json:"relation"`

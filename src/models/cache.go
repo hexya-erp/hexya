@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 )
 
 // A cache holds records field values for caching the database to
@@ -66,7 +66,7 @@ func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interfa
 func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value interface{}, ctxSlug string) {
 	fi := mi.fields.MustGet(jsonName)
 	switch fi.fieldType {
-	case fieldtype.One2Many:
+	case field.One2Many:
 		ids := value.([]int64)
 		for _, relID := range ids {
 			c.updateEntry(fi.relatedModel, relID, fi.jsonReverseFK, id, ctxSlug)
@@ -79,12 +79,12 @@ func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value int
 		}
 		c.setDataValue(mi.name, id, jsonName, true)
 
-	case fieldtype.Rev2One:
+	case field.Rev2One:
 		relID := value.(int64)
 		c.updateEntry(fi.relatedModel, relID, fi.jsonReverseFK, id, ctxSlug)
 		c.setDataValue(mi.name, id, jsonName, true)
 
-	case fieldtype.Many2Many:
+	case field.Many2Many:
 		ids := value.([]int64)
 		if len(ids) == 1 {
 			// We have only one ID.
@@ -255,7 +255,7 @@ func (c *cache) addRecord(mi *Model, id int64, fMap FieldMap, ctxSlug string) {
 func (c *cache) invalidateRecord(mi *Model, id int64) {
 	c.deleteData(mi.name, id)
 	for _, fi := range mi.fields.registryByJSON {
-		if fi.fieldType == fieldtype.Many2Many {
+		if fi.fieldType == field.Many2Many {
 			c.removeM2MLinks(fi, id)
 		}
 	}
@@ -268,7 +268,7 @@ func (c *cache) removeEntry(mi *Model, id int64, fieldName, ctxSlug string) {
 	}
 	c.deleteFieldData(mi.name, id, fieldName)
 	fi := mi.fields.MustGet(fieldName)
-	if fi.fieldType == fieldtype.Many2Many {
+	if fi.fieldType == field.Many2Many {
 		c.removeM2MLinks(fi, id)
 	}
 }
@@ -285,7 +285,7 @@ func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) inter
 	}
 	fi := mi.fields.MustGet(fName)
 	switch fi.fieldType {
-	case fieldtype.One2Many:
+	case field.One2Many:
 		if _, ok := c.data[fi.relatedModelName]; !ok {
 			return nil
 		}
@@ -297,7 +297,7 @@ func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) inter
 			relIds = append(relIds, cID)
 		}
 		return relIds
-	case fieldtype.Rev2One:
+	case field.Rev2One:
 		if _, ok := c.data[fi.relatedModelName]; !ok {
 			return nil
 		}
@@ -308,7 +308,7 @@ func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) inter
 			return cID
 		}
 		return nil
-	case fieldtype.Many2Many:
+	case field.Many2Many:
 		return c.getM2MLinks(fi, id)
 	default:
 		return c.data[mi.name][id][fName]

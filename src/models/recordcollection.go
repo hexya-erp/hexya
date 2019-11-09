@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/hexya-erp/hexya/src/i18n"
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/jmoiron/sqlx"
@@ -208,13 +208,13 @@ func (rc *RecordCollection) createFKRelationRecords(data RecordData) *ModelData 
 	for f, dd := range data.Underlying().ToCreate {
 		fName := rc.model.FieldName(f)
 		fi := rc.model.getRelatedFieldInfo(fName)
-		if !fi.fieldType.IsFKRelationType() && fi.fieldType != fieldtype.Many2Many {
+		if !fi.fieldType.IsFKRelationType() && fi.fieldType != field.Many2Many {
 			continue
 		}
 		relRS := rc.env.Pool(fi.relatedModelName)
 		for _, d := range dd {
 			created := rc.createRelatedFKRecord(fi, d)
-			if fi.fieldType == fieldtype.Many2Many {
+			if fi.fieldType == field.Many2Many {
 				relRS = relRS.Union(created)
 				continue
 			}
@@ -453,7 +453,7 @@ func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
 	for field, value := range fMap {
 		fi := rc.model.getRelatedFieldInfo(rc.model.FieldName(field))
 		switch fi.fieldType {
-		case fieldtype.One2Many:
+		case field.One2Many:
 			// We take only the first record since updating all records
 			// will override each other
 			if rc.Len() > 1 {
@@ -472,8 +472,8 @@ func (rc *RecordCollection) updateRelationFields(fMap FieldMap) {
 				toAdd.Set(toAdd.model.FieldName(fi.reverseFK), rc.Records()[0])
 			}
 
-		case fieldtype.Rev2One:
-		case fieldtype.Many2Many:
+		case field.Rev2One:
+		case field.Many2Many:
 			delQuery := fmt.Sprintf(`DELETE FROM %s WHERE %s IN (?)`, fi.m2mRelModel.tableName, fi.m2mOurField.json)
 			rc.env.cr.Execute(delQuery, rc.ids)
 			for _, id := range rc.ids {
@@ -863,12 +863,12 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				thisRC = thisRC.Get(prefix).(RecordSet).Collection()
 			}
 			switch fi.fieldType {
-			case fieldtype.One2Many:
+			case field.One2Many:
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
 				relRC = relRC.Search(relRC.Model().Field(relRC.Model().FieldName(fi.reverseFK)).Equals(thisRC)).Call("Fetch").(RecordSet).Collection()
 				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), relRC.ids, rc.query.ctxArgsSlug())
-			case fieldtype.Many2Many:
+			case field.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
 				var ids []int64
@@ -877,7 +877,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				}
 				rc.env.cr.Select(&ids, query, thisRC.ids[0])
 				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), ids, rc.query.ctxArgsSlug())
-			case fieldtype.Rev2One:
+			case field.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
 				relRC = relRC.Search(relRC.Model().Field(relRC.Model().FieldName(fi.reverseFK)).Equals(thisRC)).Call("Fetch").(RecordSet).Collection()
@@ -1125,7 +1125,7 @@ func (rc *RecordCollection) fieldsGroupOperators(fields []FieldName) ([]FieldNam
 			continue
 		}
 		fi := rc.model.getRelatedFieldInfo(dbf)
-		if fi.fieldType != fieldtype.Float && fi.fieldType != fieldtype.Integer {
+		if fi.fieldType != field.Float && fi.fieldType != field.Integer {
 			continue
 		}
 		res[dbf.JSON()] = fi.groupOperator

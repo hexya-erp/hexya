@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
@@ -55,7 +55,7 @@ type BinaryField struct {
 
 // DeclareField creates a binary field for the given FieldsCollection with the given name.
 func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) *Field {
-	return genericDeclareField(fc, &bf, name, fieldtype.Binary, new(string))
+	return genericDeclareField(fc, &bf, name, field.Binary, new(string))
 }
 
 // A BooleanField is a field for storing true/false values.
@@ -92,7 +92,7 @@ func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
 	if bf.Default == nil {
 		bf.Default = DefaultValue(false)
 	}
-	return genericDeclareField(fc, &bf, name, fieldtype.Boolean, new(bool))
+	return genericDeclareField(fc, &bf, name, field.Boolean, new(bool))
 }
 
 // A CharField is a field for storing short text. There is no
@@ -129,7 +129,7 @@ type CharField struct {
 
 // DeclareField creates a char field for the given FieldsCollection with the given name.
 func (cf CharField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &cf, name, fieldtype.Char, new(string))
+	fInfo := genericDeclareField(fc, &cf, name, field.Char, new(string))
 	fInfo.size = cf.Size
 	return fInfo
 }
@@ -166,7 +166,7 @@ type DateField struct {
 
 // DeclareField creates a date field for the given FieldsCollection with the given name.
 func (df DateField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &df, name, fieldtype.Date, new(dates.Date))
+	fInfo := genericDeclareField(fc, &df, name, field.Date, new(dates.Date))
 	fInfo.groupOperator = strutils.GetDefaultString(df.GroupOperator, "sum")
 	return fInfo
 }
@@ -203,7 +203,7 @@ type DateTimeField struct {
 
 // DeclareField creates a datetime field for the given FieldsCollection with the given name.
 func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &df, name, fieldtype.DateTime, new(dates.DateTime))
+	fInfo := genericDeclareField(fc, &df, name, field.DateTime, new(dates.DateTime))
 	fInfo.groupOperator = strutils.GetDefaultString(df.GroupOperator, "sum")
 	return fInfo
 }
@@ -242,7 +242,7 @@ func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
 	if ff.Default == nil {
 		ff.Default = DefaultValue(0)
 	}
-	fInfo := genericDeclareField(fc, &ff, name, fieldtype.Float, new(float64))
+	fInfo := genericDeclareField(fc, &ff, name, field.Float, new(float64))
 	fInfo.groupOperator = strutils.GetDefaultString(ff.GroupOperator, "sum")
 	fInfo.digits = ff.Digits
 	return fInfo
@@ -281,7 +281,7 @@ type HTMLField struct {
 
 // DeclareField creates a html field for the given FieldsCollection with the given name.
 func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &tf, name, fieldtype.HTML, new(string))
+	fInfo := genericDeclareField(fc, &tf, name, field.HTML, new(string))
 	fInfo.size = tf.Size
 	return fInfo
 }
@@ -319,7 +319,7 @@ func (i IntegerField) DeclareField(fc *FieldsCollection, name string) *Field {
 	if i.Default == nil {
 		i.Default = DefaultValue(0)
 	}
-	fInfo := genericDeclareField(fc, &i, name, fieldtype.Integer, new(int64))
+	fInfo := genericDeclareField(fc, &i, name, field.Integer, new(int64))
 	fInfo.groupOperator = strutils.GetDefaultString(i.GroupOperator, "sum")
 	return fInfo
 }
@@ -357,7 +357,7 @@ type Many2ManyField struct {
 
 // DeclareField creates a many2many field for the given FieldsCollection with the given name.
 func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &mf, name, fieldtype.Many2Many, new([]int64))
+	fInfo := genericDeclareField(fc, &mf, name, field.Many2Many, new([]int64))
 	our := mf.M2MOurField
 	if our == "" {
 		our = fc.model.name
@@ -425,7 +425,7 @@ type Many2OneField struct {
 
 // DeclareField creates a many2one field for the given FieldsCollection with the given name.
 func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &mf, name, fieldtype.Many2One, new(int64))
+	fInfo := genericDeclareField(fc, &mf, name, field.Many2One, new(int64))
 	onDelete := SetNull
 	if mf.OnDelete != "" {
 		onDelete = mf.OnDelete
@@ -481,7 +481,7 @@ type One2ManyField struct {
 
 // DeclareField creates a one2many field for the given FieldsCollection with the given name.
 func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &of, name, fieldtype.One2Many, new([]int64))
+	fInfo := genericDeclareField(fc, &of, name, field.One2Many, new([]int64))
 	var filter *Condition
 	if of.Filter != nil {
 		filter = of.Filter.Underlying()
@@ -529,7 +529,7 @@ type One2OneField struct {
 
 // DeclareField creates a one2one field for the given FieldsCollection with the given name.
 func (of One2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &of, name, fieldtype.One2One, new(int64))
+	fInfo := genericDeclareField(fc, &of, name, field.One2One, new(int64))
 	onDelete := SetNull
 	if of.OnDelete != "" {
 		onDelete = of.OnDelete
@@ -586,7 +586,7 @@ type Rev2OneField struct {
 
 // DeclareField creates a rev2one field for the given FieldsCollection with the given name.
 func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &rf, name, fieldtype.Rev2One, new(int64))
+	fInfo := genericDeclareField(fc, &rf, name, field.Rev2One, new(int64))
 	var filter *Condition
 	if rf.Filter != nil {
 		filter = rf.Filter.Underlying()
@@ -632,7 +632,7 @@ type SelectionField struct {
 
 // DeclareField creates a selection field for the given FieldsCollection with the given name.
 func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &sf, name, fieldtype.Selection, new(string))
+	fInfo := genericDeclareField(fc, &sf, name, field.Selection, new(string))
 	fInfo.selection = sf.Selection
 	fInfo.selectionFunc = sf.SelectionFunc
 	return fInfo
@@ -672,7 +672,7 @@ type TextField struct {
 
 // DeclareField creates a text field for the given FieldsCollection with the given name.
 func (tf TextField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &tf, name, fieldtype.Text, new(string))
+	fInfo := genericDeclareField(fc, &tf, name, field.Text, new(string))
 	fInfo.size = tf.Size
 	return fInfo
 }
@@ -682,7 +682,7 @@ type DummyField struct{}
 
 // DeclareField creates a dummy field for the given FieldsCollection with the given name.
 func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	json, _ := getJSONAndString(name, fieldtype.NoType, "", "")
+	json, _ := getJSONAndString(name, field.NoType, "", "")
 	fInfo := &Field{
 		model: fc.model,
 		name:  name,
@@ -691,7 +691,7 @@ func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 			Name: name,
 			Type: reflect.TypeOf(*new(bool)),
 		},
-		fieldType: fieldtype.NoType,
+		fieldType: field.NoType,
 	}
 	return fInfo
 }
@@ -699,7 +699,7 @@ func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 // genericDeclareField creates a generic Field with the data from the given fStruct
 //
 // fStruct must be a pointer to a struct and goType a pointer to a type instance
-func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string, fieldType fieldtype.Type, goType interface{}) *Field {
+func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string, fieldType field.Type, goType interface{}) *Field {
 	val := reflect.ValueOf(fStruct).Elem()
 	typ := reflect.TypeOf(goType).Elem()
 	if val.FieldByName("GoType").IsValid() && !val.FieldByName("GoType").IsNil() {
@@ -775,7 +775,7 @@ func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string,
 // getJSONAndString computes the default json and description fields for the
 // given name. It returns this default value unless given json or str are not
 // empty strings, in which case the latters are returned.
-func getJSONAndString(name string, typ fieldtype.Type, json, str string) (string, string) {
+func getJSONAndString(name string, typ field.Type, json, str string) (string, string) {
 	if json == "" {
 		json = SnakeCaseFieldName(name, typ)
 	}
@@ -835,7 +835,7 @@ func (f *Field) addUpdate(property string, value interface{}) {
 func (f *Field) setProperty(property string, value interface{}) {
 	switch property {
 	case "fieldType":
-		f.fieldType = value.(fieldtype.Type)
+		f.fieldType = value.(field.Type)
 	case "description":
 		f.description = value.(string)
 	case "help":
@@ -914,7 +914,7 @@ func (f *Field) setProperty(property string, value interface{}) {
 // SetFieldType overrides the type of Field.
 // This may fail at database sync if the table already has values and
 // the old type cannot be casted into the new type by the database.
-func (f *Field) SetFieldType(value fieldtype.Type) *Field {
+func (f *Field) SetFieldType(value field.Type) *Field {
 	f.addUpdate("fieldType", value)
 	return f
 }

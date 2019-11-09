@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	. "github.com/smartystreets/goconvey/convey"
@@ -92,7 +92,7 @@ func TestBaseModelMethods(t *testing.T) {
 				fInfo := userJane.Call("FieldGet", FieldName(Name)).(*FieldInfo)
 				So(fInfo.String, ShouldEqual, "Name")
 				So(fInfo.Help, ShouldEqual, "The user's username")
-				So(fInfo.Type, ShouldEqual, fieldtype.Char)
+				So(fInfo.Type, ShouldEqual, field.Char)
 				fInfos := userJane.Call("FieldsGet", FieldsGetArgs{}).(map[string]*FieldInfo)
 				So(fInfos, ShouldHaveLength, 35)
 			})

@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -215,7 +215,7 @@ type Field struct {
 	m2mTheirField    *Field
 	selection        types.Selection
 	selectionFunc    func() types.Selection
-	fieldType        fieldtype.Type
+	fieldType        field.Type
 	groupOperator    string
 	size             int
 	digits           nbutils.Digits
@@ -305,7 +305,7 @@ func (f *Field) JSON() string {
 	return f.json
 }
 
-// String method for the Field type. Returns the field's name.
+// Name returns the field's name.
 func (f *Field) Name() string {
 	return f.name
 }
@@ -340,7 +340,7 @@ func checkFieldInfo(fi *Field) {
 
 // SnakeCaseFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
-func SnakeCaseFieldName(fName string, typ fieldtype.Type) string {
+func SnakeCaseFieldName(fName string, typ field.Type) string {
 	res := strutils.SnakeCase(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"
@@ -387,7 +387,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        fieldtype.Many2One,
+		fieldType:        field.Many2One,
 		relatedModelName: model1,
 		index:            true,
 		onDelete:         Cascade,
@@ -404,7 +404,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        fieldtype.Many2One,
+		fieldType:        field.Many2One,
 		relatedModelName: model2,
 		index:            true,
 		onDelete:         Cascade,
@@ -440,7 +440,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		model:     &newModel,
 		required:  true,
 		noCopy:    true,
-		fieldType: fieldtype.Integer,
+		fieldType: field.Integer,
 		structField: reflect.TypeOf(
 			struct {
 				ID int64
@@ -454,7 +454,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		model:            &newModel,
 		required:         true,
 		noCopy:           true,
-		fieldType:        fieldtype.Many2One,
+		fieldType:        field.Many2One,
 		relatedModelName: fi.model.name,
 		relatedModel:     fi.model,
 		index:            true,
@@ -486,7 +486,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 			json:      strutils.SnakeCase(ctName),
 			model:     &newModel,
 			noCopy:    true,
-			fieldType: fieldtype.Char,
+			fieldType: field.Char,
 			index:     true,
 			ctxType:   ctxContext,
 			structField: reflect.StructField{

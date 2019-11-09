@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -256,7 +256,7 @@ func TestBootStrap(t *testing.T) {
 				}},
 			})
 			textField := Registry.MustGet("Comment").Fields().MustGet("Text")
-			textField.SetFieldType(fieldtype.Text)
+			textField.SetFieldType(field.Text)
 			BootStrap()
 			//So(BootStrap, ShouldNotPanic)
 			So(contentField.required, ShouldBeFalse)

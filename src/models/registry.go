@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -549,7 +549,7 @@ func createModel(name string, options Option) *Model {
 		model:     mi,
 		required:  true,
 		noCopy:    true,
-		fieldType: fieldtype.Integer,
+		fieldType: field.Integer,
 		structField: reflect.TypeOf(
 			struct {
 				ID int64

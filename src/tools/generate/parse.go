@@ -24,7 +24,7 @@ import (
 	"go/types"
 	"strings"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
 	"golang.org/x/tools/go/packages"
 )
@@ -102,7 +102,7 @@ type FieldASTData struct {
 	Selection   map[string]string
 	RelModel    string
 	Type        TypeData
-	FType       fieldtype.Type
+	FType       field.Type
 	IsRS        bool
 	MixinField  bool
 	EmbedField  bool
@@ -361,7 +361,7 @@ func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 		case *ast.CompositeLit:
 			fieldParams = fd.Elts
 		}
-		fType := fieldtype.Type(strings.ToLower(typeStr))
+		fType := field.Type(strings.ToLower(typeStr))
 		fData := FieldASTData{
 			Name:  fieldName,
 			FType: fType,

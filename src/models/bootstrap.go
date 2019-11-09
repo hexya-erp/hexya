@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/field"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -104,11 +104,11 @@ func updateFieldDefs() {
 	for _, model := range Registry.registryByName {
 		for _, fi := range model.fields.registryByName {
 			switch fi.fieldType {
-			case fieldtype.Boolean:
+			case field.Boolean:
 				if fi.defaultFunc != nil && fi.isSettable() {
 					fi.required = true
 				}
-			case fieldtype.Selection:
+			case field.Selection:
 				if fi.selectionFunc != nil {
 					fi.selection = fi.selectionFunc()
 				}
@@ -225,7 +225,7 @@ func addMixinFields(mixinModel, model *Model) {
 		existingFI, exists := model.fields.registryByName[fName]
 		newFI := *fi
 		if exists {
-			if existingFI.fieldType != fieldtype.NoType {
+			if existingFI.fieldType != field.NoType {
 				// We do not add fields that already exist in the targetModel
 				// since the target model should always override mixins.
 				continue
@@ -236,7 +236,7 @@ func addMixinFields(mixinModel, model *Model) {
 			delete(model.fields.registryByName, existingFI.name)
 		}
 		newFI.model = model
-		if newFI.fieldType == fieldtype.Many2Many {
+		if newFI.fieldType == field.Many2Many {
 			m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(newFI.m2mRelModel.name, model.name,
 				newFI.relatedModelName, newFI.m2mOurField.name, newFI.m2mTheirField.name, false)
 			newFI.m2mRelModel = m2mRelModel
@@ -269,7 +269,7 @@ func inflateEmbeddings() {
 					relatedPathStr: fmt.Sprintf("%s%s%s", fi.name, ExprSep, relName),
 				}
 				if existingFI, ok := model.fields.Get(relName); ok {
-					if existingFI.fieldType != fieldtype.NoType {
+					if existingFI.fieldType != field.NoType {
 						// We do not add fields that already exist in the targetModel
 						// since the target model should always override embedded fields.
 						continue
@@ -329,7 +329,7 @@ func inflateContexts() {
 				name:             fName,
 				json:             strutils.SnakeCase(fName),
 				model:            mi,
-				fieldType:        fieldtype.One2Many,
+				fieldType:        field.One2Many,
 				relatedModelName: contextsModel.name,
 				relatedModel:     contextsModel,
 				reverseFK:        "Record",
