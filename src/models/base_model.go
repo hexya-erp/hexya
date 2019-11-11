@@ -762,6 +762,7 @@ type FieldInfo struct {
 	RequiredFunc     func(Environment) (bool, Conditioner) `json:"-"`
 	InvisibleFunc    func(Environment) (bool, Conditioner) `json:"-"`
 	GoType           reflect.Type                          `json:"-"`
+	Index            bool                                  `json:"-"`
 }
 
 // FieldsGetArgs is the args struct for the FieldsGet method
