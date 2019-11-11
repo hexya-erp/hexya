@@ -17,7 +17,7 @@ package models
 import (
 	"fmt"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/lib/pq"
@@ -42,19 +42,19 @@ var pgOperators = map[operator.Operator]string{
 	operator.GreaterOrEqual: ">= ?",
 }
 
-var pgTypes = map[field.Type]string{
-	field.Boolean:   "boolean",
-	field.Char:      "character varying",
-	field.Text:      "text",
-	field.Date:      "date",
-	field.DateTime:  "timestamp without time zone",
-	field.Integer:   "integer",
-	field.Float:     "numeric",
-	field.HTML:      "text",
-	field.Binary:    "bytea",
-	field.Selection: "character varying",
-	field.Many2One:  "integer",
-	field.One2One:   "integer",
+var pgTypes = map[fieldtype.Type]string{
+	fieldtype.Boolean:   "boolean",
+	fieldtype.Char:      "character varying",
+	fieldtype.Text:      "text",
+	fieldtype.Date:      "date",
+	fieldtype.DateTime:  "timestamp without time zone",
+	fieldtype.Integer:   "integer",
+	fieldtype.Float:     "numeric",
+	fieldtype.HTML:      "text",
+	fieldtype.Binary:    "bytea",
+	fieldtype.Selection: "character varying",
+	fieldtype.Many2One:  "integer",
+	fieldtype.One2One:   "integer",
 }
 
 // connectionString returns the connection string for the given parameters
@@ -115,11 +115,11 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field, null bool) string {
 		log.Panic("Unknown column type", "type", fi.fieldType, "model", fi.model.name, "field", fi.name)
 	}
 	switch fi.fieldType {
-	case field.Char:
+	case fieldtype.Char:
 		if fi.size > 0 {
 			res = fmt.Sprintf("%s(%d)", res, fi.size)
 		}
-	case field.Float:
+	case fieldtype.Float:
 		emptyD := nbutils.Digits{}
 		if fi.digits != emptyD {
 			res = fmt.Sprintf("numeric(%d, %d)", fi.digits.Precision, fi.digits.Scale)
@@ -129,7 +129,7 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field, null bool) string {
 		res += " NOT NULL"
 	}
 
-	if fi.unique || fi.fieldType == field.One2One {
+	if fi.unique || fi.fieldType == fieldtype.One2One {
 		res += " UNIQUE"
 	}
 	return res

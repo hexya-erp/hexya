@@ -1,7 +1,7 @@
 // Copyright 2017 NDP Systèmes. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
-package field
+package fieldtype
 
 import (
 	"reflect"

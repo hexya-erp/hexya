@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -90,7 +90,7 @@ func processUpdates() {
 							fi.contexts[k] = v
 						}
 					default:
-						fi.setProperty(property, value)
+						fi.SetProperty(property, value)
 					}
 				}
 			}
@@ -104,11 +104,11 @@ func updateFieldDefs() {
 	for _, model := range Registry.registryByName {
 		for _, fi := range model.fields.registryByName {
 			switch fi.fieldType {
-			case field.Boolean:
+			case fieldtype.Boolean:
 				if fi.defaultFunc != nil && fi.isSettable() {
 					fi.required = true
 				}
-			case field.Selection:
+			case fieldtype.Selection:
 				if fi.selectionFunc != nil {
 					fi.selection = fi.selectionFunc()
 				}
@@ -145,7 +145,7 @@ func createModelLinks() {
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
 	for _, mi := range Registry.registryByName {
-		if mi.isM2MLink() {
+		if mi.IsM2MLink() {
 			// We don"t mix in M2M link
 			continue
 		}
@@ -225,7 +225,7 @@ func addMixinFields(mixinModel, model *Model) {
 		existingFI, exists := model.fields.registryByName[fName]
 		newFI := *fi
 		if exists {
-			if existingFI.fieldType != field.NoType {
+			if existingFI.fieldType != fieldtype.NoType {
 				// We do not add fields that already exist in the targetModel
 				// since the target model should always override mixins.
 				continue
@@ -236,8 +236,8 @@ func addMixinFields(mixinModel, model *Model) {
 			delete(model.fields.registryByName, existingFI.name)
 		}
 		newFI.model = model
-		if newFI.fieldType == field.Many2Many {
-			m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(newFI.m2mRelModel.name, model.name,
+		if newFI.fieldType == fieldtype.Many2Many {
+			m2mRelModel, m2mOurField, m2mTheirField := CreateM2MRelModelInfo(newFI.m2mRelModel.name, model.name,
 				newFI.relatedModelName, newFI.m2mOurField.name, newFI.m2mTheirField.name, false)
 			newFI.m2mRelModel = m2mRelModel
 			newFI.m2mOurField = m2mOurField
@@ -269,7 +269,7 @@ func inflateEmbeddings() {
 					relatedPathStr: fmt.Sprintf("%s%s%s", fi.name, ExprSep, relName),
 				}
 				if existingFI, ok := model.fields.Get(relName); ok {
-					if existingFI.fieldType != field.NoType {
+					if existingFI.fieldType != fieldtype.NoType {
 						// We do not add fields that already exist in the targetModel
 						// since the target model should always override embedded fields.
 						continue
@@ -329,7 +329,7 @@ func inflateContexts() {
 				name:             fName,
 				json:             strutils.SnakeCase(fName),
 				model:            mi,
-				fieldType:        field.One2Many,
+				fieldType:        fieldtype.One2Many,
 				relatedModelName: contextsModel.name,
 				relatedModel:     contextsModel,
 				reverseFK:        "Record",
@@ -447,7 +447,7 @@ func updateRelatedPaths() {
 // updateDefaultOrder sets defaultOrder from defaultOrderStr
 func updateDefaultOrder() {
 	for _, model := range Registry.registryByName {
-		if model.isM2MLink() {
+		if model.IsM2MLink() {
 			continue
 		}
 		model.defaultOrder = model.ordersFromStrings(model.defaultOrderStr)

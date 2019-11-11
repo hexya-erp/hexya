@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -143,6 +143,11 @@ type sqlConstraint struct {
 	errorString string
 }
 
+// Name returns the name of this model
+func (m *Model) Name() string {
+	return m.name
+}
+
 // getRelatedModelInfo returns the Model of the related model when
 // following path.
 // - If skipLast is true, getRelatedModelInfo does not follow the last part of the path
@@ -262,16 +267,27 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 	}
 }
 
-// isMixin returns true if this is a mixin model.
-func (m *Model) isMixin() bool {
+// AddFields adds the given fields to the model.
+func (m *Model) AddFields(fields map[string]FieldDefinition) {
+	for name, field := range fields {
+		newField := field.DeclareField(m.fields, name)
+		if _, exists := m.fields.Get(name); exists {
+			log.Panic("models.Field already exists", "model", m.name, "field", name)
+		}
+		m.fields.add(newField)
+	}
+}
+
+// IsMixin returns true if this is a mixin model.
+func (m *Model) IsMixin() bool {
 	if m.options&MixinModel > 0 {
 		return true
 	}
 	return false
 }
 
-// isManual returns true if this is a manual model.
-func (m *Model) isManual() bool {
+// IsManual returns true if this is a manual model.
+func (m *Model) IsManual() bool {
 	if m.options&ManualModel > 0 {
 		return true
 	}
@@ -294,15 +310,16 @@ func (m *Model) isContext() bool {
 	return false
 }
 
-// isSystem returns true if this is a n M2M Link model.
-func (m *Model) isM2MLink() bool {
+// IsM2MLink returns true if this is an M2M Link model.
+func (m *Model) IsM2MLink() bool {
 	if m.options&Many2ManyLinkModel > 0 {
 		return true
 	}
 	return false
 }
 
-func (m *Model) isTransient() bool {
+// IsTransient returns true if this Model is transient
+func (m *Model) IsTransient() bool {
 	return m.options == TransientModel
 }
 
@@ -549,7 +566,7 @@ func createModel(name string, options Option) *Model {
 		model:     mi,
 		required:  true,
 		noCopy:    true,
-		fieldType: field.Integer,
+		fieldType: fieldtype.Integer,
 		structField: reflect.TypeOf(
 			struct {
 				ID int64
@@ -644,7 +661,7 @@ func (s *Sequence) NextValue() int64 {
 // older than the given timeout.
 func FreeTransientModels() {
 	for _, model := range Registry.registryByName {
-		if model.isTransient() {
+		if model.IsTransient() {
 			ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 				createDate := model.FieldName("CreateDate")
 				model.Search(env, model.Field(createDate).Lower(dates.Now().Add(-transientModelTimeout))).Call("Unlink")

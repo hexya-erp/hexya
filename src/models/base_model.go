@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hexya-erp/hexya/src/i18n"
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
@@ -62,27 +62,89 @@ func declareCommonMixin() {
 func declareBaseMixin() {
 	baseMixin := NewMixinModel("BaseMixin")
 	declareBaseComputeMethods()
-	baseMixin.AddFields(map[string]FieldDefinition{
-		"CreateDate": DateTimeField{NoCopy: true},
-		"CreateUID":  IntegerField{NoCopy: true},
-		"WriteDate":  DateTimeField{NoCopy: true},
-		"WriteUID":   IntegerField{NoCopy: true},
-		"LastUpdate": DateTimeField{JSON: "__last_update", Compute: baseMixin.Methods().MustGet("ComputeLastUpdate"),
-			Depends: []string{"WriteDate", "CreateDate"}},
-		"DisplayName": CharField{Compute: baseMixin.Methods().MustGet("ComputeDisplayName"), Depends: []string{""}},
+	baseMixin.fields.add(&Field{
+		model:       baseMixin,
+		name:        "CreateDate",
+		json:        "create_date",
+		fieldType:   fieldtype.DateTime,
+		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
+		noCopy:      true,
+	})
+	baseMixin.fields.add(&Field{
+		model:       baseMixin,
+		name:        "CreateUID",
+		json:        "create_uid",
+		fieldType:   fieldtype.Integer,
+		structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
+		noCopy:      true,
+		defaultFunc: func(env Environment) interface{} {
+			return env.uid
+		},
+	})
+	baseMixin.fields.add(&Field{
+		model:       baseMixin,
+		name:        "WriteDate",
+		json:        "write_date",
+		fieldType:   fieldtype.DateTime,
+		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
+		noCopy:      true,
+	})
+	baseMixin.fields.add(&Field{
+		model:       baseMixin,
+		name:        "WriteUID",
+		json:        "write_uid",
+		fieldType:   fieldtype.Integer,
+		structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
+		noCopy:      true,
+		defaultFunc: func(env Environment) interface{} {
+			return env.uid
+		},
+	})
+	baseMixin.fields.add(&Field{
+		model:       baseMixin,
+		name:        "LastUpdate",
+		json:        "__last_update",
+		fieldType:   fieldtype.DateTime,
+		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
+		compute:     "ComputeLastUpdate",
+		depends:     []string{"WriteDate", "CreateDate"},
+	})
+	baseMixin.fields.add(&Field{
+		model:       baseMixin,
+		name:        "DisplayName",
+		json:        "display_name",
+		fieldType:   fieldtype.Char,
+		structField: reflect.StructField{Type: reflect.TypeOf("")},
+		compute:     "ComputeDisplayName",
+		depends:     []string{""},
 	})
 	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
 }
 
 func declareModelMixin() {
 	modelMixin := NewMixinModel("ModelMixin")
-	modelMixin.AddFields(map[string]FieldDefinition{
-		"HexyaExternalID": CharField{Unique: true, Index: true, NoCopy: true, Required: true,
-			Default: func(env Environment) interface{} {
-				return uuid.New().String()
-			},
+	modelMixin.fields.add(&Field{
+		model:       modelMixin,
+		name:        "HexyaExternalID",
+		json:        "hexya_external_id",
+		fieldType:   fieldtype.Char,
+		structField: reflect.StructField{Type: reflect.TypeOf("")},
+		noCopy:      true,
+		unique:      true,
+		index:       true,
+		required:    true,
+		defaultFunc: func(env Environment) interface{} {
+			return uuid.New().String()
 		},
-		"HexyaVersion": IntegerField{GoType: new(int)},
+	})
+	modelMixin.fields.add(&Field{
+		model:       modelMixin,
+		name:        "HexyaVersion",
+		json:        "hexya_version",
+		fieldType:   fieldtype.Integer,
+		structField: reflect.StructField{Type: reflect.TypeOf(0)},
+		noCopy:      true,
+		defaultFunc: DefaultValue(0),
 	})
 	modelMixin.InheritModel(Registry.MustGet("BaseMixin"))
 }
@@ -200,10 +262,10 @@ func declareCRUDMethods() {
 					continue
 				}
 				switch fi.fieldType {
-				case field.One2One:
+				case fieldtype.One2One:
 					// One2one related records must be copied to avoid duplicate keys on FK
 					res = res.Create(fName, rc.Get(fName).(RecordSet).Collection().Call("CopyData", nil).(RecordData).Underlying())
-				case field.One2Many, field.Rev2One:
+				case fieldtype.One2Many, fieldtype.Rev2One:
 					for _, rec := range rc.Get(fName).(RecordSet).Collection().Records() {
 						res = res.Create(fName, rec.Call("CopyData", nil).(RecordData).Underlying().Unset(fi.relatedModel.FieldName(fi.reverseFK)))
 					}
@@ -686,7 +748,7 @@ type FieldInfo struct {
 	CompanyDependent bool                                  `json:"company_dependent"`
 	Sortable         bool                                  `json:"sortable"`
 	Translate        bool                                  `json:"translate"`
-	Type             field.Type                            `json:"type"`
+	Type             fieldtype.Type                        `json:"type"`
 	Store            bool                                  `json:"store"`
 	String           string                                `json:"string"`
 	Relation         string                                `json:"relation"`

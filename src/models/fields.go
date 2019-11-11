@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -150,6 +150,11 @@ func (fc *FieldsCollection) getComputedFields(fields ...string) (fil []*Field) {
 	return
 }
 
+// Model returns this FieldsCollection Model
+func (fc *FieldsCollection) Model() *Model {
+	return fc.model
+}
+
 // newFieldsCollection returns a pointer to a new empty FieldsCollection with
 // all maps initialized.
 func newFieldsCollection() *FieldsCollection {
@@ -215,7 +220,7 @@ type Field struct {
 	m2mTheirField    *Field
 	selection        types.Selection
 	selectionFunc    func() types.Selection
-	fieldType        field.Type
+	fieldType        fieldtype.Type
 	groupOperator    string
 	size             int
 	digits           nbutils.Digits
@@ -316,7 +321,7 @@ var _ FieldName = new(Field)
 // It panics in case of severe error and logs recoverable errors.
 func checkFieldInfo(fi *Field) {
 	if fi.fieldType.IsReverseRelationType() && fi.reverseFK == "" {
-		log.Panic("'one2many' and 'rev2one' fields must define an 'ReverseFK' parameter", "model",
+		log.Panic("'one2many' and 'rev2one' fields must define a 'ReverseFK' parameter", "model",
 			fi.model.name, "field", fi.name, "type", fi.fieldType)
 	}
 
@@ -340,7 +345,7 @@ func checkFieldInfo(fi *Field) {
 
 // SnakeCaseFieldName returns a snake cased field name, adding '_id' on x2one
 // relation fields and '_ids' to x2many relation fields.
-func SnakeCaseFieldName(fName string, typ field.Type) string {
+func SnakeCaseFieldName(fName string, typ fieldtype.Type) string {
 	res := strutils.SnakeCase(fName)
 	if typ.Is2OneRelationType() {
 		res += "_id"
@@ -350,13 +355,13 @@ func SnakeCaseFieldName(fName string, typ field.Type) string {
 	return res
 }
 
-// createM2MRelModelInfo creates a Model relModelName (if it does not exist)
+// CreateM2MRelModelInfo creates a Model relModelName (if it does not exist)
 // for the m2m relation defined between model1 and model2.
 // It returns the Model of the intermediate model, the Field of that model
 // pointing to our model, and the Field pointing to the other model.
 //
 // If mixin is true, the created M2M model is created as a mixin model.
-func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, mixin bool) (*Model, *Field, *Field) {
+func CreateM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, mixin bool) (*Model, *Field, *Field) {
 	if relMI, exists := Registry.Get(relModelName); exists {
 		var m1, m2 *Field
 		for fName, fi := range relMI.fields.registryByName {
@@ -387,7 +392,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        field.Many2One,
+		fieldType:        fieldtype.Many2One,
 		relatedModelName: model1,
 		index:            true,
 		onDelete:         Cascade,
@@ -404,7 +409,7 @@ func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 		model:            newMI,
 		required:         true,
 		noCopy:           true,
-		fieldType:        field.Many2One,
+		fieldType:        fieldtype.Many2One,
 		relatedModelName: model2,
 		index:            true,
 		onDelete:         Cascade,
@@ -440,7 +445,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		model:     &newModel,
 		required:  true,
 		noCopy:    true,
-		fieldType: field.Integer,
+		fieldType: fieldtype.Integer,
 		structField: reflect.TypeOf(
 			struct {
 				ID int64
@@ -454,7 +459,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		model:            &newModel,
 		required:         true,
 		noCopy:           true,
-		fieldType:        field.Many2One,
+		fieldType:        fieldtype.Many2One,
 		relatedModelName: fi.model.name,
 		relatedModel:     fi.model,
 		index:            true,
@@ -486,7 +491,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 			json:      strutils.SnakeCase(ctName),
 			model:     &newModel,
 			noCopy:    true,
-			fieldType: field.Char,
+			fieldType: fieldtype.Char,
 			index:     true,
 			ctxType:   ctxContext,
 			structField: reflect.StructField{

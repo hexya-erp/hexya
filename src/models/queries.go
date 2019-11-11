@@ -20,7 +20,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
@@ -605,14 +605,14 @@ func (q *Query) generateTableJoins(fieldExprs []FieldName) []tableJoin {
 			tjExpr = fieldExprs[i+1]
 		}
 		switch fi.fieldType {
-		case field.Many2One, field.One2One:
+		case fieldtype.Many2One, fieldtype.One2One:
 			field, otherField = ID, expr
-		case field.One2Many, field.Rev2One:
+		case fieldtype.One2Many, fieldtype.Rev2One:
 			field, otherField = fi.relatedModel.FieldName(fi.reverseFK), ID
 			if tjExpr == nil {
 				tjExpr = ID
 			}
-		case field.Many2Many:
+		case fieldtype.Many2Many:
 			// Add relation table join
 			relationTableName := adapter.quoteTableName(fi.m2mRelModel.tableName)
 			alias = fmt.Sprintf("%s%s%s", alias, sqlSep, fi.m2mRelModel.tableName)

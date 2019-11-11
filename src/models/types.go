@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 )
 
 // A RecordRef uniquely identifies a Record by giving its model and ID.
@@ -306,11 +306,11 @@ func (md *ModelData) Underlying() *ModelData {
 
 // fixFieldValue changes the given value for the given field by applying several fixes
 func fixFieldValue(v interface{}, fi *Field) interface{} {
-	if _, ok := v.(bool); ok && fi.fieldType != field.Boolean {
+	if _, ok := v.(bool); ok && fi.fieldType != fieldtype.Boolean {
 		// Client returns false when empty
 		v = reflect.Zero(fi.structField.Type).Interface()
 	}
-	if _, ok := v.([]byte); ok && fi.fieldType == field.Float {
+	if _, ok := v.([]byte); ok && fi.fieldType == fieldtype.Float {
 		// DB can return numeric types as []byte
 		switch fi.structField.Type.Kind() {
 		case reflect.Float64:

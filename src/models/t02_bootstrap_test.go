@@ -1,4 +1,4 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2019 NDP Systèmes. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package models
@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
+	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -19,7 +21,6 @@ type TestFieldMap FieldMap
 func (f TestFieldMap) Underlying() FieldMap {
 	return FieldMap(f)
 }
-
 func unBootStrap() {
 	Registry.bootstrapped = false
 	for _, mi := range Registry.registryByName {
@@ -46,6 +47,119 @@ func unBootStrap() {
 		}
 	}
 }
+func TestFieldModification(t *testing.T) {
+	Convey("Testing field modification", t, func() {
+		numsField := Registry.MustGet("User").Fields().MustGet("Nums")
+		numsField.SetString("Nums Reloaded")
+		CheckUpdates(numsField, "description", "Nums Reloaded")
+		numsField.SetHelp("Num's Help")
+		CheckUpdates(numsField, "help", "Num's Help")
+		numsField.SetCompute(Registry.MustGet("User").Methods().MustGet("ComputeNum"))
+		CheckUpdates(numsField, "compute", "ComputeNum")
+		numsField.SetCompute(nil)
+		CheckUpdates(numsField, "compute", "")
+		numsField.SetDefault(DefaultValue("DV"))
+		LastUpdateDefFuncShouldEqual(numsField, "defaultFunc", "DV")
+		numsField.SetDepends([]string{"Dep1", "Dep2"})
+		LastUpdateShouldResemble(numsField, "depends", []string{"Dep1", "Dep2"})
+		numsField.SetDepends(nil)
+		LastUpdateShouldResemble(numsField, "depends", []string(nil))
+		numsField.SetGroupOperator("avg")
+		CheckUpdates(numsField, "groupOperator", "avg")
+		numsField.SetGroupOperator("sum")
+		CheckUpdates(numsField, "groupOperator", "sum")
+		numsField.SetIndex(true)
+		CheckUpdates(numsField, "index", true)
+		numsField.SetNoCopy(true)
+		CheckUpdates(numsField, "noCopy", true)
+		numsField.SetNoCopy(false)
+		CheckUpdates(numsField, "noCopy", false)
+		numsField.SetRelated("Profile.Money")
+		CheckUpdates(numsField, "relatedPathStr", "Profile.Money")
+		numsField.SetRelated("")
+		CheckUpdates(numsField, "relatedPathStr", "")
+		numsField.SetRequired(true)
+		CheckUpdates(numsField, "required", true)
+		numsField.SetRequired(false)
+		CheckUpdates(numsField, "required", false)
+		numsField.SetStored(true)
+		CheckUpdates(numsField, "stored", true)
+		numsField.SetStored(false)
+		CheckUpdates(numsField, "stored", false)
+		numsField.SetUnique(true)
+		CheckUpdates(numsField, "unique", true)
+		numsField.SetUnique(false)
+		CheckUpdates(numsField, "unique", false)
+		nameField := Registry.MustGet("User").Fields().MustGet("Name")
+		nameField.SetSize(127)
+		CheckUpdates(nameField, "size", 127)
+		nameField.SetTranslate(true)
+		CheckUpdates(nameField, "translate", true)
+		nameField.SetTranslate(false)
+		CheckUpdates(nameField, "translate", false)
+		nameField.SetOnchange(nil)
+		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("OnChangeName"))
+		nameField.SetOnchangeWarning(Registry.MustGet("User").Methods().MustGet("OnChangeNameWarning"))
+		nameField.SetOnchangeFilters(Registry.MustGet("User").Methods().MustGet("OnChangeNameFilters"))
+		nameField.SetConstraint(Registry.MustGet("User").Methods().MustGet("UpdateCity"))
+		nameField.SetConstraint(nil)
+		nameField.SetInverse(Registry.MustGet("User").Methods().MustGet("InverseSetAge"))
+		nameField.SetInverse(nil)
+		sizeField := Registry.MustGet("User").Fields().MustGet("Size")
+		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 2})
+		LastUpdateShouldResemble(sizeField, "digits", nbutils.Digits{Precision: 6, Scale: 2})
+		userField := Registry.MustGet("Post").Fields().MustGet("User")
+		userField.SetOnDelete(Cascade)
+		CheckUpdates(userField, "onDelete", Cascade)
+		userField.SetOnDelete(SetNull)
+		CheckUpdates(userField, "onDelete", SetNull)
+		userField.SetEmbed(true)
+		CheckUpdates(userField, "embed", true)
+		userField.SetEmbed(false)
+		CheckUpdates(userField, "embed", false)
+		userField.SetFilter(Registry.MustGet("User").Field(NewFieldName("SetActive", "set_active")).Equals(true))
+		userField.SetFilter(Condition{})
+		visibilityField := Registry.MustGet("Post").Fields().MustGet("Visibility")
+		visibilityField.UpdateSelection(types.Selection{"logged_in": "Logged in users"})
+		LastUpdateShouldResemble(visibilityField, "selection_add", types.Selection{"logged_in": "Logged in users"})
+		genderField := Registry.MustGet("Profile").Fields().MustGet("Gender")
+		genderField.SetSelection(types.Selection{"m": "Male", "f": "Female"})
+		LastUpdateShouldResemble(genderField, "selection", types.Selection{"m": "Male", "f": "Female"})
+		statusField := Registry.MustGet("User").Fields().MustGet("Status")
+		statusField.SetReadOnly(false)
+		CheckUpdates(statusField, "readOnly", false)
+		nFunc := func(env Environment) (b bool, conditioner Conditioner) { return }
+		statusField.SetReadOnlyFunc(nFunc)
+		CheckUpdates(statusField, "readOnlyFunc", nFunc)
+		statusField.SetInvisibleFunc(nFunc)
+		CheckUpdates(statusField, "invisibleFunc", nFunc)
+		statusField.SetRequiredFunc(nFunc)
+		CheckUpdates(statusField, "requiredFunc", nFunc)
+	})
+}
+
+func TestMiscellaneous(t *testing.T) {
+	Convey("Check that Field instances are FieldNamers", t, func() {
+		So(Registry.MustGet("User").Fields().MustGet("Name").JSON(), ShouldEqual, "name")
+		So(Registry.MustGet("User").Fields().MustGet("Name").Name(), ShouldEqual, "Name")
+	})
+}
+
+func TestSequences(t *testing.T) {
+	Convey("Testing sequences before bootstrap", t, func() {
+		testSeq := CreateSequence("TestSequence", 5, 13)
+		_, ok := Registry.GetSequence("TestSequence")
+		So(ok, ShouldBeTrue)
+		So(testSeq.Increment, ShouldEqual, 5)
+		So(testSeq.Start, ShouldEqual, 13)
+		testSeq.Alter(3, 14)
+		So(testSeq.Increment, ShouldEqual, 3)
+		So(testSeq.Start, ShouldEqual, 14)
+		testSeq.Drop()
+		So(func() { Registry.MustGetSequence("TestSequence") }, ShouldPanic)
+		CreateSequence("TestSequence", 5, 13)
+	})
+}
 
 func TestIllegalMethods(t *testing.T) {
 	Convey("Checking that invalid data leads to panic", t, func() {
@@ -63,21 +177,21 @@ func TestIllegalMethods(t *testing.T) {
 			userModel.AddMethod("Create", "Trying to add existing method", func(rc *RecordCollection) {})
 		}, ShouldPanic)
 		So(func() { userModel.AddEmptyMethod("ComputeAge") }, ShouldPanic)
-		So(func() { userModel.methods.MustGet("ComputeAge").Extend("Test with int instead of func literal", 12) }, ShouldPanic)
+		So(func() { userModel.Methods().MustGet("ComputeAge").Extend("Test with int instead of func literal", 12) }, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc string) (int, bool) { return 0, true })
+			userModel.Methods().MustGet("ComputeAge").Extend("Test with wrong signature", func(rc string) (int, bool) { return 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection, x string) (int, bool) { return 0, true })
+			userModel.Methods().MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection, x string) (int, bool) { return 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection) (int, int, bool) { return 0, 0, true })
+			userModel.Methods().MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection) (int, int, bool) { return 0, 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection) (int, bool) { return 0, true })
+			userModel.Methods().MustGet("ComputeAge").Extend("Test with wrong signature", func(rc *RecordCollection) (int, bool) { return 0, true })
 		}, ShouldPanic)
 		So(func() {
-			userModel.methods.MustGet("DecorateEmail").Extend("Test with wrong signature", func(rc *RecordCollection, email []byte) string { return "" })
+			userModel.Methods().MustGet("DecorateEmail").Extend("Test with wrong signature", func(rc *RecordCollection, email []byte) string { return "" })
 		}, ShouldPanic)
 	})
 	Convey("Test checkTypesMatch", t, func() {
@@ -186,7 +300,7 @@ func TestBootStrap(t *testing.T) {
 
 	Convey("Database creation should run fine", t, func() {
 		Convey("Dummy table should exist", func() {
-			So(testAdapter.tables(), ShouldContainKey, "shouldbedeleted")
+			So(TestAdapter.tables(), ShouldContainKey, "shouldbedeleted")
 		})
 		Convey("Bootstrap should not panic", func() {
 			BootStrap()
@@ -212,30 +326,30 @@ func TestBootStrap(t *testing.T) {
 			}, ShouldNotPanic)
 		})
 		Convey("All models should have a DB table", func() {
-			dbTables := testAdapter.tables()
+			dbTables := TestAdapter.tables()
 			for tableName, mi := range Registry.registryByTableName {
-				if mi.isMixin() || mi.isManual() {
+				if mi.IsMixin() || mi.IsManual() {
 					continue
 				}
 				So(dbTables[tableName], ShouldBeTrue)
 			}
 		})
 		Convey("All DB tables should have a model", func() {
-			for dbTable := range testAdapter.tables() {
+			for dbTable := range TestAdapter.tables() {
 				So(Registry.registryByTableName, ShouldContainKey, dbTable)
 			}
 		})
 		Convey("Table constraints should have been created", func() {
-			So(testAdapter.constraints("%_mancon"), ShouldHaveLength, 1)
-			So(testAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
+			So(TestAdapter.constraints("%_mancon"), ShouldHaveLength, 1)
+			So(TestAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
 		})
 		Convey("Boot Sequence should be created", func() {
-			So(testAdapter.sequences("%_bootseq"), ShouldHaveLength, 1)
-			So(testAdapter.sequences("%_bootseq")[0].Name, ShouldEqual, "test_sequence_bootseq")
+			So(TestAdapter.sequences("%_bootseq"), ShouldHaveLength, 1)
+			So(TestAdapter.sequences("%_bootseq")[0].Name, ShouldEqual, "test_sequence_bootseq")
 		})
 		Convey("Manual sequences should be loaded in registry", func() {
-			So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
-			So(testAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "test_manseq")
+			So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
+			So(TestAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "test_manseq")
 			seq, ok := Registry.GetSequence("Test")
 			So(ok, ShouldBeTrue)
 			So(seq.JSON, ShouldEqual, "test_manseq")
@@ -250,13 +364,18 @@ func TestBootStrap(t *testing.T) {
 			profileField.SetRequired(false)
 			numsField := Registry.MustGet("User").Fields().MustGet("Nums")
 			numsField.SetDefault(nil).SetIndex(false)
-			Registry.MustGet("Comment").AddFields(map[string]FieldDefinition{
-				"Date": DateField{Default: func(env Environment) interface{} {
+			Registry.MustGet("Comment").fields.add(&Field{
+				model:       Registry.MustGet("Comment"),
+				name:        "Date",
+				json:        "date",
+				fieldType:   fieldtype.Date,
+				structField: reflect.StructField{Type: reflect.TypeOf(dates.Date{})},
+				defaultFunc: func(env Environment) interface{} {
 					return dates.Today()
-				}},
+				},
 			})
 			textField := Registry.MustGet("Comment").Fields().MustGet("Text")
-			textField.SetFieldType(field.Text)
+			textField.SetFieldType(fieldtype.Text)
 			BootStrap()
 			//So(BootStrap, ShouldNotPanic)
 			So(contentField.required, ShouldBeFalse)
@@ -280,7 +399,7 @@ func TestBootStrap(t *testing.T) {
 
 	Convey("Truncating all tables...", t, func() {
 		for tn, mi := range Registry.registryByTableName {
-			if mi.isMixin() || mi.isManual() {
+			if mi.IsMixin() || mi.IsManual() {
 				continue
 			}
 			dbExecuteNoTx(fmt.Sprintf(`TRUNCATE TABLE "%s" CASCADE`, tn))

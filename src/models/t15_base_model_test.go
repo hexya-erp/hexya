@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	. "github.com/smartystreets/goconvey/convey"
@@ -92,7 +92,7 @@ func TestBaseModelMethods(t *testing.T) {
 				fInfo := userJane.Call("FieldGet", FieldName(Name)).(*FieldInfo)
 				So(fInfo.String, ShouldEqual, "Name")
 				So(fInfo.Help, ShouldEqual, "The user's username")
-				So(fInfo.Type, ShouldEqual, field.Char)
+				So(fInfo.Type, ShouldEqual, fieldtype.Char)
 				fInfos := userJane.Call("FieldsGet", FieldsGetArgs{}).(map[string]*FieldInfo)
 				So(fInfos, ShouldHaveLength, 35)
 			})
@@ -509,8 +509,8 @@ func TestPostBootSequences(t *testing.T) {
 		testSeq.Drop()
 		seq := CreateSequence("ManualSequence", 1, 1)
 		So(seq.JSON, ShouldEqual, "manual_sequence_manseq")
-		So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
-		So(testAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "manual_sequence_manseq")
+		So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
+		So(TestAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "manual_sequence_manseq")
 		So(seq.NextValue(), ShouldEqual, 1)
 		So(seq.NextValue(), ShouldEqual, 2)
 		seq.Alter(2, 5)
@@ -518,7 +518,7 @@ func TestPostBootSequences(t *testing.T) {
 		So(seq.NextValue(), ShouldEqual, 7)
 		So(func() { CreateSequence("ManualSequence", 1, 1) }, ShouldPanic)
 		seq.Drop()
-		So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 0)
+		So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 0)
 	})
 	Convey("Boot sequences cannot be altered or dropped after bootstrap", t, func() {
 		bootSeq := Registry.MustGetSequence("TestSequence")

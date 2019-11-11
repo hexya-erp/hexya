@@ -19,7 +19,7 @@ func SyncDatabase() {
 	updateDBSequences()
 	// Create or update existing tables
 	for tableName, model := range Registry.registryByTableName {
-		if model.isMixin() || model.isManual() {
+		if model.IsMixin() || model.IsManual() {
 			continue
 		}
 		if _, ok := dbTables[tableName]; !ok {
@@ -30,7 +30,7 @@ func SyncDatabase() {
 	}
 	// Setup constraints
 	for _, model := range Registry.registryByTableName {
-		if model.isMixin() || model.isManual() {
+		if model.IsMixin() || model.IsManual() {
 			continue
 		}
 		buildSQLErrorSubstitutionMap(model)
@@ -39,7 +39,7 @@ func SyncDatabase() {
 	}
 	// Run init method on each model
 	for _, model := range Registry.registryByTableName {
-		if model.isMixin() {
+		if model.IsMixin() {
 			continue
 		}
 		runInit(model)
@@ -49,7 +49,7 @@ func SyncDatabase() {
 	for dbTable := range adapter.tables() {
 		var modelExists bool
 		for tableName, model := range Registry.registryByTableName {
-			if dbTable != tableName || model.isMixin() {
+			if dbTable != tableName || model.IsMixin() {
 				continue
 			}
 			modelExists = true

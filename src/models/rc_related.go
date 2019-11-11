@@ -17,7 +17,7 @@ package models
 import (
 	"fmt"
 
-	"github.com/hexya-erp/hexya/src/models/field"
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
 )
 
@@ -152,11 +152,11 @@ func (rc *RecordCollection) createRelatedRecord(path FieldName, vals RecordData)
 	fi := rc.model.getRelatedFieldInfo(path)
 	exprs := splitFieldNames(path, ExprSep)
 	switch fi.fieldType {
-	case field.Many2One, field.One2One, field.Many2Many:
+	case fieldtype.Many2One, fieldtype.One2One, fieldtype.Many2Many:
 		resRS := rc.createRelatedFKRecord(fi, vals)
 		rc.Set(path, resRS.Collection())
 		return resRS.Collection()
-	case field.One2Many, field.Rev2One:
+	case fieldtype.One2Many, fieldtype.Rev2One:
 		target := rc
 		if len(exprs) > 1 {
 			target = rc.Get(joinFieldNames(exprs[:len(exprs)-1], ExprSep)).(RecordSet).Collection()

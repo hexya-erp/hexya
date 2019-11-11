@@ -23,6 +23,22 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func CheckUpdates(f *Field, property string, value interface{}) {
+	So(len(f.updates), ShouldBeGreaterThan, 0)
+	So(f.updates[len(f.updates)-1], ShouldContainKey, property)
+	So(f.updates[len(f.updates)-1][property], ShouldEqual, value)
+}
+
+func LastUpdateShouldResemble(f *Field, key string, s interface{}) {
+	So(f.updates[len(f.updates)-1], ShouldContainKey, key)
+	So(f.updates[len(f.updates)-1][key], ShouldResemble, s)
+}
+
+func LastUpdateDefFuncShouldEqual(f *Field, key string, res string) {
+	So(f.updates[len(f.updates)-1], ShouldContainKey, key)
+	So(f.updates[len(f.updates)-1][key].(func(env Environment) interface{})(Environment{}), ShouldEqual, res)
+}
+
 func TestEnvironment(t *testing.T) {
 	Convey("Testing Environment Modifications", t, func() {
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
