@@ -23,6 +23,7 @@ import (
 	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/src/i18n"
 	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/tools/xmlutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -159,11 +160,11 @@ var viewDef10 = `
 `
 
 func elementToXMLString(elt *etree.Element) string {
-	xml, err := xmlutils.ElementToXML(elt)
+	xmlData, err := xmlutils.ElementToXML(elt)
 	if err != nil {
 		panic(err)
 	}
-	return string(xml)
+	return string(xmlData)
 }
 
 func loadView(xml string) {
@@ -231,29 +232,29 @@ func TestViews(t *testing.T) {
 			return models.NewModelData(rc.Model())
 		})
 		group.AddFields(map[string]models.FieldDefinition{
-			"Name":   models.CharField{},
-			"Active": models.BooleanField{},
+			"Name":   fields.Char{},
+			"Active": fields.Boolean{},
 		})
 		category.AddFields(map[string]models.FieldDefinition{
-			"Name":     models.CharField{},
-			"Color":    models.IntegerField{},
-			"Sequence": models.IntegerField{},
+			"Name":     fields.Char{},
+			"Color":    fields.Integer{},
+			"Sequence": fields.Integer{},
 		})
 		user.AddFields(map[string]models.FieldDefinition{
-			"UserName": models.CharField{},
-			"Age":      models.IntegerField{OnChange: models.Registry.MustGet("User").Methods().MustGet("OnChangeAge")},
-			"Groups":   models.Many2ManyField{RelationModel: models.Registry.MustGet("Group")},
-			"Categories": models.Many2ManyField{RelationModel: models.Registry.MustGet("Category"),
+			"UserName": fields.Char{},
+			"Age":      fields.Integer{OnChange: models.Registry.MustGet("User").Methods().MustGet("OnChangeAge")},
+			"Groups":   fields.Many2Many{RelationModel: models.Registry.MustGet("Group")},
+			"Categories": fields.Many2Many{RelationModel: models.Registry.MustGet("Category"),
 				JSON: "category_ids"},
 		})
 		partner.AddFields(map[string]models.FieldDefinition{
-			"Name":        models.CharField{},
-			"Function":    models.CharField{},
-			"CompanyName": models.CharField{},
-			"Email":       models.CharField{},
-			"Phone":       models.CharField{},
-			"Fax":         models.CharField{},
-			"Address":     models.CharField{},
+			"Name":        fields.Char{},
+			"Function":    fields.Char{},
+			"CompanyName": fields.Char{},
+			"Email":       fields.Char{},
+			"Phone":       fields.Char{},
+			"Fax":         fields.Char{},
+			"Address":     fields.Char{},
 		})
 		models.BootStrap()
 		models.Views[partner] = []string{`<view id="test_view" model="Partner"><tree><field name="Name"></tree></view>`}
@@ -503,7 +504,7 @@ func TestViews(t *testing.T) {
 	Convey("Testing default views", t, func() {
 		soModel := models.NewModel("SaleOrder")
 		soModel.AddFields(map[string]models.FieldDefinition{
-			"Name": models.CharField{},
+			"Name": fields.Char{},
 		})
 		soSearch := Registry.GetFirstViewForModel("SaleOrder", ViewTypeSearch)
 		So(elementToXMLString(soSearch.arch), ShouldEqual, `<search>

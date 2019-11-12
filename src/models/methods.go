@@ -286,9 +286,9 @@ func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value
 			return reflect.ValueOf(at.Underlying())
 		}
 		// => Target is a typed RecordData
-		if fm, ok := at.(*ModelData); ok {
+		if md, ok := at.(*ModelData); ok {
 			// Given arg is a ModelData, so we wrap it
-			val = reflect.ValueOf(fm.Wrap())
+			val = reflect.ValueOf(md.Wrap())
 			return val
 		}
 		// Given arg is already a typed ModelData
@@ -319,7 +319,7 @@ func (m *Model) AddMethod(methodName, doc string, fnct interface{}) *Method {
 }
 
 // AddEmptyMethod creates a new method withoud function layer
-// The resulting method cannot be called until DeclareMethod is called
+// The resulting method cannot be called until declareMethod is called
 func (m *Model) AddEmptyMethod(methodName string) *Method {
 	if m.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
@@ -340,13 +340,6 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 		meth.AllowGroup(security.GroupEveryone)
 	}
 	return meth
-}
-
-// DeclareMethod overrides the given Method by :
-// - setting documentation string to doc
-// - setting fnct as the first layer
-func (m *Method) DeclareMethod(doc string, fnct interface{}) *Method {
-	return m.declareMethod(doc, fnct)
 }
 
 // declareMethod is the actual implementation of DeclareMethod

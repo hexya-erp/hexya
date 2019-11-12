@@ -249,8 +249,7 @@ func TestModelDeclaration(t *testing.T) {
 				return "Hello !"
 			})
 
-		printAddress := addressMI.AddEmptyMethod("PrintAddress")
-		printAddress.DeclareMethod("",
+		addressMI.AddMethod("PrintAddress", "",
 			func(rc *RecordCollection) string {
 				return fmt.Sprintf("%s, %s %s", rc.Get(rc.Model().FieldName("Street")), rc.Get(rc.Model().FieldName("Zip")), rc.Get(rc.Model().FieldName("City")))
 			})
@@ -959,17 +958,3 @@ func TestModelDeclaration(t *testing.T) {
 		})
 	})
 }
-
-//func TestErroneousDeclarations(t *testing.T) {
-//	Convey("Testing wrong field declarations", t, func() {
-//		Convey("Ours = Theirs in M2M field def", func() {
-//			userModel := Registry.MustGet("User")
-//			So(func() {
-//				userModel.AddFields(map[string]FieldDefinition{
-//					"Tags": Many2ManyField{RelationModel: Registry.MustGet("Tag"),
-//						M2MOurField: "FT", M2MTheirField: "FT"},
-//				})
-//			}, ShouldPanic)
-//		})
-//	})
-//}

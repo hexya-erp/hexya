@@ -250,8 +250,7 @@ func TestExtModelDeclaration(t *testing.T) {
 				return "Hello !"
 			})
 
-		printAddress := addressMI.AddEmptyMethod("PrintAddress")
-		printAddress.DeclareMethod("",
+		addressMI.AddMethod("PrintAddress", "",
 			func(rc *models.RecordCollection) string {
 				return fmt.Sprintf("%s, %s %s", rc.Get(rc.Model().FieldName("Street")), rc.Get(rc.Model().FieldName("Zip")), rc.Get(rc.Model().FieldName("City")))
 			})

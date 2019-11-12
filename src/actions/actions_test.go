@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/tools/xmlutils"
 	"github.com/hexya-erp/hexya/src/views"
 	. "github.com/smartystreets/goconvey/convey"
@@ -57,11 +58,11 @@ func TestActions(t *testing.T) {
 		user := models.NewModel("User")
 		partner := models.NewModel("Partner")
 		user.AddFields(map[string]models.FieldDefinition{
-			"UserName": models.CharField{},
-			"Age":      models.IntegerField{},
+			"UserName": fields.Char{},
+			"Age":      fields.Integer{},
 		})
 		partner.AddFields(map[string]models.FieldDefinition{
-			"Name": models.CharField{},
+			"Name": fields.Char{},
 		})
 		models.BootStrap()
 	})

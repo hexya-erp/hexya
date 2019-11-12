@@ -22,7 +22,7 @@ type FieldDefinition interface {
 type DummyField struct{}
 
 // DeclareField creates a dummy field for the given FieldsCollection with the given name.
-func (df DummyField) DeclareField(fc FieldsCollection, name string) *Field {
+func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 	json := SnakeCaseFieldName(name, fieldtype.NoType)
 	fInfo := &Field{
 		model: fc.model,

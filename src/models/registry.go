@@ -134,6 +134,7 @@ type Model struct {
 	sqlErrors       map[string]string
 	defaultOrderStr []string
 	defaultOrder    []orderPredicate
+	created         bool
 }
 
 // An sqlConstraint holds the data needed to create a table constraint in the database
@@ -509,25 +510,36 @@ func (m *Model) Underlying() *Model {
 
 var _ Modeler = new(Model)
 
-// NewModel creates a new model with the given name and
-// extends it with the given struct pointer.
+// getOrCreateModel checks if the given model has been created
+// and creates it if it is not the case/
+func getOrCreateModel(name string, options Option) *Model {
+	model, ok := Registry.Get(name)
+	if !ok {
+		model = CreateModel(name, options)
+	}
+	if model.created {
+		log.Panic("Trying to add already existing model", "model", name)
+	}
+	model.created = true
+	return model
+}
+
+// NewModel creates a new model with the given name.
 func NewModel(name string) *Model {
-	model := createModel(name, Option(0))
+	model := getOrCreateModel(name, 0)
 	model.InheritModel(Registry.MustGet("ModelMixin"))
 	return model
 }
 
-// NewMixinModel creates a new mixin model with the given name and
-// extends it with the given struct pointer.
+// NewMixinModel creates a new mixin model with the given name.
 func NewMixinModel(name string) *Model {
-	model := createModel(name, MixinModel)
+	model := getOrCreateModel(name, MixinModel)
 	return model
 }
 
-// NewTransientModel creates a new mixin model with the given name and
-// extends it with the given struct pointers.
+// NewTransientModel creates a new mixin model with the given name.
 func NewTransientModel(name string) *Model {
-	model := createModel(name, TransientModel)
+	model := getOrCreateModel(name, TransientModel)
 	model.InheritModel(Registry.MustGet("BaseMixin"))
 	return model
 }
@@ -535,7 +547,7 @@ func NewTransientModel(name string) *Model {
 // NewManualModel creates a model whose table is not automatically generated
 // in the database. This is particularly useful for SQL view models.
 func NewManualModel(name string) *Model {
-	model := createModel(name, ManualModel)
+	model := getOrCreateModel(name, ManualModel)
 	model.InheritModel(Registry.MustGet("CommonMixin"))
 	return model
 }
@@ -547,9 +559,9 @@ func (m *Model) InheritModel(mixInModel Modeler) {
 	m.mixins = append(m.mixins, mixInModel.Underlying())
 }
 
-// createModel creates and populates a new Model with the given name
-// by parsing the given struct pointer.
-func createModel(name string, options Option) *Model {
+// CreateModel creates a new Model with the given name and options.
+// You should not use this function directly. Use NewModel instead.
+func CreateModel(name string, options Option) *Model {
 	mi := &Model{
 		name:            name,
 		options:         options,

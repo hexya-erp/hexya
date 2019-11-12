@@ -381,9 +381,9 @@ func (mf Many2Many) DeclareField(fc *models.FieldsCollection, name string) *mode
 	m2mRelModel, m2mOurField, m2mTheirField := models.CreateM2MRelModelInfo(m2mRelModName, fc.Model().Name(), mf.RelationModel.Underlying().Name(), our, their, fc.Model().IsMixin())
 
 	if mf.Filter != nil {
-		fInfo.SetProperty("filter", mf.Filter)
+		fInfo.SetProperty("filter", mf.Filter.Underlying())
 	}
-	fInfo.SetProperty("relationModel", mf.RelationModel)
+	fInfo.SetProperty("relationModel", mf.RelationModel.Underlying())
 	fInfo.SetProperty("m2mRelModel", m2mRelModel)
 	fInfo.SetProperty("m2mOurField", m2mOurField)
 	fInfo.SetProperty("m2mTheirField", m2mTheirField)
@@ -437,9 +437,9 @@ func (mf Many2One) DeclareField(fc *models.FieldsCollection, name string) *model
 		required = false
 	}
 	if mf.Filter != nil {
-		fInfo.SetProperty("filter", mf.Filter)
+		fInfo.SetProperty("filter", mf.Filter.Underlying())
 	}
-	fInfo.SetProperty("relationModel", mf.RelationModel)
+	fInfo.SetProperty("relationModel", mf.RelationModel.Underlying())
 	fInfo.SetProperty("onDelete", onDelete)
 	fInfo.SetProperty("noCopy", noCopy)
 	fInfo.SetProperty("required", required)
@@ -480,9 +480,9 @@ type One2Many struct {
 func (of One2Many) DeclareField(fc *models.FieldsCollection, name string) *models.Field {
 	fInfo := models.CreateFieldFromStruct(fc, &of, name, fieldtype.One2Many, new([]int64))
 	if of.Filter != nil {
-		fInfo.SetProperty("filter", of.Filter)
+		fInfo.SetProperty("filter", of.Filter.Underlying())
 	}
-	fInfo.SetProperty("relationModel", of.RelationModel)
+	fInfo.SetProperty("relationModel", of.RelationModel.Underlying())
 	fInfo.SetProperty("reverseFK", of.ReverseFK)
 	if !of.Copy {
 		fInfo.SetProperty("noCopy", true)
@@ -537,9 +537,9 @@ func (of One2One) DeclareField(fc *models.FieldsCollection, name string) *models
 		noCopy = true
 	}
 	if of.Filter != nil {
-		fInfo.SetProperty("filter", of.Filter)
+		fInfo.SetProperty("filter", of.Filter.Underlying())
 	}
-	fInfo.SetProperty("relationModel", of.RelationModel)
+	fInfo.SetProperty("relationModel", of.RelationModel.Underlying())
 	fInfo.SetProperty("onDelete", onDelete)
 	fInfo.SetProperty("noCopy", noCopy)
 	fInfo.SetProperty("required", required)
@@ -581,9 +581,9 @@ type Rev2One struct {
 func (rf Rev2One) DeclareField(fc *models.FieldsCollection, name string) *models.Field {
 	fInfo := models.CreateFieldFromStruct(fc, &rf, name, fieldtype.Rev2One, new(int64))
 	if rf.Filter != nil {
-		fInfo.SetProperty("filter", rf.Filter)
+		fInfo.SetProperty("filter", rf.Filter.Underlying())
 	}
-	fInfo.SetProperty("relationModel", rf.RelationModel)
+	fInfo.SetProperty("relationModel", rf.RelationModel.Underlying())
 	fInfo.SetProperty("reverseFK", rf.ReverseFK)
 	if !rf.Copy {
 		fInfo.SetProperty("noCopy", true)
