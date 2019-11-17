@@ -6,6 +6,7 @@ package fieldtype
 import (
 	"reflect"
 
+	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 )
 
@@ -31,6 +32,7 @@ const (
 	Reference Type = "reference"
 	Selection Type = "selection"
 	Text      Type = "text"
+	JSON      Type = "json"
 )
 
 // IsRelationType returns true if this type is a relation.
@@ -87,6 +89,8 @@ func (t Type) DefaultGoType() reflect.Type {
 		return reflect.TypeOf(*new(dates.Date))
 	case DateTime:
 		return reflect.TypeOf(*new(dates.DateTime))
+	case JSON:
+		return reflect.TypeOf(*new(types.JSONText))
 	case Float:
 		return reflect.TypeOf(*new(float64))
 	case Integer, Many2One, One2One, Rev2One:
