@@ -258,7 +258,7 @@ func (c ConditionField) JSON() string {
 	return joinFieldNames(c.exprs, ExprSep).JSON()
 }
 
-// String method for ConditionField
+// Name method for ConditionField
 func (c ConditionField) Name() string {
 	return joinFieldNames(c.exprs, ExprSep).Name()
 }
