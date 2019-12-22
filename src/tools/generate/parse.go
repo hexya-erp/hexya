@@ -258,7 +258,9 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo, validate bool) map[strin
 					}
 					switch {
 					case fnctName == "AddMethod":
-						parseAddMethod(node, modInfo, &modelsData)
+						parseAddMethod(node, modInfo, &modelsData, false)
+					case fnctName == "NewMethod":
+						parseAddMethod(node, modInfo, &modelsData, true)
 					case fnctName == "InheritModel":
 						parseMixInModel(node, modInfo, &modelsData)
 					case fnctName == "AddFields":
@@ -397,7 +399,13 @@ func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 	if _, exists := (*modelsData)[modelName]; !exists {
 		(*modelsData)[modelName] = newModelASTData(modelName)
 	}
-	fields := node.Args[0].(*ast.CompositeLit)
+	var fields *ast.CompositeLit
+	switch n := node.Args[0].(type) {
+	case *ast.CompositeLit:
+		fields = n
+	case *ast.Ident:
+		fields = n.Obj.Decl.(*ast.ValueSpec).Values[0].(*ast.CompositeLit)
+	}
 	for _, f := range fields.Elts {
 		fDef := f.(*ast.KeyValueExpr)
 		fieldName := strings.Trim(fDef.Key.(*ast.BasicLit).Value, "\"`")
@@ -499,19 +507,23 @@ func extractSelection(expr ast.Expr) map[string]string {
 }
 
 // parseAddMethod parses the given node which is an AddMethod function
-func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
+func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData, toDeclare bool) {
 	fNode := node.Fun.(*ast.SelectorExpr)
 	modelName, err := extractModel(fNode.X, modInfo)
 	if err != nil {
 		log.Panic("Unable to extract model while visiting AST", "error", err)
 	}
 	methodName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
-	docStr := strings.Trim(node.Args[1].(*ast.BasicLit).Value, "\"`")
 
-	var funcType *ast.FuncType
-	switch fd := node.Args[2].(type) {
+	var (
+		funcType *ast.FuncType
+		doc      string
+	)
+	switch fd := node.Args[1].(type) {
 	case *ast.Ident:
-		funcType = fd.Obj.Decl.(*ast.FuncDecl).Type
+		funcDecl := fd.Obj.Decl.(*ast.FuncDecl)
+		funcType = funcDecl.Type
+		doc = funcDecl.Doc.Text()
 	case *ast.FuncLit:
 		funcType = fd.Type
 	}
@@ -519,11 +531,12 @@ func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 		(*modelsData)[modelName] = newModelASTData(modelName)
 	}
 	methData := MethodASTData{
-		Name:    methodName,
-		Doc:     formatDocString(docStr),
-		PkgPath: modInfo.PkgPath,
-		Params:  extractParams(funcType, modInfo),
-		Returns: extractReturnType(funcType, modInfo),
+		Name:      methodName,
+		Doc:       formatDocString(doc),
+		PkgPath:   modInfo.PkgPath,
+		Params:    extractParams(funcType, modInfo),
+		Returns:   extractReturnType(funcType, modInfo),
+		ToDeclare: toDeclare,
 	}
 	(*modelsData)[modelName].Methods[methodName] = methData
 }
@@ -698,5 +711,5 @@ func formatDocString(doc string) string {
 		dataStarted = true
 		res += fmt.Sprintf("// %s\n", line)
 	}
-	return strings.TrimRight(res, "\n")
+	return strings.TrimRight(res, "/ \n")
 }

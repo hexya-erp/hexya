@@ -88,7 +88,7 @@ func (md {{ .Name }}Model) BrowseOne(env models.Environment, id int64) {{ .Inter
 // Optional field maps if given will be used to populate the data.
 func (md {{ .Name }}Model) NewData(fm ...models.FieldMap) {{ .InterfacesPackageName }}.{{ .Name }}Data {
 	return &{{ .SnakeName }}.{{ .Name }}Data{
-		models.NewModelData({{ .Name }}(), fm...),
+		ModelData: models.NewModelData({{ .Name }}(), fm...),
 	}
 }
 
@@ -179,9 +179,9 @@ type p{{ .Name }} struct {
 }
 
 // Extend adds the given fnct function as a new layer on this method.
-func (m p{{ .Name }}) Extend(doc string, fnct func({{ $.InterfacesPackageName }}.{{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) p{{ .Name }} {
+func (m p{{ .Name }}) Extend(fnct func({{ $.InterfacesPackageName }}.{{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) p{{ .Name }} {
 	return p{{ .Name }} {
-		Method: m.Method.Extend(doc, fnct),
+		Method: m.Method.Extend(fnct),
 	}
 }
 
@@ -517,6 +517,11 @@ func init() {
 {{- end }}
 {{- end }}
 	})
+{{- range .Methods }}
+{{- if .ToDeclare }}
+	models.Registry.MustGet("{{ $.Name }}").AddEmptyMethod("{{ .Name }}")
+{{- end }}
+{{- end }}
 	models.RegisterRecordSetWrapper("{{ .Name }}", {{ .Name }}Set{})
 	models.RegisterModelDataWrapper("{{ .Name }}", {{ .Name }}Data{})
 }

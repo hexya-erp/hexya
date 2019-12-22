@@ -26,6 +26,14 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func testPrefixdUser(rc *RecordCollection, prefix string) []string {
+	var res []string
+	for _, u := range rc.Records() {
+		res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get(u.Model().FieldName("Name"))))
+	}
+	return res
+}
+
 func TestModelDeclaration(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
 		userModel := NewModel("User")
@@ -39,16 +47,9 @@ func TestModelDeclaration(t *testing.T) {
 		viewModel := NewManualModel("UserView")
 		wizard := NewTransientModel("Wizard")
 
-		userModel.AddMethod("PrefixedUser", "",
-			func(rc *RecordCollection, prefix string) []string {
-				var res []string
-				for _, u := range rc.Records() {
-					res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get(u.Model().FieldName("Name"))))
-				}
-				return res
-			})
+		userModel.AddMethod("PrefixedUser", testPrefixdUser)
 
-		userModel.Methods().MustGet("PrefixedUser").Extend("",
+		userModel.Methods().MustGet("PrefixedUser").Extend(
 			func(rc *RecordCollection, prefix string) []string {
 				res := rc.Super().Call("PrefixedUser", prefix).([]string)
 				for i, u := range rc.Records() {
@@ -58,7 +59,8 @@ func TestModelDeclaration(t *testing.T) {
 				return res
 			})
 
-		userModel.AddMethod("DecorateEmail", "",
+		decorateEmail := userModel.AddEmptyMethod("DecorateEmail")
+		decorateEmail.finalize(
 			func(rc *RecordCollection, email string) string {
 				if rc.Env().Context().HasKey("use_square_brackets") {
 					return fmt.Sprintf("[%s]", email)
@@ -66,7 +68,7 @@ func TestModelDeclaration(t *testing.T) {
 				return fmt.Sprintf("<%s>", email)
 			})
 
-		userModel.Methods().MustGet("DecorateEmail").Extend("",
+		userModel.Methods().MustGet("DecorateEmail").Extend(
 			func(rc *RecordCollection, email string) string {
 				if rc.Env().Context().HasKey("use_double_square") {
 					rc = rc.
@@ -77,7 +79,7 @@ func TestModelDeclaration(t *testing.T) {
 				return fmt.Sprintf("[%s]", res)
 			})
 
-		userModel.AddMethod("RecursiveMethod", "",
+		userModel.AddMethod("RecursiveMethod",
 			func(rc *RecordCollection, depth int, res string) string {
 				if depth == 0 {
 					return res
@@ -85,14 +87,14 @@ func TestModelDeclaration(t *testing.T) {
 				return rc.Call("RecursiveMethod", depth-1, fmt.Sprintf("%s, recursion %d", res, depth)).(string)
 			})
 
-		userModel.Methods().MustGet("RecursiveMethod").Extend("",
+		userModel.Methods().MustGet("RecursiveMethod").Extend(
 			func(rc *RecordCollection, depth int, res string) string {
 				res = "> " + res + " <"
 				sup := rc.Super().Call("RecursiveMethod", depth, res).(string)
 				return sup
 			})
 
-		userModel.AddMethod("SubSetSuper", "",
+		userModel.AddMethod("SubSetSuper",
 			func(rc *RecordCollection) string {
 				var res string
 				for _, rec := range rc.Records() {
@@ -101,7 +103,7 @@ func TestModelDeclaration(t *testing.T) {
 				return res
 			})
 
-		userModel.Methods().MustGet("SubSetSuper").Extend("",
+		userModel.Methods().MustGet("SubSetSuper").Extend(
 			func(rc *RecordCollection) string {
 				users := rc.Env().Pool("User")
 				emailField := users.Model().FieldName("Email")
@@ -112,14 +114,14 @@ func TestModelDeclaration(t *testing.T) {
 				return users.Super().Call("SubSetSuper").(string)
 			})
 
-		userModel.AddMethod("OnChangeName", "",
+		userModel.AddMethod("OnChangeName",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
 				res.Set(rc.Model().FieldName("DecoratedName"), rc.Call("PrefixedUser", "User").([]string)[0])
 				return res
 			})
 
-		userModel.AddMethod("OnChangeNameWarning", "",
+		userModel.AddMethod("OnChangeNameWarning",
 			func(rc *RecordCollection) string {
 				if rc.Get(rc.Model().FieldName("Name")) == "Warning User" {
 					return "We have a warning here"
@@ -127,69 +129,69 @@ func TestModelDeclaration(t *testing.T) {
 				return ""
 			})
 
-		userModel.AddMethod("OnChangeNameFilters", "",
+		userModel.AddMethod("OnChangeNameFilters",
 			func(rc *RecordCollection) map[FieldName]Conditioner {
 				res := make(map[FieldName]Conditioner)
 				res[rc.Model().FieldName("LastPost")] = Registry.MustGet("Profile").Field(Registry.MustGet("Profile").FieldName("Street")).Equals("addr")
 				return res
 			})
 
-		userModel.AddMethod("ComputeDecoratedName", "",
+		userModel.AddMethod("ComputeDecoratedName",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
 				res.Set(rc.Model().FieldName("DecoratedName"), rc.Call("PrefixedUser", "User").([]string)[0])
 				return res
 			})
 
-		userModel.AddMethod("ComputeAge", "",
+		userModel.AddMethod("ComputeAge",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
 				res.Set(rc.Model().FieldName("Age"), rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Get(Registry.MustGet("Profile").FieldName("Age")).(int16))
 				return res
 			})
 
-		userModel.AddMethod("InverseSetAge", "",
+		userModel.AddMethod("InverseSetAge",
 			func(rc *RecordCollection, age int16) {
 				rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("Age"), age)
 			})
 
-		userModel.AddMethod("UpdateCity", "",
+		userModel.AddMethod("UpdateCity",
 			func(rc *RecordCollection, value string) {
 				rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("City"), value)
 			})
 
-		userModel.AddMethod("ComputeNum", "Dummy method",
+		userModel.AddMethod("ComputeNum",
 			func(rc *RecordCollection) *ModelData {
 				return NewModelData(rc.Model())
 			})
 
-		userModel.AddMethod("EndlessRecursion", "Endless recursive method for tests",
+		userModel.AddMethod("EndlessRecursion",
 			func(rc *RecordCollection) string {
 				return rc.Call("EndlessRecursion2").(string)
 			})
 
-		userModel.AddMethod("EndlessRecursion2", "Endless recursive method for tests",
+		userModel.AddMethod("EndlessRecursion2",
 			func(rc *RecordCollection) string {
 				return rc.Call("EndlessRecursion").(string)
 			})
 
-		userModel.AddMethod("TwoReturnValues", "Test method with 2 return values",
+		userModel.AddMethod("TwoReturnValues",
 			func(rc *RecordCollection) (FieldMap, bool) {
 				return FieldMap{"One": 1}, true
 			})
 
-		userModel.AddMethod("NoReturnValue", "Test method with 0 return values",
+		userModel.AddMethod("NoReturnValue",
 			func(rc *RecordCollection) {
 				fmt.Println("NOOP")
 			})
 
-		userModel.AddMethod("WrongInverseSetAge", "",
+		userModel.AddMethod("WrongInverseSetAge",
 			func(rc *RecordCollection, age int16) string {
 				rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("Age"), age)
 				return "Ok"
 			})
 
-		userModel.AddMethod("ComputeCoolType", "",
+		userModel.AddMethod("ComputeCoolType",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
 				if rc.Get(rc.Model().FieldName("IsCool")).(bool) {
@@ -200,7 +202,7 @@ func TestModelDeclaration(t *testing.T) {
 				return res
 			})
 
-		userModel.AddMethod("OnChangeCoolType", "",
+		userModel.AddMethod("OnChangeCoolType",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
 				if rc.Get(rc.Model().FieldName("CoolType")).(string) == "cool" {
@@ -211,7 +213,7 @@ func TestModelDeclaration(t *testing.T) {
 				return res
 			})
 
-		userModel.AddMethod("InverseCoolType", "",
+		userModel.AddMethod("InverseCoolType",
 			func(rc *RecordCollection, val string) {
 				if val == "cool" {
 					rc.Set(rc.Model().FieldName("IsCool"), true)
@@ -220,7 +222,7 @@ func TestModelDeclaration(t *testing.T) {
 				}
 			})
 
-		userModel.AddMethod("OnChangeMana", "",
+		userModel.AddMethod("OnChangeMana",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
 				post1 := rc.Env().Pool("Post").SearchAll().Limit(1)
@@ -232,47 +234,47 @@ func TestModelDeclaration(t *testing.T) {
 				return res
 			})
 
-		userModel.Methods().MustGet("Copy").Extend("",
+		userModel.Methods().MustGet("Copy").Extend(
 			func(rc *RecordCollection, overrides RecordData) *RecordCollection {
 				nameField := rc.Model().FieldName("Name")
 				overrides.Underlying().Set(nameField, fmt.Sprintf("%s (copy)", rc.Get(nameField).(string)))
 				return rc.Super().Call("Copy", overrides).(RecordSet).Collection()
 			})
 
-		activeMI.AddMethod("IsActivated", "",
+		activeMI.AddMethod("IsActivated",
 			func(rc *RecordCollection) bool {
 				return rc.Get(rc.Model().FieldName("Active")).(bool)
 			})
 
-		addressMI.AddMethod("SayHello", "",
+		addressMI.AddMethod("SayHello",
 			func(rc *RecordCollection) string {
 				return "Hello !"
 			})
 
-		addressMI.AddMethod("PrintAddress", "",
+		addressMI.AddMethod("PrintAddress",
 			func(rc *RecordCollection) string {
 				return fmt.Sprintf("%s, %s %s", rc.Get(rc.Model().FieldName("Street")), rc.Get(rc.Model().FieldName("Zip")), rc.Get(rc.Model().FieldName("City")))
 			})
 
-		profileModel.AddMethod("PrintAddress", "",
+		profileModel.AddMethod("PrintAddress",
 			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("%s, %s", res, rc.Get(rc.Model().FieldName("Country")))
 			})
 
-		addressMI.Methods().MustGet("PrintAddress").Extend("",
+		addressMI.Methods().MustGet("PrintAddress").Extend(
 			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("<%s>", res)
 			})
 
-		profileModel.Methods().MustGet("PrintAddress").Extend("",
+		profileModel.Methods().MustGet("PrintAddress").Extend(
 			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 
-		post.AddMethod("ComputeRead", "",
+		post.AddMethod("ComputeRead",
 			func(rc *RecordCollection) *ModelData {
 				var read bool
 				if !rc.Get(rc.Model().FieldName("LastRead")).(dates.Date).IsZero() {
@@ -281,24 +283,24 @@ func TestModelDeclaration(t *testing.T) {
 				return NewModelData(rc.Model()).Set(rc.Model().FieldName("Read"), read)
 			})
 
-		post.Methods().MustGet("Create").Extend("",
+		post.Methods().MustGet("Create").Extend(
 			func(rc *RecordCollection, data RecordData) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
 
-		post.Methods().MustGet("Search").Extend("",
+		post.Methods().MustGet("Search").Extend(
 			func(rc *RecordCollection, cond Conditioner) *RecordCollection {
 				res := rc.Super().Call("Search", cond).(RecordSet).Collection()
 				return res
 			})
 
-		post.Methods().MustGet("WithContext").Extend("",
+		post.Methods().MustGet("WithContext").Extend(
 			func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
 				return rc.Super().Call("WithContext", key, value).(*RecordCollection)
 			})
 
-		post.AddMethod("ComputeTagsNames", "",
+		post.AddMethod("ComputeTagsNames",
 			func(rc *RecordCollection) *ModelData {
 				var res string
 				for _, rec := range rc.Records() {
@@ -309,7 +311,7 @@ func TestModelDeclaration(t *testing.T) {
 				return NewModelData(rc.Model()).Set(rc.Model().FieldName("TagsNames"), res)
 			})
 
-		post.AddMethod("ComputeWriterAge", "",
+		post.AddMethod("ComputeWriterAge",
 			func(rc *RecordCollection) *ModelData {
 				return NewModelData(rc.Model()).
 					Set(rc.Model().FieldName("WriterAge"),
@@ -317,7 +319,6 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		tag.AddMethod("CheckRate",
-			`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
 			func(rc *RecordCollection) {
 				if rc.Get(rc.Model().FieldName("Rate")).(float32) < 0 || rc.Get(rc.Model().FieldName("Rate")).(float32) > 10 {
 					log.Panic("Tag rate must be between 0 and 10")
@@ -325,7 +326,6 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		tag.AddMethod("CheckNameDescription",
-			`CheckNameDescription checks that the description of a tag is not equal to its name`,
 			func(rc *RecordCollection) {
 				if rc.Get(rc.Model().FieldName("Name")).(string) == rc.Get(rc.Model().FieldName("Description")).(string) {
 					log.Panic("Tag name and description must be different")
@@ -337,7 +337,6 @@ func TestModelDeclaration(t *testing.T) {
 		tag.Methods().AllowAllToGroup(security.GroupEveryone)
 
 		cv.AddMethod("ComputeOther",
-			`Dummy compute function`,
 			func(rc *RecordCollection) *ModelData {
 				return NewModelData(rc.Model()).Set(rc.Model().FieldName("Other"), "Other information")
 			})

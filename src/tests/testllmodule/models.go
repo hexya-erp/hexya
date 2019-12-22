@@ -34,7 +34,7 @@ func declareModels() {
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	viewModel := models.NewManualModel("UserView")
 
-	user.AddMethod("PrefixedUser", "",
+	user.AddMethod("PrefixedUser",
 		func(rc *models.RecordCollection, prefix string) []string {
 			var res []string
 			for _, u := range rc.Records() {
@@ -43,7 +43,7 @@ func declareModels() {
 			return res
 		})
 
-	user.Methods().MustGet("PrefixedUser").Extend("",
+	user.Methods().MustGet("PrefixedUser").Extend(
 		func(rc *models.RecordCollection, prefix string) []string {
 			res := rc.Super().Call("PrefixedUser", prefix).([]string)
 			for i, u := range rc.Records() {
@@ -53,7 +53,7 @@ func declareModels() {
 			return res
 		})
 
-	user.AddMethod("DecorateEmail", "",
+	user.AddMethod("DecorateEmail",
 		func(rc *models.RecordCollection, email string) string {
 			if rc.Env().Context().HasKey("use_square_brackets") {
 				return fmt.Sprintf("[%s]", email)
@@ -61,7 +61,7 @@ func declareModels() {
 			return fmt.Sprintf("<%s>", email)
 		})
 
-	user.Methods().MustGet("DecorateEmail").Extend("",
+	user.Methods().MustGet("DecorateEmail").Extend(
 		func(rc *models.RecordCollection, email string) string {
 			if rc.Env().Context().HasKey("use_double_square") {
 				rc = rc.
@@ -72,83 +72,82 @@ func declareModels() {
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	user.AddMethod("OnChangeName", "",
+	user.AddMethod("OnChangeName",
 		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 			return models.NewModelDataFromRS(rc, res)
 		})
 
-	user.AddMethod("ComputeDecoratedName", "",
+	user.AddMethod("ComputeDecoratedName",
 		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 			return models.NewModelDataFromRS(rc, res)
 		})
 
-	user.AddMethod("ComputeAge", "",
+	user.AddMethod("ComputeAge",
 		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["Age"] = rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Get(rc.Model().FieldName("Age")).(int16)
 			return models.NewModelDataFromRS(rc, res)
 		})
 
-	user.AddMethod("InverseSetAge", "",
+	user.AddMethod("InverseSetAge",
 		func(rc *models.RecordCollection, age int16) {
 			rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Set(rc.Model().FieldName("Age"), age)
 		})
 
-	user.AddMethod("UpdateCity", "",
+	user.AddMethod("UpdateCity",
 		func(rc *models.RecordCollection, value string) {
 			rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Set(rc.Model().FieldName("City"), value)
 		})
 
-	activeMI.AddMethod("IsActivated", "",
+	activeMI.AddMethod("IsActivated",
 		func(rc *models.RecordCollection) bool {
 			return rc.Get(rc.Model().FieldName("Active")).(bool)
 		})
 
-	addressMI.AddMethod("SayHello", "",
+	addressMI.AddMethod("SayHello",
 		func(rc *models.RecordCollection) string {
 			return "Hello !"
 		})
 
-	addressMI.AddMethod("PrintAddress", "",
+	addressMI.AddMethod("PrintAddress",
 		func(rc *models.RecordCollection) string {
 			return fmt.Sprintf("%s, %s %s", rc.Get(rc.Model().FieldName("Street")), rc.Get(rc.Model().FieldName("Zip")), rc.Get(rc.Model().FieldName("City")))
 		})
 
-	profile.AddMethod("PrintAddress", "",
+	profile.AddMethod("PrintAddress",
 		func(rc *models.RecordCollection) string {
 			res := rc.Super().Call("PrintAddress").(string)
 			return fmt.Sprintf("%s, %s", res, rc.Get(rc.Model().FieldName("Country")))
 		})
 
-	addressMI.Methods().MustGet("PrintAddress").Extend("",
+	addressMI.Methods().MustGet("PrintAddress").Extend(
 		func(rc *models.RecordCollection) string {
 			res := rc.Super().Call("PrintAddress").(string)
 			return fmt.Sprintf("<%s>", res)
 		})
 
-	profile.Methods().MustGet("PrintAddress").Extend("",
+	profile.Methods().MustGet("PrintAddress").Extend(
 		func(rc *models.RecordCollection) string {
 			res := rc.Super().Call("PrintAddress").(string)
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	post.Methods().MustGet("Create").Extend("",
+	post.Methods().MustGet("Create").Extend(
 		func(rc *models.RecordCollection, data models.RecordData) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(models.RecordSet).Collection()
 			return res
 		})
 
-	post.Methods().MustGet("WithContext").Extend("",
+	post.Methods().MustGet("WithContext").Extend(
 		func(rc *models.RecordCollection, key string, value interface{}) *models.RecordCollection {
 			return rc.Super().Call("WithContext", key, value).(*models.RecordCollection)
 		})
 
 	tag.AddMethod("CheckRate",
-		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
 		func(rc *models.RecordCollection) {
 			if rc.Get(rc.Model().FieldName("Rate")).(float32) < 0 || rc.Get(rc.Model().FieldName("Rate")).(float32) > 10 {
 				log.Panic("Tag rate must be between 0 and 10")
@@ -156,7 +155,6 @@ func declareModels() {
 		})
 
 	tag.AddMethod("CheckNameDescription",
-		`CheckNameDescription checks that the description of a tag is not equal to its name`,
 		func(rc *models.RecordCollection) {
 			if rc.Get(rc.Model().FieldName("Name")).(string) == rc.Get(rc.Model().FieldName("Description")).(string) {
 				log.Panic("Tag name and description must be different")
@@ -210,7 +208,7 @@ func declareModels() {
 		"LastRead":        fields.Date{},
 	})
 
-	post.Methods().MustGet("Create").Extend("",
+	post.Methods().MustGet("Create").Extend(
 		func(rc *models.RecordCollection, data models.RecordData) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(*models.RecordCollection)
 			return res

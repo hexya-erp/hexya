@@ -208,7 +208,7 @@ func addMixinMethods(mixinModel, model *Model) {
 			// The method does not exist
 			newMethInfo := copyMethod(model, methInfo)
 			for i := 0; i < len(layersInv); i++ {
-				newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
+				newMethInfo.addMethodLayer(layersInv[i].funcValue)
 			}
 			model.methods.set(methName, newMethInfo)
 		}

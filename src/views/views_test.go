@@ -228,7 +228,7 @@ func TestViews(t *testing.T) {
 		category := models.NewModel("Category")
 		user := models.NewModel("User")
 		partner := models.NewModel("Partner")
-		user.AddMethod("OnChangeAge", "", func(rc *models.RecordCollection) *models.ModelData {
+		user.AddMethod("OnChangeAge", func(rc *models.RecordCollection) *models.ModelData {
 			return models.NewModelData(rc.Model())
 		})
 		group.AddFields(map[string]models.FieldDefinition{

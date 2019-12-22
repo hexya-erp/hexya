@@ -33,7 +33,7 @@ func TestExtBootStrap(t *testing.T) {
 		})
 		Convey("Creating methods after bootstrap should panic", func() {
 			So(func() {
-				models.Registry.MustGet("ExtUser").AddMethod("NewMethod", "Method after boostrap", func(rc *models.RecordCollection) {})
+				models.Registry.MustGet("ExtUser").AddMethod("NewMethod", func(rc *models.RecordCollection) {})
 			}, ShouldPanic)
 		})
 		Convey("Applying DB modifications", func() {

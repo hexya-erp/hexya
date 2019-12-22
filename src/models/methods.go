@@ -102,7 +102,6 @@ type Method struct {
 	sync.RWMutex
 	name          string
 	model         *Model
-	doc           string
 	methodType    reflect.Type
 	topLayer      *methodLayer
 	nextLayer     map[*methodLayer]*methodLayer
@@ -116,13 +115,12 @@ func (m *Method) MethodType() reflect.Type {
 }
 
 // addMethodLayer adds the given layer to this Method.
-func (m *Method) addMethodLayer(val reflect.Value, doc string) {
+func (m *Method) addMethodLayer(val reflect.Value) {
 	m.Lock()
 	defer m.Unlock()
 	ml := methodLayer{
 		funcValue: wrapFunctionForMethodLayer(val),
 		method:    m,
-		doc:       doc,
 	}
 	if m.topLayer != nil {
 		m.nextLayer[&ml] = m.topLayer
@@ -199,7 +197,6 @@ type methodLayer struct {
 	method    *Method
 	mixedIn   bool
 	funcValue reflect.Value
-	doc       string
 }
 
 // copyMethod creates a new method without any method layer for
@@ -312,14 +309,24 @@ func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value
 // as first layer for this method. Given fnct function must have a RecordSet as
 // first argument.
 // It returns a pointer to the newly created Method instance.
-func (m *Model) AddMethod(methodName, doc string, fnct interface{}) *Method {
+func (m *Model) AddMethod(methodName string, fnct interface{}) *Method {
 	meth := m.AddEmptyMethod(methodName)
-	meth.declareMethod(doc, fnct)
+	meth.finalize(fnct)
 	return meth
 }
 
-// AddEmptyMethod creates a new method withoud function layer
-// The resulting method cannot be called until declareMethod is called
+// NewMethod is used in modules to declare a new method for this model.
+//
+// This method doesn't actually creates the method as this will be
+// done in the generated pool package by scanning "NewMethod" calls.
+func (m *Model) NewMethod(methodName string, fnct interface{}) *Method {
+	meth := m.methods.MustGet(methodName)
+	meth.finalize(fnct)
+	return meth
+}
+
+// AddEmptyMethod creates a new method without function layer
+// The resulting method cannot be called until finalize is called
 func (m *Model) AddEmptyMethod(methodName string) *Method {
 	if m.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
@@ -342,23 +349,21 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 	return meth
 }
 
-// declareMethod is the actual implementation of DeclareMethod
-// so that it can be called without triggering code generation
-func (m *Method) declareMethod(doc string, fnct interface{}) *Method {
+// finalize adds the given fnct as first method layer to this method
+func (m *Method) finalize(fnct interface{}) *Method {
 	if m.topLayer != nil {
 		log.Panic("Call to AddMethod with an existing method name", "model", m.model.name, "method", m.name)
 	}
 	m.checkMethodAndFnctType(fnct)
-	m.doc = doc
 	val := reflect.ValueOf(fnct)
-	m.addMethodLayer(val, doc)
+	m.addMethodLayer(val)
 	m.methodType = val.Type()
 	return m
 }
 
 // Extend adds the given fnct function as a new layer on this method.
 // fnct must be of the same signature as the first layer of this method.
-func (m *Method) Extend(doc string, fnct interface{}) *Method {
+func (m *Method) Extend(fnct interface{}) *Method {
 	m.checkMethodAndFnctType(fnct)
 	methInfo := m
 	val := reflect.ValueOf(fnct)
@@ -386,7 +391,7 @@ func (m *Method) Extend(doc string, fnct interface{}) *Method {
 		log.Panic("Variadic mismatch", "model", m.name, "method", m.name,
 			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
 	}
-	methInfo.addMethodLayer(val, doc)
+	methInfo.addMethodLayer(val)
 	return methInfo
 }
 
