@@ -257,7 +257,7 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo, validate bool) map[strin
 						return true
 					}
 					switch {
-					case fnctName == "AddMethod":
+					case fnctName == "addMethod":
 						parseAddMethod(node, modInfo, &modelsData, false)
 					case fnctName == "NewMethod":
 						parseAddMethod(node, modInfo, &modelsData, true)
@@ -318,7 +318,7 @@ func inflateMixins(modelName string, modelsData *map[string]ModelASTData) {
 			(*modelsData)[modelName].Fields[fieldName] = field
 		}
 		for methodName, method := range (*modelsData)[mixin].Methods {
-			method.ToDeclare = false
+			method.ToDeclare = true
 			(*modelsData)[modelName].Methods[methodName] = method
 		}
 	}
@@ -506,7 +506,7 @@ func extractSelection(expr ast.Expr) map[string]string {
 	return res
 }
 
-// parseAddMethod parses the given node which is an AddMethod function
+// parseAddMethod parses the given node which is an addMethod function
 func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData, toDeclare bool) {
 	fNode := node.Fun.(*ast.SelectorExpr)
 	modelName, err := extractModel(fNode.X, modInfo)
@@ -559,7 +559,7 @@ func extractModel(ident ast.Expr, modInfo *ModuleInfo) (string, error) {
 	switch idt := ident.(type) {
 	case *ast.Ident:
 		// Method is called on an identifier without selector such as
-		// user.AddMethod. In this case, we try to find out the model from
+		// user.addMethod. In this case, we try to find out the model from
 		// the identifier declaration.
 		switch decl := idt.Obj.Decl.(type) {
 		case *ast.AssignStmt:
@@ -577,7 +577,7 @@ func extractModel(ident ast.Expr, modInfo *ModuleInfo) (string, error) {
 					return "", fmt.Errorf("unexpected function identifier: %v (%T)", rd.Fun, rd.Fun)
 				}
 				switch fnIdent.Name {
-				case "MustGet", "NewModel", "NewMixinModel", "NewTransientModel", "NewManualModel":
+				case "Get", "MustGet", "NewModel", "NewMixinModel", "NewTransientModel", "NewManualModel":
 					return strings.Trim(rd.Args[0].(*ast.BasicLit).Value, "\"`"), nil
 				case "CreateModel", "getOrCreateModel":
 					// This is a call from inside a NewXXXXModel function

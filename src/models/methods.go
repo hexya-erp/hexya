@@ -36,21 +36,39 @@ type MethodsCollection struct {
 	bootstrapped bool
 }
 
-// Get returns the Method with the given method name.
-func (mc *MethodsCollection) Get(methodName string) (*Method, bool) {
+// get returns the Method with the given method name.
+//
+// The second return value is true if a method has been found.
+// The third return value is true if the method has been found in this model
+// and not in mixins.
+func (mc *MethodsCollection) get(methodName string) (*Method, bool, bool) {
+	var inMixin bool
 	mi, ok := mc.registry[methodName]
 	if !ok {
-		// We didn't find the method, but maybe it exists in mixins
-		miMethod, found := mc.model.findMethodInMixin(methodName)
-		if !found || mc.bootstrapped {
-			return nil, false
+		if mc.bootstrapped {
+			return nil, false, false
 		}
-		// The method exists in a mixin so we create it here with our layer.
-		// Bootstrap will take care of putting them the right way round afterwards.
-		mi = copyMethod(mc.model, miMethod)
+		// We have not bootstrapped yet
+		// We didn't find the method, but maybe it exists in mixins
+		meth, found := mc.model.findMethodInMixin(methodName)
+		if !found {
+			return nil, false, false
+		}
+		// It exists in mixin. We add it to this method collection on the fly
+		// so that we can set permissions on it before bootstrap.
+		mi = copyMethod(mc.model, meth)
 		mc.set(methodName, mi)
+		inMixin = true
 	}
-	return mi, true
+	return mi, true, !inMixin
+}
+
+// Get returns the Method with the given method name.
+//
+// The second return value is true if a method has been found.
+func (mc *MethodsCollection) Get(methodName string) (*Method, bool) {
+	meth, exists, _ := mc.get(methodName)
+	return meth, exists
 }
 
 // MustGet returns the Method of the given method. It panics if the
@@ -65,20 +83,40 @@ func (mc *MethodsCollection) MustGet(methodName string) *Method {
 
 // set adds the given Method to the MethodsCollection.
 func (mc *MethodsCollection) set(methodName string, methInfo *Method) {
+	if mc.model != methInfo.model {
+		log.Panic("Trying to set a method from a different model", "mcModel", mc.model.name, "methModel", methInfo.model.name, "method", methodName)
+	}
 	mc.registry[methodName] = methInfo
+	if !unauthorizedMethods[methodName] {
+		methInfo.AllowGroup(security.GroupEveryone)
+	}
 }
 
 // AllowAllToGroup grants the given group access to all the CRUD methods of this collection
 func (mc *MethodsCollection) AllowAllToGroup(group *security.Group) {
 	for mName := range unauthorizedMethods {
-		mc.MustGet(mName).AllowGroup(group)
+		meth, exists, inModel := mc.get(mName)
+		switch {
+		case !exists:
+			log.Panic("Unknown method in model", "model", mc.model.name, "method", mName)
+		case !inModel:
+			log.Panic("Method exists in mixin but has not been declared in model", "model", mc.model.name, "method", mName)
+		}
+		meth.AllowGroup(group)
 	}
 }
 
 // RevokeAllFromGroup revokes permissions on all CRUD methods given by AllowAllToGroup
 func (mc *MethodsCollection) RevokeAllFromGroup(group *security.Group) {
 	for mName := range unauthorizedMethods {
-		mc.MustGet(mName).RevokeGroup(group)
+		meth, exists, inModel := mc.get(mName)
+		switch {
+		case !exists:
+			log.Panic("Unknown method in model", "model", mc.model.name, "method", mName)
+		case !inModel:
+			log.Panic("Method exists in mixin but has not been declared in model", "model", mc.model.name, "method", mName)
+		}
+		meth.RevokeGroup(group)
 	}
 }
 
@@ -305,22 +343,35 @@ func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value
 	}
 }
 
-// AddMethod creates a new method on given model name and adds the given fnct
-// as first layer for this method. Given fnct function must have a RecordSet as
-// first argument.
-// It returns a pointer to the newly created Method instance.
-func (m *Model) AddMethod(methodName string, fnct interface{}) *Method {
-	meth := m.AddEmptyMethod(methodName)
+// addMethod is an alias for NewMethod used in this package's base_model and
+// that is treated differently by code generation.
+//
+// Do NOT factorize code with NewMethod or the code generation will fail
+func (m *Model) addMethod(methodName string, fnct interface{}) *Method {
+	meth, exists, inModel := m.methods.get(methodName)
+	if exists && !inModel {
+		// We are trying to add an existing mixin method as a new method
+		log.Panic("Call to NewMethod (addMethod) with an existing method name", "model", m.name, "method", methodName)
+	}
+	// meth might not exist if it has not been declared in pool package
+	if !exists {
+		meth = m.AddEmptyMethod(methodName)
+	}
 	meth.finalize(fnct)
 	return meth
 }
 
 // NewMethod is used in modules to declare a new method for this model.
-//
-// This method doesn't actually creates the method as this will be
-// done in the generated pool package by scanning "NewMethod" calls.
 func (m *Model) NewMethod(methodName string, fnct interface{}) *Method {
-	meth := m.methods.MustGet(methodName)
+	meth, exists, inModel := m.methods.get(methodName)
+	if exists && !inModel {
+		// We are trying to add an existing mixin method as a new method
+		log.Panic("Call to NewMethod (NewMethod) with an existing method name", "model", m.name, "method", methodName)
+	}
+	// meth might not exist if it has not been declared in pool package
+	if !exists {
+		meth = m.AddEmptyMethod(methodName)
+	}
 	meth.finalize(fnct)
 	return meth
 }
@@ -331,28 +382,27 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 	if m.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", methodName)
 	}
-	_, exists := m.methods.Get(methodName)
-	if exists {
-		log.Panic("Call to AddMethod with an existing method name", "model", m.name, "method", methodName)
+	meth, exists, inModel := m.methods.get(methodName)
+	if exists && inModel {
+		log.Panic("Call to NewMethod (AddEmptyMethod) with an existing method name", "model", m.name, "method", methodName)
 	}
-	meth := &Method{
-		model:         m,
-		name:          methodName,
-		nextLayer:     make(map[*methodLayer]*methodLayer),
-		groups:        make(map[*security.Group]bool),
-		groupsCallers: make(map[callerGroup]bool),
+	if !exists {
+		meth = &Method{
+			model:         m,
+			name:          methodName,
+			nextLayer:     make(map[*methodLayer]*methodLayer),
+			groups:        make(map[*security.Group]bool),
+			groupsCallers: make(map[callerGroup]bool),
+		}
 	}
 	m.methods.set(methodName, meth)
-	if !unauthorizedMethods[meth.name] {
-		meth.AllowGroup(security.GroupEveryone)
-	}
 	return meth
 }
 
 // finalize adds the given fnct as first method layer to this method
 func (m *Method) finalize(fnct interface{}) *Method {
 	if m.topLayer != nil {
-		log.Panic("Call to AddMethod with an existing method name", "model", m.model.name, "method", m.name)
+		log.Panic("Call to NewMethod (finalize) with an existing method name", "model", m.model.name, "method", m.name)
 	}
 	m.checkMethodAndFnctType(fnct)
 	val := reflect.ValueOf(fnct)
@@ -365,34 +415,44 @@ func (m *Method) finalize(fnct interface{}) *Method {
 // fnct must be of the same signature as the first layer of this method.
 func (m *Method) Extend(fnct interface{}) *Method {
 	m.checkMethodAndFnctType(fnct)
-	methInfo := m
 	val := reflect.ValueOf(fnct)
-	if methInfo.methodType.NumIn() != val.Type().NumIn() {
+	if m.methodType != nil {
+		// It can happen that methodType is nil if the first layer is defined after
+		// this extension (such as in a mixin).
+		m.checkSignaturesMatch(val)
+	}
+	m.methodType = val.Type()
+	m.addMethodLayer(val)
+	return m
+}
+
+// checkSignaturesMatch panics if the signature of fnctVal doesn't match
+// with the signature of the method.
+func (m *Method) checkSignaturesMatch(fnctVal reflect.Value) {
+	if m.methodType.NumIn() != fnctVal.Type().NumIn() {
 		log.Panic("Number of args do not match", "model", m.model.name, "method", m.name,
-			"no_arguments", val.Type().NumIn(), "expected", methInfo.methodType.NumIn())
+			"no_arguments", fnctVal.Type().NumIn(), "expected", m.methodType.NumIn())
 	}
-	for i := 1; i < methInfo.methodType.NumIn(); i++ {
-		if !checkTypesMatch(methInfo.methodType.In(i), val.Type().In(i)) {
+	for i := 1; i < m.methodType.NumIn(); i++ {
+		if !checkTypesMatch(m.methodType.In(i), fnctVal.Type().In(i)) {
 			log.Panic("Function signature does not match", "model", m.model.name, "method", m.name,
-				"argument", i, "expected", methInfo.methodType.In(i), "received", val.Type().In(i))
+				"argument", i, "expected", m.methodType.In(i), "received", fnctVal.Type().In(i))
 		}
 	}
-	if methInfo.methodType.NumOut() != val.Type().NumOut() {
+	if m.methodType.NumOut() != fnctVal.Type().NumOut() {
 		log.Panic("Number of returns do not match", "model", m.model.name, "method", m.name,
-			"no_arguments", val.Type().NumOut(), "expected", methInfo.methodType.NumOut())
+			"no_arguments", fnctVal.Type().NumOut(), "expected", m.methodType.NumOut())
 	}
-	for i := 1; i < methInfo.methodType.NumOut(); i++ {
-		if !checkTypesMatch(methInfo.methodType.Out(i), val.Type().Out(i)) {
+	for i := 1; i < m.methodType.NumOut(); i++ {
+		if !checkTypesMatch(m.methodType.Out(i), fnctVal.Type().Out(i)) {
 			log.Panic("Function return type does not match", "model", m.model.name, "method", m.name,
-				"expected", methInfo.methodType.Out(i), "received", val.Type().Out(i))
+				"expected", m.methodType.Out(i), "received", fnctVal.Type().Out(i))
 		}
 	}
-	if methInfo.methodType.IsVariadic() != val.Type().IsVariadic() {
+	if m.methodType.IsVariadic() != fnctVal.Type().IsVariadic() {
 		log.Panic("Variadic mismatch", "model", m.name, "method", m.name,
-			"base_is_variadic", methInfo.methodType.IsVariadic(), "ext_is_variadic", val.Type().IsVariadic())
+			"base_is_variadic", m.methodType.IsVariadic(), "ext_is_variadic", fnctVal.Type().IsVariadic())
 	}
-	methInfo.addMethodLayer(val)
-	return methInfo
 }
 
 // checkTypesMatch returns true if both given types match
@@ -444,7 +504,7 @@ func (m *Model) findMethodInMixin(methodName string) (*Method, bool) {
 }
 
 // checkMethodAndFnctType checks whether the given arguments are valid for
-// AddMethod or ExtendMethod. It panics if this is not the case
+// NewMethod or Extend. It panics if this is not the case
 func (m *Method) checkMethodAndFnctType(fnct interface{}) {
 	if m.model.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", m.name)

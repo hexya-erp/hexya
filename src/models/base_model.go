@@ -51,48 +51,48 @@ const (
 //  declareCommonMixin creates the common mixin that is needed for all models
 func declareCommonMixin() {
 	commonMixin := NewMixinModel("CommonMixin")
-	commonMixin.AddMethod("New", commonMixinNew)
-	commonMixin.AddMethod("Create", commonMixinCreate)
-	commonMixin.AddMethod("Read", commonMixinRead)
-	commonMixin.AddMethod("Load", commonMixinLoad)
-	commonMixin.AddMethod("Write", commonMixinWrite)
-	commonMixin.AddMethod("Unlink", commonMixinUnlink)
-	commonMixin.AddMethod("CopyData", commonMixinCopyData)
-	commonMixin.AddMethod("Copy", commonMixinCopy)
-	commonMixin.AddMethod("NameGet", commonMixinNameGet)
-	commonMixin.AddMethod("SearchByName", commonMixinSearchByName)
-	commonMixin.AddMethod("FieldsGet", commonMixinFieldsGet)
-	commonMixin.AddMethod("FieldGet", commonMixinFieldGet)
-	commonMixin.AddMethod("DefaultGet", commonMixinDefaultGet)
-	commonMixin.AddMethod("CheckRecursion", commonMixinCheckRecursion)
-	commonMixin.AddMethod("Onchange", commonMixinOnChange)
-	commonMixin.AddMethod("Search", commonMixinSearch)
-	commonMixin.AddMethod("Browse", commonMixinBrowse)
-	commonMixin.AddMethod("BrowseOne", commonMixinBrowseOne)
-	commonMixin.AddMethod("SearchCount", commonMixinSearchCount)
-	commonMixin.AddMethod("Fetch", commonMixinFetch)
-	commonMixin.AddMethod("SearchAll", commonMixinSearchAll)
-	commonMixin.AddMethod("GroupBy", commonMixinGroupBy)
-	commonMixin.AddMethod("Aggregates", commonMixinAggregates)
-	commonMixin.AddMethod("Limit", commonMixinLimit)
-	commonMixin.AddMethod("Offset", commonMixinOffset)
-	commonMixin.AddMethod("OrderBy", commonMixinOrderBy)
-	commonMixin.AddMethod("Union", commonMixinUnion)
-	commonMixin.AddMethod("Subtract", commonMixinSubtract)
-	commonMixin.AddMethod("Intersect", commonMixinIntersect)
-	commonMixin.AddMethod("CartesianProduct", commonMixinCartesianProduct)
-	commonMixin.AddMethod("Equals", commonMixinEquals)
-	commonMixin.AddMethod("Sorted", commonMixinSorted)
-	commonMixin.AddMethod("SortedDefault", commonMixinSortedDefault)
-	commonMixin.AddMethod("SortedByField", commonMixinSortedByField)
-	commonMixin.AddMethod("Filtered", commonMixinFiltered)
-	commonMixin.AddMethod("GetRecord", commonMixinGetRecord)
-	commonMixin.AddMethod("CheckExecutionPermission", commonMixinCheckExecutionPermission)
-	commonMixin.AddMethod("SQLFromCondition", commonMixinSQLFromCondition)
-	commonMixin.AddMethod("WithEnv", commonMixinWithEnv)
-	commonMixin.AddMethod("WithContext", commonMixinWithContext)
-	commonMixin.AddMethod("WithNewContext", commonMixinWithNewContext)
-	commonMixin.AddMethod("Sudo", commonMixinSudo)
+	commonMixin.addMethod("New", commonMixinNew)
+	commonMixin.addMethod("Create", commonMixinCreate)
+	commonMixin.addMethod("Read", commonMixinRead)
+	commonMixin.addMethod("Load", commonMixinLoad)
+	commonMixin.addMethod("Write", commonMixinWrite)
+	commonMixin.addMethod("Unlink", commonMixinUnlink)
+	commonMixin.addMethod("CopyData", commonMixinCopyData)
+	commonMixin.addMethod("Copy", commonMixinCopy)
+	commonMixin.addMethod("NameGet", commonMixinNameGet)
+	commonMixin.addMethod("SearchByName", commonMixinSearchByName)
+	commonMixin.addMethod("FieldsGet", commonMixinFieldsGet)
+	commonMixin.addMethod("FieldGet", commonMixinFieldGet)
+	commonMixin.addMethod("DefaultGet", commonMixinDefaultGet)
+	commonMixin.addMethod("CheckRecursion", commonMixinCheckRecursion)
+	commonMixin.addMethod("Onchange", commonMixinOnChange)
+	commonMixin.addMethod("Search", commonMixinSearch)
+	commonMixin.addMethod("Browse", commonMixinBrowse)
+	commonMixin.addMethod("BrowseOne", commonMixinBrowseOne)
+	commonMixin.addMethod("SearchCount", commonMixinSearchCount)
+	commonMixin.addMethod("Fetch", commonMixinFetch)
+	commonMixin.addMethod("SearchAll", commonMixinSearchAll)
+	commonMixin.addMethod("GroupBy", commonMixinGroupBy)
+	commonMixin.addMethod("Aggregates", commonMixinAggregates)
+	commonMixin.addMethod("Limit", commonMixinLimit)
+	commonMixin.addMethod("Offset", commonMixinOffset)
+	commonMixin.addMethod("OrderBy", commonMixinOrderBy)
+	commonMixin.addMethod("Union", commonMixinUnion)
+	commonMixin.addMethod("Subtract", commonMixinSubtract)
+	commonMixin.addMethod("Intersect", commonMixinIntersect)
+	commonMixin.addMethod("CartesianProduct", commonMixinCartesianProduct)
+	commonMixin.addMethod("Equals", commonMixinEquals)
+	commonMixin.addMethod("Sorted", commonMixinSorted)
+	commonMixin.addMethod("SortedDefault", commonMixinSortedDefault)
+	commonMixin.addMethod("SortedByField", commonMixinSortedByField)
+	commonMixin.addMethod("Filtered", commonMixinFiltered)
+	commonMixin.addMethod("GetRecord", commonMixinGetRecord)
+	commonMixin.addMethod("CheckExecutionPermission", commonMixinCheckExecutionPermission)
+	commonMixin.addMethod("SQLFromCondition", commonMixinSQLFromCondition)
+	commonMixin.addMethod("WithEnv", commonMixinWithEnv)
+	commonMixin.addMethod("WithContext", commonMixinWithContext)
+	commonMixin.addMethod("WithNewContext", commonMixinWithNewContext)
+	commonMixin.addMethod("Sudo", commonMixinSudo)
 }
 
 // New creates a memory only record from the given data.
@@ -547,11 +547,35 @@ func commonMixinSQLFromCondition(rc *RecordCollection, c *Condition) (string, SQ
 	return rc.SQLFromCondition(c)
 }
 
+// WithEnv returns a copy of the current RecordSet with the given Environment.
+func commonMixinWithEnv(rc *RecordCollection, env Environment) *RecordCollection {
+	return rc.WithEnv(env)
+}
+
+// WithContext returns a copy of the current RecordSet with
+// its context extended by the given key and value.
+func commonMixinWithContext(rc *RecordCollection, key string, value interface{}) *RecordCollection {
+	return rc.WithContext(key, value)
+}
+
+// WithNewContext returns a copy of the current RecordSet with its context
+// replaced by the given one.
+func commonMixinWithNewContext(rc *RecordCollection, context *types.Context) *RecordCollection {
+	return rc.WithNewContext(context)
+}
+
+// Sudo returns a new RecordSet with the given userID
+// or the superuser ID if not specified
+func commonMixinSudo(rc *RecordCollection, userID ...int64) *RecordCollection {
+	return rc.Sudo(userID...)
+}
+
 // declareBaseMixin creates the mixin that implements all the necessary base methods of a model
 func declareBaseMixin() {
 	baseMixin := NewMixinModel("BaseMixin")
-	baseMixin.AddMethod("ComputeLastUpdate", baseMixinComputeLastUpdate)
-	baseMixin.AddMethod("ComputeDisplayName", baseMixinComputeDisplayName)
+	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
+	baseMixin.addMethod("ComputeLastUpdate", baseMixinComputeLastUpdate)
+	baseMixin.addMethod("ComputeDisplayName", baseMixinComputeDisplayName)
 	baseMixin.fields.add(&Field{
 		model:       baseMixin,
 		name:        "CreateDate",
@@ -608,7 +632,6 @@ func declareBaseMixin() {
 		compute:     "ComputeDisplayName",
 		depends:     []string{""},
 	})
-	baseMixin.InheritModel(Registry.MustGet("CommonMixin"))
 }
 
 // ComputeLastUpdate returns the last datetime at which the record has been updated.
@@ -634,6 +657,7 @@ func baseMixinComputeDisplayName(rc *RecordCollection) *ModelData {
 
 func declareModelMixin() {
 	modelMixin := NewMixinModel("ModelMixin")
+	modelMixin.InheritModel(Registry.MustGet("BaseMixin"))
 	modelMixin.fields.add(&Field{
 		model:       modelMixin,
 		name:        "HexyaExternalID",
@@ -657,30 +681,6 @@ func declareModelMixin() {
 		noCopy:      true,
 		defaultFunc: DefaultValue(0),
 	})
-	modelMixin.InheritModel(Registry.MustGet("BaseMixin"))
-}
-
-// WithEnv returns a copy of the current RecordSet with the given Environment.
-func commonMixinWithEnv(rc *RecordCollection, env Environment) *RecordCollection {
-	return rc.WithEnv(env)
-}
-
-// WithContext returns a copy of the current RecordSet with
-// its context extended by the given key and value.
-func commonMixinWithContext(rc *RecordCollection, key string, value interface{}) *RecordCollection {
-	return rc.WithContext(key, value)
-}
-
-// WithNewContext returns a copy of the current RecordSet with its context
-// replaced by the given one.
-func commonMixinWithNewContext(rc *RecordCollection, context *types.Context) *RecordCollection {
-	return rc.WithNewContext(context)
-}
-
-// Sudo returns a new RecordSet with the given userID
-// or the superuser ID if not specified
-func commonMixinSudo(rc *RecordCollection, userID ...int64) *RecordCollection {
-	return rc.Sudo(userID...)
 }
 
 // ConvertLimitToInt converts the given limit as interface{} to an int

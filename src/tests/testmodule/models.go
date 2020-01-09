@@ -288,7 +288,7 @@ func init() {
 	h.Profile().AddFields(fields_Profile)
 	h.Profile().Fields().Zip().SetString("Zip Code")
 
-	h.Profile().NewMethod("PrintAddress", profile_PrintAddress)
+	h.Profile().Methods().PrintAddress().Extend(profile_PrintAddress)
 	h.Profile().Methods().PrintAddress().Extend(profile_ext_PrintAddress)
 
 	models.NewModel("Post")

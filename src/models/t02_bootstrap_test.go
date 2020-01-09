@@ -208,12 +208,12 @@ func TestIllegalMethods(t *testing.T) {
 		So(func() { userModel.Fields().MustGet("NonExistentField") }, ShouldPanic)
 		So(func() { userModel.Methods().MustGet("NonExistentMethod") }, ShouldPanic)
 
-		So(func() { userModel.AddMethod("WrongType", 12) }, ShouldPanic)
+		So(func() { userModel.NewMethod("WrongType", 12) }, ShouldPanic)
 		So(func() {
-			userModel.AddMethod("ComputeAge", func(rc *RecordCollection) {})
+			userModel.NewMethod("ComputeAge", func(rc *RecordCollection) {})
 		}, ShouldPanic)
 		So(func() {
-			userModel.AddMethod("Create", func(rc *RecordCollection) {})
+			userModel.NewMethod("Create", func(rc *RecordCollection) {})
 		}, ShouldPanic)
 		So(func() { userModel.AddEmptyMethod("ComputeAge") }, ShouldPanic)
 		So(func() { userModel.Methods().MustGet("ComputeAge").Extend(12) }, ShouldPanic)
@@ -351,7 +351,7 @@ func TestBootStrap(t *testing.T) {
 		})
 		Convey("Creating methods after bootstrap should panic", func() {
 			So(func() {
-				Registry.MustGet("User").AddMethod("NewMethod", func(rc *RecordCollection) {})
+				Registry.MustGet("User").NewMethod("NewMethod", func(rc *RecordCollection) {})
 			}, ShouldPanic)
 		})
 		Convey("Creating SQL view should run fine", func() {

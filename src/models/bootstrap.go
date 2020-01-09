@@ -212,10 +212,6 @@ func addMixinMethods(mixinModel, model *Model) {
 			}
 			model.methods.set(methName, newMethInfo)
 		}
-		// Copy groups to our methods in the target model
-		for group := range methInfo.groups {
-			model.methods.MustGet(methName).groups[group] = true
-		}
 	}
 }
 

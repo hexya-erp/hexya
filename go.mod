@@ -4,7 +4,6 @@ go 1.13
 
 require (
 	github.com/beevik/etree v1.1.0
-	github.com/cockroachdb/apd v1.1.0 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.1
 	github.com/disintegration/imaging v1.6.0
 	github.com/flosch/pongo2 v0.0.0-20190707114632-bbf5a6c351f4
@@ -35,6 +34,5 @@ require (
 	golang.org/x/net v0.0.0-20191108063844-7e6e90b9ea88 // indirect
 	golang.org/x/sys v0.0.0-20191105231009-c1f44814a5cd // indirect
 	golang.org/x/tools v0.0.0-20191107235519-f7ea15e60b12
-	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 )
