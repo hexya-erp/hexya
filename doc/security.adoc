@@ -45,7 +45,7 @@ const (
 )
 ----
 
-They are used when defining Record Rules or Field Access Controls.
+They are used when defining Record Rules.
 
 == Method Execution Control (MEC)
 
@@ -71,7 +71,7 @@ that only updates the status of the sale order to `Shipped` and we
 will grant execution permission on this method to stock pickers.
 +
 `SetToShipped()` will be allowed to update the sale order without `sudo`
-because we will have allowed execution on the `Write()` method to stock pickers
+because we will have allowed execution of the `Write()` method to stock pickers
 only when called from `SetToShipped()`.
 
 === Defining Method Execution Permissions

@@ -27,16 +27,18 @@ Hexya includes a full-featured type safe ORM, including a type safe query builde
 
 Declare a model and add some fields
 ```go
+var fields_User = map[string]models.FieldDefinition{
+    "Name": fields.Char{String: "Name", Help: "The user's username", Unique: true,
+        NoCopy: true, OnChange: h.User().Methods().OnChangeName()},
+    "Email":    fields.Char{Help: "The user's email address", Size: 100, Index: true},
+    "Password": fields.Char{},
+    "IsStaff":  fields.Boolean{String: "Is a Staff Member", 
+        Help: "Set to true if this user is a member of staff"},
+}
+
 func init() {
-	h.User().DeclareModel()
-	h.User().AddFields(map[string]models.FieldDefinition{
-		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
-			NoCopy: true, OnChange: h.User().Methods().OnChangeName()},
-		"Email":    models.CharField{Help: "The user's email address", Size: 100, Index: true},
-		"Password": models.CharField{},
-		"IsStaff":  models.BooleanField{String: "Is a Staff Member", 
-			Help: "Set to true if this user is a member of staff"},
-	})
+	models.NewModel("User")
+	h.User().AddFields(fields_User)
 }
 ```
 
@@ -62,13 +64,16 @@ for _, myUser := range myUsers.Records() {
 
 Add methods to the models
 ```go
-h.User().Methods().GetEmail().DeclareMethod(
-	`GetEmail returns the Email of the user with the given name`,
-	func(rs m.UserSet, name string) string {
-		user := h.User().Search(env, q.User().Name().Equals("John")).Limit(1)
-		user.Sanitize()     // Call other methods of the model
-		return user.Email() // If user is empty, then Email() will return the empty string
-	})
+// GetEmail returns the Email of the user with the given name
+func user_GetEmail(rs m.UserSet, name string) string {
+    user := h.User().Search(env, q.User().Name().Equals("John")).Limit(1)
+    user.Sanitize()     // Call other methods of the model
+    return user.Email() // If user is empty, then Email() will return the empty string
+}
+
+func init() {
+    h.User().NewMethod("GetEmail", user_GetEmail)
+}
 ```
 
 ### Views
@@ -139,26 +144,29 @@ Example on models:
 ```go
 package A
 
+var fields_User = map[string]models.FieldDefinition{
+    "Name": fields.Char{String: "Name", Help: "The user's username", Unique: true,
+        NoCopy: true, OnChange: h.User().Methods().OnChangeName()},
+    "Email":    fields.Char{Help: "The user's email address", Size: 100, Index: true},
+    "Password": fields.Char{},
+    "IsStaff":  fields.Boolean{String: "Is a Staff Member", 
+        Help: "Set to true if this user is a member of staff"},
+}
+
 func init() {
-    h.User().DeclareModel()
-    h.User().AddFields(map[string]models.FieldDefinition{
-        "Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
-            NoCopy: true, OnChange: h.User().Methods().OnChangeName()},
-        "Email":    models.CharField{Help: "The user's email address", Size: 100, Index: true},
-        "Password": models.CharField{},
-        "IsStaff":  models.BooleanField{String: "Is a Staff Member", 
-            Help: "Set to true if this user is a member of staff"},
-    })
+    models.NewModel("User")
+    h.User().AddFields(fields_User)
 }
 ```
 ```go
 package B
 
+var fields_User = map[string]models.FieldDefinition{
+    "Size": models.Float{},
+}
+
 func init() {
-    h.User().AddFields(map[string]models.FieldDefinition{
-    	"Size": models.FloatField{},
-    })
-   
+    h.User().AddFields(fields_User)
 }
 ```
 ```go
@@ -178,21 +186,22 @@ Model methods can be extended too:
 ```go
 package A
 
+// GetEmail returns the Email of the user with the given name
+func user_GetEmail(rs m.UserSet, name string) string {
+    user := h.User().Search(rs.Env(), q.User().Name().Equals(name)).Limit(1)
+    user.Sanitize()     
+    return user.Email() 
+}
+
 func init() {
-    h.User().Methods().GetEmail().DeclareMethod(
-        `GetEmail returns the Email of the user with the given name`,
-        func(rs m.UserSet, name string) string {
-            user := h.User().Search(rs.Env(), q.User().Name().Equals("John")).Limit(1)
-            user.Sanitize()     
-            return user.Email() 
-        })
+    h.User().NewMethod("GetEmail", user_GetEmail)
 }
 ```
 ```go
 package B
 
 func init() {
-    h.User().Methods.GetEmail().Extend("",
+    h.User().Methods().GetEmail().Extend(
     	func(rs m.UserSet, name string) string {
     	    res := rs.Super().GetEmail(name)
     	    return fmt.Sprintf("<%s>", res)
