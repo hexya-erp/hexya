@@ -20,7 +20,7 @@ func BootStrap() {
 			a.names = make(map[string]string)
 		}
 		for _, lang := range i18n.Langs {
-			nameTrans := i18n.TranslateResourceItem(lang, a.ID, a.Name)
+			nameTrans := i18n.TranslateResourceItem(lang, a.XMLId, a.Name)
 			a.names[lang] = nameTrans
 		}
 	}

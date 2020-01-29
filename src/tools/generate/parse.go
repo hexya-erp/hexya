@@ -332,7 +332,7 @@ func parseMixInModel(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[st
 		if _, ok := err.(generalMixinError); ok {
 			return
 		}
-		log.Panic("Unable to extract model while visiting AST", "error", err)
+		log.Panic("Unable to extract model while visiting AST", "error", err, "node", modInfo.FSet.Position(node.Pos()))
 	}
 	mixinModel, err := extractModel(node.Args[0], modInfo)
 	if err != nil {

@@ -44,7 +44,7 @@ func TestTranspileAttributes(t *testing.T) {
 			panic(err)
 		}
 		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `hweb does not manage t-att attributes (t-att with value ("a", "b"))`)
+		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `hweb does not manage t-att attributes (t-att with value '("a", "b")')`)
 	})
 }
 
