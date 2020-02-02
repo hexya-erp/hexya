@@ -275,7 +275,7 @@ func addResourceItemsToMessages(lang string, resourcesDir string, messages Messa
 			messages = updateMessagesWithResourceTranslation(lang, menu.XMLID, menu.Name, messages)
 		}
 		for _, action := range actionColl.GetAll() {
-			messages = updateMessagesWithResourceTranslation(lang, action.XMLId, action.Name, messages)
+			messages = updateMessagesWithResourceTranslation(lang, action.XMLID, action.Name, messages)
 		}
 	}
 	return messages

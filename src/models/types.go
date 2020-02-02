@@ -131,6 +131,24 @@ func (f *FieldNames) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Names returns a slice with the names of each field
+func (f FieldNames) Names() []string {
+	var res []string
+	for _, fn := range f {
+		res = append(res, fn.Name())
+	}
+	return res
+}
+
+// JSON returns a slice with the JSON names of each field
+func (f FieldNames) JSON() []string {
+	var res []string
+	for _, fn := range f {
+		res = append(res, fn.JSON())
+	}
+	return res
+}
+
 // A GroupAggregateRow holds a row of results of a query with a group by clause
 // - Values holds the values of the actual query
 // - Count is the number of lines aggregated into this one

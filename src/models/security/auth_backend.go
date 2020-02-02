@@ -81,6 +81,8 @@ func (ar *AuthBackendRegistry) Authenticate(login, secret string, context *types
 				continue
 			case InvalidCredentialsError:
 				return 0, err
+			default:
+				return 0, err
 			}
 		}
 		return uid, nil

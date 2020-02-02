@@ -849,13 +849,13 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 
 	for _, rec := range rc.Records() {
 		id := rec.ids[0]
-		for _, fieldName := range fields {
-			fi := rc.model.getRelatedFieldInfo(fieldName)
+		for _, fName := range fields {
+			fi := rc.model.getRelatedFieldInfo(fName)
 			if !fi.fieldType.IsNonStoredRelationType() {
 				continue
 			}
 			thisRC := rec
-			exprs := splitFieldNames(fieldName, ExprSep)
+			exprs := splitFieldNames(fName, ExprSep)
 			if len(exprs) > 1 {
 				prefix := joinFieldNames(exprs[:len(exprs)-1], ExprSep)
 				// We do not call "Load" directly to have caller method properly set
@@ -867,7 +867,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
 				relRC = relRC.Search(relRC.Model().Field(relRC.Model().FieldName(fi.reverseFK)).Equals(thisRC)).Call("Fetch").(RecordSet).Collection()
-				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), relRC.ids, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relRC.ids, rc.query.ctxArgsSlug())
 			case fieldtype.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
@@ -876,7 +876,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 					continue
 				}
 				rc.env.cr.Select(&ids, query, thisRC.ids[0])
-				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), ids, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), ids, rc.query.ctxArgsSlug())
 			case fieldtype.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
@@ -885,7 +885,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				if len(relRC.ids) > 0 {
 					relID = relRC.ids[0]
 				}
-				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), relID, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relID, rc.query.ctxArgsSlug())
 			}
 		}
 	}
@@ -1089,7 +1089,7 @@ func (rc *RecordCollection) fixGroupByOrders(fieldNames ...FieldName) *RecordCol
 	for _, o := range orderExprs {
 		oName := joinFieldNames(o, ExprSep)
 		if !groupFields[oName] && !fieldsMap[oName] {
-			rSet = rSet.GroupBy(FieldName(oName))
+			rSet = rSet.GroupBy(oName)
 		}
 	}
 	for _, o := range ctxOrderExprs {

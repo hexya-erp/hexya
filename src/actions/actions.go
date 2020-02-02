@@ -54,7 +54,7 @@ var Registry *Collection
 
 // MakeActionRef creates an ActionRef from an action id
 func MakeActionRef(id string) ActionRef {
-	action := Registry.GetByXMLId(id)
+	action := Registry.GetByXMLID(id)
 	if action == nil {
 		return ActionRef{}
 	}
@@ -73,6 +73,23 @@ func (ar ActionRef) MarshalJSON() ([]byte, error) {
 		return json.Marshal(false)
 	}
 	return json.Marshal([2]string{ar[0], ar[1]})
+}
+
+// UnmarshalJSON for ActionRef.
+// Unmarshals false as an empty ActionRef
+func (ar *ActionRef) UnmarshalJSON(data []byte) error {
+	switch string(data) {
+	case "null", "false":
+		*ar = ActionRef{}
+		return nil
+	default:
+		var aux [2]string
+		if err := json.Unmarshal(data, &aux); err != nil {
+			return err
+		}
+		*ar = aux
+	}
+	return nil
 }
 
 // Value extracts ID of our ActionRef for storing in the database.
@@ -158,13 +175,13 @@ func (ar *Collection) Add(a *Action) {
 		}
 	}
 	a.ID = maxID
-	ar.actions[a.XMLId] = a
+	ar.actions[a.XMLID] = a
 	ar.actionsByID[a.ID] = a
 	ar.links[a.SrcModel] = append(ar.links[a.SrcModel], a)
 }
 
-// GetByXMLId returns the Action with the given xmlid
-func (ar *Collection) GetByXMLId(id string) *Action {
+// GetByXMLID returns the Action with the given xmlid
+func (ar *Collection) GetByXMLID(id string) *Action {
 	return ar.actions[id]
 }
 
@@ -185,9 +202,9 @@ func (ar *Collection) GetAll() []*Action {
 	return res
 }
 
-// MustGetByXMLId returns the Action with the given xmlid
+// MustGetByXMLID returns the Action with the given xmlid
 // It panics if the id is not found in the action registry
-func (ar *Collection) MustGetByXMLId(id string) *Action {
+func (ar *Collection) MustGetByXMLID(id string) *Action {
 	action, ok := ar.actions[id]
 	if !ok {
 		log.Panic("Action does not exist", "action_id", id)
@@ -235,7 +252,7 @@ type actionHelp struct {
 // behavior of the system in response to user requests.
 type Action struct {
 	ID           int64                  `json:"id" xml:"-"`
-	XMLId        string                 `json:"xmlid" xml:"id,attr"`
+	XMLID        string                 `json:"xmlid" xml:"id,attr"`
 	Type         ActionType             `json:"type" xml:"type,attr"`
 	Name         string                 `json:"name" xml:"name,attr"`
 	Model        string                 `json:"res_model" xml:"model,attr"`

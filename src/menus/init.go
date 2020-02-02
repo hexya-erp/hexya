@@ -24,7 +24,7 @@ func BootStrap() {
 		}
 		var noName bool
 		if menu.ActionID != "" {
-			menu.Action = actions.Registry.MustGetByXMLId(menu.ActionID)
+			menu.Action = actions.Registry.MustGetByXMLID(menu.ActionID)
 			if menu.Name == "" {
 				noName = true
 				menu.Name = menu.Action.Name
@@ -37,7 +37,7 @@ func BootStrap() {
 		for _, lang := range i18n.Langs {
 			nameTrans := i18n.TranslateResourceItem(lang, menu.XMLID, menu.Name)
 			if noName {
-				nameTrans = i18n.TranslateResourceItem(lang, menu.Action.XMLId, menu.Name)
+				nameTrans = i18n.TranslateResourceItem(lang, menu.Action.XMLID, menu.Name)
 			}
 			menu.names[lang] = nameTrans
 		}
