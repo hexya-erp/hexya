@@ -98,7 +98,7 @@ func (sc ScssCompiler) sanitize(in io.Reader, out io.Writer) error {
 var _ Compiler = ScssCompiler{}
 
 func executeCmd(cmd *exec.Cmd, in io.Reader, out io.Writer) error {
-	log.Debug("Compiling assets", "cmd", cmd.String())
+	log.Debug("Compiling assets", "cmd", cmd)
 	lessIn, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("unable to get compile command stdin pipe: %v", err)
@@ -134,7 +134,7 @@ func executeCmd(cmd *exec.Cmd, in io.Reader, out io.Writer) error {
 		if msgString == "" {
 			msgString = outPut.String()
 		}
-		return fmt.Errorf("error while executing compile command %s. Error: %s: %s\n", cmd.String(), err, msgString)
+		return fmt.Errorf("error while executing compile command %s. Error: %s: %s\n", cmd, err, msgString)
 	}
 	return nil
 }
