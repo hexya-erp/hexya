@@ -452,12 +452,15 @@ func (q *Query) selectGroupQuery(fieldsList []FieldName, aggFncts map[string]str
 // - All expressions that also include expressions used in the where clause.
 func (q *Query) selectData(fields []FieldName, withCtx bool) ([][]FieldName, [][]FieldName) {
 	q.substituteChildOfPredicates()
-	// Get all expressions, first given by fields
-	fieldExprs := make([][]FieldName, len(fields))
+	// Get all expressions, first given by fields removing duplicates
+	var fieldExprs [][]FieldName
 	fieldsExprsMap := make(map[string][]FieldName)
-	for i, f := range fields {
-		fieldExprs[i] = splitFieldNames(f, ExprSep)
-		fieldsExprsMap[joinFieldNames(fieldExprs[i], ExprSep).JSON()] = fieldExprs[i]
+	for _, f := range fields {
+		fExpr := splitFieldNames(f, ExprSep)
+		if _, ok := fieldsExprsMap[joinFieldNames(fExpr, ExprSep).JSON()]; !ok {
+			fieldExprs = append(fieldExprs, splitFieldNames(f, ExprSep))
+			fieldsExprsMap[joinFieldNames(fExpr, ExprSep).JSON()] = fExpr
+		}
 	}
 	// Add 'order by' exprs removing duplicates
 	oExprs := q.getOrderByExpressions(withCtx)
