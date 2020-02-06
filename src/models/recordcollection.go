@@ -165,7 +165,7 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	fMap = rc.addContextsFieldsValues(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
-	storedFieldMap := filterMapOnStoredFields(rc.model, fMap)
+	storedFieldMap := rc.filterMapOnStoredFields(fMap)
 	// insert in DB
 	var createdId int64
 	query, args := rc.query.insertQuery(storedFieldMap)
@@ -385,7 +385,7 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	rSet.model.convertValuesToFieldType(&fMap, true)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
-	storedFieldMap := filterMapOnStoredFields(rSet.model, fMap)
+	storedFieldMap := rSet.filterMapOnStoredFields(fMap)
 	rSet.doUpdate(storedFieldMap)
 	// Let's fetch once for all
 	rSet.Fetch()
@@ -408,6 +408,25 @@ func (rc *RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 		(*fMap)["WriteDate"] = dates.Now()
 		(*fMap)["WriteUID"] = rc.env.uid
 	}
+}
+
+// filterMapOnStoredFields returns a new FieldMap from fMap
+// with only fields keys stored directly in this model.
+// Fields with inverse methods are not returned unless
+// "hexya_force_compute_write" is set in the context
+//
+// This function also converts all keys to fields JSON names.
+func (rc *RecordCollection) filterMapOnStoredFields(fMap FieldMap) FieldMap {
+	newFMap := make(FieldMap)
+	for field, value := range fMap {
+		if fi, ok := rc.model.fields.Get(field); ok && fi.isStored() {
+			if fi.inverse != "" && !rc.env.context.GetBool("hexya_force_compute_write") {
+				continue
+			}
+			newFMap[fi.json] = value
+		}
+	}
+	return newFMap
 }
 
 // doUpdate just updates the database records pointed at by

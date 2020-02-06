@@ -339,3 +339,22 @@ func dropColumnIndex(tableName, colName string) {
 	`, fmt.Sprintf("%s_%s_index", tableName, colName))
 	dbExecuteNoTx(query)
 }
+
+// runInit runs the Init function of the given model if it exists
+func runInit(model *Model) {
+	if _, exists := model.methods.Get("Init"); exists {
+		err := ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			env.Pool(model.name).Call("Init")
+		})
+		type pwdStruct struct {
+			ID       int64
+			Password string
+		}
+		var res []pwdStruct
+
+		dbSelectNoTx(&res, `SELECT id, password FROM "user"`)
+		if err != nil {
+			log.Panic("Error while calling Init function", "model", model.name, "error", err)
+		}
+	}
+}

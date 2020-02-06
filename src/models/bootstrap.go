@@ -366,15 +366,6 @@ func createContextsTreeView(fi *Field, contexts FieldContexts) {
 	Views[fi.model] = append(Views[fi.model], view)
 }
 
-// runInit runs the Init function of the given model if it exists
-func runInit(model *Model) {
-	if _, exists := model.methods.Get("Init"); exists {
-		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
-			env.Pool(model.name).Call("Init")
-		})
-	}
-}
-
 // bootStrapMethods freezes the methods of the models.
 func bootStrapMethods() {
 	for _, model := range Registry.registryByName {

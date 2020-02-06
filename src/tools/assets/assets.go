@@ -134,7 +134,7 @@ func executeCmd(cmd *exec.Cmd, in io.Reader, out io.Writer) error {
 		if msgString == "" {
 			msgString = outPut.String()
 		}
-		return fmt.Errorf("error while executing compile command %s. Error: %s: %s\n", cmd, err, msgString)
+		return fmt.Errorf("error while executing compile command %v. Error: %s: %s\n", cmd, err, msgString)
 	}
 	return nil
 }
