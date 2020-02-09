@@ -161,6 +161,10 @@ func declareModels() {
 			}
 		})
 
+	// Because we run without pool, we need to declare our CRUD mixin methods
+	for _, methName := range []string{"Load", "Create", "Write", "Unlink"} {
+		tag.AddEmptyMethod(methName)
+	}
 	tag.Methods().AllowAllToGroup(security.GroupEveryone)
 
 	user.AddFields(map[string]models.FieldDefinition{

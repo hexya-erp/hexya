@@ -377,6 +377,9 @@ func commonMixinOnChange(rc *RecordCollection, params OnchangeParams) OnchangeRe
 		// Collect modified values
 		for field, val := range values {
 			fName := rs.model.FieldName(field)
+			if fName.JSON() == "__last_update" {
+				continue
+			}
 			fi := rs.Collection().Model().getRelatedFieldInfo(fName)
 			newVal := rs.Get(fName)
 			switch {
