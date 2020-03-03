@@ -36,3 +36,5 @@ require (
 	golang.org/x/tools v0.0.0-20191107235519-f7ea15e60b12
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 )
+
+replace github.com/hexya-erp/pool v1.0.2 => /home/npiganeau/Progs/hexya/hexya/src/tests/testmodule/pool

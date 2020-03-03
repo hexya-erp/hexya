@@ -15,6 +15,7 @@ var log logging.Logger
 // and populates the Registry
 func BootStrap() {
 	for _, menu := range bootstrapMap {
+		// Add parent
 		if menu.ParentID != "" {
 			parentMenu := bootstrapMap[menu.ParentID]
 			if parentMenu == nil {
@@ -22,6 +23,7 @@ func BootStrap() {
 			}
 			menu.Parent = parentMenu
 		}
+		// Set name from action if we do not have a name
 		var noName bool
 		if menu.ActionID != "" {
 			menu.Action = actions.Registry.MustGetByXMLID(menu.ActionID)

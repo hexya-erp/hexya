@@ -148,7 +148,9 @@ func LoadFromEtree(element *etree.Element) {
 // and adds it to the given map.
 func AddMenuToMapFromEtree(element *etree.Element, mMap map[string]*Menu) map[string]*Menu {
 	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
+	nextID := len(mMap) + 1
 	menu := Menu{
+		ID:       int64(nextID),
 		XMLID:    element.SelectAttrValue("id", "NO_ID"),
 		ActionID: element.SelectAttrValue("action", ""),
 		Name:     element.SelectAttrValue("name", ""),

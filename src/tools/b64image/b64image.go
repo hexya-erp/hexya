@@ -16,7 +16,9 @@ import (
 	// Load JPEG driver
 	_ "image/jpeg"
 	"image/png"
+	"io"
 	"math/rand"
+	"os"
 	"strings"
 
 	"github.com/disintegration/imaging"
@@ -97,4 +99,19 @@ func Resize(original string, width, height int, avoidIfSmall bool) string {
 	var buf bytes.Buffer
 	png.Encode(&buf, dst)
 	return base64.StdEncoding.EncodeToString(buf.Bytes())
+}
+
+// ReadAll opens the given file which must be an image and returns its content as base64
+func ReadAll(fileName string) (string, error) {
+	imgFile, err := os.Open(fileName)
+	if err != nil {
+		return "", err
+	}
+	buf := bytes.Buffer{}
+	w := base64.NewEncoder(base64.StdEncoding, &buf)
+	_, err = io.Copy(w, imgFile)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
