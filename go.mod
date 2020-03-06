@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/beevik/etree v1.1.0
+	github.com/cockroachdb/apd v1.1.0 // indirect
 	github.com/cockroachdb/apd/v2 v2.0.1
 	github.com/disintegration/imaging v1.6.0
 	github.com/flosch/pongo2 v0.0.0-20190707114632-bbf5a6c351f4
@@ -36,5 +37,3 @@ require (
 	golang.org/x/tools v0.0.0-20191107235519-f7ea15e60b12
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 )
-
-replace github.com/hexya-erp/pool v1.0.2 => /home/npiganeau/Progs/hexya/hexya/src/tests/testmodule/pool
