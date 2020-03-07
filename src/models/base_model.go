@@ -582,6 +582,7 @@ func declareBaseMixin() {
 	baseMixin.fields.add(&Field{
 		model:       baseMixin,
 		name:        "CreateDate",
+		description: "Created On",
 		json:        "create_date",
 		fieldType:   fieldtype.DateTime,
 		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
@@ -590,6 +591,7 @@ func declareBaseMixin() {
 	baseMixin.fields.add(&Field{
 		model:       baseMixin,
 		name:        "CreateUID",
+		description: "Created By",
 		json:        "create_uid",
 		fieldType:   fieldtype.Integer,
 		structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
@@ -601,6 +603,7 @@ func declareBaseMixin() {
 	baseMixin.fields.add(&Field{
 		model:       baseMixin,
 		name:        "WriteDate",
+		description: "Updated On",
 		json:        "write_date",
 		fieldType:   fieldtype.DateTime,
 		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
@@ -609,6 +612,7 @@ func declareBaseMixin() {
 	baseMixin.fields.add(&Field{
 		model:       baseMixin,
 		name:        "WriteUID",
+		description: "UpdatedBy",
 		json:        "write_uid",
 		fieldType:   fieldtype.Integer,
 		structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
@@ -620,6 +624,7 @@ func declareBaseMixin() {
 	baseMixin.fields.add(&Field{
 		model:       baseMixin,
 		name:        "LastUpdate",
+		description: "Last Updated On",
 		json:        "__last_update",
 		fieldType:   fieldtype.DateTime,
 		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
@@ -629,6 +634,7 @@ func declareBaseMixin() {
 	baseMixin.fields.add(&Field{
 		model:       baseMixin,
 		name:        "DisplayName",
+		description: "Display Name",
 		json:        "display_name",
 		fieldType:   fieldtype.Char,
 		structField: reflect.StructField{Type: reflect.TypeOf("")},
@@ -664,6 +670,7 @@ func declareModelMixin() {
 	modelMixin.fields.add(&Field{
 		model:       modelMixin,
 		name:        "HexyaExternalID",
+		description: "Record External ID",
 		json:        "hexya_external_id",
 		fieldType:   fieldtype.Char,
 		structField: reflect.StructField{Type: reflect.TypeOf("")},
@@ -678,6 +685,7 @@ func declareModelMixin() {
 	modelMixin.fields.add(&Field{
 		model:       modelMixin,
 		name:        "HexyaVersion",
+		description: "Data Version",
 		json:        "hexya_version",
 		fieldType:   fieldtype.Integer,
 		structField: reflect.StructField{Type: reflect.TypeOf(0)},

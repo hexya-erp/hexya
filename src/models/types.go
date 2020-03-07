@@ -341,6 +341,13 @@ func fixFieldValue(v interface{}, fi *Field) interface{} {
 			}
 		}
 	}
+	if _, ok := v.(float64); ok && fi.fieldType == fieldtype.Integer {
+		// JSON unmarshals int to float64. Convert back to the Go type of fi.
+		val := reflect.ValueOf(v)
+		typ := fi.structField.Type
+		val = val.Convert(typ)
+		v = val.Interface()
+	}
 	return v
 }
 
