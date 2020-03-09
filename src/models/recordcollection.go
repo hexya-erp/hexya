@@ -128,6 +128,8 @@ func (rc *RecordCollection) clone() *RecordCollection {
 
 // new returns a new RecordCollection that is valid only in memory.
 // Such RecordCollection is identified as having a negative ID.
+//
+// Note that new doesn't work with embedded records
 func (rc *RecordCollection) new(data RecordData) *RecordCollection {
 	rc.InvalidateCache()
 	rc.env.nextNegativeID--
@@ -534,7 +536,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 		createdPaths := make(map[string]bool)
 		// Create related records
 		for _, path := range fields {
-			vals, prefix := rec.relatedRecordMap(fMap, path)
+			vals, prefix := rec.relatedFieldMap(fMap, path)
 			if createdPaths[prefix.JSON()] {
 				continue
 			}
@@ -567,7 +569,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 				continue
 			}
 			// This is a contexted field and we have no default value so we create it
-			vals, prefix := rc.relatedRecordMap(fMap, path)
+			vals, prefix := rc.relatedFieldMap(fMap, path)
 			//
 			field := strings.TrimPrefix(path.JSON(), prefix.JSON()+ExprSep)
 			defVals := FieldMap{
@@ -626,12 +628,12 @@ func (rc *RecordCollection) loadRelatedRecords(fields []FieldName) {
 	}
 }
 
-// relatedRecordMap return a ModelData to create or update the related record
+// relatedFieldMap return a FieldMap to create or update the related record
 // defined by path from this RecordCollection, using fMap values. The second record
 // value is the path to the related record.
 //
 // field must be a field of the related record (and not an M2O field pointing to it)
-func (rc *RecordCollection) relatedRecordMap(fMap FieldMap, field FieldName) (FieldMap, FieldName) {
+func (rc *RecordCollection) relatedFieldMap(fMap FieldMap, field FieldName) (FieldMap, FieldName) {
 	exprs := splitFieldNames(field, ExprSep)
 	prefix := joinFieldNames(exprs[:len(exprs)-1], ExprSep)
 	res := make(FieldMap)

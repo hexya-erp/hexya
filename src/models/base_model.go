@@ -96,7 +96,9 @@ func declareCommonMixin() {
 }
 
 // New creates a memory only record from the given data.
-// Such a record has a negative ID and cannot be loaded from database.`,
+// Such a record has a negative ID and cannot be loaded from database.
+//
+// Note that New does not work with embedded records.
 func commonMixinNew(rc *RecordCollection, data RecordData) *RecordCollection {
 	return rc.new(data)
 }
@@ -299,23 +301,24 @@ func commonMixinCheckRecursion(rc *RecordCollection) bool {
 // Onchange returns the values that must be modified according to each field's Onchange
 // method in the pseudo-record given as params.Values`,
 func commonMixinOnChange(rc *RecordCollection, params OnchangeParams) OnchangeResult {
-	values := params.Values.Underlying().FieldMap
-	data := NewModelDataFromRS(rc, values)
-	if rc.IsNotEmpty() {
-		data.Set(ID, rc.ids[0])
-	}
-	retValues := NewModelDataFromRS(rc)
+	var retValues *ModelData
 	var warnings []string
 	filters := make(map[FieldName]Conditioner)
 
 	err := SimulateInNewEnvironment(rc.Env().Uid(), func(env Environment) {
+		values := params.Values.Underlying().FieldMap
+		data := NewModelDataFromRS(rc.WithEnv(env), values)
+		if rc.IsNotEmpty() {
+			data.Set(ID, rc.ids[0])
+		}
+		retValues = NewModelDataFromRS(rc.WithEnv(env))
 		var rs *RecordCollection
 		if id, _ := nbutils.CastToInteger(data.Get(ID)); id != 0 {
 			rs = rc.WithEnv(env).withIds([]int64{id})
 			rs = rs.WithContext("hexya_onchange_origin", rs.First().Wrap())
 			rs.WithContext("hexya_force_compute_write", true).update(data)
 		} else {
-			rs = rc.WithEnv(env).new(data)
+			rs = rc.WithEnv(env).WithContext("hexya_force_compute_write", true).create(data)
 		}
 		// Set inverse fields
 		for field := range values {
