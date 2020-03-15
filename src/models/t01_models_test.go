@@ -319,6 +319,9 @@ func TestModelDeclaration(t *testing.T) {
 						rc.Get(rc.Model().FieldName("User")).(RecordSet).Collection().Get(Registry.MustGet("User").FieldName("Age")).(int16))
 			})
 
+		post.NewMethod("Init",
+			func(rc *RecordCollection) {})
+
 		tag.NewMethod("CheckRate",
 			func(rc *RecordCollection) {
 				if rc.Get(rc.Model().FieldName("Rate")).(float32) < 0 || rc.Get(rc.Model().FieldName("Rate")).(float32) > 10 {
@@ -333,10 +336,6 @@ func TestModelDeclaration(t *testing.T) {
 				}
 			})
 
-		// Because we run without pool, we need to declare our CRUD mixin methods
-		for methName := range unauthorizedMethods {
-			tag.AddEmptyMethod(methName)
-		}
 		tag.Methods().AllowAllToGroup(security.GroupEveryone)
 		tag.Methods().RevokeAllFromGroup(security.GroupEveryone)
 		tag.Methods().AllowAllToGroup(security.GroupEveryone)

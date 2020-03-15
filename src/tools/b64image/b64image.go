@@ -76,7 +76,7 @@ func Resize(original string, width, height int, avoidIfSmall bool) string {
 	reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(original))
 	img, _, err := image.Decode(reader)
 	if err != nil {
-		log.Warn("Unable to read image for colorizing")
+		log.Warn("Unable to read image for colorizing", "err", err)
 		return original
 	}
 	if width == 0 {
@@ -107,11 +107,13 @@ func ReadAll(fileName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer imgFile.Close()
 	buf := bytes.Buffer{}
 	w := base64.NewEncoder(base64.StdEncoding, &buf)
 	_, err = io.Copy(w, imgFile)
 	if err != nil {
 		return "", err
 	}
+	w.Close()
 	return buf.String(), nil
 }

@@ -17,6 +17,7 @@ package security
 import (
 	"testing"
 
+	"github.com/hexya-erp/hexya/src/models/types"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -131,5 +132,34 @@ func TestGroupRegistry(t *testing.T) {
 			So(Registry.UserGroups(6), ShouldContainKey, group5)
 			So(Registry.UserGroups(6), ShouldContainKey, GroupEveryone)
 		})
+	})
+}
+
+type simpleAuthBackend struct{}
+
+func (a simpleAuthBackend) Authenticate(login, secret string, ctx *types.Context) (int64, error) {
+	if login != "admin" {
+		return 0, UserNotFoundError("admin")
+	}
+	if secret != "secret" {
+		return 0, InvalidCredentialsError("admin")
+	}
+	return 1, nil
+}
+
+func TestAuthBackend(t *testing.T) {
+	Convey("Testing authentication backend", t, func() {
+		AuthenticationRegistry.RegisterBackend(simpleAuthBackend{})
+		id, err := AuthenticationRegistry.Authenticate("admin", "secret", nil)
+		So(err, ShouldBeNil)
+		So(id, ShouldEqual, 1)
+		id, err = AuthenticationRegistry.Authenticate("admin2", "secret", nil)
+		So(err, ShouldEqual, UserNotFoundError("admin2"))
+		So(err.Error(), ShouldEqual, "User not found admin2")
+		So(id, ShouldEqual, 0)
+		id, err = AuthenticationRegistry.Authenticate("admin", "wrong", nil)
+		So(err, ShouldEqual, InvalidCredentialsError("admin"))
+		So(err.Error(), ShouldEqual, "Wrong credentials for user admin")
+		So(id, ShouldEqual, 0)
 	})
 }

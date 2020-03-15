@@ -467,8 +467,8 @@ func TestRecursionProtection(t *testing.T) {
 	})
 }
 
-func TestTypeConversionInMethodCall(t *testing.T) {
-	Convey("Testing type conversion in method call", t, func() {
+func TestInternalMethodFunctions(t *testing.T) {
+	Convey("Testing internal method functions", t, func() {
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
@@ -495,6 +495,14 @@ func TestTypeConversionInMethodCall(t *testing.T) {
 				c := convertFunctionArg(reflect.TypeOf(TestUserCondition{}), cond)
 				So(c.Type(), ShouldEqual, reflect.TypeOf(TestUserCondition{}))
 				So(c.Interface().(TestUserCondition).Underlying().String(), ShouldEqual, cond.String())
+			})
+			Convey("MethodType", func() {
+				meth := users.model.methods.MustGet("OnChangeMana")
+				So(meth.MethodType(), ShouldEqual, reflect.TypeOf(func(*RecordCollection) *ModelData { return &ModelData{} }))
+			})
+			Convey("Name", func() {
+				meth := users.model.methods.MustGet("ComputeCoolType")
+				So(meth.Name(), ShouldEqual, "ComputeCoolType")
 			})
 		}), ShouldBeNil)
 	})

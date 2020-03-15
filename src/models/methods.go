@@ -95,12 +95,9 @@ func (mc *MethodsCollection) set(methodName string, methInfo *Method) {
 // AllowAllToGroup grants the given group access to all the CRUD methods of this collection
 func (mc *MethodsCollection) AllowAllToGroup(group *security.Group) {
 	for mName := range unauthorizedMethods {
-		meth, exists, inModel := mc.get(mName)
-		switch {
-		case !exists:
+		meth, exists, _ := mc.get(mName)
+		if !exists {
 			log.Panic("Unknown method in model", "model", mc.model.name, "method", mName)
-		case !inModel:
-			log.Panic("Method exists in mixin but has not been declared in model", "model", mc.model.name, "method", mName)
 		}
 		meth.AllowGroup(group)
 	}
@@ -109,12 +106,9 @@ func (mc *MethodsCollection) AllowAllToGroup(group *security.Group) {
 // RevokeAllFromGroup revokes permissions on all CRUD methods given by AllowAllToGroup
 func (mc *MethodsCollection) RevokeAllFromGroup(group *security.Group) {
 	for mName := range unauthorizedMethods {
-		meth, exists, inModel := mc.get(mName)
-		switch {
-		case !exists:
+		meth, exists, _ := mc.get(mName)
+		if !exists {
 			log.Panic("Unknown method in model", "model", mc.model.name, "method", mName)
-		case !inModel:
-			log.Panic("Method exists in mixin but has not been declared in model", "model", mc.model.name, "method", mName)
 		}
 		meth.RevokeGroup(group)
 	}
@@ -443,7 +437,7 @@ func (m *Method) checkSignaturesMatch(fnctVal reflect.Value) {
 		log.Panic("Number of returns do not match", "model", m.model.name, "method", m.name,
 			"no_arguments", fnctVal.Type().NumOut(), "expected", m.methodType.NumOut())
 	}
-	for i := 1; i < m.methodType.NumOut(); i++ {
+	for i := 0; i < m.methodType.NumOut(); i++ {
 		if !checkTypesMatch(m.methodType.Out(i), fnctVal.Type().Out(i)) {
 			log.Panic("Function return type does not match", "model", m.model.name, "method", m.name,
 				"expected", m.methodType.Out(i), "received", fnctVal.Type().Out(i))

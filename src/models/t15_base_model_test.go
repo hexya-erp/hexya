@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	. "github.com/smartystreets/goconvey/convey"
@@ -262,7 +263,7 @@ func TestBaseModelMethods(t *testing.T) {
 					Field(Name).Equals("John Smith")).(RecordSet).Collection()
 				johnAndJane := userJohn.Union(userJane)
 				So(johnAndJane.Subtract(userJane).Equals(userJohn), ShouldBeTrue)
-				So(johnAndJane.Subtract(userJohn).Equals(userJane), ShouldBeTrue)
+				So(johnAndJane.Call("Subtract", userJohn).(RecordSet).Collection().Equals(userJane), ShouldBeTrue)
 
 				So(InvalidRecordCollection("User").Subtract(userJane).IsValid(), ShouldBeFalse)
 				So(func() { env.Pool("Profile").Subtract(userJane) }, ShouldPanic)
@@ -498,6 +499,13 @@ func TestBaseModelMethods(t *testing.T) {
 				users := env.Pool("User").SearchAll()
 				So(users.Len(), ShouldBeGreaterThan, 0)
 				So(func() { users.EnsureOne() }, ShouldPanic)
+			})
+			Convey("GetRecord", func() {
+				So(env.Pool("User").Call("GetRecord", userJane.Get(hexyaExternalID)).(RecordSet).Collection().Equals(userJane), ShouldBeTrue)
+			})
+			Convey("SearchByName", func() {
+				j := env.Pool("User").Call("SearchByName", "Jane A. Smith", operator.Operator(""), userModel.Field(isStaff).Equals(false), 10).(RecordSet).Collection()
+				So(j.Equals(userJane), ShouldBeTrue)
 			})
 		}), ShouldBeNil)
 	})

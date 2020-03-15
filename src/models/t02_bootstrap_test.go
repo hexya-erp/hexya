@@ -16,6 +16,26 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+var (
+	companyDependent = FieldContexts{
+		"company": func(rs RecordSet) string {
+			companyID := rs.Env().Context().GetInteger("force_company")
+			if companyID == 0 {
+				companyID = rs.Env().Context().GetInteger("company_id")
+			}
+			if companyID == 0 {
+				return ""
+			}
+			return fmt.Sprintf("%d", companyID)
+		},
+	}
+	userDependent = FieldContexts{
+		"user": func(rs RecordSet) string {
+			return "user"
+		},
+	}
+)
+
 type TestFieldMap FieldMap
 
 func (f TestFieldMap) Underlying() FieldMap {
@@ -115,6 +135,11 @@ func TestFieldModification(t *testing.T) {
 		checkUpdates(nameField, "translate", true)
 		nameField.SetTranslate(false)
 		checkUpdates(nameField, "translate", false)
+		nameField.SetContexts(companyDependent)
+		lastUpdateShouldResemble(nameField, "contexts", companyDependent)
+		nameField.AddContexts(userDependent)
+		lastUpdateShouldResemble(nameField, "contexts_add", userDependent)
+		nameField.SetContexts(nil)
 		nameField.SetOnchange(nil)
 		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("OnChangeName"))
 		nameField.SetOnchangeWarning(Registry.MustGet("User").Methods().MustGet("OnChangeNameWarning"))
@@ -218,19 +243,24 @@ func TestIllegalMethods(t *testing.T) {
 		So(func() { userModel.AddEmptyMethod("ComputeAge") }, ShouldPanic)
 		So(func() { userModel.Methods().MustGet("ComputeAge").Extend(12) }, ShouldPanic)
 		So(func() {
-			userModel.Methods().MustGet("ComputeAge").Extend(func(rc string) (int, bool) { return 0, true })
+			userModel.Methods().MustGet("Copy").Extend(func(rc bool, overrides RecordData) *RecordCollection { return &RecordCollection{} })
 		}, ShouldPanic)
 		So(func() {
-			userModel.Methods().MustGet("ComputeAge").Extend(func(rc *RecordCollection, x string) (int, bool) { return 0, true })
+			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection) *RecordCollection { return &RecordCollection{} })
 		}, ShouldPanic)
 		So(func() {
-			userModel.Methods().MustGet("ComputeAge").Extend(func(rc *RecordCollection) (int, int, bool) { return 0, 0, true })
+			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection, overrides bool) *RecordCollection { return &RecordCollection{} })
 		}, ShouldPanic)
 		So(func() {
-			userModel.Methods().MustGet("ComputeAge").Extend(func(rc *RecordCollection) (int, bool) { return 0, true })
+			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection, overrides RecordData) (*RecordCollection, bool) {
+				return &RecordCollection{}, false
+			})
 		}, ShouldPanic)
 		So(func() {
-			userModel.Methods().MustGet("DecorateEmail").Extend(func(rc *RecordCollection, email []byte) string { return "" })
+			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection, overrides RecordData) bool { return false })
+		}, ShouldPanic)
+		So(func() {
+			userModel.Methods().MustGet("OrderBy").Extend(func(rc *RecordCollection, exprs []string) *RecordCollection { return &RecordCollection{} })
 		}, ShouldPanic)
 	})
 	Convey("Test checkTypesMatch", t, func() {

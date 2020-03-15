@@ -102,6 +102,12 @@ func TestActions(t *testing.T) {
 		So(allActions, ShouldHaveLength, 2)
 		So(func() { Registry.MustGetByXMLID("my_action") }, ShouldNotPanic)
 		So(func() { Registry.MustGetByXMLID("unknown_id") }, ShouldPanic)
+		So(func() { Registry.MustGetById(1) }, ShouldNotPanic)
+		So(func() { Registry.MustGetById(2) }, ShouldNotPanic)
+		So(func() { Registry.MustGetById(3) }, ShouldPanic)
+		act := Registry.GetById(1)
+		So(act, ShouldNotBeNil)
+		So(act.XMLID, ShouldEqual, "my_action")
 		userLinkedActions := Registry.GetActionLinksForModel("User")
 		So(userLinkedActions, ShouldHaveLength, 1)
 		tName := userLinkedActions[0].TranslatedName("fr")
@@ -167,5 +173,13 @@ func TestActions(t *testing.T) {
 			So(vr.Name(), ShouldEqual, "My Second Action")
 		})
 	})
-
+	Convey("Testing ActionString objects", t, func() {
+		as := Registry.GetByXMLID("my_action").ActionString()
+		d, err := json.Marshal(as)
+		So(err, ShouldBeNil)
+		So(string(d), ShouldEqual, `"ir.actions.act_window,1"`)
+		d, err = json.Marshal(ActionString{})
+		So(err, ShouldBeNil)
+		So(string(d), ShouldEqual, "false")
+	})
 }
