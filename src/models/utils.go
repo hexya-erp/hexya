@@ -138,20 +138,6 @@ func filterOnDBFields(mi *Model, fields []FieldName, dontAddID ...bool) []FieldN
 	return res
 }
 
-// filterMapOnStoredFields returns a new FieldMap from fMap
-// with only fields keys stored directly in this model.
-//
-// This function also converts all keys to fields JSON names.
-func filterMapOnStoredFields(mi *Model, fMap FieldMap) FieldMap {
-	newFMap := make(FieldMap)
-	for field, value := range fMap {
-		if fi, ok := mi.fields.Get(field); ok && fi.isStored() {
-			newFMap[fi.json] = value
-		}
-	}
-	return newFMap
-}
-
 // addIDIfNotPresent returns a new fields slice including ID if it
 // is not already present. Otherwise returns the original slice.
 func addIDIfNotPresent(fields []FieldName) []FieldName {

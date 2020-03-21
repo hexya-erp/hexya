@@ -12,7 +12,7 @@ services:
 
 install:
   - go install
-  - npm install less -g
+  - npm install less sass -g
 
 before_script:
   - hexya generate -t ./src/tests/testmodule

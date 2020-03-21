@@ -16,14 +16,23 @@ package models
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
+	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
-	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+func testPrefixdUser(rc *RecordCollection, prefix string) []string {
+	var res []string
+	for _, u := range rc.Records() {
+		res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get(u.Model().FieldName("Name"))))
+	}
+	return res
+}
 
 func TestModelDeclaration(t *testing.T) {
 	Convey("Creating DataBase...", t, func() {
@@ -38,26 +47,20 @@ func TestModelDeclaration(t *testing.T) {
 		viewModel := NewManualModel("UserView")
 		wizard := NewTransientModel("Wizard")
 
-		userModel.AddMethod("PrefixedUser", "",
-			func(rc *RecordCollection, prefix string) []string {
-				var res []string
-				for _, u := range rc.Records() {
-					res = append(res, fmt.Sprintf("%s: %s", prefix, u.Get(u.model.FieldName("Name"))))
-				}
-				return res
-			})
+		userModel.NewMethod("PrefixedUser", testPrefixdUser)
 
-		userModel.Methods().MustGet("PrefixedUser").Extend("",
+		userModel.Methods().MustGet("PrefixedUser").Extend(
 			func(rc *RecordCollection, prefix string) []string {
 				res := rc.Super().Call("PrefixedUser", prefix).([]string)
 				for i, u := range rc.Records() {
-					mail := u.Get(u.model.FieldName("Email")).(string)
+					mail := u.Get(u.Model().FieldName("Email")).(string)
 					res[i] = fmt.Sprintf("%s %s", res[i], rc.Call("DecorateEmail", mail))
 				}
 				return res
 			})
 
-		userModel.AddMethod("DecorateEmail", "",
+		decorateEmail := userModel.AddEmptyMethod("DecorateEmail")
+		decorateEmail.finalize(
 			func(rc *RecordCollection, email string) string {
 				if rc.Env().Context().HasKey("use_square_brackets") {
 					return fmt.Sprintf("[%s]", email)
@@ -65,7 +68,7 @@ func TestModelDeclaration(t *testing.T) {
 				return fmt.Sprintf("<%s>", email)
 			})
 
-		userModel.Methods().MustGet("DecorateEmail").Extend("",
+		userModel.Methods().MustGet("DecorateEmail").Extend(
 			func(rc *RecordCollection, email string) string {
 				if rc.Env().Context().HasKey("use_double_square") {
 					rc = rc.
@@ -76,7 +79,7 @@ func TestModelDeclaration(t *testing.T) {
 				return fmt.Sprintf("[%s]", res)
 			})
 
-		userModel.AddMethod("RecursiveMethod", "",
+		userModel.NewMethod("RecursiveMethod",
 			func(rc *RecordCollection, depth int, res string) string {
 				if depth == 0 {
 					return res
@@ -84,26 +87,26 @@ func TestModelDeclaration(t *testing.T) {
 				return rc.Call("RecursiveMethod", depth-1, fmt.Sprintf("%s, recursion %d", res, depth)).(string)
 			})
 
-		userModel.Methods().MustGet("RecursiveMethod").Extend("",
+		userModel.Methods().MustGet("RecursiveMethod").Extend(
 			func(rc *RecordCollection, depth int, res string) string {
 				res = "> " + res + " <"
 				sup := rc.Super().Call("RecursiveMethod", depth, res).(string)
 				return sup
 			})
 
-		userModel.AddMethod("SubSetSuper", "",
+		userModel.NewMethod("SubSetSuper",
 			func(rc *RecordCollection) string {
 				var res string
 				for _, rec := range rc.Records() {
-					res += rec.Get(rec.model.FieldName("Name")).(string)
+					res += rec.Get(rec.Model().FieldName("Name")).(string)
 				}
 				return res
 			})
 
-		userModel.Methods().MustGet("SubSetSuper").Extend("",
+		userModel.Methods().MustGet("SubSetSuper").Extend(
 			func(rc *RecordCollection) string {
 				users := rc.Env().Pool("User")
-				emailField := users.model.FieldName("Email")
+				emailField := users.Model().FieldName("Email")
 				userJane := users.Search(users.Model().Field(emailField).Equals("jane.smith@example.com"))
 				userJohn := users.Search(users.Model().Field(emailField).Equals("jsmith2@example.com"))
 				users = users.Call("Union", userJane).(RecordSet).Collection()
@@ -111,498 +114,850 @@ func TestModelDeclaration(t *testing.T) {
 				return users.Super().Call("SubSetSuper").(string)
 			})
 
-		userModel.AddMethod("OnChangeName", "",
+		userModel.NewMethod("OnChangeName",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
-				res.Set(rc.model.FieldName("DecoratedName"), rc.Call("PrefixedUser", "User").([]string)[0])
+				res.Set(rc.Model().FieldName("DecoratedName"), rc.Call("PrefixedUser", "User").([]string)[0])
 				return res
 			})
 
-		userModel.AddMethod("OnChangeNameWarning", "",
+		userModel.NewMethod("OnChangeNameWarning",
 			func(rc *RecordCollection) string {
-				if rc.Get(rc.model.FieldName("Name")) == "Warning User" {
+				if rc.Get(rc.Model().FieldName("Name")) == "Warning User" {
 					return "We have a warning here"
 				}
 				return ""
 			})
 
-		userModel.AddMethod("OnChangeNameFilters", "",
+		userModel.NewMethod("OnChangeNameFilters",
 			func(rc *RecordCollection) map[FieldName]Conditioner {
 				res := make(map[FieldName]Conditioner)
-				res[rc.model.FieldName("LastPost")] = Registry.MustGet("Profile").Field(Registry.MustGet("Profile").FieldName("Street")).Equals("addr")
+				res[rc.Model().FieldName("LastPost")] = Registry.MustGet("Profile").Field(Registry.MustGet("Profile").FieldName("Street")).Equals("addr")
 				return res
 			})
 
-		userModel.AddMethod("ComputeDecoratedName", "",
+		userModel.NewMethod("ComputeDecoratedName",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
-				res.Set(rc.model.FieldName("DecoratedName"), rc.Call("PrefixedUser", "User").([]string)[0])
+				res.Set(rc.Model().FieldName("DecoratedName"), rc.Call("PrefixedUser", "User").([]string)[0])
 				return res
 			})
 
-		userModel.AddMethod("ComputeAge", "",
+		userModel.NewMethod("ComputeAge",
 			func(rc *RecordCollection) *ModelData {
 				res := NewModelData(rc.Model())
-				res.Set(rc.model.FieldName("Age"), rc.Get(rc.model.FieldName("Profile")).(*RecordCollection).Get(Registry.MustGet("Profile").FieldName("Age")).(int16))
+				res.Set(rc.Model().FieldName("Age"), rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Get(Registry.MustGet("Profile").FieldName("Age")).(int16))
 				return res
 			})
 
-		userModel.AddMethod("InverseSetAge", "",
+		userModel.NewMethod("InverseSetAge",
 			func(rc *RecordCollection, age int16) {
-				rc.Get(rc.model.FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("Age"), age)
+				rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("Age"), age)
 			})
 
-		userModel.AddMethod("UpdateCity", "",
+		userModel.NewMethod("UpdateCity",
 			func(rc *RecordCollection, value string) {
-				rc.Get(rc.model.FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("City"), value)
+				rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("City"), value)
 			})
 
-		userModel.AddMethod("ComputeNum", "Dummy method",
+		userModel.NewMethod("ComputeNum",
 			func(rc *RecordCollection) *ModelData {
-				return NewModelData(rc.model)
+				return NewModelData(rc.Model())
 			})
 
-		userModel.AddMethod("EndlessRecursion", "Endless recursive method for tests",
+		userModel.NewMethod("EndlessRecursion",
 			func(rc *RecordCollection) string {
 				return rc.Call("EndlessRecursion2").(string)
 			})
 
-		userModel.AddMethod("EndlessRecursion2", "Endless recursive method for tests",
+		userModel.NewMethod("EndlessRecursion2",
 			func(rc *RecordCollection) string {
 				return rc.Call("EndlessRecursion").(string)
 			})
 
-		userModel.AddMethod("TwoReturnValues", "Test method with 2 return values",
+		userModel.NewMethod("TwoReturnValues",
 			func(rc *RecordCollection) (FieldMap, bool) {
 				return FieldMap{"One": 1}, true
 			})
 
-		userModel.AddMethod("NoReturnValue", "Test method with 0 return values",
+		userModel.NewMethod("NoReturnValue",
 			func(rc *RecordCollection) {
 				fmt.Println("NOOP")
 			})
 
-		userModel.AddMethod("WrongInverseSetAge", "",
+		userModel.NewMethod("WrongInverseSetAge",
 			func(rc *RecordCollection, age int16) string {
-				rc.Get(rc.model.FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("Age"), age)
+				rc.Get(rc.Model().FieldName("Profile")).(*RecordCollection).Set(Registry.MustGet("Profile").FieldName("Age"), age)
 				return "Ok"
 			})
 
-		userModel.AddMethod("ComputeCoolType", "",
+		userModel.NewMethod("ComputeCoolType",
 			func(rc *RecordCollection) *ModelData {
-				res := NewModelData(rc.model)
-				if rc.Get(rc.model.FieldName("IsCool")).(bool) {
-					res.Set(rc.model.FieldName("CoolType"), "cool")
+				res := NewModelData(rc.Model())
+				if rc.Get(rc.Model().FieldName("IsCool")).(bool) {
+					res.Set(rc.Model().FieldName("CoolType"), "cool")
 				} else {
-					res.Set(rc.model.FieldName("CoolType"), "no-cool")
+					res.Set(rc.Model().FieldName("CoolType"), "no-cool")
 				}
 				return res
 			})
 
-		userModel.AddMethod("OnChangeCoolType", "",
+		userModel.NewMethod("OnChangeCoolType",
 			func(rc *RecordCollection) *ModelData {
-				res := NewModelData(rc.model)
-				if rc.Get(rc.model.FieldName("CoolType")).(string) == "cool" {
-					res.Set(rc.model.FieldName("IsCool"), true)
+				res := NewModelData(rc.Model())
+				if rc.Get(rc.Model().FieldName("CoolType")).(string) == "cool" {
+					res.Set(rc.Model().FieldName("IsCool"), true)
 				} else {
-					res.Set(rc.model.FieldName("IsCool"), false)
+					res.Set(rc.Model().FieldName("IsCool"), false)
 				}
 				return res
 			})
 
-		userModel.AddMethod("InverseCoolType", "",
+		userModel.NewMethod("InverseCoolType",
 			func(rc *RecordCollection, val string) {
 				if val == "cool" {
-					rc.Set(rc.model.FieldName("IsCool"), true)
+					rc.Set(rc.Model().FieldName("IsCool"), true)
 				} else {
-					rc.Set(rc.model.FieldName("IsCool"), false)
+					rc.Set(rc.Model().FieldName("IsCool"), false)
 				}
 			})
 
-		userModel.AddMethod("OnChangeMana", "",
+		userModel.NewMethod("OnChangeMana",
 			func(rc *RecordCollection) *ModelData {
-				res := NewModelData(rc.model)
-				post1 := rc.env.Pool("Post").SearchAll().Limit(1)
-				prof := rc.env.Pool("Profile").Call("Create",
+				res := NewModelData(rc.Model())
+				post1 := rc.Env().Pool("Post").SearchAll().Limit(1)
+				prof := rc.Env().Pool("Profile").Call("Create",
 					NewModelData(Registry.MustGet("Profile")).
 						Set(Registry.MustGet("Profile").FieldName("BestPost"), post1))
 				prof.(RecordSet).Collection().InvalidateCache()
-				res.Set(rc.model.FieldName("Profile"), prof)
+				res.Set(rc.Model().FieldName("Profile"), prof)
 				return res
 			})
 
-		userModel.Methods().MustGet("Copy").Extend("",
+		meth := userModel.Methods().MustGet("Copy")
+		meth.Extend(
 			func(rc *RecordCollection, overrides RecordData) *RecordCollection {
-				nameField := rc.model.FieldName("Name")
+				nameField := rc.Model().FieldName("Name")
 				overrides.Underlying().Set(nameField, fmt.Sprintf("%s (copy)", rc.Get(nameField).(string)))
 				return rc.Super().Call("Copy", overrides).(RecordSet).Collection()
 			})
 
-		activeMI.AddMethod("IsActivated", "",
+		activeMI.NewMethod("IsActivated",
 			func(rc *RecordCollection) bool {
-				return rc.Get(rc.model.FieldName("Active")).(bool)
+				return rc.Get(rc.Model().FieldName("Active")).(bool)
 			})
 
-		addressMI.AddMethod("SayHello", "",
+		addressMI.NewMethod("SayHello",
 			func(rc *RecordCollection) string {
 				return "Hello !"
 			})
 
-		printAddress := addressMI.AddEmptyMethod("PrintAddress")
-		printAddress.DeclareMethod("",
+		addressMI.NewMethod("PrintAddress",
 			func(rc *RecordCollection) string {
-				return fmt.Sprintf("%s, %s %s", rc.Get(rc.model.FieldName("Street")), rc.Get(rc.model.FieldName("Zip")), rc.Get(rc.model.FieldName("City")))
+				return fmt.Sprintf("%s, %s %s", rc.Get(rc.Model().FieldName("Street")), rc.Get(rc.Model().FieldName("Zip")), rc.Get(rc.Model().FieldName("City")))
 			})
 
-		profileModel.AddMethod("PrintAddress", "",
+		profileModel.NewMethod("PrintAddress",
 			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
-				return fmt.Sprintf("%s, %s", res, rc.Get(rc.model.FieldName("Country")))
+				return fmt.Sprintf("%s, %s", res, rc.Get(rc.Model().FieldName("Country")))
 			})
 
-		addressMI.Methods().MustGet("PrintAddress").Extend("",
+		addressMI.Methods().MustGet("PrintAddress").Extend(
 			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("<%s>", res)
 			})
 
-		profileModel.Methods().MustGet("PrintAddress").Extend("",
+		profileModel.Methods().MustGet("PrintAddress").Extend(
 			func(rc *RecordCollection) string {
 				res := rc.Super().Call("PrintAddress").(string)
 				return fmt.Sprintf("[%s]", res)
 			})
 
-		post.AddMethod("ComputeRead", "",
+		post.NewMethod("ComputeRead",
 			func(rc *RecordCollection) *ModelData {
 				var read bool
-				if !rc.Get(rc.model.FieldName("LastRead")).(dates.Date).IsZero() {
+				if !rc.Get(rc.Model().FieldName("LastRead")).(dates.Date).IsZero() {
 					read = true
 				}
-				return NewModelData(rc.model).Set(rc.model.FieldName("Read"), read)
+				return NewModelData(rc.Model()).Set(rc.Model().FieldName("Read"), read)
 			})
 
-		post.Methods().MustGet("Create").Extend("",
+		post.Methods().MustGet("Create").Extend(
 			func(rc *RecordCollection, data RecordData) *RecordCollection {
 				res := rc.Super().Call("Create", data).(RecordSet).Collection()
 				return res
 			})
 
-		post.Methods().MustGet("Search").Extend("",
+		post.Methods().MustGet("Search").Extend(
 			func(rc *RecordCollection, cond Conditioner) *RecordCollection {
 				res := rc.Super().Call("Search", cond).(RecordSet).Collection()
 				return res
 			})
 
-		post.Methods().MustGet("WithContext").Extend("",
+		post.Methods().MustGet("WithContext").Extend(
 			func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
 				return rc.Super().Call("WithContext", key, value).(*RecordCollection)
 			})
 
-		post.AddMethod("ComputeTagsNames", "",
+		post.NewMethod("ComputeTagsNames",
 			func(rc *RecordCollection) *ModelData {
 				var res string
 				for _, rec := range rc.Records() {
-					for _, tg := range rec.Get(rec.model.FieldName("Tags")).(RecordSet).Collection().Records() {
-						res += tg.Get(tg.model.FieldName("Name")).(string) + " "
+					for _, tg := range rec.Get(rec.Model().FieldName("Tags")).(RecordSet).Collection().Records() {
+						res += tg.Get(tg.Model().FieldName("Name")).(string) + " "
 					}
 				}
-				return NewModelData(rc.model).Set(rc.model.FieldName("TagsNames"), res)
+				return NewModelData(rc.Model()).Set(rc.Model().FieldName("TagsNames"), res)
 			})
 
-		post.AddMethod("ComputeWriterAge", "",
+		post.NewMethod("ComputeWriterAge",
 			func(rc *RecordCollection) *ModelData {
-				return NewModelData(rc.model).
-					Set(rc.model.FieldName("WriterAge"),
-						rc.Get(rc.model.FieldName("User")).(RecordSet).Collection().Get(Registry.MustGet("User").FieldName("Age")).(int16))
+				return NewModelData(rc.Model()).
+					Set(rc.Model().FieldName("WriterAge"),
+						rc.Get(rc.Model().FieldName("User")).(RecordSet).Collection().Get(Registry.MustGet("User").FieldName("Age")).(int16))
 			})
 
-		tag.AddMethod("CheckRate",
-			`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
+		post.NewMethod("Init",
+			func(rc *RecordCollection) {})
+
+		tag.NewMethod("CheckRate",
 			func(rc *RecordCollection) {
-				if rc.Get(rc.model.FieldName("Rate")).(float32) < 0 || rc.Get(rc.model.FieldName("Rate")).(float32) > 10 {
+				if rc.Get(rc.Model().FieldName("Rate")).(float32) < 0 || rc.Get(rc.Model().FieldName("Rate")).(float32) > 10 {
 					log.Panic("Tag rate must be between 0 and 10")
 				}
 			})
 
-		tag.AddMethod("CheckNameDescription",
-			`CheckNameDescription checks that the description of a tag is not equal to its name`,
+		tag.NewMethod("CheckNameDescription",
 			func(rc *RecordCollection) {
-				if rc.Get(rc.model.FieldName("Name")).(string) == rc.Get(rc.model.FieldName("Description")).(string) {
+				if rc.Get(rc.Model().FieldName("Name")).(string) == rc.Get(rc.Model().FieldName("Description")).(string) {
 					log.Panic("Tag name and description must be different")
 				}
 			})
 
-		tag.methods.AllowAllToGroup(security.GroupEveryone)
-		tag.methods.RevokeAllFromGroup(security.GroupEveryone)
-		tag.methods.AllowAllToGroup(security.GroupEveryone)
+		tag.Methods().AllowAllToGroup(security.GroupEveryone)
+		tag.Methods().RevokeAllFromGroup(security.GroupEveryone)
+		tag.Methods().AllowAllToGroup(security.GroupEveryone)
 
-		cv.AddMethod("ComputeOther",
-			`Dummy compute function`,
+		cv.NewMethod("ComputeOther",
 			func(rc *RecordCollection) *ModelData {
-				return NewModelData(rc.model).Set(rc.model.FieldName("Other"), "Other information")
+				return NewModelData(rc.Model()).Set(rc.Model().FieldName("Other"), "Other information")
 			})
 
-		userModel.AddFields(map[string]FieldDefinition{
-			"Name": CharField{String: "Name", Help: "The user's username", Unique: true,
-				NoCopy: true, OnChange: userModel.Methods().MustGet("OnChangeName"),
-				OnChangeFilters: userModel.Methods().MustGet("OnChangeNameFilters"),
-				OnChangeWarning: userModel.Methods().MustGet("OnChangeNameWarning"),
-			},
-			"DecoratedName": CharField{Compute: userModel.Methods().MustGet("ComputeDecoratedName")},
-			"Email":         CharField{Help: "The user's email address", Size: 100, Index: true},
-			"Password":      CharField{NoCopy: true},
-			"Status": IntegerField{JSON: "status_json", GoType: new(int16),
-				Default: DefaultValue(int16(12)), ReadOnly: true},
-			"IsStaff":  BooleanField{},
-			"IsActive": BooleanField{},
-			"Profile": One2OneField{RelationModel: Registry.MustGet("Profile"),
-				OnDelete: SetNull, Required: true},
-			"Age": IntegerField{Compute: userModel.Methods().MustGet("ComputeAge"),
-				Inverse: userModel.Methods().MustGet("InverseSetAge"),
-				Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-			"Posts":    One2ManyField{RelationModel: Registry.MustGet("Post"), ReverseFK: "User", Copy: true},
-			"PMoney":   FloatField{Related: "Profile.Money"},
-			"LastPost": Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"Resume":   Many2OneField{RelationModel: Registry.MustGet("Resume"), Embed: true},
-			"IsCool":   BooleanField{},
-			"CoolType": SelectionField{Selection: types.Selection{
+		userModel.fields.add(&Field{
+			model:           userModel,
+			name:            "Name",
+			json:            "name",
+			description:     "Name",
+			fieldType:       fieldtype.Char,
+			structField:     reflect.StructField{Type: reflect.TypeOf("")},
+			help:            "The user's username",
+			unique:          true,
+			noCopy:          true,
+			onChange:        "OnChangeName",
+			onChangeWarning: "OnChangeNameWarning",
+			onChangeFilters: "OnChangeNameFilters",
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "DecoratedName",
+			json:        "decorated_name",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			compute:     "ComputeDecoratedName",
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Email",
+			json:        "email",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			help:        "The user's email address",
+			size:        100,
+			index:       true,
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Password",
+			json:        "password",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			noCopy:      true,
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Status",
+			json:        "status_json",
+			fieldType:   fieldtype.Integer,
+			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			defaultFunc: DefaultValue(int16(12)),
+			readOnly:    true,
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "IsStaff",
+			json:        "is_staff",
+			fieldType:   fieldtype.Boolean,
+			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			defaultFunc: DefaultValue(false),
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "IsActive",
+			json:        "is_active",
+			fieldType:   fieldtype.Boolean,
+			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			defaultFunc: DefaultValue(false),
+		})
+		userModel.fields.add(&Field{
+			model:            userModel,
+			name:             "Profile",
+			json:             "profile_id",
+			fieldType:        fieldtype.One2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			relatedModelName: "Profile",
+			onDelete:         SetNull,
+			required:         true,
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Age",
+			json:        "age",
+			fieldType:   fieldtype.Integer,
+			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			compute:     "ComputeAge",
+			inverse:     "InverseSetAge",
+			depends:     []string{"Profile", "Profile.Age"},
+			stored:      true,
+			defaultFunc: DefaultValue(0),
+		})
+		userModel.fields.add(&Field{
+			model:            userModel,
+			name:             "Posts",
+			json:             "posts_ids",
+			fieldType:        fieldtype.One2Many,
+			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			relatedModelName: "Post",
+			reverseFK:        "User",
+			noCopy:           false,
+		})
+		userModel.fields.add(&Field{
+			model:          userModel,
+			name:           "PMoney",
+			json:           "p_money",
+			fieldType:      fieldtype.Float,
+			structField:    reflect.StructField{Type: reflect.TypeOf(float64(1))},
+			relatedPathStr: "Profile.Money",
+			defaultFunc:    DefaultValue(0),
+		})
+		userModel.fields.add(&Field{
+			model:            userModel,
+			name:             "LastPost",
+			json:             "last_post_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         SetNull,
+			relatedModelName: "Post",
+		})
+		userModel.fields.add(&Field{
+			model:            userModel,
+			name:             "Resume",
+			json:             "resume_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			relatedModelName: "Resume",
+			onDelete:         Cascade,
+			required:         false,
+			noCopy:           true,
+			embed:            true,
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "IsCool",
+			json:        "is_cool",
+			fieldType:   fieldtype.Boolean,
+			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			defaultFunc: DefaultValue(false),
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "CoolType",
+			json:        "cool_type",
+			fieldType:   fieldtype.Selection,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			selection: types.Selection{
 				"cool":    "Yes, its a cool user",
 				"no-cool": "No, forget it"},
-				Compute:  userModel.Methods().MustGet("ComputeCoolType"),
-				Inverse:  userModel.Methods().MustGet("InverseCoolType"),
-				OnChange: userModel.Methods().MustGet("OnChangeCoolType")},
-			"Email2":          CharField{},
-			"IsPremium":       BooleanField{},
-			"Nums":            IntegerField{GoType: new(int)},
-			"Size":            FloatField{},
-			"BestProfilePost": Many2OneField{RelationModel: Registry.MustGet("Post"), Related: "Profile.BestPost"},
-			"Mana":            FloatField{GoType: new(float32), OnChange: userModel.Methods().MustGet("OnChangeMana")},
-			"Education":       TextField{String: "Educational Background"},
+			compute:  "ComputeCoolType",
+			inverse:  "InverseCoolType",
+			onChange: "OnChangeCoolType",
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Email2",
+			json:        "email2",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "IsPremium",
+			json:        "is_premium",
+			fieldType:   fieldtype.Boolean,
+			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			defaultFunc: DefaultValue(false),
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Nums",
+			json:        "nums",
+			fieldType:   fieldtype.Integer,
+			structField: reflect.StructField{Type: reflect.TypeOf(0)},
+			defaultFunc: DefaultValue(0),
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Size",
+			json:        "size",
+			fieldType:   fieldtype.Float,
+			structField: reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			defaultFunc: DefaultValue(0),
+		})
+		userModel.fields.add(&Field{
+			model:            userModel,
+			name:             "BestProfilePost",
+			json:             "best_profile_post_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         SetNull,
+			relatedModelName: "Post",
+			relatedPathStr:   "Profile.BestPost",
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Mana",
+			json:        "mana",
+			fieldType:   fieldtype.Float,
+			structField: reflect.StructField{Type: reflect.TypeOf(float32(0))},
+			onChange:    "OnChangeMana",
+			defaultFunc: DefaultValue(0),
+		})
+		userModel.fields.add(&Field{
+			model:       userModel,
+			name:        "Education",
+			json:        "education",
+			fieldType:   fieldtype.Text,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			description: "Educational Background",
 		})
 		userModel.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums IS NOT NULL AND nums > 0) OR (IS_PREMIUM = false))",
 			"Premium users must have positive nums")
 
-		profileModel.AddFields(map[string]FieldDefinition{
-			"Age":      IntegerField{GoType: new(int16)},
-			"Gender":   SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
-			"Money":    FloatField{},
-			"User":     Rev2OneField{RelationModel: Registry.MustGet("User"), ReverseFK: "Profile"},
-			"BestPost": Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"City":     CharField{},
-			"Country":  CharField{},
-			"UserName": CharField{Related: "User.Name"},
+		profileModel.fields.add(&Field{
+			model:       profileModel,
+			name:        "Age",
+			json:        "age",
+			fieldType:   fieldtype.Integer,
+			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			defaultFunc: DefaultValue(0),
 		})
-
-		post.AddFields(map[string]FieldDefinition{
-			"User":       Many2OneField{RelationModel: Registry.MustGet("User")},
-			"Title":      CharField{Required: true},
-			"Content":    HTMLField{Required: true},
-			"Tags":       Many2ManyField{RelationModel: Registry.MustGet("Tag")},
-			"Abstract":   TextField{},
-			"Attachment": BinaryField{},
-			"Read":       BooleanField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeRead")},
-			"LastRead":   DateField{},
-			"Visibility": SelectionField{Selection: types.Selection{
+		profileModel.fields.add(&Field{
+			model:       profileModel,
+			name:        "Gender",
+			json:        "gender",
+			fieldType:   fieldtype.Selection,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			selection:   types.Selection{"male": "Male", "female": "Female"},
+		})
+		profileModel.fields.add(&Field{
+			model:       profileModel,
+			name:        "Money",
+			json:        "money",
+			fieldType:   fieldtype.Float,
+			structField: reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			defaultFunc: DefaultValue(0),
+		})
+		profileModel.fields.add(&Field{
+			model:            profileModel,
+			name:             "User",
+			json:             "user_id",
+			fieldType:        fieldtype.Rev2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			relatedModelName: "User",
+			reverseFK:        "Profile",
+			noCopy:           true,
+		})
+		profileModel.fields.add(&Field{
+			model:            profileModel,
+			name:             "BestPost",
+			json:             "best_post_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         Cascade,
+			relatedModelName: "Post",
+		})
+		profileModel.fields.add(&Field{
+			model:       profileModel,
+			name:        "City",
+			json:        "city",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		profileModel.fields.add(&Field{
+			model:       profileModel,
+			name:        "Country",
+			json:        "country",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		profileModel.fields.add(&Field{
+			model:          profileModel,
+			name:           "UserName",
+			json:           "user_name",
+			fieldType:      fieldtype.Char,
+			structField:    reflect.StructField{Type: reflect.TypeOf("")},
+			relatedPathStr: "User.Name",
+		})
+		post.fields.add(&Field{
+			model:            post,
+			name:             "User",
+			json:             "user_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         SetNull,
+			relatedModelName: "User",
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "Title",
+			json:        "title",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			required:    true,
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "Content",
+			json:        "content",
+			fieldType:   fieldtype.HTML,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			required:    true,
+		})
+		m2mRelModel, m2mOurField, m2mTheirField := CreateM2MRelModelInfo("PostTagRel", "Post", "Tag", "Post", "Tag", false)
+		post.fields.add(&Field{
+			model:            post,
+			name:             "Tags",
+			json:             "tags_ids",
+			fieldType:        fieldtype.Many2Many,
+			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			relatedModelName: "Tag",
+			m2mRelModel:      m2mRelModel,
+			m2mOurField:      m2mOurField,
+			m2mTheirField:    m2mTheirField,
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "Abstract",
+			json:        "abstract",
+			fieldType:   fieldtype.Text,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "Attachment",
+			json:        "attachment",
+			fieldType:   fieldtype.Binary,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "Read",
+			json:        "read",
+			fieldType:   fieldtype.Boolean,
+			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			compute:     "ComputeRead",
+			defaultFunc: DefaultValue(false),
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "LastRead",
+			json:        "last_read",
+			fieldType:   fieldtype.Date,
+			structField: reflect.StructField{Type: reflect.TypeOf(dates.Date{})},
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "Visibility",
+			json:        "visibility",
+			fieldType:   fieldtype.Selection,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			selection: types.Selection{
 				"invisible": "Invisible",
 				"visible":   "Visible",
-			}},
-			"Comments":        One2ManyField{RelationModel: Registry.MustGet("Comment"), ReverseFK: "Post"},
-			"LastCommentText": TextField{Related: "Comments.Text"},
-			"LastTagName":     CharField{Related: "Tags.Name"},
-			"TagsNames":       CharField{Compute: Registry.MustGet("Post").Methods().MustGet("ComputeTagsNames")},
-			"WriterAge": IntegerField{Compute: post.Methods().MustGet("ComputeWriterAge"),
-				Depends: []string{"User.Age"}, Stored: true, GoType: new(int16)},
-			"WriterMoney": FloatField{Related: "User.PMoney"},
+			},
+		})
+		post.fields.add(&Field{
+			model:            post,
+			name:             "Comments",
+			json:             "comments_ids",
+			fieldType:        fieldtype.One2Many,
+			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			relatedModelName: "Comment",
+			reverseFK:        "Post",
+			noCopy:           true,
+		})
+		post.fields.add(&Field{
+			model:          post,
+			name:           "LastCommentText",
+			json:           "last_comment_text",
+			fieldType:      fieldtype.Text,
+			structField:    reflect.StructField{Type: reflect.TypeOf("")},
+			relatedPathStr: "Comments.Text",
+		})
+		post.fields.add(&Field{
+			model:          post,
+			name:           "LastTagName",
+			json:           "last_tag_name",
+			fieldType:      fieldtype.Char,
+			structField:    reflect.StructField{Type: reflect.TypeOf("")},
+			relatedPathStr: "Tags.Name",
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "TagsNames",
+			json:        "tags_names",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			compute:     "ComputeTagsNames",
+		})
+		post.fields.add(&Field{
+			model:       post,
+			name:        "WriterAge",
+			json:        "writer_age",
+			fieldType:   fieldtype.Integer,
+			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			compute:     "ComputeWriterAge",
+			depends:     []string{"User.Age"},
+			stored:      true,
+			defaultFunc: DefaultValue(0),
+		})
+		post.fields.add(&Field{
+			model:          post,
+			name:           "WriterMoney",
+			json:           "writer_money",
+			fieldType:      fieldtype.Float,
+			structField:    reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			relatedPathStr: "User.PMoney",
+			defaultFunc:    DefaultValue(0),
 		})
 		post.SetDefaultOrder("Title")
 
-		comment.AddFields(map[string]FieldDefinition{
-			"Post":        Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"PostWriter":  Many2OneField{RelationModel: Registry.MustGet("User"), Related: "Post.User"},
-			"WriterMoney": FloatField{Related: "PostWriter.PMoney"},
-			"Text":        CharField{},
+		comment.fields.add(&Field{
+			model:            comment,
+			name:             "Post",
+			json:             "post_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         SetNull,
+			relatedModelName: "Post",
+		})
+		comment.fields.add(&Field{
+			model:            comment,
+			name:             "PostWriter",
+			json:             "post_writer_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         SetNull,
+			relatedModelName: "User",
+			relatedPathStr:   "Post.User",
+		})
+		comment.fields.add(&Field{
+			model:          comment,
+			name:           "WriterMoney",
+			json:           "writer_money",
+			fieldType:      fieldtype.Float,
+			structField:    reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			relatedPathStr: "PostWriter.PMoney",
+			defaultFunc:    DefaultValue(0),
+		})
+		comment.fields.add(&Field{
+			model:       comment,
+			name:        "Text",
+			json:        "text",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
 		})
 
-		tag.AddFields(map[string]FieldDefinition{
-			"Name":        CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
-			"BestPost":    Many2OneField{RelationModel: Registry.MustGet("Post")},
-			"Posts":       Many2ManyField{RelationModel: Registry.MustGet("Post")},
-			"Parent":      Many2OneField{RelationModel: Registry.MustGet("Tag")},
-			"Description": CharField{Translate: true, Constraint: tag.Methods().MustGet("CheckNameDescription")},
-			"Note":        CharField{Translate: true, Required: true, Default: DefaultValue("Default Note")},
-			"Rate":        FloatField{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
+		tag.fields.add(&Field{
+			model:       tag,
+			name:        "Name",
+			json:        "name",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			constraint:  "CheckNameDescription",
+		})
+		tag.fields.add(&Field{
+			model:            tag,
+			name:             "BestPost",
+			json:             "best_post_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         SetNull,
+			relatedModelName: "Post",
+		})
+		tag.fields.add(&Field{
+			model:            tag,
+			name:             "Posts",
+			json:             "posts_ids",
+			fieldType:        fieldtype.Many2Many,
+			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			relatedModelName: "Post",
+			m2mRelModel:      m2mRelModel,
+			m2mOurField:      m2mTheirField,
+			m2mTheirField:    m2mOurField,
+		})
+		tag.fields.add(&Field{
+			model:            tag,
+			name:             "Parent",
+			json:             "parent_id",
+			fieldType:        fieldtype.Many2One,
+			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			onDelete:         SetNull,
+			relatedModelName: "Tag",
+		})
+		tag.fields.add(&Field{
+			model:       tag,
+			name:        "Description",
+			json:        "description",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			contexts: FieldContexts{"lang": func(rs RecordSet) string {
+				res := rs.Env().Context().GetString("lang")
+				return res
+			}},
+			constraint: "CheckNameDescription",
+		})
+		tag.fields.add(&Field{
+			model:       tag,
+			name:        "Note",
+			json:        "note",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			contexts: FieldContexts{"lang": func(rs RecordSet) string {
+				res := rs.Env().Context().GetString("lang")
+				return res
+			}},
+			required:    true,
+			defaultFunc: DefaultValue("Default Note"),
+		})
+		tag.fields.add(&Field{
+			model:       tag,
+			name:        "Rate",
+			json:        "rate",
+			fieldType:   fieldtype.Float,
+			structField: reflect.StructField{Type: reflect.TypeOf(float32(0))},
+			constraint:  "CheckRate",
+			defaultFunc: DefaultValue(0),
 		})
 		tag.SetDefaultOrder("Name DESC", "ID ASC")
 
-		cv.AddFields(map[string]FieldDefinition{
-			"Education":  CharField{},
-			"Experience": TextField{Translate: true},
-			"Leisure":    TextField{},
-			"Other":      CharField{Compute: cv.methods.MustGet("ComputeOther")},
+		cv.fields.add(&Field{
+			model:       cv,
+			name:        "Education",
+			json:        "education",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		cv.fields.add(&Field{
+			model:       cv,
+			name:        "Experience",
+			json:        "experience",
+			fieldType:   fieldtype.Text,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			contexts: FieldContexts{"lang": func(rs RecordSet) string {
+				res := rs.Env().Context().GetString("lang")
+				return res
+			}},
+		})
+		cv.fields.add(&Field{
+			model:       cv,
+			name:        "Leisure",
+			json:        "leisure",
+			fieldType:   fieldtype.Text,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		cv.fields.add(&Field{
+			model:       cv,
+			name:        "Other",
+			json:        "other",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			compute:     "ComputeOther",
 		})
 
-		addressMI.AddFields(map[string]FieldDefinition{
-			"Street": CharField{GoType: new(string)},
-			"Zip":    CharField{},
-			"City":   CharField{},
+		addressMI.fields.add(&Field{
+			model:       addressMI,
+			name:        "Street",
+			json:        "street",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
 		})
-
+		addressMI.fields.add(&Field{
+			model:       addressMI,
+			name:        "Zip",
+			json:        "zip",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		addressMI.fields.add(&Field{
+			model:       addressMI,
+			name:        "City",
+			json:        "city",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
 		profileModel.InheritModel(addressMI)
 
-		activeMI.AddFields(map[string]FieldDefinition{
-			"Active": BooleanField{Default: DefaultValue(true)},
+		activeMI.fields.add(&Field{
+			model:       activeMI,
+			name:        "Active",
+			json:        "active",
+			fieldType:   fieldtype.Boolean,
+			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			defaultFunc: DefaultValue(true),
 		})
-
 		Registry.MustGet("ModelMixin").InheritModel(activeMI)
 
-		viewModel.AddFields(map[string]FieldDefinition{
-			"Name": CharField{},
-			"City": CharField{},
+		viewModel.fields.add(&Field{
+			model:       viewModel,
+			name:        "Name",
+			json:        "name",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
+		})
+		viewModel.fields.add(&Field{
+			model:       viewModel,
+			name:        "City",
+			json:        "city",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
 		})
 
-		wizard.AddFields(map[string]FieldDefinition{
-			"Name":  CharField{},
-			"Value": IntegerField{},
+		wizard.fields.add(&Field{
+			model:       wizard,
+			name:        "Name",
+			json:        "name",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeOf("")},
 		})
-	})
-}
-
-func TestFieldModification(t *testing.T) {
-	checkUpdates := func(f *Field, property string, value interface{}) {
-		So(len(f.updates), ShouldBeGreaterThan, 0)
-		So(f.updates[len(f.updates)-1], ShouldContainKey, property)
-		So(f.updates[len(f.updates)-1][property], ShouldEqual, value)
-	}
-	Convey("Testing field modification", t, func() {
-		numsField := Registry.MustGet("User").Fields().MustGet("Nums")
-		numsField.SetString("Nums Reloaded")
-		checkUpdates(numsField, "description", "Nums Reloaded")
-		numsField.SetHelp("Num's Help")
-		checkUpdates(numsField, "help", "Num's Help")
-		numsField.SetCompute(Registry.MustGet("User").methods.MustGet("ComputeNum"))
-		checkUpdates(numsField, "compute", "ComputeNum")
-		numsField.SetCompute(nil)
-		checkUpdates(numsField, "compute", "")
-		numsField.SetDefault(DefaultValue("DV"))
-		So(numsField.updates[len(numsField.updates)-1], ShouldContainKey, "defaultFunc")
-		So(numsField.updates[len(numsField.updates)-1]["defaultFunc"].(func(Environment) interface{})(Environment{}), ShouldEqual, "DV")
-		numsField.SetDepends([]string{"Dep1", "Dep2"})
-		So(numsField.updates[len(numsField.updates)-1], ShouldContainKey, "depends")
-		So(numsField.updates[len(numsField.updates)-1]["depends"], ShouldHaveLength, 2)
-		So(numsField.updates[len(numsField.updates)-1]["depends"], ShouldContain, "Dep1")
-		So(numsField.updates[len(numsField.updates)-1]["depends"], ShouldContain, "Dep2")
-		numsField.SetDepends(nil)
-		So(numsField.updates[len(numsField.updates)-1], ShouldContainKey, "depends")
-		So(numsField.updates[len(numsField.updates)-1]["depends"], ShouldHaveLength, 0)
-		numsField.SetGroupOperator("avg")
-		checkUpdates(numsField, "groupOperator", "avg")
-		numsField.SetGroupOperator("sum")
-		checkUpdates(numsField, "groupOperator", "sum")
-		numsField.SetIndex(true)
-		checkUpdates(numsField, "index", true)
-		numsField.SetNoCopy(true)
-		checkUpdates(numsField, "noCopy", true)
-		numsField.SetNoCopy(false)
-		checkUpdates(numsField, "noCopy", false)
-		numsField.SetRelated("Profile.Money")
-		checkUpdates(numsField, "relatedPathStr", "Profile.Money")
-		numsField.SetRelated("")
-		checkUpdates(numsField, "relatedPathStr", "")
-		numsField.SetRequired(true)
-		checkUpdates(numsField, "required", true)
-		numsField.SetRequired(false)
-		checkUpdates(numsField, "required", false)
-		numsField.SetStored(true)
-		checkUpdates(numsField, "stored", true)
-		numsField.SetStored(false)
-		checkUpdates(numsField, "stored", false)
-		numsField.SetUnique(true)
-		checkUpdates(numsField, "unique", true)
-		numsField.SetUnique(false)
-		checkUpdates(numsField, "unique", false)
-		nameField := Registry.MustGet("User").Fields().MustGet("Name")
-		nameField.SetSize(127)
-		checkUpdates(nameField, "size", 127)
-		nameField.SetTranslate(true)
-		checkUpdates(nameField, "translate", true)
-		nameField.SetTranslate(false)
-		checkUpdates(nameField, "translate", false)
-		nameField.SetOnchange(nil)
-		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("OnChangeName"))
-		nameField.SetOnchangeWarning(Registry.MustGet("User").Methods().MustGet("OnChangeNameWarning"))
-		nameField.SetOnchangeFilters(Registry.MustGet("User").Methods().MustGet("OnChangeNameFilters"))
-		nameField.SetConstraint(Registry.MustGet("User").Methods().MustGet("UpdateCity"))
-		nameField.SetConstraint(nil)
-		nameField.SetInverse(Registry.MustGet("User").Methods().MustGet("InverseSetAge"))
-		nameField.SetInverse(nil)
-		sizeField := Registry.MustGet("User").Fields().MustGet("Size")
-		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 2})
-		So(sizeField.updates[len(sizeField.updates)-1], ShouldContainKey, "digits")
-		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Precision, ShouldEqual, 6)
-		So(sizeField.updates[len(sizeField.updates)-1]["digits"].(nbutils.Digits).Scale, ShouldEqual, 2)
-		userField := Registry.MustGet("Post").Fields().MustGet("User")
-		userField.SetOnDelete(Cascade)
-		checkUpdates(userField, "onDelete", Cascade)
-		userField.SetOnDelete(SetNull)
-		checkUpdates(userField, "onDelete", SetNull)
-		userField.SetEmbed(true)
-		checkUpdates(userField, "embed", true)
-		userField.SetEmbed(false)
-		checkUpdates(userField, "embed", false)
-		userField.SetFilter(Registry.MustGet("User").Field(fieldName{name: "SetActive", json: "set_active"}).Equals(true))
-		userField.SetFilter(Condition{})
-		visibilityField := Registry.MustGet("Post").Fields().MustGet("Visibility")
-		visibilityField.UpdateSelection(types.Selection{"logged_in": "Logged in users"})
-		So(visibilityField.updates[len(sizeField.updates)-1], ShouldContainKey, "selection_add")
-		genderField := Registry.MustGet("Profile").Fields().MustGet("Gender")
-		genderField.SetSelection(types.Selection{"m": "Male", "f": "Female"})
-		So(genderField.updates[len(sizeField.updates)-1], ShouldContainKey, "selection")
-		statusField := Registry.MustGet("User").Fields().MustGet("Status")
-		statusField.SetReadOnly(false)
-		checkUpdates(statusField, "readOnly", false)
-		nFunc := func(env Environment) (b bool, conditioner Conditioner) { return }
-		statusField.SetReadOnlyFunc(nFunc)
-		checkUpdates(statusField, "readOnlyFunc", nFunc)
-		statusField.SetInvisibleFunc(nFunc)
-		checkUpdates(statusField, "invisibleFunc", nFunc)
-		statusField.SetRequiredFunc(nFunc)
-		checkUpdates(statusField, "requiredFunc", nFunc)
-	})
-}
-
-func TestErroneousDeclarations(t *testing.T) {
-	Convey("Testing wrong field declarations", t, func() {
-		Convey("Ours = Theirs in M2M field def", func() {
-			userModel := Registry.MustGet("User")
-			So(func() {
-				userModel.AddFields(map[string]FieldDefinition{
-					"Tags": Many2ManyField{RelationModel: Registry.MustGet("Tag"),
-						M2MOurField: "FT", M2MTheirField: "FT"},
-				})
-			}, ShouldPanic)
+		wizard.fields.add(&Field{
+			model:       wizard,
+			name:        "Value",
+			json:        "value",
+			fieldType:   fieldtype.Integer,
+			structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			defaultFunc: DefaultValue(0),
 		})
-	})
-}
-
-func TestMiscellaneous(t *testing.T) {
-	Convey("Check that Field instances are FieldNamers", t, func() {
-		So(Registry.MustGet("User").Fields().MustGet("Name").JSON(), ShouldEqual, "name")
-		So(Registry.MustGet("User").Fields().MustGet("Name").Name(), ShouldEqual, "Name")
-	})
-}
-
-func TestSequences(t *testing.T) {
-	Convey("Testing sequences before bootstrap", t, func() {
-		testSeq := CreateSequence("TestSequence", 5, 13)
-		_, ok := Registry.GetSequence("TestSequence")
-		So(ok, ShouldBeTrue)
-		So(testSeq.Increment, ShouldEqual, 5)
-		So(testSeq.Start, ShouldEqual, 13)
-		testSeq.Alter(3, 14)
-		So(testSeq.Increment, ShouldEqual, 3)
-		So(testSeq.Start, ShouldEqual, 14)
-		testSeq.Drop()
-		So(func() { Registry.MustGetSequence("TestSequence") }, ShouldPanic)
-		CreateSequence("TestSequence", 5, 13)
 	})
 }

@@ -150,6 +150,11 @@ func (fc *FieldsCollection) getComputedFields(fields ...string) (fil []*Field) {
 	return
 }
 
+// Model returns this FieldsCollection Model
+func (fc *FieldsCollection) Model() *Model {
+	return fc.model
+}
+
 // newFieldsCollection returns a pointer to a new empty FieldsCollection with
 // all maps initialized.
 func newFieldsCollection() *FieldsCollection {
@@ -305,7 +310,7 @@ func (f *Field) JSON() string {
 	return f.json
 }
 
-// String method for the Field type. Returns the field's name.
+// Name returns the field's name.
 func (f *Field) Name() string {
 	return f.name
 }
@@ -316,7 +321,7 @@ var _ FieldName = new(Field)
 // It panics in case of severe error and logs recoverable errors.
 func checkFieldInfo(fi *Field) {
 	if fi.fieldType.IsReverseRelationType() && fi.reverseFK == "" {
-		log.Panic("'one2many' and 'rev2one' fields must define an 'ReverseFK' parameter", "model",
+		log.Panic("'one2many' and 'rev2one' fields must define a 'ReverseFK' parameter", "model",
 			fi.model.name, "field", fi.name, "type", fi.fieldType)
 	}
 
@@ -350,13 +355,13 @@ func SnakeCaseFieldName(fName string, typ fieldtype.Type) string {
 	return res
 }
 
-// createM2MRelModelInfo creates a Model relModelName (if it does not exist)
+// CreateM2MRelModelInfo creates a Model relModelName (if it does not exist)
 // for the m2m relation defined between model1 and model2.
 // It returns the Model of the intermediate model, the Field of that model
 // pointing to our model, and the Field pointing to the other model.
 //
 // If mixin is true, the created M2M model is created as a mixin model.
-func createM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, mixin bool) (*Model, *Field, *Field) {
+func CreateM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, mixin bool) (*Model, *Field, *Field) {
 	if relMI, exists := Registry.Get(relModelName); exists {
 		var m1, m2 *Field
 		for fName, fi := range relMI.fields.registryByName {

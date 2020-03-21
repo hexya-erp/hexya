@@ -9,7 +9,7 @@ import (
 
 // specificMethodsHandlers are functions that populate the given modelData
 // for specific methods.
-var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map[string]bool){
+var specificMethodsHandlers = map[string]func(astData *MethodASTData, modelData *modelData, depsMap *map[string]bool){
 	"Search":           searchMethodHandler,
 	"SearchByName":     searchByNameMethodHandler,
 	"Create":           createMethodHandler,
@@ -27,12 +27,13 @@ var specificMethodsHandlers = map[string]func(modelData *modelData, depsMap *map
 }
 
 // searchMethodHandler returns the specific methodData for the Search method.
-func searchMethodHandler(modelData *modelData, _ *map[string]bool) {
+func searchMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "Search"
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("%s.%sCondition", PoolQueryPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("condition %s.%sCondition", PoolQueryPackage, modelData.Name),
 		ReturnString:     returnString,
@@ -41,7 +42,7 @@ func searchMethodHandler(modelData *modelData, _ *map[string]bool) {
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name:           name,
 		Doc:            fmt.Sprintf("// Search returns a new %sSet filtering on the current one with the additional given Condition", modelData.Name),
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "condition",
 		ParamsWithType: fmt.Sprintf("condition %s.%sCondition", PoolQueryPackage, modelData.Name),
 		ReturnAsserts:  fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, returnString),
@@ -52,12 +53,13 @@ func searchMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // createMethodHandler returns the specific methodData for the Create method.
-func createMethodHandler(modelData *modelData, _ *map[string]bool) {
+func createMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "Create"
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("data %sData", modelData.Name),
 		ReturnString:     returnString,
@@ -68,7 +70,7 @@ func createMethodHandler(modelData *modelData, _ *map[string]bool) {
 		Doc: fmt.Sprintf(`// Create inserts a %s record in the database from the given data.
 // Returns the created %sSet.`,
 			modelData.Name, modelData.Name),
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "data",
 		ParamsWithType: fmt.Sprintf("data %s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnAsserts:  fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, returnString),
@@ -79,12 +81,13 @@ func createMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // newMethodHandler returns the specific methodData for the New method.
-func newMethodHandler(modelData *modelData, _ *map[string]bool) {
+func newMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "New"
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("data %sData", modelData.Name),
 		ReturnString:     returnString,
@@ -95,7 +98,7 @@ func newMethodHandler(modelData *modelData, _ *map[string]bool) {
 		Doc: fmt.Sprintf(`// New creates a %s record in memory from the given data.
 // Such %sSet has a negative ID and cannot be reloaded from the database`,
 			modelData.Name, modelData.Name),
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "data",
 		ParamsWithType: fmt.Sprintf("data %s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnAsserts:  fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, returnString),
@@ -106,12 +109,13 @@ func newMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // writeMethodHandler returns the specific methodData for the Write method.
-func writeMethodHandler(modelData *modelData, _ *map[string]bool) {
+func writeMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "Write"
 	returnString := "bool"
 	iReturnString := "bool"
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		IParamsWithTypes: fmt.Sprintf("data %sData", modelData.Name),
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnString:     returnString,
@@ -121,7 +125,7 @@ func writeMethodHandler(modelData *modelData, _ *map[string]bool) {
 		Name: name,
 		Doc: fmt.Sprintf(`// Write is the base implementation of the 'Write' method which updates
 // %s records in the database with the given data.`, modelData.Name),
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "data",
 		ParamsWithType: fmt.Sprintf("data %s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnAsserts:  "resTyped, _ := res.(bool)",
@@ -132,12 +136,13 @@ func writeMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // copyMethodHandler returns the specific methodData for the Copy method.
-func copyMethodHandler(modelData *modelData, _ *map[string]bool) {
+func copyMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "Copy"
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("overrides %sData", modelData.Name),
 		ReturnString:     returnString,
@@ -146,7 +151,7 @@ func copyMethodHandler(modelData *modelData, _ *map[string]bool) {
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name:           name,
 		Doc:            fmt.Sprintf(`// Copy duplicates the given %s record, overridding values with overrides.`, modelData.Name),
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "overrides",
 		ParamsWithType: fmt.Sprintf("overrides %s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnAsserts:  fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, returnString),
@@ -157,12 +162,13 @@ func copyMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // copyDataMethodHandler returns the specific methodData for the CopyData method.
-func copyDataMethodHandler(modelData *modelData, _ *map[string]bool) {
+func copyDataMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "CopyData"
 	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sData", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("overrides %sData", modelData.Name),
 		ReturnString:     returnString,
@@ -171,7 +177,7 @@ func copyDataMethodHandler(modelData *modelData, _ *map[string]bool) {
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name:           name,
 		Doc:            `// CopyData copies given record's data with all its fields values, overriding values with overrides.`,
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "overrides",
 		ParamsWithType: fmt.Sprintf("overrides %s.%sData", PoolInterfacesPackage, modelData.Name),
 		ReturnAsserts:  "resTyped, _ := res.(models.RecordData)",
@@ -182,13 +188,14 @@ func copyDataMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // searchByNameMethodHandler returns the specific methodData for the Search method.
-func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
+func searchByNameMethodHandler(astData *MethodASTData, modelData *modelData, depsMap *map[string]bool) {
 	name := "SearchByName"
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	(*depsMap)["github.com/hexya-erp/hexya/src/models/operator"] = true
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("string, operator.Operator, %s.%sCondition, int", PoolQueryPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("name string, op operator.Operator, additionalCond %s.%sCondition, limit int", PoolQueryPackage, modelData.Name),
 		ReturnString:     returnString,
@@ -203,7 +210,7 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 // This is used for example to provide suggestions based on a partial
 // value for a relational field. Sometimes be seen as the inverse
 // function of NameGet but it is not guaranteed to be.`, modelData.Name),
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "name, op, additionalCond, limit",
 		ParamsWithType: fmt.Sprintf("name string, op operator.Operator, additionalCond %s.%sCondition, limit int", PoolQueryPackage, modelData.Name),
 		ReturnAsserts:  fmt.Sprintf("resTyped := res.(models.RecordSet).Collection().Wrap(\"%s\").(%s)", modelData.Name, returnString),
@@ -214,36 +221,39 @@ func searchByNameMethodHandler(modelData *modelData, depsMap *map[string]bool) {
 }
 
 // firstMethodHandler returns the specific methodData for the First method.
-func firstMethodHandler(modelData *modelData, _ *map[string]bool) {
+func firstMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "First"
 	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sData", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:          name,
+		ToDeclare:     astData.ToDeclare,
 		ReturnString:  returnString,
 		IReturnString: iReturnString,
 	})
 }
 
 // allMethodHandler returns the specific methodData for the First method.
-func allMethodHandler(modelData *modelData, _ *map[string]bool) {
+func allMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "All"
 	returnString := fmt.Sprintf("[]%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("[]%sData", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:          name,
+		ToDeclare:     astData.ToDeclare,
 		ReturnString:  returnString,
 		IReturnString: iReturnString,
 	})
 }
 
 // cartesianProductMethodHandler returns the specific methodData for the CartesianProduct method.
-func cartesianProductMethodHandler(modelData *modelData, _ *map[string]bool) {
+func cartesianProductMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "CartesianProduct"
 	returnString := fmt.Sprintf("[]%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("[]%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("...%s.%sSet", PoolInterfacesPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("others...%sSet", modelData.Name),
 		ReturnString:     returnString,
@@ -252,12 +262,13 @@ func cartesianProductMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // sortedMethodHandler returns the specific methodData for the Sorted method.
-func sortedMethodHandler(modelData *modelData, _ *map[string]bool) {
+func sortedMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "Sorted"
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("func(%s.%sSet, %s.%sSet) bool", PoolInterfacesPackage, modelData.Name, PoolInterfacesPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("less func(%sSet, %sSet) bool", modelData.Name, modelData.Name),
 		ReturnString:     returnString,
@@ -266,12 +277,13 @@ func sortedMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // filteredMethodHandler returns the specific methodData for the Sorted method.
-func filteredMethodHandler(modelData *modelData, _ *map[string]bool) {
+func filteredMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "Filtered"
 	returnString := fmt.Sprintf("%s.%sSet", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sSet", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      fmt.Sprintf("func(%s.%sSet) bool", PoolInterfacesPackage, modelData.Name),
 		IParamsWithTypes: fmt.Sprintf("test func(%sSet) bool", modelData.Name),
 		ReturnString:     returnString,
@@ -280,9 +292,10 @@ func filteredMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // aggregatesMethodHandler returns the specific methodData for the Aggregates method.
-func aggregatesMethodHandler(modelData *modelData, _ *map[string]bool) {
+func aggregatesMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             "Aggregates",
+		ToDeclare:        astData.ToDeclare,
 		ParamsTypes:      "...models.FieldName",
 		IParamsWithTypes: "fieldNames ...models.FieldName",
 		ReturnString:     fmt.Sprintf("[]%s.%sGroupAggregateRow", PoolInterfacesPackage, modelData.Name),
@@ -291,12 +304,13 @@ func aggregatesMethodHandler(modelData *modelData, _ *map[string]bool) {
 }
 
 // defaultGetMethodHandler returns the specific methodData for the DefaultGet method.
-func defaultGetMethodHandler(modelData *modelData, _ *map[string]bool) {
+func defaultGetMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
 	name := "DefaultGet"
 	returnString := fmt.Sprintf("%s.%sData", PoolInterfacesPackage, modelData.Name)
 	iReturnString := fmt.Sprintf("%sData", modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             name,
+		ToDeclare:        astData.ToDeclare,
 		IParamsWithTypes: "",
 		ParamsTypes:      "",
 		ReturnString:     returnString,
@@ -305,7 +319,7 @@ func defaultGetMethodHandler(modelData *modelData, _ *map[string]bool) {
 	modelData.Methods = append(modelData.Methods, methodData{
 		Name:           name,
 		Doc:            fmt.Sprintf(`// DefaultGet returns a %sData with the default values for the model.`, modelData.Name),
-		ToDeclare:      false,
+		ToDeclare:      astData.ToDeclare,
 		Params:         "",
 		ParamsWithType: "",
 		ReturnAsserts:  "resTyped, _ := res.(models.RecordData)",

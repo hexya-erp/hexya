@@ -33,7 +33,7 @@ var dbArgs = struct {
 	Debug    string
 }{}
 
-var testAdapter dbAdapter
+var TestAdapter dbAdapter
 
 func TestMain(m *testing.M) {
 	initializeTests()
@@ -83,7 +83,7 @@ func initializeTests() {
 		Password: dbArgs.Password,
 		SSLMode:  "disable",
 	})
-	testAdapter = adapters[db.DriverName()]
+	TestAdapter = adapters[db.DriverName()]
 }
 
 func tearDownTests() {

@@ -141,23 +141,99 @@ type ModelASTData struct {
 
 // newModelASTData returns an initialized ModelASTData instance
 func newModelASTData(name string) ModelASTData {
+	return ModelASTData{
+		Name:         name,
+		Fields:       defaultFields(name),
+		IsModelMixin: ModelMixins[name],
+		Methods:      make(map[string]MethodASTData),
+		Mixins:       make(map[string]bool),
+		Embeds:       make(map[string]bool),
+		ModelType:    "",
+	}
+}
+
+// defaultFields returns the map of default fields for the model with the given name
+func defaultFields(name string) map[string]FieldASTData {
+	res := make(map[string]FieldASTData)
 	idField := FieldASTData{
 		Name: "ID",
 		JSON: "id",
 		Type: TypeData{
 			Type: "int64",
 		},
+		FType: fieldtype.Integer,
 	}
-	var modelType string
-	return ModelASTData{
-		Name:         name,
-		Fields:       map[string]FieldASTData{"ID": idField},
-		Methods:      make(map[string]MethodASTData),
-		Mixins:       make(map[string]bool),
-		Embeds:       make(map[string]bool),
-		IsModelMixin: ModelMixins[name],
-		ModelType:    modelType,
+	res["ID"] = idField
+	switch name {
+	case "BaseMixin":
+		res["CreateDate"] = FieldASTData{
+			Name:        "CreateDate",
+			JSON:        "create_date",
+			Description: "Created On",
+			Type: TypeData{
+				Type:       "dates.DateTime",
+				ImportPath: DatesPath,
+			},
+			FType: fieldtype.DateTime,
+		}
+		res["CreateUID"] = FieldASTData{
+			Name:        "CreateUID",
+			JSON:        "create_uid",
+			Description: "Created By",
+			Type:        TypeData{Type: "int64"},
+			FType:       fieldtype.Integer,
+		}
+		res["WriteDate"] = FieldASTData{
+			Name:        "WriteDate",
+			JSON:        "write_date",
+			Description: "Updated On",
+			Type: TypeData{
+				Type:       "dates.DateTime",
+				ImportPath: DatesPath,
+			},
+			FType: fieldtype.DateTime,
+		}
+		res["WriteUID"] = FieldASTData{
+			Name:        "WriteUID",
+			JSON:        "write_uid",
+			Description: "Updated By",
+			Type:        TypeData{Type: "int64"},
+			FType:       fieldtype.Integer,
+		}
+		res["LastUpdate"] = FieldASTData{
+			Name:        "LastUpdate",
+			JSON:        "__last_update",
+			Description: "Last Updated On",
+			Type: TypeData{
+				Type:       "dates.DateTime",
+				ImportPath: DatesPath,
+			},
+			FType: fieldtype.DateTime,
+		}
+		res["DisplayName"] = FieldASTData{
+			Name:        "DisplayName",
+			JSON:        "display_name",
+			Description: "Display Name",
+			Type:        TypeData{Type: "string"},
+			FType:       fieldtype.Char,
+		}
+	case "ModelMixin":
+		res["HexyaExternalID"] = FieldASTData{
+			Name:        "HexyaExternalID",
+			JSON:        "hexya_external_id",
+			Description: "External ID",
+			Type:        TypeData{Type: "string"},
+			FType:       fieldtype.Char,
+		}
+		res["HexyaVersion"] = FieldASTData{
+			Name:        "HexyaVersion",
+			JSON:        "hexya_version",
+			Description: "External Version",
+			Type:        TypeData{Type: "int"},
+			FType:       fieldtype.Integer,
+		}
 	}
+	return res
 }
 
 // GetModelsASTData returns the ModelASTData of all models found when parsing program.
@@ -181,16 +257,14 @@ func GetModelsASTDataForModules(modInfos []*ModuleInfo, validate bool) map[strin
 						return true
 					}
 					switch {
-					case fnctName == "DeclareMethod":
-						parseDeclareMethod(node, modInfo, &modelsData)
-					case fnctName == "AddMethod":
-						parseAddMethod(node, modInfo, &modelsData)
+					case fnctName == "addMethod":
+						parseAddMethod(node, modInfo, &modelsData, false)
+					case fnctName == "NewMethod":
+						parseAddMethod(node, modInfo, &modelsData, true)
 					case fnctName == "InheritModel":
 						parseMixInModel(node, modInfo, &modelsData)
 					case fnctName == "AddFields":
 						parseAddFields(node, modInfo, &modelsData)
-					case strutils.StartsAndEndsWith(fnctName, "Declare", "Model"):
-						parseDeclareModel(node, modInfo, &modelsData)
 					case strutils.StartsAndEndsWith(fnctName, "New", "Model"):
 						parseNewModel(node, &modelsData)
 					}
@@ -244,7 +318,7 @@ func inflateMixins(modelName string, modelsData *map[string]ModelASTData) {
 			(*modelsData)[modelName].Fields[fieldName] = field
 		}
 		for methodName, method := range (*modelsData)[mixin].Methods {
-			method.ToDeclare = false
+			method.ToDeclare = true
 			(*modelsData)[modelName].Methods[methodName] = method
 		}
 	}
@@ -258,7 +332,7 @@ func parseMixInModel(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[st
 		if _, ok := err.(generalMixinError); ok {
 			return
 		}
-		log.Panic("Unable to extract model while visiting AST", "error", err)
+		log.Panic("Unable to extract model while visiting AST", "error", err, "node", modInfo.FSet.Position(node.Pos()))
 	}
 	mixinModel, err := extractModel(node.Args[0], modInfo)
 	if err != nil {
@@ -268,18 +342,6 @@ func parseMixInModel(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[st
 		(*modelsData)[modelName] = newModelASTData(modelName)
 	}
 	(*modelsData)[modelName].Mixins[mixinModel] = true
-}
-
-// parseDeclareModel parses the given node which is a DeclareXXXModel function
-func parseDeclareModel(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
-	fName, _ := ExtractFunctionName(node)
-	modelName, err := extractModelNameFromFunc(node.Fun.(*ast.SelectorExpr).X.(*ast.CallExpr), modInfo)
-	if err != nil {
-		log.Panic("Unable to find model name in DeclareModel", "error", err)
-	}
-	modelType := strings.TrimSuffix(strings.TrimPrefix(fName, "Declare"), "Model")
-
-	setModelData(modelsData, modelName, modelType)
 }
 
 // parseNewModel parses the given node which is a NewXXXModel function
@@ -337,7 +399,13 @@ func parseAddFields(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[str
 	if _, exists := (*modelsData)[modelName]; !exists {
 		(*modelsData)[modelName] = newModelASTData(modelName)
 	}
-	fields := node.Args[0].(*ast.CompositeLit)
+	var fields *ast.CompositeLit
+	switch n := node.Args[0].(type) {
+	case *ast.CompositeLit:
+		fields = n
+	case *ast.Ident:
+		fields = n.Obj.Decl.(*ast.ValueSpec).Values[0].(*ast.CompositeLit)
+	}
 	for _, f := range fields.Elts {
 		fDef := f.(*ast.KeyValueExpr)
 		fieldName := strings.Trim(fDef.Key.(*ast.BasicLit).Value, "\"`")
@@ -438,50 +506,24 @@ func extractSelection(expr ast.Expr) map[string]string {
 	return res
 }
 
-// parseAddMethod parses the given node which is an AddMethod function
-func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
+// parseAddMethod parses the given node which is an addMethod function
+func parseAddMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData, toDeclare bool) {
 	fNode := node.Fun.(*ast.SelectorExpr)
 	modelName, err := extractModel(fNode.X, modInfo)
 	if err != nil {
 		log.Panic("Unable to extract model while visiting AST", "error", err)
 	}
 	methodName := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
-	docStr := strings.Trim(node.Args[1].(*ast.BasicLit).Value, "\"`")
 
-	var funcType *ast.FuncType
-	switch fd := node.Args[2].(type) {
-	case *ast.Ident:
-		funcType = fd.Obj.Decl.(*ast.FuncDecl).Type
-	case *ast.FuncLit:
-		funcType = fd.Type
-	}
-	if _, exists := (*modelsData)[modelName]; !exists {
-		(*modelsData)[modelName] = newModelASTData(modelName)
-	}
-	methData := MethodASTData{
-		Name:    methodName,
-		Doc:     formatDocString(docStr),
-		PkgPath: modInfo.PkgPath,
-		Params:  extractParams(funcType, modInfo),
-		Returns: extractReturnType(funcType, modInfo),
-	}
-	(*modelsData)[modelName].Methods[methodName] = methData
-}
-
-// parseDeclareMethod parses the given node which is a DeclareMethod function
-func parseDeclareMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map[string]ModelASTData) {
-	fNode := node.Fun.(*ast.SelectorExpr)
-	modelName, err := extractModel(fNode.X, modInfo)
-	if err != nil {
-		log.Panic("Unable to extract model while visiting AST", "error", err)
-	}
-	methodName := fNode.X.(*ast.CallExpr).Fun.(*ast.SelectorExpr).Sel.Name
-	docStr := strings.Trim(node.Args[0].(*ast.BasicLit).Value, "\"`")
-
-	var funcType *ast.FuncType
+	var (
+		funcType *ast.FuncType
+		doc      string
+	)
 	switch fd := node.Args[1].(type) {
 	case *ast.Ident:
-		funcType = fd.Obj.Decl.(*ast.FuncDecl).Type
+		funcDecl := fd.Obj.Decl.(*ast.FuncDecl)
+		funcType = funcDecl.Type
+		doc = funcDecl.Doc.Text()
 	case *ast.FuncLit:
 		funcType = fd.Type
 	}
@@ -490,11 +532,11 @@ func parseDeclareMethod(node *ast.CallExpr, modInfo *ModuleInfo, modelsData *map
 	}
 	methData := MethodASTData{
 		Name:      methodName,
-		Doc:       formatDocString(docStr),
+		Doc:       formatDocString(doc),
 		PkgPath:   modInfo.PkgPath,
 		Params:    extractParams(funcType, modInfo),
 		Returns:   extractReturnType(funcType, modInfo),
-		ToDeclare: true,
+		ToDeclare: toDeclare,
 	}
 	(*modelsData)[modelName].Methods[methodName] = methData
 }
@@ -517,7 +559,7 @@ func extractModel(ident ast.Expr, modInfo *ModuleInfo) (string, error) {
 	switch idt := ident.(type) {
 	case *ast.Ident:
 		// Method is called on an identifier without selector such as
-		// user.AddMethod. In this case, we try to find out the model from
+		// user.addMethod. In this case, we try to find out the model from
 		// the identifier declaration.
 		switch decl := idt.Obj.Decl.(type) {
 		case *ast.AssignStmt:
@@ -531,11 +573,13 @@ func extractModel(ident ast.Expr, modInfo *ModuleInfo) (string, error) {
 					fnIdent = ft
 				case *ast.SelectorExpr:
 					fnIdent = ft.Sel
+				default:
+					return "", fmt.Errorf("unexpected function identifier: %v (%T)", rd.Fun, rd.Fun)
 				}
 				switch fnIdent.Name {
-				case "MustGet", "NewModel", "NewMixinModel", "NewTransientModel", "NewManualModel":
+				case "Get", "MustGet", "NewModel", "NewMixinModel", "NewTransientModel", "NewManualModel":
 					return strings.Trim(rd.Args[0].(*ast.BasicLit).Value, "\"`"), nil
-				case "createModel":
+				case "CreateModel", "getOrCreateModel":
 					// This is a call from inside a NewXXXXModel function
 					return "", generalMixinError{}
 				default:
@@ -667,5 +711,5 @@ func formatDocString(doc string) string {
 		dataStarted = true
 		res += fmt.Sprintf("// %s\n", line)
 	}
-	return strings.TrimRight(res, "\n")
+	return strings.TrimRight(res, "/ \n")
 }

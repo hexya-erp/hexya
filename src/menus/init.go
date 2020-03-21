@@ -15,6 +15,7 @@ var log logging.Logger
 // and populates the Registry
 func BootStrap() {
 	for _, menu := range bootstrapMap {
+		// Add parent
 		if menu.ParentID != "" {
 			parentMenu := bootstrapMap[menu.ParentID]
 			if parentMenu == nil {
@@ -22,9 +23,10 @@ func BootStrap() {
 			}
 			menu.Parent = parentMenu
 		}
+		// Set name from action if we do not have a name
 		var noName bool
 		if menu.ActionID != "" {
-			menu.Action = actions.Registry.MustGetById(menu.ActionID)
+			menu.Action = actions.Registry.MustGetByXMLID(menu.ActionID)
 			if menu.Name == "" {
 				noName = true
 				menu.Name = menu.Action.Name
@@ -35,9 +37,9 @@ func BootStrap() {
 			menu.names = make(map[string]string)
 		}
 		for _, lang := range i18n.Langs {
-			nameTrans := i18n.TranslateResourceItem(lang, menu.ID, menu.Name)
+			nameTrans := i18n.TranslateResourceItem(lang, menu.XMLID, menu.Name)
 			if noName {
-				nameTrans = i18n.TranslateResourceItem(lang, menu.Action.ID, menu.Name)
+				nameTrans = i18n.TranslateResourceItem(lang, menu.Action.XMLID, menu.Name)
 			}
 			menu.names[lang] = nameTrans
 		}

@@ -90,7 +90,7 @@ func processUpdates() {
 							fi.contexts[k] = v
 						}
 					default:
-						fi.setProperty(property, value)
+						fi.SetProperty(property, value)
 					}
 				}
 			}
@@ -145,7 +145,7 @@ func createModelLinks() {
 // inflateMixIns inserts fields and methods of mixed in models.
 func inflateMixIns() {
 	for _, mi := range Registry.registryByName {
-		if mi.isM2MLink() {
+		if mi.IsM2MLink() {
 			// We don"t mix in M2M link
 			continue
 		}
@@ -208,13 +208,9 @@ func addMixinMethods(mixinModel, model *Model) {
 			// The method does not exist
 			newMethInfo := copyMethod(model, methInfo)
 			for i := 0; i < len(layersInv); i++ {
-				newMethInfo.addMethodLayer(layersInv[i].funcValue, layersInv[i].doc)
+				newMethInfo.addMethodLayer(layersInv[i].funcValue)
 			}
 			model.methods.set(methName, newMethInfo)
-		}
-		// Copy groups to our methods in the target model
-		for group := range methInfo.groups {
-			model.methods.MustGet(methName).groups[group] = true
 		}
 	}
 }
@@ -237,7 +233,7 @@ func addMixinFields(mixinModel, model *Model) {
 		}
 		newFI.model = model
 		if newFI.fieldType == fieldtype.Many2Many {
-			m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(newFI.m2mRelModel.name, model.name,
+			m2mRelModel, m2mOurField, m2mTheirField := CreateM2MRelModelInfo(newFI.m2mRelModel.name, model.name,
 				newFI.relatedModelName, newFI.m2mOurField.name, newFI.m2mTheirField.name, false)
 			newFI.m2mRelModel = m2mRelModel
 			newFI.m2mOurField = m2mOurField
@@ -370,15 +366,6 @@ func createContextsTreeView(fi *Field, contexts FieldContexts) {
 	Views[fi.model] = append(Views[fi.model], view)
 }
 
-// runInit runs the Init function of the given model if it exists
-func runInit(model *Model) {
-	if _, exists := model.methods.Get("Init"); exists {
-		ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
-			env.Pool(model.name).Call("Init")
-		})
-	}
-}
-
 // bootStrapMethods freezes the methods of the models.
 func bootStrapMethods() {
 	for _, model := range Registry.registryByName {
@@ -447,7 +434,7 @@ func updateRelatedPaths() {
 // updateDefaultOrder sets defaultOrder from defaultOrderStr
 func updateDefaultOrder() {
 	for _, model := range Registry.registryByName {
-		if model.isM2MLink() {
+		if model.IsM2MLink() {
 			continue
 		}
 		model.defaultOrder = model.ordersFromStrings(model.defaultOrderStr)

@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/tools/xmlutils"
 	"github.com/hexya-erp/hexya/src/views"
 	. "github.com/smartystreets/goconvey/convey"
@@ -57,11 +58,11 @@ func TestActions(t *testing.T) {
 		user := models.NewModel("User")
 		partner := models.NewModel("Partner")
 		user.AddFields(map[string]models.FieldDefinition{
-			"UserName": models.CharField{},
-			"Age":      models.IntegerField{},
+			"UserName": fields.Char{},
+			"Age":      fields.Integer{},
 		})
 		partner.AddFields(map[string]models.FieldDefinition{
-			"Name": models.CharField{},
+			"Name": fields.Char{},
 		})
 		models.BootStrap()
 	})
@@ -72,9 +73,9 @@ func TestActions(t *testing.T) {
 		action1, _ := xmlutils.XMLToElement(actionDef1)
 		LoadFromEtree(action1)
 		So(len(Registry.actions), ShouldEqual, 1)
-		So(Registry.GetById("my_action"), ShouldNotBeNil)
-		action := Registry.GetById("my_action")
-		So(action.ID, ShouldEqual, "my_action")
+		So(Registry.GetByXMLID("my_action"), ShouldNotBeNil)
+		action := Registry.GetByXMLID("my_action")
+		So(action.XMLID, ShouldEqual, "my_action")
 		So(action.Name, ShouldEqual, "My Action")
 		So(action.Model, ShouldEqual, "Partner")
 		So(action.ViewMode, ShouldEqual, "tree,form")
@@ -83,9 +84,9 @@ func TestActions(t *testing.T) {
 		action2, _ := xmlutils.XMLToElement(actionDef2)
 		LoadFromEtree(action2)
 		So(len(Registry.actions), ShouldEqual, 2)
-		So(Registry.GetById("my_action_2"), ShouldNotBeNil)
-		action := Registry.GetById("my_action_2")
-		So(action.ID, ShouldEqual, "my_action_2")
+		So(Registry.GetByXMLID("my_action_2"), ShouldNotBeNil)
+		action := Registry.GetByXMLID("my_action_2")
+		So(action.XMLID, ShouldEqual, "my_action_2")
 		So(action.Name, ShouldEqual, "My Second Action")
 		So(action.Model, ShouldEqual, "Partner")
 		So(action.ViewMode, ShouldEqual, "tree,form")
@@ -99,13 +100,19 @@ func TestActions(t *testing.T) {
 		BootStrap()
 		allActions := Registry.GetAll()
 		So(allActions, ShouldHaveLength, 2)
-		So(func() { Registry.MustGetById("my_action") }, ShouldNotPanic)
-		So(func() { Registry.MustGetById("unknown_id") }, ShouldPanic)
+		So(func() { Registry.MustGetByXMLID("my_action") }, ShouldNotPanic)
+		So(func() { Registry.MustGetByXMLID("unknown_id") }, ShouldPanic)
+		So(func() { Registry.MustGetById(1) }, ShouldNotPanic)
+		So(func() { Registry.MustGetById(2) }, ShouldNotPanic)
+		So(func() { Registry.MustGetById(3) }, ShouldPanic)
+		act := Registry.GetById(1)
+		So(act, ShouldNotBeNil)
+		So(act.XMLID, ShouldEqual, "my_action")
 		userLinkedActions := Registry.GetActionLinksForModel("User")
 		So(userLinkedActions, ShouldHaveLength, 1)
 		tName := userLinkedActions[0].TranslatedName("fr")
 		So(tName, ShouldEqual, "My Action")
-		action2 := Registry.MustGetById("my_action_2")
+		action2 := Registry.MustGetByXMLID("my_action_2")
 		So(action2.Help, ShouldEqual, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
 	})
 	Convey("Testing ActionRef objects", t, func() {
@@ -126,7 +133,7 @@ func TestActions(t *testing.T) {
 			So(emptyAR.Name(), ShouldEqual, "")
 			data, err := json.Marshal(emptyAR)
 			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `null`)
+			So(string(data), ShouldEqual, `false`)
 			val, err := emptyAR.Value()
 			So(err, ShouldBeNil)
 			So(val, ShouldEqual, driver.Value(""))
@@ -146,6 +153,13 @@ func TestActions(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(ar.IsNull(), ShouldBeTrue)
 		})
+		Convey("Unmarshalling JSON false actionRef", func() {
+			data := []byte(`false`)
+			var ar ActionRef
+			err := json.Unmarshal(data, &ar)
+			So(err, ShouldBeNil)
+			So(ar.IsNull(), ShouldBeTrue)
+		})
 		Convey("Scanning actionRefs", func() {
 			var vr ActionRef
 			err := vr.Scan("my_action")
@@ -159,5 +173,13 @@ func TestActions(t *testing.T) {
 			So(vr.Name(), ShouldEqual, "My Second Action")
 		})
 	})
-
+	Convey("Testing ActionString objects", t, func() {
+		as := Registry.GetByXMLID("my_action").ActionString()
+		d, err := json.Marshal(as)
+		So(err, ShouldBeNil)
+		So(string(d), ShouldEqual, `"ir.actions.act_window,1"`)
+		d, err = json.Marshal(ActionString{})
+		So(err, ShouldBeNil)
+		So(string(d), ShouldEqual, "false")
+	})
 }

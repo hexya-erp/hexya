@@ -9,9 +9,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/hexya-erp/hexya/src/actions"
+	"github.com/hexya-erp/hexya/src/controllers"
+	"github.com/hexya-erp/hexya/src/menus"
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/server"
+	"github.com/hexya-erp/hexya/src/templates"
 	"github.com/hexya-erp/hexya/src/tools/logging"
+	"github.com/hexya-erp/hexya/src/views"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
 )
@@ -116,6 +121,12 @@ func InitializeTests(moduleName string) {
 		server.LoadDataRecords(resourceDir)
 		server.LoadDemoRecords(resourceDir)
 	}
+	server.LoadInternalResources(resourceDir)
+	views.BootStrap()
+	templates.BootStrap()
+	actions.BootStrap()
+	controllers.BootStrap()
+	menus.BootStrap()
 	server.PostInit()
 }
 

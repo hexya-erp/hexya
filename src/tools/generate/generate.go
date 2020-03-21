@@ -169,7 +169,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 	modelASTData := modelsASTData[modelData.Name]
 	for methodName, methodASTData := range modelASTData.Methods {
 		if handler, exists := specificMethodsHandlers[methodName]; exists {
-			handler(modelData, depsMap)
+			handler(&methodASTData, modelData, depsMap)
 			continue
 		}
 		var params, paramsWithType, iParamsWithType, paramsType, call, returns, returnAsserts, returnString, iReturnString string
@@ -226,6 +226,7 @@ func addMethodsToModelData(modelsASTData map[string]ModelASTData, modelData *mod
 		modelData.AllMethods = append(modelData.AllMethods, methodData{
 			Name:             methodName,
 			Doc:              methodASTData.Doc,
+			ToDeclare:        methodASTData.ToDeclare,
 			ParamsTypes:      strings.TrimRight(paramsType, ","),
 			IParamsWithTypes: strings.TrimRight(iParamsWithType, ","),
 			ReturnString:     strings.TrimSuffix(returnString, ","),

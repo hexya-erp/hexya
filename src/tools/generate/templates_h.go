@@ -88,7 +88,7 @@ func (md {{ .Name }}Model) BrowseOne(env models.Environment, id int64) {{ .Inter
 // Optional field maps if given will be used to populate the data.
 func (md {{ .Name }}Model) NewData(fm ...models.FieldMap) {{ .InterfacesPackageName }}.{{ .Name }}Data {
 	return &{{ .SnakeName }}.{{ .Name }}Data{
-		models.NewModelData({{ .Name }}(), fm...),
+		ModelData: models.NewModelData({{ .Name }}(), fm...),
 	}
 }
 
@@ -112,12 +112,6 @@ func (md {{ .Name }}Model) Underlying() *models.Model {
 }
 
 var _ models.Modeler = {{ .Name }}Model{}
-
-// Declare{{ .ModelType }}Model is a dummy method used for code generation
-// It just returns m.
-func (md {{ .Name }}Model) Declare{{ .ModelType }}Model() {{ .Name }}Model {
-	return md
-}
 
 // Coalesce takes a list of {{ .Name }}Set and return the first non-empty one
 // if every record set is empty, it will return the last given
@@ -185,16 +179,9 @@ type p{{ .Name }} struct {
 }
 
 // Extend adds the given fnct function as a new layer on this method.
-func (m p{{ .Name }}) Extend(doc string, fnct func({{ $.InterfacesPackageName }}.{{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) p{{ .Name }} {
+func (m p{{ .Name }}) Extend(fnct func({{ $.InterfacesPackageName }}.{{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) p{{ .Name }} {
 	return p{{ .Name }} {
-		Method: m.Method.Extend(doc, fnct),
-	}
-}
-
-// DeclareMethod declares this method to the framework with the given function as the first layer.
-func (m p{{ .Name }}) DeclareMethod(doc string, fnct interface{}) p{{ .Name }} {
-	return p{{ .Name }} {
-		Method: m.Method.DeclareMethod(doc, fnct),
+		Method: m.Method.Extend(fnct),
 	}
 }
 
@@ -517,11 +504,10 @@ func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}
 
 func init() {
 {{- if not .IsModelMixin }}
-	models.New{{ .ModelType }}Model("{{ .Name }}")
-{{- end }}
-{{- range .Methods }}
-{{- if .ToDeclare }}
-	models.Registry.MustGet("{{ $.Name }}").AddEmptyMethod("{{ .Name }}")
+{{- if eq .ModelType "" }}
+	models.CreateModel("{{ .Name }}", 0)
+{{- else }}
+	models.CreateModel("{{ .Name }}", models.{{ .ModelType }}Model)
 {{- end }}
 {{- end }}
 	models.Registry.MustGet("{{ $.Name }}").AddFields(map[string]models.FieldDefinition{
@@ -531,6 +517,11 @@ func init() {
 {{- end }}
 {{- end }}
 	})
+{{- range .Methods }}
+{{- if .ToDeclare }}
+	models.Registry.MustGet("{{ $.Name }}").AddEmptyMethod("{{ .Name }}")
+{{- end }}
+{{- end }}
 	models.RegisterRecordSetWrapper("{{ .Name }}", {{ .Name }}Set{})
 	models.RegisterModelDataWrapper("{{ .Name }}", {{ .Name }}Data{})
 }

@@ -185,7 +185,7 @@ func transpileAttributes(elts []*etree.Element) error {
 				elt.CreateAttr(newKey, escapeXMLEntities(attr.Value))
 				elt.RemoveAttr(attr.Key)
 			case attr.Key == "t-att":
-				return fmt.Errorf("hweb does not manage t-att attributes (%s with value %s)", attr.Key, attr.Value)
+				return fmt.Errorf("hweb does not manage t-att attributes (%s with value '%s')", attr.Key, attr.Value)
 			}
 		}
 		if err := transpileAttributes(elt.ChildElements()); err != nil {

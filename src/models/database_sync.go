@@ -19,7 +19,7 @@ func SyncDatabase() {
 	updateDBSequences()
 	// Create or update existing tables
 	for tableName, model := range Registry.registryByTableName {
-		if model.isMixin() || model.isManual() {
+		if model.IsMixin() || model.IsManual() {
 			continue
 		}
 		if _, ok := dbTables[tableName]; !ok {
@@ -30,7 +30,7 @@ func SyncDatabase() {
 	}
 	// Setup constraints
 	for _, model := range Registry.registryByTableName {
-		if model.isMixin() || model.isManual() {
+		if model.IsMixin() || model.IsManual() {
 			continue
 		}
 		buildSQLErrorSubstitutionMap(model)
@@ -39,7 +39,7 @@ func SyncDatabase() {
 	}
 	// Run init method on each model
 	for _, model := range Registry.registryByTableName {
-		if model.isMixin() {
+		if model.IsMixin() {
 			continue
 		}
 		runInit(model)
@@ -49,7 +49,7 @@ func SyncDatabase() {
 	for dbTable := range adapter.tables() {
 		var modelExists bool
 		for tableName, model := range Registry.registryByTableName {
-			if dbTable != tableName || model.isMixin() {
+			if dbTable != tableName || model.IsMixin() {
 				continue
 			}
 			modelExists = true
@@ -338,4 +338,16 @@ func dropColumnIndex(tableName, colName string) {
 		DROP INDEX IF EXISTS %s
 	`, fmt.Sprintf("%s_%s_index", tableName, colName))
 	dbExecuteNoTx(query)
+}
+
+// runInit runs the Init function of the given model if it exists
+func runInit(model *Model) {
+	if _, exists := model.methods.Get("Init"); exists {
+		err := ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+			env.Pool(model.name).Call("Init")
+		})
+		if err != nil {
+			log.Panic("Error while calling Init function", "model", model.name, "error", err)
+		}
+	}
 }

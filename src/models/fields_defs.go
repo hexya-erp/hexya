@@ -1,16 +1,13 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2019 NDP Systèmes. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package models
 
 import (
-	"fmt"
 	"reflect"
-	"sort"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/types"
-	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
 	"github.com/hexya-erp/hexya/src/tools/strutils"
 )
@@ -21,668 +18,12 @@ type FieldDefinition interface {
 	DeclareField(*FieldsCollection, string) *Field
 }
 
-// A BinaryField is a field for storing binary data, such as images.
-//
-// Clients are expected to handle binary fields as file uploads.
-//
-// Binary fields are stored in the database. Consider other disk based
-// alternatives if you have a large amount of data to store.
-type BinaryField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	GoType          interface{}
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a binary field for the given FieldsCollection with the given name.
-func (bf BinaryField) DeclareField(fc *FieldsCollection, name string) *Field {
-	return genericDeclareField(fc, &bf, name, fieldtype.Binary, new(string))
-}
-
-// A BooleanField is a field for storing true/false values.
-//
-// Clients are expected to handle boolean fields as checkboxes.
-type BooleanField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	GoType          interface{}
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a boolean field for the given FieldsCollection with the given name.
-func (bf BooleanField) DeclareField(fc *FieldsCollection, name string) *Field {
-	if bf.Default == nil {
-		bf.Default = DefaultValue(false)
-	}
-	return genericDeclareField(fc, &bf, name, fieldtype.Boolean, new(bool))
-}
-
-// A CharField is a field for storing short text. There is no
-// default max size, but it can be forced by setting the Size value.
-//
-// Clients are expected to handle Char fields as single line inputs.
-type CharField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	Size            int
-	GoType          interface{}
-	Translate       bool
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a char field for the given FieldsCollection with the given name.
-func (cf CharField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &cf, name, fieldtype.Char, new(string))
-	fInfo.size = cf.Size
-	return fInfo
-}
-
-// A DateField is a field for storing dates without time.
-//
-// Clients are expected to handle Date fields with a date picker.
-type DateField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	GroupOperator   string
-	NoCopy          bool
-	GoType          interface{}
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a date field for the given FieldsCollection with the given name.
-func (df DateField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &df, name, fieldtype.Date, new(dates.Date))
-	fInfo.groupOperator = strutils.GetDefaultString(df.GroupOperator, "sum")
-	return fInfo
-}
-
-// A DateTimeField is a field for storing dates with time.
-//
-// Clients are expected to handle DateTime fields with a date and time picker.
-type DateTimeField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	GroupOperator   string
-	NoCopy          bool
-	GoType          interface{}
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a datetime field for the given FieldsCollection with the given name.
-func (df DateTimeField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &df, name, fieldtype.DateTime, new(dates.DateTime))
-	fInfo.groupOperator = strutils.GetDefaultString(df.GroupOperator, "sum")
-	return fInfo
-}
-
-// A FloatField is a field for storing decimal numbers.
-type FloatField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	GroupOperator   string
-	NoCopy          bool
-	Digits          nbutils.Digits
-	GoType          interface{}
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField adds this datetime field for the given FieldsCollection with the given name.
-func (ff FloatField) DeclareField(fc *FieldsCollection, name string) *Field {
-	if ff.Default == nil {
-		ff.Default = DefaultValue(0)
-	}
-	fInfo := genericDeclareField(fc, &ff, name, fieldtype.Float, new(float64))
-	fInfo.groupOperator = strutils.GetDefaultString(ff.GroupOperator, "sum")
-	fInfo.digits = ff.Digits
-	return fInfo
-}
-
-// An HTMLField is a field for storing HTML formatted strings.
-//
-// Clients are expected to handle HTML fields with multi-line HTML editors.
-type HTMLField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	Size            int
-	GoType          interface{}
-	Translate       bool
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a html field for the given FieldsCollection with the given name.
-func (tf HTMLField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &tf, name, fieldtype.HTML, new(string))
-	fInfo.size = tf.Size
-	return fInfo
-}
-
-// An IntegerField is a field for storing non decimal numbers.
-type IntegerField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	GroupOperator   string
-	NoCopy          bool
-	GoType          interface{}
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a datetime field for the given FieldsCollection with the given name.
-func (i IntegerField) DeclareField(fc *FieldsCollection, name string) *Field {
-	if i.Default == nil {
-		i.Default = DefaultValue(0)
-	}
-	fInfo := genericDeclareField(fc, &i, name, fieldtype.Integer, new(int64))
-	fInfo.groupOperator = strutils.GetDefaultString(i.GroupOperator, "sum")
-	return fInfo
-}
-
-// A Many2ManyField is a field for storing many-to-many relations.
-//
-// Clients are expected to handle many2many fields with a table or with tags.
-type Many2ManyField struct {
-	JSON             string
-	String           string
-	Help             string
-	Stored           bool
-	Required         bool
-	ReadOnly         bool
-	RequiredFunc     func(Environment) (bool, Conditioner)
-	ReadOnlyFunc     func(Environment) (bool, Conditioner)
-	InvisibleFunc    func(Environment) (bool, Conditioner)
-	Index            bool
-	Compute          Methoder
-	Depends          []string
-	Related          string
-	NoCopy           bool
-	RelationModel    Modeler
-	M2MLinkModelName string
-	M2MOurField      string
-	M2MTheirField    string
-	OnChange         Methoder
-	OnChangeWarning  Methoder
-	OnChangeFilters  Methoder
-	Constraint       Methoder
-	Filter           Conditioner
-	Inverse          Methoder
-	Default          func(Environment) interface{}
-}
-
-// DeclareField creates a many2many field for the given FieldsCollection with the given name.
-func (mf Many2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &mf, name, fieldtype.Many2Many, new([]int64))
-	our := mf.M2MOurField
-	if our == "" {
-		our = fc.model.name
-	}
-	their := mf.M2MTheirField
-	if their == "" {
-		their = mf.RelationModel.Underlying().name
-	}
-	if our == their {
-		log.Panic("Many2many relation must have different 'M2MOurField' and 'M2MTheirField'",
-			"model", fc.model.name, "field", name, "ours", our, "theirs", their)
-	}
-
-	modelNames := []string{fc.model.name, mf.RelationModel.Underlying().name}
-	sort.Strings(modelNames)
-	m2mRelModName := mf.M2MLinkModelName
-	if m2mRelModName == "" {
-		m2mRelModName = fmt.Sprintf("%s%sRel", modelNames[0], modelNames[1])
-	}
-	m2mRelModel, m2mOurField, m2mTheirField := createM2MRelModelInfo(m2mRelModName, fc.model.name, mf.RelationModel.Underlying().name, our, their, fc.model.isMixin())
-
-	var filter *Condition
-	if mf.Filter != nil {
-		filter = mf.Filter.Underlying()
-	}
-	fInfo.relatedModelName = mf.RelationModel.Underlying().name
-	fInfo.m2mRelModel = m2mRelModel
-	fInfo.m2mOurField = m2mOurField
-	fInfo.m2mTheirField = m2mTheirField
-	fInfo.filter = filter
-	return fInfo
-}
-
-// A Many2OneField is a field for storing many-to-one relations,
-// i.e. the FK to another model.
-//
-// Clients are expected to handle many2one fields with a combo-box.
-type Many2OneField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	RelationModel   Modeler
-	Embed           bool
-	OnDelete        OnDeleteAction
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Filter          Conditioner
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a many2one field for the given FieldsCollection with the given name.
-func (mf Many2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &mf, name, fieldtype.Many2One, new(int64))
-	onDelete := SetNull
-	if mf.OnDelete != "" {
-		onDelete = mf.OnDelete
-	}
-	noCopy := mf.NoCopy
-	required := mf.Required
-	if mf.Embed {
-		onDelete = Cascade
-		noCopy = true
-		required = false
-	}
-	var filter *Condition
-	if mf.Filter != nil {
-		filter = mf.Filter.Underlying()
-	}
-	fInfo.filter = filter
-	fInfo.relatedModelName = mf.RelationModel.Underlying().name
-	fInfo.onDelete = onDelete
-	fInfo.noCopy = noCopy
-	fInfo.required = required
-	fInfo.embed = mf.Embed
-	return fInfo
-}
-
-// A One2ManyField is a field for storing one-to-many relations.
-//
-// Clients are expected to handle one2many fields with a table.
-type One2ManyField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	Copy            bool
-	RelationModel   Modeler
-	ReverseFK       string
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Filter          Conditioner
-	Inverse         Methoder
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a one2many field for the given FieldsCollection with the given name.
-func (of One2ManyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &of, name, fieldtype.One2Many, new([]int64))
-	var filter *Condition
-	if of.Filter != nil {
-		filter = of.Filter.Underlying()
-	}
-	fInfo.filter = filter
-	fInfo.relatedModelName = of.RelationModel.Underlying().name
-	fInfo.reverseFK = of.ReverseFK
-	if !of.Copy {
-		fInfo.noCopy = true
-	}
-	return fInfo
-}
-
-// A One2OneField is a field for storing one-to-one relations,
-// i.e. the FK to another model with a unique constraint.
-//
-// Clients are expected to handle one2one fields with a combo-box.
-type One2OneField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	RelationModel   Modeler
-	Embed           bool
-	OnDelete        OnDeleteAction
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Filter          Conditioner
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a one2one field for the given FieldsCollection with the given name.
-func (of One2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &of, name, fieldtype.One2One, new(int64))
-	onDelete := SetNull
-	if of.OnDelete != "" {
-		onDelete = of.OnDelete
-	}
-	noCopy := of.NoCopy
-	required := of.Required
-	if of.Embed {
-		onDelete = Cascade
-		required = true
-		noCopy = true
-	}
-	var filter *Condition
-	if of.Filter != nil {
-		filter = of.Filter.Underlying()
-	}
-	fInfo.filter = filter
-	fInfo.relatedModelName = of.RelationModel.Underlying().name
-	fInfo.onDelete = onDelete
-	fInfo.noCopy = noCopy
-	fInfo.required = required
-	fInfo.embed = of.Embed
-	return fInfo
-}
-
-// A Rev2OneField is a field for storing reverse one-to-one relations,
-// i.e. the relation on the model without FK.
-//
-// Clients are expected to handle rev2one fields with a combo-box.
-type Rev2OneField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	Copy            bool
-	RelationModel   Modeler
-	ReverseFK       string
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Filter          Conditioner
-	Inverse         Methoder
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a rev2one field for the given FieldsCollection with the given name.
-func (rf Rev2OneField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &rf, name, fieldtype.Rev2One, new(int64))
-	var filter *Condition
-	if rf.Filter != nil {
-		filter = rf.Filter.Underlying()
-	}
-	fInfo.filter = filter
-	fInfo.relatedModelName = rf.RelationModel.Underlying().name
-	fInfo.reverseFK = rf.ReverseFK
-	if !rf.Copy {
-		fInfo.noCopy = true
-	}
-	return fInfo
-}
-
-// A SelectionField is a field for storing a value from a preset list.
-//
-// Clients are expected to handle selection fields with a combo-box or radio buttons.
-type SelectionField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	Selection       types.Selection
-	SelectionFunc   func() types.Selection
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a selection field for the given FieldsCollection with the given name.
-func (sf SelectionField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &sf, name, fieldtype.Selection, new(string))
-	fInfo.selection = sf.Selection
-	fInfo.selectionFunc = sf.SelectionFunc
-	return fInfo
-}
-
-// A TextField is a field for storing long text. There is no
-// default max size, but it can be forced by setting the Size value.
-//
-// Clients are expected to handle text fields as multi-line inputs.
-type TextField struct {
-	JSON            string
-	String          string
-	Help            string
-	Stored          bool
-	Required        bool
-	ReadOnly        bool
-	RequiredFunc    func(Environment) (bool, Conditioner)
-	ReadOnlyFunc    func(Environment) (bool, Conditioner)
-	InvisibleFunc   func(Environment) (bool, Conditioner)
-	Unique          bool
-	Index           bool
-	Compute         Methoder
-	Depends         []string
-	Related         string
-	NoCopy          bool
-	Size            int
-	GoType          interface{}
-	Translate       bool
-	OnChange        Methoder
-	OnChangeWarning Methoder
-	OnChangeFilters Methoder
-	Constraint      Methoder
-	Inverse         Methoder
-	Contexts        FieldContexts
-	Default         func(Environment) interface{}
-}
-
-// DeclareField creates a text field for the given FieldsCollection with the given name.
-func (tf TextField) DeclareField(fc *FieldsCollection, name string) *Field {
-	fInfo := genericDeclareField(fc, &tf, name, fieldtype.Text, new(string))
-	fInfo.size = tf.Size
-	return fInfo
-}
-
 // DummyField is used internally to inflate mixins. It should not be used.
 type DummyField struct{}
 
 // DeclareField creates a dummy field for the given FieldsCollection with the given name.
 func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
-	json, _ := getJSONAndString(name, fieldtype.NoType, "", "")
+	json := SnakeCaseFieldName(name, fieldtype.NoType)
 	fInfo := &Field{
 		model: fc.model,
 		name:  name,
@@ -696,10 +37,10 @@ func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 	return fInfo
 }
 
-// genericDeclareField creates a generic Field with the data from the given fStruct
+// CreateFieldFromStruct creates a generic Field with the data from the given fStruct
 //
 // fStruct must be a pointer to a struct and goType a pointer to a type instance
-func genericDeclareField(fc *FieldsCollection, fStruct interface{}, name string, fieldType fieldtype.Type, goType interface{}) *Field {
+func CreateFieldFromStruct(fc *FieldsCollection, fStruct interface{}, name string, fieldType fieldtype.Type, goType interface{}) *Field {
 	val := reflect.ValueOf(fStruct).Elem()
 	typ := reflect.TypeOf(goType).Elem()
 	if val.FieldByName("GoType").IsValid() && !val.FieldByName("GoType").IsNil() {
@@ -810,17 +151,6 @@ func getFuncNames(compute, inverse, onchange, onchangeWarning, onchangeFilters, 
 	return com, inv, onc, onw, onf, con
 }
 
-// AddFields adds the given fields to the model.
-func (m *Model) AddFields(fields map[string]FieldDefinition) {
-	for name, field := range fields {
-		newField := field.DeclareField(m.fields, name)
-		if _, exists := m.fields.Get(name); exists {
-			log.Panic("Field already exists", "model", m.name, "field", name)
-		}
-		m.fields.add(newField)
-	}
-}
-
 // addUpdate adds an update entry for for this field with the given property and the given value
 func (f *Field) addUpdate(property string, value interface{}) {
 	if Registry.bootstrapped {
@@ -830,9 +160,9 @@ func (f *Field) addUpdate(property string, value interface{}) {
 	f.updates = append(f.updates, update)
 }
 
-// setProperty sets the given property value in this field
+// SetProperty sets the given property value in this field
 // This method uses switch as they are unexported struct fields
-func (f *Field) setProperty(property string, value interface{}) {
+func (f *Field) SetProperty(property string, value interface{}) {
 	switch property {
 	case "fieldType":
 		f.fieldType = value.(fieldtype.Type)
@@ -862,6 +192,8 @@ func (f *Field) setProperty(property string, value interface{}) {
 		f.depends = value.([]string)
 	case "selection":
 		f.selection = value.(types.Selection)
+	case "selectionFunc":
+		f.selectionFunc = value.(func() types.Selection)
 	case "groupOperator":
 		f.groupOperator = value.(string)
 	case "size":
@@ -890,6 +222,16 @@ func (f *Field) setProperty(property string, value interface{}) {
 		f.inverse = value.(string)
 	case "filter":
 		f.filter = value.(*Condition)
+	case "relationModel":
+		f.relatedModelName = value.(*Model).Name()
+	case "m2mRelModel":
+		f.m2mRelModel = value.(*Model)
+	case "m2mOurField":
+		f.m2mOurField = value.(*Field)
+	case "m2mTheirField":
+		f.m2mTheirField = value.(*Field)
+	case "reverseFK":
+		f.reverseFK = value.(string)
 	case "translate":
 		switch value.(bool) {
 		case true:
@@ -908,6 +250,8 @@ func (f *Field) setProperty(property string, value interface{}) {
 		}
 	case "contexts":
 		f.contexts = value.(FieldContexts)
+	default:
+		log.Panic("Unknown property", "property", property, "value", value)
 	}
 }
 
@@ -1127,5 +471,42 @@ func (f *Field) SetInverse(value Methoder) *Field {
 // SetFilter overrides the value of the Filter parameter of this Field
 func (f *Field) SetFilter(value Conditioner) *Field {
 	f.addUpdate("filter", value.Underlying())
+	return f
+}
+
+// SetRelationModel overrides the value of the Filter parameter of this Field
+func (f *Field) SetRelationModel(value Modeler) *Field {
+	f.addUpdate("relationModel", value.Underlying())
+	return f
+}
+
+// SetM2MRelModel sets the relation model between this model and
+// the target model.
+func (f *Field) SetM2MRelModel(value Modeler) *Field {
+	f.addUpdate("m2mRelModel", value.Underlying())
+	return f
+}
+
+// SetM2MOurField sets the field of the M2MRelModel pointing to this model.
+func (f *Field) SetM2MOurField(value *Field) *Field {
+	f.addUpdate("m2mOurField", value)
+	return f
+}
+
+// SetM2MTheirField sets the field of the M2MRelModel pointing to the other model.
+func (f *Field) SetM2MTheirField(value *Field) *Field {
+	f.addUpdate("m2mTheirField", value)
+	return f
+}
+
+// SetReverseFK sets the name of the FK pointing to this model in a O2M or R2O relation
+func (f *Field) SetReverseFK(value string) *Field {
+	f.addUpdate("reverseFK", value)
+	return f
+}
+
+// SetSelectionFunc defines the function that will return the selection of this field
+func (f *Field) SetSelectionFunc(value func() types.Selection) *Field {
+	f.addUpdate("selectionFunc", value)
 	return f
 }

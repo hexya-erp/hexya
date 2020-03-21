@@ -254,7 +254,8 @@ func TestCreateRecordSet(t *testing.T) {
 				tagData := NewModelData(tagModel, FieldMap{
 					"Name": "My Tag",
 				})
-				So(func() { env.Pool("Tag").Call("Create", tagData) }, ShouldNotPanic)
+				env.Pool("Tag").Call("Create", tagData)
+				So(func() {}, ShouldNotPanic)
 			})
 		}), ShouldBeNil)
 	})

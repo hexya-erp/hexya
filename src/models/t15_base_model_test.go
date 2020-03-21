@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
+	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	. "github.com/smartystreets/goconvey/convey"
@@ -262,7 +263,7 @@ func TestBaseModelMethods(t *testing.T) {
 					Field(Name).Equals("John Smith")).(RecordSet).Collection()
 				johnAndJane := userJohn.Union(userJane)
 				So(johnAndJane.Subtract(userJane).Equals(userJohn), ShouldBeTrue)
-				So(johnAndJane.Subtract(userJohn).Equals(userJane), ShouldBeTrue)
+				So(johnAndJane.Call("Subtract", userJohn).(RecordSet).Collection().Equals(userJane), ShouldBeTrue)
 
 				So(InvalidRecordCollection("User").Subtract(userJane).IsValid(), ShouldBeFalse)
 				So(func() { env.Pool("Profile").Subtract(userJane) }, ShouldPanic)
@@ -499,6 +500,13 @@ func TestBaseModelMethods(t *testing.T) {
 				So(users.Len(), ShouldBeGreaterThan, 0)
 				So(func() { users.EnsureOne() }, ShouldPanic)
 			})
+			Convey("GetRecord", func() {
+				So(env.Pool("User").Call("GetRecord", userJane.Get(hexyaExternalID)).(RecordSet).Collection().Equals(userJane), ShouldBeTrue)
+			})
+			Convey("SearchByName", func() {
+				j := env.Pool("User").Call("SearchByName", "Jane A. Smith", operator.Operator(""), userModel.Field(isStaff).Equals(false), 10).(RecordSet).Collection()
+				So(j.Equals(userJane), ShouldBeTrue)
+			})
 		}), ShouldBeNil)
 	})
 }
@@ -509,8 +517,8 @@ func TestPostBootSequences(t *testing.T) {
 		testSeq.Drop()
 		seq := CreateSequence("ManualSequence", 1, 1)
 		So(seq.JSON, ShouldEqual, "manual_sequence_manseq")
-		So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
-		So(testAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "manual_sequence_manseq")
+		So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
+		So(TestAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "manual_sequence_manseq")
 		So(seq.NextValue(), ShouldEqual, 1)
 		So(seq.NextValue(), ShouldEqual, 2)
 		seq.Alter(2, 5)
@@ -518,7 +526,7 @@ func TestPostBootSequences(t *testing.T) {
 		So(seq.NextValue(), ShouldEqual, 7)
 		So(func() { CreateSequence("ManualSequence", 1, 1) }, ShouldPanic)
 		seq.Drop()
-		So(testAdapter.sequences("%_manseq"), ShouldHaveLength, 0)
+		So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 0)
 	})
 	Convey("Boot sequences cannot be altered or dropped after bootstrap", t, func() {
 		bootSeq := Registry.MustGetSequence("TestSequence")

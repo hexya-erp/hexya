@@ -113,8 +113,12 @@ func TestTypes(t *testing.T) {
 			So(fm, ShouldContainKey, "nums")
 			So(fm, ShouldContainKey, "is_staff")
 			So(fm["email"], ShouldEqual, "jsmith2@example.com")
+			So(fm["nums"], ShouldHaveSameTypeAs, float64(0))
 			So(fm["nums"], ShouldEqual, 13)
 			So(fm["is_staff"], ShouldEqual, false)
+			md := NewModelData(Registry.MustGet("User"), fm)
+			So(md.Get(nums), ShouldHaveSameTypeAs, int(0))
+			So(md.Get(nums), ShouldEqual, 13)
 		})
 		Convey("Checking NewModelData with FieldMap", func() {
 			johnValues := NewModelData(Registry.MustGet("User"), FieldMap{
@@ -235,6 +239,20 @@ func TestTypes(t *testing.T) {
 			data = []byte(`{}`)
 			err = json.Unmarshal(data, &fn)
 			So(err, ShouldNotBeNil)
+		})
+		Convey("Listing names and json of FieldNames", func() {
+			fn := FieldNames{
+				fieldName{name: "Name", json: "name"},
+				fieldName{name: "User", json: "user_id"},
+			}
+			names := fn.Names()
+			So(names, ShouldHaveLength, 2)
+			So(names[0], ShouldEqual, "Name")
+			So(names[1], ShouldEqual, "User")
+			jsons := fn.JSON()
+			So(jsons, ShouldHaveLength, 2)
+			So(jsons[0], ShouldEqual, "name")
+			So(jsons[1], ShouldEqual, "user_id")
 		})
 	})
 }

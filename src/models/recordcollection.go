@@ -128,6 +128,8 @@ func (rc *RecordCollection) clone() *RecordCollection {
 
 // new returns a new RecordCollection that is valid only in memory.
 // Such RecordCollection is identified as having a negative ID.
+//
+// Note that new doesn't work with embedded records
 func (rc *RecordCollection) new(data RecordData) *RecordCollection {
 	rc.InvalidateCache()
 	rc.env.nextNegativeID--
@@ -165,7 +167,7 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	fMap = rc.addContextsFieldsValues(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
-	storedFieldMap := filterMapOnStoredFields(rc.model, fMap)
+	storedFieldMap := rc.filterMapOnStoredFields(fMap)
 	// insert in DB
 	var createdId int64
 	query, args := rc.query.insertQuery(storedFieldMap)
@@ -385,7 +387,7 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	rSet.model.convertValuesToFieldType(&fMap, true)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePK()
-	storedFieldMap := filterMapOnStoredFields(rSet.model, fMap)
+	storedFieldMap := rSet.filterMapOnStoredFields(fMap)
 	rSet.doUpdate(storedFieldMap)
 	// Let's fetch once for all
 	rSet.Fetch()
@@ -408,6 +410,25 @@ func (rc *RecordCollection) addAccessFieldsUpdateData(fMap *FieldMap) {
 		(*fMap)["WriteDate"] = dates.Now()
 		(*fMap)["WriteUID"] = rc.env.uid
 	}
+}
+
+// filterMapOnStoredFields returns a new FieldMap from fMap
+// with only fields keys stored directly in this model.
+// Fields with inverse methods are not returned unless
+// "hexya_force_compute_write" is set in the context
+//
+// This function also converts all keys to fields JSON names.
+func (rc *RecordCollection) filterMapOnStoredFields(fMap FieldMap) FieldMap {
+	newFMap := make(FieldMap)
+	for field, value := range fMap {
+		if fi, ok := rc.model.fields.Get(field); ok && fi.isStored() {
+			if fi.inverse != "" && !rc.env.context.GetBool("hexya_force_compute_write") {
+				continue
+			}
+			newFMap[fi.json] = value
+		}
+	}
+	return newFMap
 }
 
 // doUpdate just updates the database records pointed at by
@@ -515,7 +536,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 		createdPaths := make(map[string]bool)
 		// Create related records
 		for _, path := range fields {
-			vals, prefix := rec.relatedRecordMap(fMap, path)
+			vals, prefix := rec.relatedFieldMap(fMap, path)
 			if createdPaths[prefix.JSON()] {
 				continue
 			}
@@ -548,7 +569,7 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 				continue
 			}
 			// This is a contexted field and we have no default value so we create it
-			vals, prefix := rc.relatedRecordMap(fMap, path)
+			vals, prefix := rc.relatedFieldMap(fMap, path)
 			//
 			field := strings.TrimPrefix(path.JSON(), prefix.JSON()+ExprSep)
 			defVals := FieldMap{
@@ -607,12 +628,12 @@ func (rc *RecordCollection) loadRelatedRecords(fields []FieldName) {
 	}
 }
 
-// relatedRecordMap return a ModelData to create or update the related record
+// relatedFieldMap return a FieldMap to create or update the related record
 // defined by path from this RecordCollection, using fMap values. The second record
 // value is the path to the related record.
 //
 // field must be a field of the related record (and not an M2O field pointing to it)
-func (rc *RecordCollection) relatedRecordMap(fMap FieldMap, field FieldName) (FieldMap, FieldName) {
+func (rc *RecordCollection) relatedFieldMap(fMap FieldMap, field FieldName) (FieldMap, FieldName) {
 	exprs := splitFieldNames(field, ExprSep)
 	prefix := joinFieldNames(exprs[:len(exprs)-1], ExprSep)
 	res := make(FieldMap)
@@ -849,13 +870,13 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 
 	for _, rec := range rc.Records() {
 		id := rec.ids[0]
-		for _, fieldName := range fields {
-			fi := rc.model.getRelatedFieldInfo(fieldName)
+		for _, fName := range fields {
+			fi := rc.model.getRelatedFieldInfo(fName)
 			if !fi.fieldType.IsNonStoredRelationType() {
 				continue
 			}
 			thisRC := rec
-			exprs := splitFieldNames(fieldName, ExprSep)
+			exprs := splitFieldNames(fName, ExprSep)
 			if len(exprs) > 1 {
 				prefix := joinFieldNames(exprs[:len(exprs)-1], ExprSep)
 				// We do not call "Load" directly to have caller method properly set
@@ -867,7 +888,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
 				relRC = relRC.Search(relRC.Model().Field(relRC.Model().FieldName(fi.reverseFK)).Equals(thisRC)).Call("Fetch").(RecordSet).Collection()
-				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), relRC.ids, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relRC.ids, rc.query.ctxArgsSlug())
 			case fieldtype.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
@@ -876,7 +897,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 					continue
 				}
 				rc.env.cr.Select(&ids, query, thisRC.ids[0])
-				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), ids, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), ids, rc.query.ctxArgsSlug())
 			case fieldtype.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
@@ -885,7 +906,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				if len(relRC.ids) > 0 {
 					relID = relRC.ids[0]
 				}
-				rc.env.cache.updateEntry(rc.model, id, fieldName.JSON(), relID, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relID, rc.query.ctxArgsSlug())
 			}
 		}
 	}
@@ -1089,7 +1110,7 @@ func (rc *RecordCollection) fixGroupByOrders(fieldNames ...FieldName) *RecordCol
 	for _, o := range orderExprs {
 		oName := joinFieldNames(o, ExprSep)
 		if !groupFields[oName] && !fieldsMap[oName] {
-			rSet = rSet.GroupBy(FieldName(oName))
+			rSet = rSet.GroupBy(oName)
 		}
 	}
 	for _, o := range ctxOrderExprs {

@@ -54,7 +54,7 @@ var Registry *Collection
 
 // MakeActionRef creates an ActionRef from an action id
 func MakeActionRef(id string) ActionRef {
-	action := Registry.GetById(id)
+	action := Registry.GetByXMLID(id)
 	if action == nil {
 		return ActionRef{}
 	}
@@ -70,9 +70,26 @@ type ActionRef [2]string
 // It marshals empty ActionRef into null instead of ["", ""].
 func (ar ActionRef) MarshalJSON() ([]byte, error) {
 	if ar[0] == "" {
-		return json.Marshal(nil)
+		return json.Marshal(false)
 	}
 	return json.Marshal([2]string{ar[0], ar[1]})
+}
+
+// UnmarshalJSON for ActionRef.
+// Unmarshals false as an empty ActionRef
+func (ar *ActionRef) UnmarshalJSON(data []byte) error {
+	switch string(data) {
+	case "null", "false":
+		*ar = ActionRef{}
+		return nil
+	default:
+		var aux [2]string
+		if err := json.Unmarshal(data, &aux); err != nil {
+			return err
+		}
+		*ar = aux
+	}
+	return nil
 }
 
 // Value extracts ID of our ActionRef for storing in the database.
@@ -113,19 +130,36 @@ var _ driver.Valuer = ActionRef{}
 var _ sql.Scanner = &ActionRef{}
 var _ json.Marshaler = &ActionRef{}
 
+// An ActionString is the concatenation of the action type and its ID
+// e.g. ir.actions.act_window,76
+type ActionString struct {
+	Type string
+	ID   int64
+}
+
+// MarshalJSON for the actionString type. Marshals to false if the action string is empty
+func (as ActionString) MarshalJSON() ([]byte, error) {
+	if as.ID == 0 {
+		return json.Marshal(false)
+	}
+	return json.Marshal(fmt.Sprintf("%s,%d", as.Type, as.ID))
+}
+
 // A Collection is a collection of actions
 type Collection struct {
 	sync.RWMutex
-	actions map[string]*Action
-	links   map[string][]*Action
+	actions     map[string]*Action
+	actionsByID map[int64]*Action
+	links       map[string][]*Action
 }
 
 // NewCollection returns a pointer to a new
 // Collection instance
 func NewCollection() *Collection {
 	res := Collection{
-		actions: make(map[string]*Action),
-		links:   make(map[string][]*Action),
+		actions:     make(map[string]*Action),
+		actionsByID: make(map[int64]*Action),
+		links:       make(map[string][]*Action),
 	}
 	return &res
 }
@@ -134,13 +168,26 @@ func NewCollection() *Collection {
 func (ar *Collection) Add(a *Action) {
 	ar.Lock()
 	defer ar.Unlock()
-	ar.actions[a.ID] = a
+	maxID := int64(1)
+	for _, act := range ar.actions {
+		if act.ID >= maxID {
+			maxID = act.ID + 1
+		}
+	}
+	a.ID = maxID
+	ar.actions[a.XMLID] = a
+	ar.actionsByID[a.ID] = a
 	ar.links[a.SrcModel] = append(ar.links[a.SrcModel], a)
 }
 
-// GetById returns the Action with the given id
-func (ar *Collection) GetById(id string) *Action {
+// GetByXMLID returns the Action with the given xmlid
+func (ar *Collection) GetByXMLID(id string) *Action {
 	return ar.actions[id]
+}
+
+// GetById returns the Action with the given id
+func (ar *Collection) GetById(id int64) *Action {
+	return ar.actionsByID[id]
 }
 
 // GetAll returns a list of all actions of this Collection.
@@ -155,10 +202,20 @@ func (ar *Collection) GetAll() []*Action {
 	return res
 }
 
+// MustGetByXMLID returns the Action with the given xmlid
+// It panics if the id is not found in the action registry
+func (ar *Collection) MustGetByXMLID(id string) *Action {
+	action, ok := ar.actions[id]
+	if !ok {
+		log.Panic("Action does not exist", "action_id", id)
+	}
+	return action
+}
+
 // MustGetById returns the Action with the given id
 // It panics if the id is not found in the action registry
-func (ar *Collection) MustGetById(id string) *Action {
-	action, ok := ar.actions[id]
+func (ar *Collection) MustGetById(id int64) *Action {
+	action, ok := ar.actionsByID[id]
 	if !ok {
 		log.Panic("Action does not exist", "action_id", id)
 	}
@@ -194,7 +251,8 @@ type actionHelp struct {
 // A Action is the definition of an action. Actions define the
 // behavior of the system in response to user requests.
 type Action struct {
-	ID           string                 `json:"id" xml:"id,attr"`
+	ID           int64                  `json:"id" xml:"-"`
+	XMLID        string                 `json:"xmlid" xml:"id,attr"`
 	Type         ActionType             `json:"type" xml:"type,attr"`
 	Name         string                 `json:"name" xml:"name,attr"`
 	Model        string                 `json:"res_model" xml:"model,attr"`
@@ -293,7 +351,7 @@ modeLoop:
 			}
 		}
 		// No view defined for mode, we need to find it.
-		view := views.Registry.GetFirstViewForModel(a.Model, views.ViewType(mode))
+		view := views.Registry.GetFirstViewForModel(a.Model, mode)
 		newRef := views.ViewTuple{
 			ID:   view.ID,
 			Type: view.Type,
@@ -318,6 +376,11 @@ func (a *Action) fixViewModes() {
 			a.Views[i].Type = v.Type
 		}
 	}
+}
+
+// ActionString returns the ActionString associated with this action.
+func (a Action) ActionString() ActionString {
+	return ActionString{ID: a.ID, Type: string(a.Type)}
 }
 
 // LoadFromEtree reads the action given etree.Element, creates or updates the action

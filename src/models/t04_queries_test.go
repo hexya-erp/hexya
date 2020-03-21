@@ -84,6 +84,7 @@ var (
 	password                 = fieldName{name: "Password", json: "password"}
 	size                     = fieldName{name: "Size", json: "size"}
 	hexyaVersion             = fieldName{name: "HexyaVersion", json: "hexya_version"}
+	hexyaExternalID          = fieldName{name: "HexyaExternalID", json: "hexya_external_id"}
 )
 
 func TestConditions(t *testing.T) {

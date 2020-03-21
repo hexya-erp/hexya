@@ -206,6 +206,21 @@ X2M Links
 				userJane.Load(postsTags)
 				So(len(env.DumpCache()), ShouldBeGreaterThan, 1360)
 			})
+			Convey("Check that new works correctly", func() {
+				userMattData := NewModelData(users.Model()).
+					Set(Name, "Matt Smith").
+					Set(email, "msmith@example.com").
+					Set(isStaff, true).
+					Set(nums, 4).
+					Set(age, 23)
+				userMatt := users.new(userMattData)
+				So(userMatt.Get(Name), ShouldEqual, "Matt Smith")
+				So(userMatt.Get(email), ShouldEqual, "msmith@example.com")
+				So(userMatt.Get(isStaff), ShouldEqual, true)
+				So(userMatt.Get(isPremium), ShouldEqual, false)
+				So(userMatt.Get(nums), ShouldEqual, 4)
+				So(userMatt.Get(age), ShouldEqual, 23)
+			})
 		}), ShouldBeNil)
 	})
 	Convey("Testing prefetch", t, func() {

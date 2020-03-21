@@ -20,6 +20,7 @@ import (
 
 	"github.com/hexya-erp/hexya/src/actions"
 	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/pool/h"
@@ -27,8 +28,11 @@ import (
 	"github.com/hexya-erp/pool/q"
 )
 
-// IsStaffHelp exported
-var IsStaffHelp = "This is a var help message"
+var (
+	// IsStaffHelp exported
+	IsStaffHelp   = "This is a var help message"
+	isPremiumHelp = "This the IsPremium Help message"
+)
 
 const (
 	isStaffString        = "Is Staff"
@@ -37,283 +41,299 @@ const (
 
 const isPremiumString = isPremiumDescription
 
+var fields_User = map[string]models.FieldDefinition{
+	"Name": fields.Char{String: "Name", Help: "The user's username", Unique: true,
+		NoCopy: true, OnChange: h.User().Methods().OnChangeName()},
+	"DecoratedName": fields.Char{Compute: h.User().Methods().ComputeDecoratedName()},
+	"Email":         fields.Char{Help: "The user's email address", Size: 100, Index: true},
+	"Password":      fields.Char{NoCopy: true},
+	"Status": fields.Integer{JSON: "status_json", GoType: new(int16),
+		Default: models.DefaultValue(int16(12))},
+	"IsStaff":  fields.Boolean{String: isStaffString, Help: IsStaffHelp},
+	"IsActive": fields.Boolean{},
+	"Profile":  fields.One2One{OnDelete: models.SetNull, RelationModel: h.Profile()},
+	"Age": fields.Integer{Compute: h.User().Methods().ComputeAge(),
+		Inverse: h.User().Methods().InverseSetAge(),
+		Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
+	"Posts":     fields.One2Many{RelationModel: h.Post(), ReverseFK: "User", Copy: true},
+	"PMoney":    fields.Float{Related: "Profile.Money"},
+	"Resume":    fields.Many2One{RelationModel: h.Resume(), Embed: true},
+	"LastPost":  fields.Many2One{RelationModel: h.Post()},
+	"Email2":    fields.Char{},
+	"IsPremium": fields.Boolean{String: isPremiumString, Help: isPremiumHelp},
+	"Nums":      fields.Integer{GoType: new(int)},
+	"Size":      fields.Float{},
+	"Education": fields.Text{String: "Educational Background"},
+}
+
+// DecorateEmail decorates the email of the given user
+func user_DecorateEmail(_ m.UserSet, email string) string {
+	return fmt.Sprintf("<%s>", email)
+}
+
+func user_OnChangeName(rs m.UserSet) m.UserData {
+	return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
+}
+
+func user_ComputeDecoratedName(rs m.UserSet) m.UserData {
+	return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
+}
+
+func user_ComputeAge(rs m.UserSet) m.UserData {
+	return h.User().NewData().SetAge(rs.Profile().Age())
+}
+
+func user_PrefixedUser(rs m.UserSet, prefix string) []string {
+	var res []string
+	for _, u := range rs.Records() {
+		res = append(res, fmt.Sprintf("%s: %s", prefix, u.Name()))
+	}
+	return res
+}
+
+func user_ext_DecorateEmail(rs m.UserSet, email string) string {
+	res := rs.Super().DecorateEmail(email)
+	return fmt.Sprintf("[%s]", res)
+}
+
+func user_RecursiveMethod(rs m.UserSet, depth int, result string) string {
+	if depth == 0 {
+		return result
+	}
+	return rs.RecursiveMethod(depth-1, fmt.Sprintf("%s, recursion %d", result, depth))
+}
+
+func user_ext_RecursiveMethod(rs m.UserSet, depth int, result string) string {
+	result = "> " + result + " <"
+	sup := rs.Super().RecursiveMethod(depth, result)
+	return sup
+}
+
+func user_SubSetSuper(rs m.UserSet) string {
+	var res string
+	for _, rec := range rs.Records() {
+		res += rec.Name()
+	}
+	return res
+}
+
+func user_ext_SubSetSuper(rs m.UserSet) string {
+	userJane := h.User().Search(rs.Env(), q.User().Email().Equals("jane.smith@example.com"))
+	userJohn := h.User().Search(rs.Env(), q.User().Email().Equals("jsmith2@example.com"))
+	users := h.User().NewSet(rs.Env())
+	users = users.Union(userJane)
+	users = users.Union(userJohn)
+	return users.Super().SubSetSuper()
+}
+
+func user_InverseSetAge(rs m.UserSet, age int16) {
+	rs.Profile().SetAge(age)
+}
+
+func user_ext_PrefixedUser(rs m.UserSet, prefix string) []string {
+	res := rs.Super().PrefixedUser(prefix)
+	for i, u := range rs.Records() {
+		res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
+	}
+	return res
+}
+
+func user_UpdateCity(rs m.UserSet, value string) {
+	rs.Profile().SetCity(value)
+}
+
+var fields_Profile = map[string]models.FieldDefinition{
+	"Age":      fields.Integer{GoType: new(int16)},
+	"Gender":   fields.Selection{Selection: types.Selection{"male": "Male", "female": "Female"}},
+	"Money":    fields.Float{},
+	"User":     fields.Rev2One{RelationModel: h.User(), ReverseFK: "Profile"},
+	"BestPost": fields.Many2One{RelationModel: h.Post()},
+	"Country":  fields.Char{},
+	"UserName": fields.Char{Related: "User.Name"},
+	"Action":   fields.Char{GoType: new(actions.ActionRef)},
+}
+
+func profile_PrintAddress(rs m.ProfileSet) string {
+	res := rs.Super().PrintAddress()
+	return fmt.Sprintf("%s, %s", res, rs.Country())
+}
+
+func profile_ext_PrintAddress(rs m.ProfileSet) string {
+	res := rs.Super().PrintAddress()
+	return fmt.Sprintf("[%s]", res)
+}
+
+var fields_Post = map[string]models.FieldDefinition{
+	"User":             fields.Many2One{RelationModel: h.User()},
+	"Title":            fields.Char{Required: true},
+	"Content":          fields.HTML{},
+	"Tags":             fields.Many2Many{RelationModel: h.Tag()},
+	"Abstract":         fields.Text{},
+	"Attachment":       fields.Binary{},
+	"LastRead":         fields.Date{},
+	"Comments":         fields.One2Many{RelationModel: h.Comment(), ReverseFK: "Post"},
+	"FirstCommentText": fields.Text{Related: "Comments.Text"},
+	"FirstTagName":     fields.Char{Related: "Tags.Name"},
+	"WriterMoney":      fields.Float{Related: "User.PMoney"},
+}
+
+func post_Create(rs m.PostSet, data m.PostData) m.PostSet {
+	res := rs.Super().Create(data)
+	return res
+}
+
+func post_Search(rs m.PostSet, cond q.PostCondition) m.PostSet {
+	res := rs.Super().Search(cond)
+	return res
+}
+
+var fields_Comment = map[string]models.FieldDefinition{
+	"Post":        fields.Many2One{RelationModel: h.Post()},
+	"PostWriter":  fields.Many2One{RelationModel: h.User(), Related: "Post.User"},
+	"WriterMoney": fields.Float{Related: "PostWriter.PMoney"},
+	"Text":        fields.Text{},
+}
+
+var fields_Tag = map[string]models.FieldDefinition{
+	"Name":        fields.Char{Constraint: h.Tag().Methods().CheckNameDescription()},
+	"BestPost":    fields.Many2One{RelationModel: h.Post()},
+	"Posts":       fields.Many2Many{RelationModel: h.Post()},
+	"Parent":      fields.Many2One{RelationModel: h.Tag()},
+	"Description": fields.Char{Constraint: h.Tag().Methods().CheckNameDescription()},
+	"Rate":        fields.Float{Constraint: h.Tag().Methods().CheckRate(), GoType: new(float32)},
+}
+
+func tag_CheckNameDescription(rs m.TagSet) {
+	if rs.Rate() < 0 || rs.Rate() > 10 {
+		log.Panic("Tag rate must be between 0 and 10")
+	}
+}
+
+func tag_CheckRate(rs m.TagSet) {
+	if rs.Name() == rs.Description() {
+		log.Panic("Tag name and description must be different")
+	}
+}
+
+var fields_Resume = map[string]models.FieldDefinition{
+	"Education":  fields.Text{},
+	"Experience": fields.Text{Translate: true},
+	"Leisure":    fields.Text{},
+	"Other":      fields.Char{Compute: h.Resume().Methods().ComputeOther()},
+}
+
+func resume_Create(rs m.ResumeSet, data m.ResumeData) m.ResumeSet {
+	return rs.Super().Create(data)
+}
+
+func resume_ComputeOther(_ m.ResumeSet) m.ResumeData {
+	return h.Resume().NewData().SetOther("Other information")
+}
+
+var fields_AddressMixIn = map[string]models.FieldDefinition{
+	"Street": fields.Char{GoType: new(string)},
+	"Zip":    fields.Char{},
+	"City":   fields.Char{},
+}
+
+func addressMixIn_SayHello(_ m.AddressMixInSet) string {
+	return "Hello !"
+}
+
+func addressMixIn_PrintAddress(rs m.AddressMixInSet) string {
+	return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
+}
+
+func addressMixIn_ext_PrintAddress(rs m.AddressMixInSet) string {
+	res := rs.Super().PrintAddress()
+	return fmt.Sprintf("<%s>", res)
+}
+
+var fields_ActiveMixin = map[string]models.FieldDefinition{
+	"Active": fields.Boolean{},
+}
+
+func activeMixIn_IsActivated(rs m.ActiveMixInSet) bool {
+	return rs.Active()
+}
+
+var fields_UserView = map[string]models.FieldDefinition{
+	"Name": fields.Char{},
+	"City": fields.Char{},
+}
+
 func init() {
-	user := h.User().DeclareModel()
+	models.NewModel("User")
 
-	// Methods directly declared with AddMethod must be defined before being referenced in the field declaration
+	h.User().AddFields(fields_User)
+	h.User().Fields().Experience().SetString("Professional Experience")
 
-	user.AddMethod("OnChangeName", "",
-		func(rs m.UserSet) m.UserData {
-			return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
-		})
+	h.User().NewMethod("OnChangeName", user_OnChangeName)
+	h.User().NewMethod("ComputeDecoratedName", user_ComputeDecoratedName)
+	h.User().NewMethod("ComputeAge", user_ComputeAge)
+	h.User().NewMethod("PrefixedUser", user_PrefixedUser)
+	h.User().NewMethod("DecorateEmail", user_DecorateEmail)
+	h.User().NewMethod("RecursiveMethod", user_RecursiveMethod)
+	h.User().NewMethod("SubSetSuper", user_SubSetSuper)
+	h.User().NewMethod("InverseSetAge", user_InverseSetAge)
+	h.User().NewMethod("UpdateCity", user_UpdateCity)
+	h.User().Methods().DecorateEmail().Extend(user_ext_DecorateEmail)
+	h.User().Methods().RecursiveMethod().Extend(user_ext_RecursiveMethod)
+	h.User().Methods().SubSetSuper().Extend(user_ext_SubSetSuper)
+	h.User().Methods().PrefixedUser().Extend(user_ext_PrefixedUser)
 
-	user.AddMethod("ComputeDecoratedName", "",
-		func(rs m.UserSet) m.UserData {
-			return h.User().NewData().SetDecoratedName(rs.PrefixedUser("User")[0])
-		})
+	models.NewModel("Profile")
+	h.Profile().InheritModel(h.AddressMixIn())
 
-	user.AddMethod("ComputeAge",
-		`ComputeAge is a sample method layer for testing`,
-		func(rs m.UserSet) m.UserData {
-			return h.User().NewData().SetAge(rs.Profile().Age())
-		})
+	h.Profile().AddFields(fields_Profile)
+	h.Profile().Fields().Zip().SetString("Zip Code")
 
-	var isPremiumHelp = "This the IsPremium Help message"
+	h.Profile().Methods().PrintAddress().Extend(profile_PrintAddress)
+	h.Profile().Methods().PrintAddress().Extend(profile_ext_PrintAddress)
 
-	user.AddFields(map[string]models.FieldDefinition{
-		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
-			NoCopy: true, OnChange: user.Methods().OnChangeName()},
-		"DecoratedName": models.CharField{Compute: user.Methods().ComputeDecoratedName()},
-		"Email":         models.CharField{Help: "The user's email address", Size: 100, Index: true},
-		"Password":      models.CharField{NoCopy: true},
-		"Status": models.IntegerField{JSON: "status_json", GoType: new(int16),
-			Default: models.DefaultValue(int16(12))},
-		"IsStaff":  models.BooleanField{String: isStaffString, Help: IsStaffHelp},
-		"IsActive": models.BooleanField{},
-		"Profile":  models.One2OneField{OnDelete: models.SetNull, RelationModel: h.Profile()},
-		"Age": models.IntegerField{Compute: user.Methods().ComputeAge(),
-			Inverse: user.Methods().InverseSetAge(),
-			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-		"Posts":     models.One2ManyField{RelationModel: h.Post(), ReverseFK: "User", Copy: true},
-		"PMoney":    models.FloatField{Related: "Profile.Money"},
-		"Resume":    models.Many2OneField{RelationModel: h.Resume(), Embed: true},
-		"LastPost":  models.Many2OneField{RelationModel: h.Post()},
-		"Email2":    models.CharField{},
-		"IsPremium": models.BooleanField{String: isPremiumString, Help: isPremiumHelp},
-		"Nums":      models.IntegerField{GoType: new(int)},
-		"Size":      models.FloatField{},
-		"Education": models.TextField{String: "Educational Background"},
-	})
-	user.Fields().Experience().SetString("Professional Experience")
+	models.NewModel("Post")
 
-	user.Methods().PrefixedUser().DeclareMethod(
-		`PrefixedUser is a sample method layer for testing`,
-		func(rs m.UserSet, prefix string) []string {
-			var res []string
-			for _, u := range rs.Records() {
-				res = append(res, fmt.Sprintf("%s: %s", prefix, u.Name()))
-			}
-			return res
-		})
+	h.Post().AddFields(fields_Post)
 
-	user.Methods().DecorateEmail().DeclareMethod(
-		`DecorateEmail is a sample method layer for testing`,
-		func(rs m.UserSet, email string) string {
-			return fmt.Sprintf("<%s>", email)
-		})
+	h.Post().Methods().Create().Extend(post_Create)
+	h.Post().Methods().Search().Extend(post_Search)
 
-	user.Methods().DecorateEmail().Extend(
-		`DecorateEmailExtension is a sample method layer for testing`,
-		func(rs m.UserSet, email string) string {
-			res := rs.Super().DecorateEmail(email)
-			return fmt.Sprintf("[%s]", res)
-		})
+	models.NewModel("Comment")
 
-	user.Methods().RecursiveMethod().DeclareMethod(
-		`RecursiveMethod is a sample method layer for testing`,
-		func(rs m.UserSet, depth int, result string) string {
-			if depth == 0 {
-				return result
-			}
-			return rs.RecursiveMethod(depth-1, fmt.Sprintf("%s, recursion %d", result, depth))
-		})
+	h.Comment().AddFields(fields_Comment)
 
-	user.Methods().RecursiveMethod().Extend("",
-		func(rs m.UserSet, depth int, result string) string {
-			result = "> " + result + " <"
-			sup := rs.Super().RecursiveMethod(depth, result)
-			return sup
-		})
+	models.NewModel("Tag")
+	h.Tag().SetDefaultOrder("Name DESC", "ID ASC")
 
-	user.Methods().SubSetSuper().DeclareMethod("",
-		func(rs m.UserSet) string {
-			var res string
-			for _, rec := range rs.Records() {
-				res += rec.Name()
-			}
-			return res
-		})
+	h.Tag().AddFields(fields_Tag)
 
-	user.Methods().SubSetSuper().Extend("",
-		func(rs m.UserSet) string {
-			userJane := h.User().Search(rs.Env(), q.User().Email().Equals("jane.smith@example.com"))
-			userJohn := h.User().Search(rs.Env(), q.User().Email().Equals("jsmith2@example.com"))
-			users := h.User().NewSet(rs.Env())
-			users = users.Union(userJane)
-			users = users.Union(userJohn)
-			return users.Super().SubSetSuper()
-		})
+	h.Tag().NewMethod("CheckNameDescription", tag_CheckNameDescription).AllowGroup(security.GroupEveryone)
+	h.Tag().NewMethod("CheckRate", tag_CheckRate)
 
-	user.Methods().InverseSetAge().DeclareMethod("",
-		func(rs m.UserSet, age int16) {
-			rs.Profile().SetAge(age)
-		})
+	models.NewModel("Resume")
 
-	h.User().Methods().PrefixedUser().Extend("",
-		func(rs m.UserSet, prefix string) []string {
-			res := rs.Super().PrefixedUser(prefix)
-			for i, u := range rs.Records() {
-				res[i] = fmt.Sprintf("%s %s", res[i], rs.DecorateEmail(u.Email()))
-			}
-			return res
-		})
+	h.Resume().AddFields(fields_Resume)
 
-	h.User().Methods().UpdateCity().DeclareMethod("",
-		func(rs m.UserSet, value string) {
-			rs.Profile().SetCity(value)
-		})
-
-	profile := h.Profile().DeclareModel()
-	profile.AddFields(map[string]models.FieldDefinition{
-		"Age":      models.IntegerField{GoType: new(int16)},
-		"Gender":   models.SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
-		"Money":    models.FloatField{},
-		"User":     models.Rev2OneField{RelationModel: h.User(), ReverseFK: "Profile"},
-		"BestPost": models.Many2OneField{RelationModel: h.Post()},
-		"Country":  models.CharField{},
-		"UserName": models.CharField{Related: "User.Name"},
-		"Action":   models.CharField{GoType: new(actions.ActionRef)},
-	})
-	profile.Fields().Zip().SetString("Zip Code")
-
-	post := h.Post().DeclareModel()
-	post.AddFields(map[string]models.FieldDefinition{
-		"User":             models.Many2OneField{RelationModel: h.User()},
-		"Title":            models.CharField{Required: true},
-		"Content":          models.HTMLField{},
-		"Tags":             models.Many2ManyField{RelationModel: h.Tag()},
-		"Abstract":         models.TextField{},
-		"Attachment":       models.BinaryField{},
-		"LastRead":         models.DateField{},
-		"Comments":         models.One2ManyField{RelationModel: h.Comment(), ReverseFK: "Post"},
-		"FirstCommentText": models.TextField{Related: "Comments.Text"},
-		"FirstTagName":     models.CharField{Related: "Tags.Name"},
-		"WriterMoney":      models.FloatField{Related: "User.PMoney"},
-	})
-
-	h.Post().Methods().Create().Extend("",
-		func(rs m.PostSet, data m.PostData) m.PostSet {
-			res := rs.Super().Create(data)
-			return res
-		})
-
-	h.Post().Methods().Search().Extend("",
-		func(rs m.PostSet, cond q.PostCondition) m.PostSet {
-			res := rs.Super().Search(cond)
-			return res
-		})
-
-	comment := h.Comment().DeclareModel()
-	comment.AddFields(map[string]models.FieldDefinition{
-		"Post":        models.Many2OneField{RelationModel: h.Post()},
-		"PostWriter":  models.Many2OneField{RelationModel: h.User(), Related: "Post.User"},
-		"WriterMoney": models.FloatField{Related: "PostWriter.PMoney"},
-		"Text":        models.TextField{},
-	})
-
-	tag := h.Tag().DeclareModel()
-	tag.SetDefaultOrder("Name DESC", "ID ASC")
-	tag.AddFields(map[string]models.FieldDefinition{
-		"Name":        models.CharField{Constraint: tag.Methods().CheckNameDescription()},
-		"BestPost":    models.Many2OneField{RelationModel: h.Post()},
-		"Posts":       models.Many2ManyField{RelationModel: h.Post()},
-		"Parent":      models.Many2OneField{RelationModel: h.Tag()},
-		"Description": models.CharField{Constraint: tag.Methods().CheckNameDescription()},
-		"Rate":        models.FloatField{Constraint: tag.Methods().CheckRate(), GoType: new(float32)},
-	})
-
-	tag.Methods().CheckNameDescription().DeclareMethod(
-		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
-		func(rs m.TagSet) {
-			if rs.Rate() < 0 || rs.Rate() > 10 {
-				log.Panic("Tag rate must be between 0 and 10")
-			}
-		}).AllowGroup(security.GroupEveryone)
-
-	tag.Methods().CheckRate().DeclareMethod(
-		`CheckNameDescription checks that the description of a tag is not equal to its name`,
-		func(rs m.TagSet) {
-			if rs.Name() == rs.Description() {
-				log.Panic("Tag name and description must be different")
-			}
-		})
-
-	cv := h.Resume().DeclareModel()
-	cv.AddFields(map[string]models.FieldDefinition{
-		"Education":  models.TextField{},
-		"Experience": models.TextField{Translate: true},
-		"Leisure":    models.TextField{},
-		"Other":      models.CharField{Compute: h.Resume().Methods().ComputeOther()},
-	})
-	cv.Methods().Create().Extend("",
-		func(rs m.ResumeSet, data m.ResumeData) m.ResumeSet {
-			return rs.Super().Create(data)
-		})
-
-	cv.Methods().ComputeOther().DeclareMethod(
-		`Dummy compute function`,
-		func(rs m.ResumeSet) m.ResumeData {
-			return h.Resume().NewData().SetOther("Other information")
-		})
-
-	addressMI := h.AddressMixIn().DeclareMixinModel()
-	addressMI.AddFields(map[string]models.FieldDefinition{
-		"Street": models.CharField{GoType: new(string)},
-		"Zip":    models.CharField{},
-		"City":   models.CharField{},
-	})
-	profile.InheritModel(addressMI)
-
-	h.Profile().Methods().PrintAddress().DeclareMethod(
-		`PrintAddress is a sample method layer for testing`,
-		func(rs m.ProfileSet) string {
-			res := rs.Super().PrintAddress()
-			return fmt.Sprintf("%s, %s", res, rs.Country())
-		})
-
-	h.Profile().Methods().PrintAddress().Extend("",
-		func(rs m.ProfileSet) string {
-			res := rs.Super().PrintAddress()
-			return fmt.Sprintf("[%s]", res)
-		})
+	h.Resume().Methods().Create().Extend(resume_Create)
+	h.Resume().NewMethod("ComputeOther", resume_ComputeOther)
 
 	addressMI2 := h.AddressMixIn()
-	addressMI2.Methods().SayHello().DeclareMethod(
-		`SayHello is a sample method layer for testing`,
-		func(rs m.AddressMixInSet) string {
-			return "Hello !"
-		})
+	addressMI2.NewMethod("SayHello", addressMixIn_SayHello)
+	addressMI2.NewMethod("PrintAddress", addressMixIn_PrintAddress)
+	addressMI2.Methods().PrintAddress().Extend(addressMixIn_ext_PrintAddress)
 
-	addressMI2.Methods().PrintAddress().DeclareMethod(
-		`PrintAddressMixIn is a sample method layer for testing`,
-		func(rs m.AddressMixInSet) string {
-			return fmt.Sprintf("%s, %s %s", rs.Street(), rs.Zip(), rs.City())
-		})
+	models.NewMixinModel("AddressMixIn")
+	h.AddressMixIn().AddFields(fields_AddressMixIn)
 
-	addressMI2.Methods().PrintAddress().Extend("",
-		func(rs m.AddressMixInSet) string {
-			res := rs.Super().PrintAddress()
-			return fmt.Sprintf("<%s>", res)
-		})
-
-	activeMI := h.ActiveMixIn().DeclareMixinModel()
-	activeMI.AddFields(map[string]models.FieldDefinition{
-		"Active": models.BooleanField{},
-	})
-	h.ModelMixin().InheritModel(activeMI)
+	models.NewMixinModel("ActiveMixIn")
+	h.ActiveMixIn().AddFields(fields_ActiveMixin)
+	h.ModelMixin().InheritModel(h.ActiveMixIn())
 
 	// Chained declaration
 	activeMI1 := h.ActiveMixIn()
 	activeMI2 := activeMI1
-	activeMI2.Methods().IsActivated().DeclareMethod(
-		`IsACtivated is a sample method of ActiveMixIn"`,
-		func(rs m.ActiveMixInSet) bool {
-			return rs.Active()
-		})
+	activeMI2.NewMethod("IsActivated", activeMixIn_IsActivated)
 
-	viewModel := h.UserView().DeclareManualModel()
-	viewModel.AddFields(map[string]models.FieldDefinition{
-		"Name": models.CharField{},
-		"City": models.CharField{},
-	})
+	models.NewManualModel("UserView")
+	h.UserView().AddFields(fields_UserView)
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"image"
 	"image/color"
-	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -16,8 +15,8 @@ import (
 
 func TestColorize(t *testing.T) {
 	Convey("Testing Colorize function", t, func() {
-		imgData, _ := ioutil.ReadFile("testdata/avatar.png")
-		imgString := base64.StdEncoding.EncodeToString(imgData)
+		imgString, err := ReadAll("testdata/avatar.png")
+		So(err, ShouldBeNil)
 		Convey("Applying a fully opaque color", func() {
 			clr := color.RGBA{R: 32, G: 224, B: 224, A: 255}
 			dstImageString := Colorize(imgString, clr)
@@ -67,8 +66,8 @@ func TestColorize(t *testing.T) {
 
 func TestResize(t *testing.T) {
 	Convey("Testing Resize function", t, func() {
-		imgData, _ := ioutil.ReadFile("testdata/avatar.png")
-		imgString := base64.StdEncoding.EncodeToString(imgData)
+		imgString, err := ReadAll("testdata/avatar.png")
+		So(err, ShouldBeNil)
 		Convey("Resizing smaller should create a smaller image", func() {
 			smallImg := Resize(imgString, 100, 150, false)
 			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(smallImg))

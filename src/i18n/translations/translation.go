@@ -272,10 +272,10 @@ func addResourceItemsToMessages(lang string, resourcesDir string, messages Messa
 			// TODO add text data
 		}
 		for _, menu := range menuColl {
-			messages = updateMessagesWithResourceTranslation(lang, menu.ID, menu.Name, messages)
+			messages = updateMessagesWithResourceTranslation(lang, menu.XMLID, menu.Name, messages)
 		}
 		for _, action := range actionColl.GetAll() {
-			messages = updateMessagesWithResourceTranslation(lang, action.ID, action.Name, messages)
+			messages = updateMessagesWithResourceTranslation(lang, action.XMLID, action.Name, messages)
 		}
 	}
 	return messages

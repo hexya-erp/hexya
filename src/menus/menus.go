@@ -32,8 +32,9 @@ var (
 // A Collection is a hierarchical and sortable Collection of menus
 type Collection struct {
 	sync.RWMutex
-	Menus    []*Menu
-	menusMap map[string]*Menu
+	Menus        []*Menu
+	menusMap     map[string]*Menu
+	menusMapByID map[int64]*Menu
 }
 
 func (mc *Collection) Len() int {
@@ -70,26 +71,49 @@ func (mc *Collection) Add(m *Menu) {
 	// We add the menu to the Registry which is the top collection
 	mc.Lock()
 	defer mc.Unlock()
-	Registry.menusMap[m.ID] = m
+	Registry.menusMap[m.XMLID] = m
+	Registry.menusMapByID[m.ID] = m
 }
 
 // GetByID returns the Menu with the given id
-func (mc *Collection) GetByID(id string) *Menu {
-	return mc.menusMap[id]
+func (mc *Collection) GetByID(id int64) *Menu {
+	mc.RLock()
+	defer mc.RUnlock()
+	return mc.menusMapByID[id]
+}
+
+// GetByXMLID returns the Menu with the given xmlid
+func (mc *Collection) GetByXMLID(xmlid string) *Menu {
+	mc.RLock()
+	defer mc.RUnlock()
+	return mc.menusMap[xmlid]
+}
+
+// All returns all menus recursively
+func (mc *Collection) All() []*Menu {
+	mc.RLock()
+	defer mc.RUnlock()
+	var res []*Menu
+	for _, menu := range mc.menusMap {
+		res = append(res, menu)
+	}
+	return res
 }
 
 // NewCollection returns a pointer to a new
 // Collection instance
 func NewCollection() *Collection {
 	res := Collection{
-		menusMap: make(map[string]*Menu),
+		menusMap:     make(map[string]*Menu),
+		menusMapByID: make(map[int64]*Menu),
 	}
 	return &res
 }
 
 // A Menu is the representation of a single menu item
 type Menu struct {
-	ID               string
+	ID               int64
+	XMLID            string
 	Name             string
 	ParentID         string
 	Parent           *Menu
@@ -124,14 +148,16 @@ func LoadFromEtree(element *etree.Element) {
 // and adds it to the given map.
 func AddMenuToMapFromEtree(element *etree.Element, mMap map[string]*Menu) map[string]*Menu {
 	seq, _ := strconv.Atoi(element.SelectAttrValue("sequence", "10"))
+	nextID := len(mMap) + 1
 	menu := Menu{
-		ID:       element.SelectAttrValue("id", "NO_ID"),
+		ID:       int64(nextID),
+		XMLID:    element.SelectAttrValue("id", "NO_ID"),
 		ActionID: element.SelectAttrValue("action", ""),
 		Name:     element.SelectAttrValue("name", ""),
 		ParentID: element.SelectAttrValue("parent", ""),
 		WebIcon:  element.SelectAttrValue("web_icon", ""),
 		Sequence: uint8(seq),
 	}
-	mMap[menu.ID] = &menu
+	mMap[menu.XMLID] = &menu
 	return mMap
 }

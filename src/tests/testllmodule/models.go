@@ -19,6 +19,7 @@ import (
 	"log"
 
 	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 )
@@ -33,7 +34,7 @@ func declareModels() {
 	activeMI := models.NewMixinModel("ActiveMixIn")
 	viewModel := models.NewManualModel("UserView")
 
-	user.AddMethod("PrefixedUser", "",
+	user.NewMethod("PrefixedUser",
 		func(rc *models.RecordCollection, prefix string) []string {
 			var res []string
 			for _, u := range rc.Records() {
@@ -42,7 +43,7 @@ func declareModels() {
 			return res
 		})
 
-	user.Methods().MustGet("PrefixedUser").Extend("",
+	user.Methods().MustGet("PrefixedUser").Extend(
 		func(rc *models.RecordCollection, prefix string) []string {
 			res := rc.Super().Call("PrefixedUser", prefix).([]string)
 			for i, u := range rc.Records() {
@@ -52,7 +53,7 @@ func declareModels() {
 			return res
 		})
 
-	user.AddMethod("DecorateEmail", "",
+	user.NewMethod("DecorateEmail",
 		func(rc *models.RecordCollection, email string) string {
 			if rc.Env().Context().HasKey("use_square_brackets") {
 				return fmt.Sprintf("[%s]", email)
@@ -60,7 +61,7 @@ func declareModels() {
 			return fmt.Sprintf("<%s>", email)
 		})
 
-	user.Methods().MustGet("DecorateEmail").Extend("",
+	user.Methods().MustGet("DecorateEmail").Extend(
 		func(rc *models.RecordCollection, email string) string {
 			if rc.Env().Context().HasKey("use_double_square") {
 				rc = rc.
@@ -71,181 +72,182 @@ func declareModels() {
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	user.AddMethod("OnChangeName", "",
+	user.NewMethod("OnChangeName",
 		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 			return models.NewModelDataFromRS(rc, res)
 		})
 
-	user.AddMethod("ComputeDecoratedName", "",
+	user.NewMethod("ComputeDecoratedName",
 		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["DecoratedName"] = rc.Call("PrefixedUser", "User").([]string)[0]
 			return models.NewModelDataFromRS(rc, res)
 		})
 
-	user.AddMethod("ComputeAge", "",
+	user.NewMethod("ComputeAge",
 		func(rc *models.RecordCollection) *models.ModelData {
 			res := make(models.FieldMap)
 			res["Age"] = rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Get(rc.Model().FieldName("Age")).(int16)
 			return models.NewModelDataFromRS(rc, res)
 		})
 
-	user.AddMethod("InverseSetAge", "",
+	user.NewMethod("InverseSetAge",
 		func(rc *models.RecordCollection, age int16) {
 			rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Set(rc.Model().FieldName("Age"), age)
 		})
 
-	user.AddMethod("UpdateCity", "",
+	user.NewMethod("UpdateCity",
 		func(rc *models.RecordCollection, value string) {
 			rc.Get(rc.Model().FieldName("Profile")).(*models.RecordCollection).Set(rc.Model().FieldName("City"), value)
 		})
 
-	activeMI.AddMethod("IsActivated", "",
+	activeMI.NewMethod("IsActivated",
 		func(rc *models.RecordCollection) bool {
 			return rc.Get(rc.Model().FieldName("Active")).(bool)
 		})
 
-	addressMI.AddMethod("SayHello", "",
+	addressMI.NewMethod("SayHello",
 		func(rc *models.RecordCollection) string {
 			return "Hello !"
 		})
 
-	printAddress := addressMI.AddEmptyMethod("PrintAddress")
-	printAddress.DeclareMethod("",
+	addressMI.NewMethod("PrintAddress",
 		func(rc *models.RecordCollection) string {
 			return fmt.Sprintf("%s, %s %s", rc.Get(rc.Model().FieldName("Street")), rc.Get(rc.Model().FieldName("Zip")), rc.Get(rc.Model().FieldName("City")))
 		})
 
-	profile.AddMethod("PrintAddress", "",
+	profile.NewMethod("PrintAddress",
 		func(rc *models.RecordCollection) string {
 			res := rc.Super().Call("PrintAddress").(string)
 			return fmt.Sprintf("%s, %s", res, rc.Get(rc.Model().FieldName("Country")))
 		})
 
-	addressMI.Methods().MustGet("PrintAddress").Extend("",
+	addressMI.Methods().MustGet("PrintAddress").Extend(
 		func(rc *models.RecordCollection) string {
 			res := rc.Super().Call("PrintAddress").(string)
 			return fmt.Sprintf("<%s>", res)
 		})
 
-	profile.Methods().MustGet("PrintAddress").Extend("",
+	profile.Methods().MustGet("PrintAddress").Extend(
 		func(rc *models.RecordCollection) string {
 			res := rc.Super().Call("PrintAddress").(string)
 			return fmt.Sprintf("[%s]", res)
 		})
 
-	post.Methods().MustGet("Create").Extend("",
+	post.Methods().MustGet("Create").Extend(
 		func(rc *models.RecordCollection, data models.RecordData) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(models.RecordSet).Collection()
 			return res
 		})
 
-	post.Methods().MustGet("WithContext").Extend("",
+	post.Methods().MustGet("WithContext").Extend(
 		func(rc *models.RecordCollection, key string, value interface{}) *models.RecordCollection {
 			return rc.Super().Call("WithContext", key, value).(*models.RecordCollection)
 		})
 
-	tag.AddMethod("CheckRate",
-		`CheckRate checks that the given RecordSet has a rate between 0 and 10`,
+	tag.NewMethod("CheckRate",
 		func(rc *models.RecordCollection) {
 			if rc.Get(rc.Model().FieldName("Rate")).(float32) < 0 || rc.Get(rc.Model().FieldName("Rate")).(float32) > 10 {
 				log.Panic("Tag rate must be between 0 and 10")
 			}
 		})
 
-	tag.AddMethod("CheckNameDescription",
-		`CheckNameDescription checks that the description of a tag is not equal to its name`,
+	tag.NewMethod("CheckNameDescription",
 		func(rc *models.RecordCollection) {
 			if rc.Get(rc.Model().FieldName("Name")).(string) == rc.Get(rc.Model().FieldName("Description")).(string) {
 				log.Panic("Tag name and description must be different")
 			}
 		})
 
+	// Because we run without pool, we need to declare our CRUD mixin methods
+	for _, methName := range []string{"Load", "Create", "Write", "Unlink"} {
+		tag.AddEmptyMethod(methName)
+	}
 	tag.Methods().AllowAllToGroup(security.GroupEveryone)
 
 	user.AddFields(map[string]models.FieldDefinition{
-		"Name": models.CharField{String: "Name", Help: "The user's username", Unique: true,
+		"Name": fields.Char{String: "Name", Help: "The user's username", Unique: true,
 			NoCopy: true, OnChange: user.Methods().MustGet("OnChangeName")},
-		"DecoratedName": models.CharField{Compute: user.Methods().MustGet("ComputeDecoratedName")},
-		"Email":         models.CharField{Help: "The user's email address", Size: 100, Index: true},
-		"Password":      models.CharField{NoCopy: true},
-		"Status": models.IntegerField{JSON: "status_json", GoType: new(int16),
+		"DecoratedName": fields.Char{Compute: user.Methods().MustGet("ComputeDecoratedName")},
+		"Email":         fields.Char{Help: "The user's email address", Size: 100, Index: true},
+		"Password":      fields.Char{NoCopy: true},
+		"Status": fields.Integer{JSON: "status_json", GoType: new(int16),
 			Default: models.DefaultValue(int16(12))},
-		"IsStaff":  models.BooleanField{},
-		"IsActive": models.BooleanField{},
-		"Profile":  models.Many2OneField{RelationModel: models.Registry.MustGet("Profile")},
-		"Age": models.IntegerField{Compute: user.Methods().MustGet("ComputeAge"),
+		"IsStaff":  fields.Boolean{},
+		"IsActive": fields.Boolean{},
+		"Profile":  fields.Many2One{RelationModel: models.Registry.MustGet("Profile")},
+		"Age": fields.Integer{Compute: user.Methods().MustGet("ComputeAge"),
 			Inverse: user.Methods().MustGet("InverseSetAge"),
 			Depends: []string{"Profile", "Profile.Age"}, Stored: true, GoType: new(int16)},
-		"Posts":     models.One2ManyField{RelationModel: models.Registry.MustGet("Post"), ReverseFK: "User"},
-		"PMoney":    models.FloatField{Related: "Profile.Money"},
-		"LastPost":  models.Many2OneField{RelationModel: models.Registry.MustGet("Post"), Embed: true},
-		"Email2":    models.CharField{},
-		"IsPremium": models.BooleanField{},
-		"Nums":      models.IntegerField{GoType: new(int)},
-		"Size":      models.FloatField{},
-		"Education": models.TextField{String: "Educational Background"},
+		"Posts":     fields.One2Many{RelationModel: models.Registry.MustGet("Post"), ReverseFK: "User"},
+		"PMoney":    fields.Float{Related: "Profile.Money"},
+		"LastPost":  fields.Many2One{RelationModel: models.Registry.MustGet("Post"), Embed: true},
+		"Email2":    fields.Char{},
+		"IsPremium": fields.Boolean{},
+		"Nums":      fields.Integer{GoType: new(int)},
+		"Size":      fields.Float{},
+		"Education": fields.Text{String: "Educational Background"},
 	})
 
 	profile.AddFields(map[string]models.FieldDefinition{
-		"Age":      models.IntegerField{GoType: new(int16)},
-		"Gender":   models.SelectionField{Selection: types.Selection{"male": "Male", "female": "Female"}},
-		"Money":    models.FloatField{},
-		"User":     models.Many2OneField{RelationModel: models.Registry.MustGet("User")},
-		"BestPost": models.One2OneField{RelationModel: models.Registry.MustGet("Post")},
-		"City":     models.CharField{},
-		"Country":  models.CharField{},
+		"Age":      fields.Integer{GoType: new(int16)},
+		"Gender":   fields.Selection{Selection: types.Selection{"male": "Male", "female": "Female"}},
+		"Money":    fields.Float{},
+		"User":     fields.Many2One{RelationModel: models.Registry.MustGet("User")},
+		"BestPost": fields.One2One{RelationModel: models.Registry.MustGet("Post")},
+		"City":     fields.Char{},
+		"Country":  fields.Char{},
 	})
 
 	post.AddFields(map[string]models.FieldDefinition{
-		"User":            models.Many2OneField{RelationModel: models.Registry.MustGet("User")},
-		"Title":           models.CharField{},
-		"Content":         models.HTMLField{},
-		"Tags":            models.Many2ManyField{RelationModel: models.Registry.MustGet("Tag")},
-		"BestPostProfile": models.Rev2OneField{RelationModel: models.Registry.MustGet("Profile"), ReverseFK: "BestPost"},
-		"Abstract":        models.TextField{},
-		"Attachment":      models.BinaryField{},
-		"LastRead":        models.DateField{},
+		"User":            fields.Many2One{RelationModel: models.Registry.MustGet("User")},
+		"Title":           fields.Char{},
+		"Content":         fields.HTML{},
+		"Tags":            fields.Many2Many{RelationModel: models.Registry.MustGet("Tag")},
+		"BestPostProfile": fields.Rev2One{RelationModel: models.Registry.MustGet("Profile"), ReverseFK: "BestPost"},
+		"Abstract":        fields.Text{},
+		"Attachment":      fields.Binary{},
+		"LastRead":        fields.Date{},
 	})
 
-	post.Methods().MustGet("Create").Extend("",
+	post.Methods().MustGet("Create").Extend(
 		func(rc *models.RecordCollection, data models.RecordData) *models.RecordCollection {
 			res := rc.Super().Call("Create", data).(*models.RecordCollection)
 			return res
 		})
 
 	tag.AddFields(map[string]models.FieldDefinition{
-		"Name":        models.CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
-		"BestPost":    models.Many2OneField{RelationModel: models.Registry.MustGet("Post")},
-		"Posts":       models.Many2ManyField{RelationModel: models.Registry.MustGet("Post")},
-		"Parent":      models.Many2OneField{RelationModel: models.Registry.MustGet("Tag")},
-		"Description": models.CharField{Constraint: tag.Methods().MustGet("CheckNameDescription")},
-		"Rate":        models.FloatField{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
+		"Name":        fields.Char{Constraint: tag.Methods().MustGet("CheckNameDescription")},
+		"BestPost":    fields.Many2One{RelationModel: models.Registry.MustGet("Post")},
+		"Posts":       fields.Many2Many{RelationModel: models.Registry.MustGet("Post")},
+		"Parent":      fields.Many2One{RelationModel: models.Registry.MustGet("Tag")},
+		"Description": fields.Char{Constraint: tag.Methods().MustGet("CheckNameDescription")},
+		"Rate":        fields.Float{Constraint: tag.Methods().MustGet("CheckRate"), GoType: new(float32)},
 	})
 
 	cv.AddFields(map[string]models.FieldDefinition{
-		"Education":  models.TextField{},
-		"Experience": models.TextField{Translate: true},
-		"Leisure":    models.TextField{},
+		"Education":  fields.Text{},
+		"Experience": fields.Text{Translate: true},
+		"Leisure":    fields.Text{},
 	})
 
 	addressMI.AddFields(map[string]models.FieldDefinition{
-		"Street": models.CharField{GoType: new(string)},
-		"Zip":    models.CharField{},
-		"City":   models.CharField{},
+		"Street": fields.Char{GoType: new(string)},
+		"Zip":    fields.Char{},
+		"City":   fields.Char{},
 	})
 	profile.InheritModel(addressMI)
 
 	activeMI.AddFields(map[string]models.FieldDefinition{
-		"Active": models.BooleanField{},
+		"Active": fields.Boolean{},
 	})
 
 	models.Registry.MustGet("CommonMixin").InheritModel(activeMI)
 
 	viewModel.AddFields(map[string]models.FieldDefinition{
-		"Name": models.CharField{},
-		"City": models.CharField{},
+		"Name": fields.Char{},
+		"City": fields.Char{},
 	})
 }
