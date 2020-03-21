@@ -419,22 +419,6 @@ func (s {{ .Name}}Set) Filtered(test func(rs {{ .InterfacesPackageName }}.{{ .Na
 	return res.Wrap("{{ .Name }}").({{ .InterfacesPackageName }}.{{ .Name}}Set)
 }
 
-// Aggregates returns the result of this {{ .Name }}Set query, which must by a grouped query.
-func (s {{ .Name }}Set) Aggregates(fieldNames ...models.FieldName) []{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow {
-	lines := s.RecordCollection.Aggregates(fieldNames...)
-	res := make([]{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow, len(lines))
-	for i, l := range lines {
-		res[i] = {{ .Name }}GroupAggregateRow {
-			values:    l.Values.Wrap().({{ .InterfacesPackageName }}.{{ .Name }}Data), 
-			count:     l.Count,
-			condition: {{ $.QueryPackageName }}.{{ .Name }}Condition {
-				Condition: l.Condition,
-			},
-		}
-	}
-	return res
-}
-
 {{ range .Fields }}
 // {{ .Name }} is a getter for the value of the "{{ .Name }}" field of the first
 // record in this RecordSet. It returns the Go zero value if the RecordSet is empty.
@@ -502,6 +486,24 @@ func (s {{ $.Name }}Set) {{ .Name }}({{ .ParamsWithType }}) ({{ .ReturnString }}
 
 {{ end }}
 
+{{- if not .IsModelMixin }}
+// Aggregates returns the result of this RecordSet query, which must by a grouped query.
+func m_{{ $.Name }}_Aggregates(rs {{ .Name }}Set, fieldNames ...models.FieldName) []{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow {
+	lines := rs.RecordCollection.Aggregates(fieldNames...)
+	res := make([]{{ .InterfacesPackageName }}.{{ .Name }}GroupAggregateRow, len(lines))
+	for i, l := range lines {
+		res[i] = {{ .Name }}GroupAggregateRow {
+			values:    l.Values.Wrap().({{ .InterfacesPackageName }}.{{ .Name }}Data), 
+			count:     l.Count,
+			condition: {{ $.QueryPackageName }}.{{ .Name }}Condition {
+				Condition: l.Condition,
+			},
+		}
+	}
+	return res
+}
+{{- end }}
+
 func init() {
 {{- if not .IsModelMixin }}
 {{- if eq .ModelType "" }}
@@ -521,6 +523,9 @@ func init() {
 {{- if .ToDeclare }}
 	models.Registry.MustGet("{{ $.Name }}").AddEmptyMethod("{{ .Name }}")
 {{- end }}
+{{- end }}
+{{- if not .IsModelMixin }}
+	models.Registry.MustGet("{{ $.Name }}").NewMethod("Aggregates", m_{{ $.Name }}_Aggregates)
 {{- end }}
 	models.RegisterRecordSetWrapper("{{ .Name }}", {{ .Name }}Set{})
 	models.RegisterModelDataWrapper("{{ .Name }}", {{ .Name }}Data{})

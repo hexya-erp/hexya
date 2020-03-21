@@ -578,7 +578,7 @@ func TestGroupedQueries(t *testing.T) {
 	Convey("Testing grouped queries", t, func() {
 		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			Convey("Simple grouped query on the whole table", func() {
-				groupedUsers := env.Pool("User").SearchAll().Call("GroupBy", []FieldName{isStaff}).(RecordSet).Collection().Call("Aggregates", []FieldName{isStaff, nums}).([]GroupAggregateRow)
+				groupedUsers := env.Pool("User").SearchAll().Call("GroupBy", []FieldName{isStaff}).(RecordSet).Collection().Aggregates(isStaff, nums)
 				So(len(groupedUsers), ShouldEqual, 2)
 				So(groupedUsers[0].Values.Has(isStaff), ShouldBeTrue)
 				So(groupedUsers[0].Values.Get(isStaff), ShouldBeFalse)

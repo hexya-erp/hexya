@@ -142,6 +142,10 @@ func user_UpdateCity(rs m.UserSet, value string) {
 	rs.Profile().SetCity(value)
 }
 
+func user_Aggregates(rs m.UserSet, fieldNames ...models.FieldName) []m.UserGroupAggregateRow {
+	return rs.Super().Aggregates(fieldNames...)
+}
+
 var fields_Profile = map[string]models.FieldDefinition{
 	"Age":      fields.Integer{GoType: new(int16)},
 	"Gender":   fields.Selection{Selection: types.Selection{"male": "Male", "female": "Female"}},
@@ -281,6 +285,7 @@ func init() {
 	h.User().Methods().RecursiveMethod().Extend(user_ext_RecursiveMethod)
 	h.User().Methods().SubSetSuper().Extend(user_ext_SubSetSuper)
 	h.User().Methods().PrefixedUser().Extend(user_ext_PrefixedUser)
+	h.User().Methods().Aggregates().Extend(user_Aggregates)
 
 	models.NewModel("Profile")
 	h.Profile().InheritModel(h.AddressMixIn())

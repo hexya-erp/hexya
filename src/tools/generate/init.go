@@ -33,6 +33,11 @@ var (
 		"ModelMixin":     true,
 		"TransientMixin": true,
 	}
+	// MethodsToAdd are methods that are declared directly in the generated code.
+	// Usually this is because they can't be declared in base_model due to not convertible arg or return types.
+	methodsToAdd = map[string]bool{
+		"Aggregates": true,
+	}
 )
 
 func init() {
