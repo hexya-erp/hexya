@@ -73,7 +73,6 @@ func declareCommonMixin() {
 	commonMixin.addMethod("Fetch", commonMixinFetch)
 	commonMixin.addMethod("SearchAll", commonMixinSearchAll)
 	commonMixin.addMethod("GroupBy", commonMixinGroupBy)
-	commonMixin.addMethod("Aggregates", commonMixinAggregates)
 	commonMixin.addMethod("Limit", commonMixinLimit)
 	commonMixin.addMethod("Offset", commonMixinOffset)
 	commonMixin.addMethod("OrderBy", commonMixinOrderBy)
@@ -450,11 +449,6 @@ func commonMixinSearchAll(rc *RecordCollection) *RecordCollection {
 // GroupBy returns a new RecordSet grouped with the given GROUP BY expressions.
 func commonMixinGroupBy(rc *RecordCollection, exprs ...FieldName) *RecordCollection {
 	return rc.GroupBy(exprs...)
-}
-
-// Aggregates returns the result of this RecordSet query, which must by a grouped query.
-func commonMixinAggregates(rc *RecordCollection, exprs ...FieldName) []GroupAggregateRow {
-	return rc.Aggregates(exprs...)
 }
 
 // Limit returns a new RecordSet with only the first 'limit' records.

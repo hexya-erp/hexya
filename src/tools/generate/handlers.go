@@ -293,13 +293,25 @@ func filteredMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[
 
 // aggregatesMethodHandler returns the specific methodData for the Aggregates method.
 func aggregatesMethodHandler(astData *MethodASTData, modelData *modelData, _ *map[string]bool) {
+	returnString := fmt.Sprintf("[]%s.%sGroupAggregateRow", PoolInterfacesPackage, modelData.Name)
 	modelData.AllMethods = append(modelData.AllMethods, methodData{
 		Name:             "Aggregates",
-		ToDeclare:        astData.ToDeclare,
+		ToDeclare:        false,
 		ParamsTypes:      "...models.FieldName",
 		IParamsWithTypes: "fieldNames ...models.FieldName",
-		ReturnString:     fmt.Sprintf("[]%s.%sGroupAggregateRow", PoolInterfacesPackage, modelData.Name),
+		ReturnString:     returnString,
 		IReturnString:    fmt.Sprintf("[]%sGroupAggregateRow", modelData.Name),
+	})
+	modelData.Methods = append(modelData.Methods, methodData{
+		Name:           "Aggregates",
+		Doc:            "// Aggregates returns the result of this RecordSet query, which must by a grouped query.",
+		ToDeclare:      false,
+		Params:         "fieldNames",
+		ParamsWithType: "fieldNames ...models.FieldName",
+		ReturnAsserts:  fmt.Sprintf("resTyped, _ := res.(%s)", returnString),
+		Returns:        "resTyped",
+		ReturnString:   returnString,
+		Call:           "Call",
 	})
 }
 

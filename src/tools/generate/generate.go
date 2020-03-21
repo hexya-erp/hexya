@@ -129,6 +129,9 @@ func CreatePool(modules []*ModuleInfo, dir string) {
 	wg := sync.WaitGroup{}
 	wg.Add(len(modelsASTData))
 	for mName, mASTData := range modelsASTData {
+		for methToADD := range methodsToAdd {
+			mASTData.Methods[methToADD] = MethodASTData{}
+		}
 		go func(modelName string, modelASTData ModelASTData) {
 			depsMap := map[string]bool{ModelsPath: true}
 			mData := modelData{
