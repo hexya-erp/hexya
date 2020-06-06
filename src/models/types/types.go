@@ -323,6 +323,13 @@ func (c *Context) Scan(src interface{}) error {
 
 }
 
+// Update this context with the other
+func (c *Context) Update(other *Context) {
+	for k, v := range other.values {
+		*c = *c.WithKey(k, v)
+	}
+}
+
 var _ driver.Valuer = Context{}
 var _ sql.Scanner = &Context{}
 var _ xml.UnmarshalerAttr = &Context{}

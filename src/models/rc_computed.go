@@ -46,7 +46,7 @@ func (rc *RecordCollection) computeFieldValues(params *FieldMap, fields ...strin
 // processTriggers execute computed fields recomputation (for stored fields) or
 // invalidation (for non stored fields) based on the data of each fields 'Depends'
 // attribute.
-func (rc *RecordCollection) processTriggers(keys []FieldName) {
+func (rc *RecordCollection) processTriggers(keys FieldNames) {
 	if rc.Env().Context().GetBool("hexya_no_recompute_stored_fields") {
 		return
 	}
@@ -56,7 +56,7 @@ func (rc *RecordCollection) processTriggers(keys []FieldName) {
 // retrieveComputeData looks up fields that need to be recomputed when the given fields are modified.
 //
 // Returned value is an ordered slice of methods to apply on records
-func (rc *RecordCollection) retrieveComputeData(fields []FieldName) []recomputePair {
+func (rc *RecordCollection) retrieveComputeData(fields FieldNames) []recomputePair {
 	// Find record fields to update from the modified fields
 	var (
 		toUpdateKeys []string

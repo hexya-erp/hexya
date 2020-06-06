@@ -36,6 +36,7 @@ type ActionType string
 const (
 	ActionActWindow   ActionType = "ir.actions.act_window"
 	ActionServer      ActionType = "ir.actions.server"
+	ActionReport      ActionType = "ir.actions.report"
 	ActionClient      ActionType = "ir.actions.client"
 	ActionCloseWindow ActionType = "ir.actions.act_window_close"
 )
@@ -54,8 +55,8 @@ var Registry *Collection
 
 // MakeActionRef creates an ActionRef from an action id
 func MakeActionRef(id string) ActionRef {
-	action := Registry.GetByXMLID(id)
-	if action == nil {
+	action, ok := Registry.GetByXMLID(id)
+	if !ok {
 		return ActionRef{}
 	}
 	return ActionRef{id, action.Name}
@@ -166,6 +167,9 @@ func NewCollection() *Collection {
 
 // Add adds the given action to our Collection
 func (ar *Collection) Add(a *Action) {
+	if bootstrapped {
+		log.Panic("You cannot add an action after bootstrap.")
+	}
 	ar.Lock()
 	defer ar.Unlock()
 	maxID := int64(1)
@@ -181,13 +185,15 @@ func (ar *Collection) Add(a *Action) {
 }
 
 // GetByXMLID returns the Action with the given xmlid
-func (ar *Collection) GetByXMLID(id string) *Action {
-	return ar.actions[id]
+func (ar *Collection) GetByXMLID(id string) (*Action, bool) {
+	a, ok := ar.actions[id]
+	return a, ok
 }
 
-// GetById returns the Action with the given id
-func (ar *Collection) GetById(id int64) *Action {
-	return ar.actionsByID[id]
+// GetByID returns the Action with the given id
+func (ar *Collection) GetByID(id int64) (*Action, bool) {
+	a, ok := ar.actionsByID[id]
+	return a, ok
 }
 
 // GetAll returns a list of all actions of this Collection.
@@ -205,7 +211,7 @@ func (ar *Collection) GetAll() []*Action {
 // MustGetByXMLID returns the Action with the given xmlid
 // It panics if the id is not found in the action registry
 func (ar *Collection) MustGetByXMLID(id string) *Action {
-	action, ok := ar.actions[id]
+	action, ok := ar.GetByXMLID(id)
 	if !ok {
 		log.Panic("Action does not exist", "action_id", id)
 	}
@@ -215,7 +221,7 @@ func (ar *Collection) MustGetByXMLID(id string) *Action {
 // MustGetById returns the Action with the given id
 // It panics if the id is not found in the action registry
 func (ar *Collection) MustGetById(id int64) *Action {
-	action, ok := ar.actionsByID[id]
+	action, ok := ar.GetByID(id)
 	if !ok {
 		log.Panic("Action does not exist", "action_id", id)
 	}
@@ -279,6 +285,10 @@ type Action struct {
 	Context      *types.Context         `json:"context" xml:"context,attr"`
 	Flags        map[string]interface{} `json:"flags"`
 	Tag          string                 `json:"tag"`
+	ReportName   string                 `json:"report_name"`
+	ReportType   string                 `json:"report_type"`
+	ReportFile   string                 `json:"report_file"`
+	Data         map[string]interface{} `json:"data"`
 	names        map[string]string
 }
 

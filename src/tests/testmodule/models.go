@@ -208,14 +208,14 @@ var fields_Tag = map[string]models.FieldDefinition{
 }
 
 func tag_CheckNameDescription(rs m.TagSet) {
-	if rs.Rate() < 0 || rs.Rate() > 10 {
-		log.Panic("Tag rate must be between 0 and 10")
+	if rs.Name() == rs.Description() {
+		log.Panic("Tag name and description must be different")
 	}
 }
 
 func tag_CheckRate(rs m.TagSet) {
-	if rs.Name() == rs.Description() {
-		log.Panic("Tag name and description must be different")
+	if rs.Rate() < 0 || rs.Rate() > 10 {
+		log.Panic("Tag rate must be between 0 and 10")
 	}
 }
 

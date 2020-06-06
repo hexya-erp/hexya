@@ -120,7 +120,7 @@ func (fc *FieldsCollection) storedFieldNames(fieldNames ...FieldName) []FieldNam
 }
 
 // allFieldNames returns a slice with the name of all field's JSON names of this collection
-func (fc *FieldsCollection) allFieldNames() []FieldName {
+func (fc *FieldsCollection) allFieldNames() FieldNames {
 	res := make([]FieldName, len(fc.registryByJSON))
 	var i int
 	for f := range fc.registryByName {
