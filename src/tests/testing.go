@@ -115,6 +115,7 @@ func InitializeTests(moduleName string) {
 	models.BootStrap()
 	resourceDir, _ := filepath.Abs(filepath.Join(".", "res"))
 	server.ResourceDir = resourceDir
+	server.LoadInternalResources(resourceDir)
 	if !dbExists || !keepDB {
 		fmt.Println("Upgrading schemas in database", dbName)
 		models.SyncDatabase()
@@ -122,7 +123,6 @@ func InitializeTests(moduleName string) {
 		server.LoadDataRecords(resourceDir)
 		server.LoadDemoRecords(resourceDir)
 	}
-	server.LoadInternalResources(resourceDir)
 	views.BootStrap()
 	templates.BootStrap()
 	actions.BootStrap()

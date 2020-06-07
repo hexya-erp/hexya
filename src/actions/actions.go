@@ -35,6 +35,7 @@ type ActionType string
 // Action types
 const (
 	ActionActWindow   ActionType = "ir.actions.act_window"
+	ActionURL         ActionType = "ir.actions.act_url"
 	ActionServer      ActionType = "ir.actions.server"
 	ActionReport      ActionType = "ir.actions.report"
 	ActionClient      ActionType = "ir.actions.client"
