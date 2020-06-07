@@ -335,6 +335,11 @@ func (m *Model) Fields() *FieldsCollection {
 	return m.fields
 }
 
+// FieldNames returns the slice of all field's names for this model
+func (m *Model) FieldNames() FieldNames {
+	return m.fields.allFieldNames()
+}
+
 // Methods returns the methods collection of this model
 func (m *Model) Methods() *MethodsCollection {
 	return m.methods

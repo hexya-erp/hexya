@@ -675,6 +675,7 @@ func declareModelMixin() {
 		unique:      true,
 		index:       true,
 		required:    true,
+		readOnly:    true,
 		defaultFunc: func(env Environment) interface{} {
 			return uuid.New().String()
 		},

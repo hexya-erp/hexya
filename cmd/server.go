@@ -27,6 +27,7 @@ import (
 	"github.com/hexya-erp/hexya/src/i18n"
 	"github.com/hexya-erp/hexya/src/menus"
 	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/reports"
 	"github.com/hexya-erp/hexya/src/server"
 	"github.com/hexya-erp/hexya/src/templates"
 	"github.com/hexya-erp/hexya/src/tools/logging"
@@ -86,6 +87,7 @@ func StartServer() {
 	views.BootStrap()
 	templates.BootStrap()
 	actions.BootStrap()
+	reports.BootStrap()
 	controllers.BootStrap()
 	menus.BootStrap()
 	server.PostInit()

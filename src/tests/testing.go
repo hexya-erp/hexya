@@ -13,6 +13,7 @@ import (
 	"github.com/hexya-erp/hexya/src/controllers"
 	"github.com/hexya-erp/hexya/src/menus"
 	"github.com/hexya-erp/hexya/src/models"
+	"github.com/hexya-erp/hexya/src/reports"
 	"github.com/hexya-erp/hexya/src/server"
 	"github.com/hexya-erp/hexya/src/templates"
 	"github.com/hexya-erp/hexya/src/tools/logging"
@@ -125,6 +126,7 @@ func InitializeTests(moduleName string) {
 	views.BootStrap()
 	templates.BootStrap()
 	actions.BootStrap()
+	reports.BootStrap()
 	controllers.BootStrap()
 	menus.BootStrap()
 	server.PostInit()

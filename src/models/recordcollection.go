@@ -184,7 +184,7 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	// compute stored fields
 	rSet.processInverseMethods(data)
 	rSet.processTriggers(fMap.FieldNames(rSet.model))
-	rSet.CheckConstraints()
+	rSet.CheckConstraints(data.Underlying().FieldNames())
 	return rSet
 }
 
@@ -334,21 +334,19 @@ func (rc *RecordCollection) addContextsFieldsValues(fMap FieldMap) FieldMap {
 }
 
 // CheckConstraints executes the constraint method for each field defined
-// in the given fMap with the corresponding value.
+// in the given FieldNames.
 // Each method is only executed once, even if it is called by several fields.
 // It panics as soon as one constraint fails.
-func (rc *RecordCollection) CheckConstraints() {
+func (rc *RecordCollection) CheckConstraints(fields FieldNames) {
 	if rc.env.context.GetBool("hexya_skip_check_constraints") {
 		return
 	}
 	methods := make(map[string]bool)
-	for _, fi := range rc.model.fields.registryByJSON {
+	for _, f := range fields {
+		fi := rc.model.fields.MustGet(f.JSON())
 		if fi.constraint != "" {
 			methods[fi.constraint] = true
 		}
-	}
-	if len(methods) == 0 {
-		return
 	}
 	for method := range methods {
 		for _, rec := range rc.Records() {
@@ -399,7 +397,7 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	rSet.createReverseRelationRecords(data)
 	// compute stored fields
 	rSet.processTriggers(fMap.FieldNames(rSet.model))
-	rSet.CheckConstraints()
+	rSet.CheckConstraints(data.Underlying().FieldNames())
 	return true
 }
 

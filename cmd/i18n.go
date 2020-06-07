@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/hexya-erp/hexya/src/tools/generate"
 	"github.com/spf13/cobra"
+	"golang.org/x/tools/go/packages"
 )
 
 const startFileNameI18n = "i18nUpdate.go"
@@ -44,13 +44,18 @@ in the i18n directory of the module.`,
 
 // generateAndUpdatePOFile creates the startup file of the translation update and runs it.
 func generateAndUpdatePOFiles(moduleDir string, langs []string, tmpl *template.Template) {
+	testEnabled = true
+	runGenerate(moduleDir)
 	fmt.Println("Please wait, Hexya is starting ...")
 	moduleDir, _ = filepath.Abs(moduleDir)
-	importPack, err := build.ImportDir(moduleDir, 0)
+	loadConf := packages.Config{
+		Mode: packages.NeedName,
+	}
+	packs, err := packages.Load(&loadConf, moduleDir)
 	if err != nil {
 		panic(err)
 	}
-	modulePath := importPack.ImportPath
+	modulePath := packs[0].PkgPath
 	conf := make(map[string]interface{})
 	conf["moduleDir"] = moduleDir
 	conf["modulePath"] = modulePath

@@ -8,12 +8,18 @@ import (
 	"github.com/hexya-erp/hexya/src/tools/logging"
 )
 
-var log logging.Logger
+var (
+	log          logging.Logger
+	bootstrapped bool
+)
 
 // BootStrap actions.
 // This function must be called prior to any access to the actions Registry.
 func BootStrap() {
-	for _, a := range Registry.actions {
+	if bootstrapped {
+		log.Panic("Actions are already bootstrapped.")
+	}
+	for _, a := range Registry.GetAll() {
 		a.Sanitize()
 		// Populate translations
 		if a.names == nil {
@@ -24,6 +30,7 @@ func BootStrap() {
 			a.names[lang] = nameTrans
 		}
 	}
+	bootstrapped = true
 }
 
 func init() {

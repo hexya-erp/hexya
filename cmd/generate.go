@@ -151,7 +151,8 @@ func createSymlinks(modules []*generate.ModuleInfo, projectDir string) {
 
 func loadProgram(targetPaths []string) ([]*packages.Package, error) {
 	conf := packages.Config{
-		Mode: packages.LoadAllSyntax,
+		Mode: packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedTypesSizes |
+			packages.NeedImports | packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles,
 	}
 	packs, err := packages.Load(&conf, targetPaths...)
 	return packs, err
