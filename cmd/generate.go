@@ -91,7 +91,7 @@ func runGenerate(projectDir string) {
 	fmt.Println(" -", strings.Join(targetPaths, "\n - "))
 
 	fmt.Print(`1/5 - Loading program...`)
-	packs, err := loadProgram(targetPaths)
+	packs, err := loadProgram(targetPaths, testEnabled)
 	if err != nil {
 		panic(err)
 	}
@@ -107,7 +107,7 @@ func runGenerate(projectDir string) {
 	fmt.Println("Ok")
 
 	fmt.Print("4/5 - Checking the generated code...")
-	_, err = loadProgram(targetPaths)
+	_, err = loadProgram(targetPaths, testEnabled)
 	if err != nil {
 		fmt.Println("FAIL")
 		fmt.Println(err)
@@ -149,10 +149,11 @@ func createSymlinks(modules []*generate.ModuleInfo, projectDir string) {
 	}
 }
 
-func loadProgram(targetPaths []string) ([]*packages.Package, error) {
+func loadProgram(targetPaths []string, tests bool) ([]*packages.Package, error) {
 	conf := packages.Config{
 		Mode: packages.NeedDeps | packages.NeedSyntax | packages.NeedTypesInfo | packages.NeedTypes | packages.NeedTypesSizes |
 			packages.NeedImports | packages.NeedName | packages.NeedFiles | packages.NeedCompiledGoFiles,
+		Tests: tests,
 	}
 	packs, err := packages.Load(&conf, targetPaths...)
 	return packs, err
