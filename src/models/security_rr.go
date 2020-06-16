@@ -50,7 +50,7 @@ func (rrr *recordRuleRegistry) addRule(rule *RecordRule) {
 	if rule.Global {
 		rrr.globalRules[rule.Name] = rule
 	} else {
-		rrr.rulesByGroup[rule.Group.Name] = append(rrr.rulesByGroup[rule.Group.Name], rule)
+		rrr.rulesByGroup[rule.Group.ID()] = append(rrr.rulesByGroup[rule.Group.ID()], rule)
 	}
 }
 
@@ -68,16 +68,16 @@ func (rrr *recordRuleRegistry) removeRule(name string) {
 	if rule.Global {
 		delete(rrr.globalRules, name)
 	} else {
-		newRuleSlice := make([]*RecordRule, len(rrr.rulesByGroup[rule.Group.Name])-1)
+		newRuleSlice := make([]*RecordRule, len(rrr.rulesByGroup[rule.Group.ID()])-1)
 		i := 0
-		for _, r := range rrr.rulesByGroup[rule.Group.Name] {
+		for _, r := range rrr.rulesByGroup[rule.Group.ID()] {
 			if r.Name == rule.Name {
 				continue
 			}
 			newRuleSlice[i] = r
 			i++
 		}
-		rrr.rulesByGroup[rule.Group.Name] = newRuleSlice
+		rrr.rulesByGroup[rule.Group.ID()] = newRuleSlice
 	}
 }
 

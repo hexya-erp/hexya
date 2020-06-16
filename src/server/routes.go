@@ -5,7 +5,7 @@ package server
 
 import "github.com/gin-gonic/gin"
 
-//A HandlerFunc is a function that can be used for handling a given request or as a middleware
+// A HandlerFunc is a function that can be used for handling a given request or as a middleware
 type HandlerFunc func(*Context)
 
 // RouterGroup is used internally to configure router, a RouterGroup is associated with a prefix

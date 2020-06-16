@@ -53,14 +53,38 @@ type InheritanceInfo int8
 // - A user can belong to one or several groups, and thus inherit from the
 // permissions of the groups.
 type Group struct {
-	ID       string
-	Name     string
-	Inherits []*Group
+	id       string
+	name     string
+	inherits map[*Group]bool
 }
 
 // String function for group
-func (g Group) String() string {
-	return fmt.Sprintf("Group(%s)", g.ID)
+func (g *Group) String() string {
+	return fmt.Sprintf("Group(%s)", g.id)
+}
+
+// ID returns the internal code (ID) of the group
+func (g *Group) ID() string {
+	return g.id
+}
+
+// Name returns the human readable description of the group
+func (g *Group) Name() string {
+	return g.name
+}
+
+// ImpliedGroups returns a slice of all Groups implied by this Group
+func (g *Group) ImpliedGroups() []*Group {
+	var res []*Group
+	for group := range g.inherits {
+		res = append(res, group)
+	}
+	return res
+}
+
+// Implies returns true if this Group implies other Group.
+func (g *Group) Implies(other *Group) bool {
+	return g.inherits[other]
 }
 
 // A GroupCollection keeps a list of groups
@@ -74,10 +98,14 @@ type GroupCollection struct {
 // and registers it in this GroupCollection. It returns a pointer to the newly
 // created group.
 func (gc *GroupCollection) NewGroup(ID, name string, inherits ...*Group) *Group {
+	inhMap := make(map[*Group]bool)
+	for _, inh := range inherits {
+		inhMap[inh] = true
+	}
 	grp := &Group{
-		ID:       ID,
-		Name:     name,
-		Inherits: inherits,
+		id:       ID,
+		name:     name,
+		inherits: inhMap,
 	}
 	gc.RegisterGroup(grp)
 	return grp
@@ -88,16 +116,19 @@ func (gc *GroupCollection) NewGroup(ID, name string, inherits ...*Group) *Group 
 func (gc *GroupCollection) RegisterGroup(group *Group) {
 	gc.Lock()
 	defer gc.Unlock()
-	if _, exists := gc.groups[group.ID]; exists {
-		log.Panic("Trying register a new group with an existing ID", "ID", group.ID)
+	if _, exists := gc.groups[group.ID()]; exists {
+		log.Panic("Trying register a new group with an existing ID", "ID", group.ID())
 	}
-	gc.groups[group.ID] = group
+	gc.groups[group.ID()] = group
 }
 
 // inheritedBy recursively populates the result slice for the
 // with the group's parents
 func (gc *GroupCollection) inheritedBy(group *Group, result *[]*Group) {
-	for _, parent := range group.Inherits {
+	for parent, ok := range group.inherits {
+		if !ok {
+			continue
+		}
 		*result = append(*result, parent)
 		gc.inheritedBy(parent, result)
 	}
@@ -106,16 +137,8 @@ func (gc *GroupCollection) inheritedBy(group *Group, result *[]*Group) {
 // UnregisterGroup removes the group with the given ID from this GroupCollection
 func (gc *GroupCollection) UnregisterGroup(group *Group) {
 	// remove links from inheriting groups
-	for id, grp := range gc.groups {
-		for i, iGrp := range grp.Inherits {
-			if iGrp.ID == group.ID {
-				// memory safe delete
-				copy(gc.groups[id].Inherits[i:], gc.groups[id].Inherits[i+1:])
-				length := len(gc.groups[id].Inherits)
-				gc.groups[id].Inherits[length-1] = nil
-				gc.groups[id].Inherits = gc.groups[id].Inherits[:length-1]
-			}
-		}
+	for _, grp := range gc.groups {
+		delete(grp.inherits, group)
 	}
 	// remove memberships
 	for uid := range gc.memberships {
@@ -124,7 +147,7 @@ func (gc *GroupCollection) UnregisterGroup(group *Group) {
 	// Remove the group itself
 	gc.Lock()
 	defer gc.Unlock()
-	delete(gc.groups, group.ID)
+	delete(gc.groups, group.ID())
 }
 
 // GetGroup returns the group with the given groupID or nil if not found
@@ -178,7 +201,7 @@ func (gc *GroupCollection) doRemoveMembership(uid int64, group *Group) {
 	// Remove our group
 	delete(gc.memberships[uid], group)
 	// Remove all inherited groups
-	for _, grp := range group.Inherits {
+	for _, grp := range group.ImpliedGroups() {
 		if gc.memberships[uid][grp] == InheritedGroup {
 			delete(gc.memberships[uid], grp)
 		}
