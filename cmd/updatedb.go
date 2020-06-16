@@ -39,6 +39,7 @@ func UpdateDB() {
 		log.Panic("Unable to find Resource directory", "error", err)
 	}
 	server.ResourceDir = resourceDir
+	server.LoadInternalResources(resourceDir)
 	server.LoadDataRecords(resourceDir)
 	if viper.GetBool("Demo") {
 		log.Info("Demo mode detected: loading demo data")

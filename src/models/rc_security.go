@@ -33,7 +33,7 @@ func (rc *RecordCollection) addRecordRuleConditions(uid int64, perm security.Per
 	userGroups := security.Registry.UserGroups(uid)
 	groupCondition := newCondition()
 	for group := range userGroups {
-		for _, rule := range rSet.model.rulesRegistry.rulesByGroup[group.Name] {
+		for _, rule := range rSet.model.rulesRegistry.rulesByGroup[group.ID()] {
 			if perm&rule.Perms > 0 {
 				groupCondition = groupCondition.OrCond(rule.Condition)
 			}

@@ -28,11 +28,37 @@ func TestGroupRegistry(t *testing.T) {
 	group4 := Registry.NewGroup("group4_test", "Group 4", group3)
 	group5 := Registry.NewGroup("group5_test", "Group 5", group1)
 	Convey("Testing Group Registry", t, func() {
+		Convey("Testing basic access methods", func() {
+			So(group1.ID(), ShouldEqual, "group1_test")
+			So(group2.Name(), ShouldEqual, "Group 2")
+			So(group3.String(), ShouldEqual, "Group(group3_test)")
+			So(group3.Implies(group1), ShouldBeTrue)
+			So(group1.Implies(group3), ShouldBeFalse)
+			So(group4.ImpliedGroups(), ShouldHaveLength, 1)
+			So(group4.ImpliedGroups(), ShouldContain, group3)
+			So(Registry.GetGroup("group4_test"), ShouldEqual, group4)
+			allGroups := Registry.AllGroups()
+			So(allGroups, ShouldHaveLength, 7)
+			So(allGroups, ShouldContain, GroupAdmin)
+			So(allGroups, ShouldContain, GroupEveryone)
+			So(allGroups, ShouldContain, group1)
+			So(allGroups, ShouldContain, group4)
+		})
+		Convey("Registering an existing group should fail", func() {
+			So(func() { Registry.NewGroup("group1_test", "Group 1 again") }, ShouldPanic)
+		})
+		Convey("Testing HasMembership function", func() {
+			Registry.AddMembership(2, group1)
+			So(Registry.HasMembership(2, group1), ShouldBeTrue)
+			So(Registry.HasMembership(2, GroupEveryone), ShouldBeTrue)
+			Registry.RemoveAllMembershipsForUser(2)
+		})
 		Convey("Members of a group should be member of parent groups", func() {
 			Registry.AddMembership(2, group1)
 			So(Registry.UserGroups(2), ShouldHaveLength, 2)
 			So(Registry.UserGroups(2), ShouldContainKey, group1)
 			So(Registry.UserGroups(2), ShouldContainKey, GroupEveryone)
+			So(Registry.HasMembership(2, group1), ShouldBeTrue)
 
 			Registry.AddMembership(3, group2)
 			So(Registry.UserGroups(3), ShouldHaveLength, 2)
@@ -61,8 +87,8 @@ func TestGroupRegistry(t *testing.T) {
 		Convey("Removing a group should remove all memberships (incl. inherited)", func() {
 			Registry.UnregisterGroup(group3)
 
-			So(Registry.groups, ShouldNotContainKey, group3.ID)
-			So(group4.Inherits, ShouldBeEmpty)
+			So(Registry.groups, ShouldNotContainKey, group3.ID())
+			So(group4.ImpliedGroups(), ShouldBeEmpty)
 
 			So(len(Registry.UserGroups(2)), ShouldEqual, 2)
 			So(Registry.UserGroups(2), ShouldContainKey, group1)
@@ -100,7 +126,7 @@ func TestGroupRegistry(t *testing.T) {
 		Convey("Removing inherited membership should not change anything", func() {
 			// Recreating group 3
 			group3 = Registry.NewGroup("group3_test", "Group 3", group1)
-			group4.Inherits = []*Group{group3}
+			group4.inherits[group3] = true
 
 			Registry.AddMembership(6, group5)
 			Registry.AddMembership(6, group4)
@@ -137,7 +163,7 @@ func TestGroupRegistry(t *testing.T) {
 
 type simpleAuthBackend struct{}
 
-func (a simpleAuthBackend) Authenticate(login, secret string, ctx *types.Context) (int64, error) {
+func (a simpleAuthBackend) Authenticate(login, secret string, _ *types.Context) (int64, error) {
 	if login != "admin" {
 		return 0, UserNotFoundError("admin")
 	}

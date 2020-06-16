@@ -241,9 +241,9 @@ func commonMixinFieldsGet(rc *RecordCollection, args FieldsGetArgs) map[string]*
 	// Translate attributes when required
 	lang := rc.Env().Context().GetString("lang")
 	for fName, fInfo := range res {
-		res[fName].Help = i18n.Registry.TranslateFieldHelp(lang, rc.model.name, fName, fInfo.Help)
-		res[fName].String = i18n.Registry.TranslateFieldDescription(lang, rc.model.name, fName, fInfo.String)
-		res[fName].Selection = i18n.Registry.TranslateFieldSelection(lang, rc.model.name, fName, fInfo.Selection)
+		res[fName].Help = i18n.Registry.TranslateFieldHelp(lang, rc.model.name, fInfo.Name, fInfo.Help)
+		res[fName].String = i18n.Registry.TranslateFieldDescription(lang, rc.model.name, fInfo.Name, fInfo.String)
+		res[fName].Selection = i18n.Registry.TranslateFieldSelection(lang, rc.model.name, fInfo.Name, fInfo.Selection)
 	}
 	return res
 }
@@ -730,6 +730,7 @@ type FieldInfo struct {
 	ReadOnlyFunc     func(Environment) (bool, Conditioner) `json:"-"`
 	RequiredFunc     func(Environment) (bool, Conditioner) `json:"-"`
 	InvisibleFunc    func(Environment) (bool, Conditioner) `json:"-"`
+	DefaultFunc      func(Environment) interface{}         `json:"-"`
 	GoType           reflect.Type                          `json:"-"`
 	Index            bool                                  `json:"-"`
 }
