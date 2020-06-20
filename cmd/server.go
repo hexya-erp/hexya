@@ -123,7 +123,8 @@ func setupDebug() {
 
 // connectToDB creates the connection to the database
 func connectToDB() {
-	models.DBConnect(viper.GetString("DB.Driver"), models.ConnectionParams{
+	models.DBConnect(models.ConnectionParams{
+		Driver:   viper.GetString("DB.Driver"),
 		Host:     viper.GetString("DB.Host"),
 		Port:     viper.GetString("DB.Port"),
 		User:     viper.GetString("DB.User"),

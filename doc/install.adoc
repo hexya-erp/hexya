@@ -15,7 +15,7 @@ downloading the source code, setting up your configuration and compile Hexya.
 First of all, you need to install the Go SDK. Follow the instructions on the
 Go website to install on your platform: https://golang.org/dl/ .
 
-**Hexya requires Go version 1.11 at least, as it uses Go modules**
+**Hexya requires Go version 1.13 at least**
 
 Then define your Go workspace directory.
 This defaults to `$HOME/go`.
@@ -32,12 +32,12 @@ Do **NOT** explicitly download or work inside the Go Workspace.
 
 === Install lessc
 
-Hexya needs the less compiler `lessc` to be installed.
+Hexya needs the scss compiler `sass` to be installed.
 
 If you have `npm`, you can use:
 
 ```
-$ npm install -g less
+$ npm install -g sass
 ```
 
 On Debian/Ubuntu you can alternately run:

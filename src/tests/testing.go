@@ -106,7 +106,8 @@ func InitializeTests(moduleName string) {
 	db.Close()
 
 	server.PreInit()
-	models.DBConnect(driver, models.ConnectionParams{
+	models.DBConnect(models.ConnectionParams{
+		Driver:   driver,
 		DBName:   dbName,
 		User:     user,
 		Password: password,
