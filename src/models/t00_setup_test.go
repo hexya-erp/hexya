@@ -77,7 +77,8 @@ func initializeTests() {
 	admDB.MustExec(fmt.Sprintf("CREATE DATABASE %s", dbArgs.DB))
 	admDB.Close()
 
-	DBConnect(dbArgs.Driver, ConnectionParams{
+	DBConnect(ConnectionParams{
+		Driver:   dbArgs.Driver,
 		DBName:   dbArgs.DB,
 		User:     dbArgs.User,
 		Password: dbArgs.Password,

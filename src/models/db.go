@@ -24,12 +24,14 @@ import (
 )
 
 var (
-	db       *sqlx.DB
-	adapters map[string]dbAdapter
+	db         *sqlx.DB
+	connParams ConnectionParams
+	adapters   map[string]dbAdapter
 )
 
 // ConnectionParams are the database agnostic parameters to connect to the database
 type ConnectionParams struct {
+	Driver   string
 	Host     string
 	Port     string
 	User     string
@@ -39,6 +41,12 @@ type ConnectionParams struct {
 	SSLCert  string
 	SSLKey   string
 	SSLCA    string
+}
+
+// ConnectionString returns the connection string for these connection params
+func (cp ConnectionParams) ConnectionString() string {
+	adapter := adapters[cp.Driver]
+	return adapter.connectionString(cp)
 }
 
 // A ColumnData holds information from the db schema about one column
@@ -145,12 +153,17 @@ func newCursor(db *sqlx.DB) *Cursor {
 	}
 }
 
+// DBParams returns the DB connection parameters currently in use
+func DBParams() ConnectionParams {
+	return connParams
+}
+
 // DBConnect connects to a database using the given driver and arguments.
-func DBConnect(driver string, params ConnectionParams) {
-	adapter := adapters[driver]
-	connData := adapter.connectionString(params)
-	db = sqlx.MustConnect(driver, connData)
-	log.Info("Connected to database", "driver", driver, "connData", connData)
+func DBConnect(params ConnectionParams) {
+	connParams = params
+	connStr := DBParams().ConnectionString()
+	db = sqlx.MustConnect(params.Driver, connStr)
+	log.Info("Connected to database", "driver", params.Driver, "connStr", connStr)
 }
 
 // DBClose is a wrapper around sqlx.Close
