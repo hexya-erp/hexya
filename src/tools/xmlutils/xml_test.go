@@ -58,6 +58,10 @@ var (
 	</group>
 </form>
 `
+	baseTemplate = `
+	<script type="text/javascript" src="/path/to/my/src.js"> </script>
+	<script type="text/javascript" src="/path/to/my/other/src.js"> </script>
+`
 	specs = `
 <group name="position_info" position="inside">
 	<field name="CompanyName"/>
@@ -79,6 +83,11 @@ var (
 	<attribute name="string">Address</attribute>
 </xpath>
 `
+	templateAppendSpec = `
+<xpath expr="." position="inside">
+	<script type="text/javascript" src="/path/to/third/src.js"> </script>
+</xpath>
+`
 	notASpec = `
 <foo>
 	Bar
@@ -98,13 +107,13 @@ var (
 
 func TestApplyExtensions(t *testing.T) {
 	Convey("Testing ApplyExtensions", t, func() {
-		baseElem, _ := XMLToElement(baseXML)
+		baseElem, _ := XMLToDocument(baseXML)
 		specDoc := etree.NewDocument()
 		Convey("Correct XML Extension spec", func() {
 			specDoc.ReadFromString(specs)
 			res, err := ApplyExtensions(baseElem, specDoc)
 			So(err, ShouldBeNil)
-			xml, _ := ElementToXML(res)
+			xml, _ := DocumentToXML(res)
 			So(string(xml), ShouldEqual, `<form>
 	<h2>
 		<field name="Name"/>
@@ -122,6 +131,18 @@ func TestApplyExtensions(t *testing.T) {
 		<field name="Phone"/>
 	</group>
 </form>
+`)
+		})
+		Convey("Template spec", func() {
+			baseTmplDoc, _ := XMLToDocument(baseTemplate)
+			specDoc.ReadFromString(templateAppendSpec)
+			res, err := ApplyExtensions(baseTmplDoc, specDoc)
+			So(err, ShouldBeNil)
+			xml, _ := DocumentToXMLNoIndent(res)
+			So(string(xml), ShouldEqual, `
+	<script type="text/javascript" src="/path/to/my/src.js"> </script>
+	<script type="text/javascript" src="/path/to/my/other/src.js"> </script>
+	<script type="text/javascript" src="/path/to/third/src.js"> </script>
 `)
 		})
 		Convey("XML which is not a spec should fail", func() {

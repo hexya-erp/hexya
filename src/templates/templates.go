@@ -114,7 +114,7 @@ func (t *Template) updateFromXML(templateXML *TemplateXML) {
 	if err != nil {
 		log.Panic("Unable to read inheritance specs", "error", err, "arch", string(templateXML.Content))
 	}
-	content, err := xmlutils.XMLToElement(string(t.hWebContent))
+	content, err := xmlutils.XMLToDocument(string(t.hWebContent))
 	if err != nil {
 		log.Panic("Error while reading base template content", "error", err, "template", t.ID, "content", string(t.hWebContent))
 	}
@@ -123,7 +123,7 @@ func (t *Template) updateFromXML(templateXML *TemplateXML) {
 		log.Panic("Error while applying template extension specs", "error", err, "specTmpl", templateXML.ID,
 			"specs", string(templateXML.Content), "template", t.ID, "content", string(t.hWebContent))
 	}
-	ncs, err := xmlutils.ElementToXMLNoIndent(newContent)
+	ncs, err := xmlutils.DocumentToXMLNoIndent(newContent)
 	if err != nil {
 		log.Panic("Error while converting back to XML", "error", err, "content", newContent,
 			"specTmpl", templateXML.ID, "template", t.ID)

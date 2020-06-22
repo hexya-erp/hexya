@@ -20,6 +20,28 @@ import (
 	"github.com/beevik/etree"
 )
 
+// DocumentToXML returns the XML bytes of the given document
+func DocumentToXML(doc *etree.Document) ([]byte, error) {
+	doc.IndentTabs()
+	xml, err := doc.WriteToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal document: %s", err)
+	}
+	return xml, nil
+}
+
+// DocumentToXMLNoIndent returns the XML bytes of the given document
+// without indenting the result.
+//
+// Use this function when the XML is HTML that needs to keep <tag></tag> syntax
+func DocumentToXMLNoIndent(doc *etree.Document) ([]byte, error) {
+	xml, err := doc.WriteToBytes()
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal document: %s", err)
+	}
+	return xml, nil
+}
+
 // ElementToXML returns the XML bytes of the given element and
 // all its children.
 func ElementToXML(element *etree.Element) ([]byte, error) {
@@ -75,21 +97,6 @@ func NextSibling(token etree.Token) etree.Token {
 		}
 	}
 	return nil
-}
-
-// PreviousSibling returns the previous sibling of the given token.
-// If this is the first token of its parent, return this token.
-func PreviousSibling(token etree.Token) etree.Token {
-	var found bool
-	for i := len(token.Parent().Child) - 1; i >= 0; i-- {
-		if found {
-			return token.Parent().Child[i]
-		}
-		if token.Parent().Child[i] == token {
-			found = true
-		}
-	}
-	return token
 }
 
 // HasParentTag returns true if this element has at least

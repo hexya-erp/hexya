@@ -68,7 +68,7 @@ func BootStrap() {
 				arch:        baseView.arch,
 				Name:        baseView.Name,
 				Type:        baseView.Type,
-				arches:      make(map[string]*etree.Element),
+				arches:      make(map[string]*etree.Document),
 				FieldParent: baseView.FieldParent,
 			}
 			newView.updateViewFromXML(xmlView)
