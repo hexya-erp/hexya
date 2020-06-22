@@ -246,7 +246,7 @@ func (vc *Collection) GetFirstViewForModel(model string, viewType ViewType) *Vie
 // defaultViewForModel returns a default view for the given model and type
 func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View {
 	xmlStr := fmt.Sprintf(`<%s></%s>`, viewType, viewType)
-	arch, err := xmlutils.XMLToElement(xmlStr)
+	arch, err := xmlutils.XMLToDocument(xmlStr)
 	if err != nil {
 		log.Panic("unable to create default view", "error", err, "view", xmlStr)
 	}
@@ -255,11 +255,11 @@ func (vc *Collection) defaultViewForModel(model string, viewType ViewType) *View
 		Type:   viewType,
 		Fields: []string{},
 		arch:   arch,
-		arches: make(map[string]*etree.Element),
+		arches: make(map[string]*etree.Document),
 	}
 	if _, ok := models.Registry.MustGet(model).Fields().Get("name"); ok {
 		xmlStr = fmt.Sprintf(`<%s><field name="name"/></%s>`, viewType, viewType)
-		arch, err = xmlutils.XMLToElement(xmlStr)
+		arch, err = xmlutils.XMLToDocument(xmlStr)
 		if err != nil {
 			log.Panic("unable to create default view", "error", err, "view", xmlStr)
 		}
@@ -313,7 +313,7 @@ func (vc *Collection) createNewViewFromXML(viewXML *ViewXML) {
 		name = viewXML.Name
 	}
 
-	arch, err := xmlutils.XMLToElement(viewXML.Arch)
+	arch, err := xmlutils.XMLToDocument(viewXML.Arch)
 	if err != nil {
 		log.Panic("unable to create view from XML", "error", err, "view", viewXML.Arch)
 	}
@@ -325,7 +325,7 @@ func (vc *Collection) createNewViewFromXML(viewXML *ViewXML) {
 		arch:        arch,
 		FieldParent: viewXML.FieldParent,
 		SubViews:    make(map[string]SubViews),
-		arches:      make(map[string]*etree.Element),
+		arches:      make(map[string]*etree.Document),
 	}
 	vc.Add(&view)
 }
@@ -337,11 +337,11 @@ type View struct {
 	Model       string
 	Type        ViewType
 	Priority    uint8
-	arch        *etree.Element
+	arch        *etree.Document
 	FieldParent string
 	Fields      []string
 	SubViews    map[string]SubViews
-	arches      map[string]*etree.Element
+	arches      map[string]*etree.Document
 }
 
 // A SubViews is a holder for embedded views of a field
@@ -357,7 +357,7 @@ func (v *View) populateFieldNames() {
 
 // Arch returns the arch XML string of this view for the given language.
 // Call with empty string to get the default language's arch
-func (v *View) Arch(lang string) *etree.Element {
+func (v *View) Arch(lang string) *etree.Document {
 	res, ok := v.arches[lang]
 	if !ok || lang == "" {
 		res = v.arch
@@ -368,13 +368,13 @@ func (v *View) Arch(lang string) *etree.Element {
 // setViewType sets the Type field with the view type
 // scanned from arch
 func (v *View) setViewType() {
-	v.Type = ViewType(v.arch.Tag)
+	v.Type = ViewType(v.arch.Root().Tag)
 }
 
 // extractSubViews recursively scans arch for embedded views,
 // extract them from arch and add them to SubViews.
 func (v *View) extractSubViews(model *models.Model, fInfos map[string]*models.FieldInfo) {
-	archElem := xmlutils.CopyElement(v.arch)
+	archElem := v.arch.Copy()
 	fieldElems := archElem.FindElements("//field")
 	for _, f := range fieldElems {
 		if xmlutils.HasParentTag(f, "field") {
@@ -386,11 +386,13 @@ func (v *View) extractSubViews(model *models.Model, fInfos map[string]*models.Fi
 			if _, exists := v.SubViews[fieldName]; !exists {
 				v.SubViews[fieldName] = make(SubViews)
 			}
+			childDoc := etree.NewDocument()
+			childDoc.SetRoot(xmlutils.CopyElement(childElement))
 			childView := View{
 				ID:       fmt.Sprintf("%s_childview_%s_%d", v.ID, fieldName, i),
-				arch:     xmlutils.CopyElement(childElement),
+				arch:     childDoc,
 				SubViews: make(map[string]SubViews),
-				arches:   make(map[string]*etree.Element),
+				arches:   make(map[string]*etree.Document),
 				Model:    fInfos[model.JSONizeFieldName(fieldName)].Relation,
 			}
 			childView.postProcess()
@@ -475,7 +477,7 @@ func (v *View) SanitizeSearchView() {
 func (v *View) translateArch() {
 	labels := v.TranslatableStrings()
 	for _, lang := range i18n.Langs {
-		tArchElt := xmlutils.CopyElement(v.arch)
+		tArchElt := v.arch.Copy()
 		for _, label := range labels {
 			attrElts := tArchElt.FindElements(fmt.Sprintf("//[@%s]", label.Attribute))
 			for i, attrElt := range attrElts {

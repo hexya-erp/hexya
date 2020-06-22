@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/beevik/etree"
 )
@@ -61,41 +62,48 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte, error) {
 }
 
 // ApplyExtensions returns a copy of base with extension specs applied.
-func ApplyExtensions(base *etree.Element, specs *etree.Document) (*etree.Element, error) {
-	baseElem := CopyElement(base)
+func ApplyExtensions(base *etree.Document, specs *etree.Document) (*etree.Document, error) {
+	baseElem := base.Copy()
 	for _, spec := range specs.ChildElements() {
 		xpath, err := getInheritXPathFromSpec(spec)
 		if err != nil {
 			specBytes, _ := ElementToXML(spec)
 			return nil, fmt.Errorf("error in spec %s: %s", string(specBytes), err)
 		}
-		nodeToModify := baseElem.Parent().FindElement(xpath)
+		nodeToModify := baseElem.FindElement(xpath)
 		if nodeToModify == nil {
 			return nil, fmt.Errorf("node not found in parent view: %s", xpath)
 		}
-		nextNode := NextSibling(nodeToModify)
 		modifyAction := spec.SelectAttr("position")
 		if modifyAction == nil {
 			specBytes, _ := ElementToXML(spec)
 			return nil, fmt.Errorf("spec should include 'position' attribute : %s", string(specBytes))
 		}
+		specChild := spec.Copy().Child
+		if len(specChild) > 0 {
+			if sp0, ok := specChild[0].(*etree.CharData); ok && strings.HasPrefix(sp0.Data, "\n") {
+				// Remove first \n from spec if present
+				sp0.Data = strings.TrimPrefix(sp0.Data, "\n")
+			}
+		}
 		switch modifyAction.Value {
 		case "before":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nodeToModify, node)
+			for _ = range specChild {
+				nodeToModify.Parent().InsertChild(nodeToModify, specChild[0])
 			}
 		case "after":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nextNode, node)
+			nextNode := NextSibling(nodeToModify)
+			for _ = range specChild {
+				nodeToModify.Parent().InsertChild(nextNode, specChild[0])
 			}
 		case "replace":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.Parent().InsertChild(nodeToModify, node)
+			for _ = range specChild {
+				nodeToModify.Parent().InsertChild(nodeToModify, specChild[0])
 			}
 			nodeToModify.Parent().RemoveChild(nodeToModify)
 		case "inside":
-			for _, node := range spec.ChildElements() {
-				nodeToModify.AddChild(node)
+			for _ = range specChild {
+				nodeToModify.AddChild(specChild[0])
 			}
 		case "attributes":
 			for _, node := range spec.FindElements("./attribute") {
