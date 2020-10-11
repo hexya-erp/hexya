@@ -124,6 +124,7 @@ func newModelCollection() *modelCollection {
 // including fields and methods.
 type Model struct {
 	name            string
+	description     string
 	options         Option
 	rulesRegistry   *recordRuleRegistry
 	tableName       string
@@ -147,6 +148,16 @@ type sqlConstraint struct {
 // Name returns the name of this model
 func (m *Model) Name() string {
 	return m.name
+}
+
+// Description returns the name of this model as seen by the end user in the UI
+func (m *Model) Description() string {
+	return m.description
+}
+
+// SetDescription sets the name of this model as seen by the end user in the UI
+func (m *Model) SetDescription(description string) {
+	m.description = description
 }
 
 // getRelatedModelInfo returns the Model of the related model when

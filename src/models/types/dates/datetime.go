@@ -260,10 +260,3 @@ func (d DateTime) StartOfHour() DateTime {
 		Time: time.Date(d.Year(), d.Month(), d.Day(), d.Hour(), 0, 0, 0, d.Location()),
 	}
 }
-
-// SetUnix returns the DateTime corresponding to the given unix timestamp
-func (d DateTime) SetUnix(sec int64) DateTime {
-	return DateTime{
-		Time: time.Unix(sec, 0).In(d.Location()),
-	}
-}

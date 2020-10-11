@@ -45,6 +45,7 @@ const (
 	ViewTypeKanban   ViewType = "kanban"
 	ViewTypeSearch   ViewType = "search"
 	ViewTypeQWeb     ViewType = "qweb"
+	ViewTypeActivity ViewType = "activity"
 )
 
 // translatableAttributes is the list of XML attribute names the

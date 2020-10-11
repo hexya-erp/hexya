@@ -49,6 +49,7 @@ func BootStrap() {
 	Registry.Lock()
 	defer Registry.Unlock()
 
+	setDescriptions()
 	inflateMixIns()
 	createModelLinks()
 	inflateEmbeddings()
@@ -72,6 +73,16 @@ func BootStrap() {
 // BootStrapped returns true if the models have been bootstrapped
 func BootStrapped() bool {
 	return Registry.bootstrapped
+}
+
+// setDescriptions sets the description of the model equals to its name
+// if it is empty
+func setDescriptions() {
+	for _, model := range Registry.registryByName {
+		if model.description == "" {
+			model.description = model.name
+		}
+	}
 }
 
 // processUpdates applies all the directives of the update map to the fields

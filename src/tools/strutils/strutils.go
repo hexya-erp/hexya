@@ -22,6 +22,8 @@ import (
 	"unicode"
 
 	"github.com/hexya-erp/hexya/src/tools/logging"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 var log logging.Logger
@@ -157,4 +159,18 @@ func TrimArgs(args []interface{}) []string {
 		}
 	}
 	return argStr
+}
+
+// RemoveAccent replaces accented latin letters by ASCII equivalent
+func RemoveAccent(in string) string {
+	isMn := func(r rune) bool {
+		return unicode.Is(unicode.Mn, r)
+	}
+	res := make([]byte, len(in))
+	t := transform.Chain(norm.NFD, transform.RemoveFunc(isMn), norm.NFC)
+	_, _, e := t.Transform(res, []byte(in), true)
+	if e != nil {
+		panic(e)
+	}
+	return string(res)
 }

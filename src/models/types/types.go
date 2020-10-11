@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/logging"
@@ -248,6 +249,19 @@ func (c *Context) Pop(key string) interface{} {
 	val := c.Get(key)
 	c.Delete(key)
 	return val
+}
+
+// Cleaned returns a new context which is a copy of this one but in
+// which all keys with the given prefix are removed.
+func (c *Context) Cleaned(prefix string) *Context {
+	res := NewContext()
+	for k, v := range c.values {
+		if strings.HasPrefix(k, prefix) {
+			continue
+		}
+		res.values[k] = v
+	}
+	return res
 }
 
 // IsEmpty returns true if this Context has no entries.
