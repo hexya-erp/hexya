@@ -1,0 +1,36 @@
+= Contributing to the project
+Author John Mungai
+:prewrap!:
+:toc:
+:sectnums:
+
+== Introduction
+
+The contribution required for the project is mainly in regard to feature standardization. The set of targeted features are mostly to be as close as possible to Odoo framework.
+This will enable the team to reliably port all Odoo features into this project while maintaining the system in a workable state. The architecture followed will also be similar to Odoo framework, however deviations from this
+framework will be discussed in our developer channel (Refer design guidelines here [doc/design.adoc]).
+
+== Coding standard
+
+For the love of code, we will be following the (Google's coding standard for Golang [https://google.github.io/styleguide/go/]). This will enable the team make code decisions faster and without any friction.
+
+== Git
+
+=== Tags and commit messages
+Tags will be used to prefix your commit messages. Tags should be one of the following:
+
+. [FIX] for bug fixes: mostly used in stable version but also valid if you are fixing a recent bug in development version;
+. [REF] for refactoring: when a feature is heavily rewritten;
+. [ADD] for adding new modules;
+. [REM] for removing resources: removing dead code, removing views, removing modules, …;
+. [REV] for reverting commits: if a commit causes issues or is not wanted reverting it is done using this tag;
+. [MOV] for moving files: use git move and do not change content of moved file otherwise Git may lose track and history of the file; also used when moving code from one file to another;
+. [REL] for release commits: new major or minor stable versions;
+. [IMP] for improvements: most of the changes done in development version are incremental improvements not related to another tag;
+. [MERGE] for merge commits: used in forward port of bug fixes and main commit for a number of commits;
+. [I18N] for changes in translation files;
+. [DOC] for changes in project or module documentations;
+
+
+
+

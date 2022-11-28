@@ -246,3 +246,14 @@ And the rendered view will be :
     <field name="LoginDate"/>
 </tree>
 ```
+# Contributing
+
+If you wish to contribute to HEXYA project, you can:
+   1. Suggest an improvement via opening an issue in this repository or related project addons
+   2. Proposing a pull request for a feature or bug fix
+   3. Helping with the documentation of this project.
+   4. Any other action that may help improve the project further such as marketing campaigns, promoting adoption etc.
+
+For developers, we are always looking for developers to join our community and make the project feature rich. If you are interested in contributing to this project. You can join our [slack channel](https://join.slack.com/t/nuovaareadila-3id2004/shared_invite/zt-1kj6ncmas-TI4DTVaVvHfg1CFCoAm15Q). All issues and feature will be discussed here and approach or design issues addressed.
+
+In addition, you can check the [Design guidelines](doc/design.adoc) and [contribution guide](doc/contribution.adoc) for further information.
