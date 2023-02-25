@@ -32,7 +32,7 @@ require (
 	go.uber.org/multierr v1.4.0 // indirect
 	go.uber.org/zap v1.12.0
 	golang.org/x/crypto v0.0.0-20191107222254-f4817d981bb6
-	golang.org/x/sys v0.0.0-20191105231009-c1f44814a5cd // indirect
+	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/tools v0.0.0-20200606014950-c42cb6316fb6
 	gopkg.in/yaml.v2 v2.2.5 // indirect
 )
