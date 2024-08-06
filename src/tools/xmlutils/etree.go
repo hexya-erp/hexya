@@ -81,7 +81,10 @@ func XMLToDocument(xmlStr string) (*etree.Document, error) {
 // XMLToElement parses the given xml string and returns the root node
 func XMLToElement(xmlStr string) (*etree.Element, error) {
 	doc, err := XMLToDocument(xmlStr)
-	return doc.Root(), err
+	if err != nil {
+		return nil, err
+	}
+	return doc.Root(), nil
 }
 
 // NextSibling returns the next sibling of the given token or nil if this

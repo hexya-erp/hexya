@@ -351,6 +351,32 @@ func fixFieldValue(v interface{}, fi *Field) interface{} {
 	return v
 }
 
+// ReadDataValue retrieves the value of the field with the given name in the given model data.
+// T must be the type of value otherwise a null value for the type is returned.
+// Do not use for related fields: use ReadRelatedDataValue instead.
+//
+// This method is mainly used in generated code
+func ReadDataValue[T any](d *ModelData, fn FieldName) T {
+	val := d.Get(fn)
+	res, ok := val.(T)
+	if !ok || !d.Has(fn) {
+		return *new(T)
+	}
+	return res
+}
+
+// ReadRelatedDataValue retrieves the value of the related field with the given name in the given model data.
+// T must be the type of value otherwise a null value for the type is returned.
+//
+// This method is mainly used in generated code
+func ReadRelatedDataValue[T RecordSet](d *ModelData, fn FieldName) T {
+	val := d.Get(fn)
+	if !d.Has(fn) || val == nil || val == (*interface{})(nil) || d.Model.Name() != (*new(T)).ModelName() {
+		val = InvalidRecordCollection((*new(T)).ModelName())
+	}
+	return val.(RecordSet).Collection().Wrap().(T)
+}
+
 // NewModelData returns a pointer to a new instance of ModelData
 // for the given model. If FieldMaps are given they are added to
 // the ModelData.

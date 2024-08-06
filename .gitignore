@@ -8,6 +8,7 @@ hexya
 
 ## Directory-based project format:
 .idea/
+.junie/
 # if you remove the above rule, at least ignore the following:
 
 # User-specific stuff:
@@ -81,6 +82,7 @@ pool/
 /src/server/data/
 /src/server/demo/
 /coverage.txt
+/profile.out
 /xsd/
 /src/server/resources/
 /src/server/i18n/

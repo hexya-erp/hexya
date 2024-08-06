@@ -257,7 +257,7 @@ func TestViews(t *testing.T) {
 			"Address":     fields.Char{},
 		})
 		models.BootStrap()
-		models.Views[partner] = []string{`<view id="test_view" model="Partner"><tree><field name="Name"></tree></view>`}
+		models.Views[partner] = []string{`<view id="test_view" model="Partner"><tree><field name="Name"/></tree></view>`}
 	})
 	Convey("Setting two languages", t, func() {
 		i18n.Langs = []string{"fr", "de"}

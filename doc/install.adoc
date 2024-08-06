@@ -30,21 +30,20 @@ Because Hexya uses the new Go modules feature, the Go Workspace is only a techni
 Do **NOT** explicitly download or work inside the Go Workspace.
 ====
 
-=== Install lessc
+=== Install sass
 
 Hexya needs the scss compiler `sass` to be installed.
 
-If you have `npm`, you can use:
+You can download the dart-sass implementation at https://github.com/sass/dart-sass/releases and install according to https://katiek2.github.io/path-doc/
+
+Alternatively, if you have `npm` installed, you can install the JS implementation:
 
 ```
 $ npm install -g sass
 ```
 
-On Debian/Ubuntu you can alternately run:
 
-```
-$ sudo apt-get install node-less
-```
+See https://sass-lang.com/install/ for other install options.
 
 == Download
 

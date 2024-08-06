@@ -101,7 +101,7 @@ var (
 	</child1>
 </root>
 <r t-if="cond7" otherAttr="sth">Bonjour</r>
-<t t-else=""><p>Bye</p>`
+<t t-else=""><p>Bye</p></t>`
 	template31 = `
 <t t-elif="cond">Foo</t>`
 	template32 = `

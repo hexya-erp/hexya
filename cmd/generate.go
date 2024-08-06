@@ -276,6 +276,8 @@ var emptyPoolGoMod = template.Must(template.New("").Parse(`
 // DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
 
 module github.com/hexya-erp/pool
+
+go 1.22
 `))
 
 var startFileTemplate = template.Must(template.New("").Parse(`
