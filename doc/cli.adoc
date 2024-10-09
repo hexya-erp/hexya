@@ -1,0 +1,149 @@
+= Hexya CLI Documentation
+Author Damir Mukimov
+:prewrap!:
+:toc:
+:sectnums:
+
+== Introduction
+
+Hexya is an open-source modular ERP framework written in Go. The Hexya CLI provides tools for developers to manage projects, modules, databases, and more.
+
+== Installation
+
+Ensure Go is installed. Install Hexya using:
+
+[source,shell]
+----
+go get -u github.com/hexya-erp/hexya
+----
+
+== Project Initialization
+
+Create a new Hexya project with:
+
+[source,shell]
+----
+hexya init <project-name>
+----
+
+This will set up the basic structure and configuration files required for a Hexya project.
+
+== Starting the Hexya Server
+
+Start the Hexya server to run your application:
+
+[source,shell]
+----
+hexya server
+----
+
+The server will start on the port specified in the configuration file (default: 8080).
+
+== Updating the Database
+
+To apply migrations and update the database schema:
+
+[source,shell]
+----
+hexya updatedb -o
+----
+
+This command will synchronize the database with your models.
+
+== Managing Modules
+
+Hexya supports modular development. To create a new module:
+
+[source,shell]
+----
+hexya module new <module-name>
+----
+
+Modules are self-contained units that can be easily added to any Hexya project.
+
+== Internationalization (i18n)
+
+Hexya provides tools for internationalization. You can manage translations and other localization tasks with:
+
+[source,shell]
+----
+hexya i18n <subcommand>
+----
+
+== Hexya CLI Commands
+
+* `completion`: Generate shell autocompletion scripts.
+* `generate`: Generate model pool source code.
+* `project`: Project management utilities.
+* `version`: Display Hexya version.
+
+== Configuration Options
+
+Hexya uses a `hexya.toml` file for configuration, but you can also use CLI flags:
+
+[cols="20%,80%", options="header"]
+|===
+| Option                | Description
+
+| `--db-driver`
+| Specify the database driver (default: postgres).
+
+| `--db-host`
+| Set the database host (default: "/var/run/postgresql").
+
+| `--db-port`
+| Set the database port (default: 5432).
+
+| `--db-user`
+| Specify the database user (defaults to the current user).
+
+| `--db-password`
+| Database password. Leave empty when connecting through a socket.
+
+| `--db-ssl-mode`
+| SSL mode to connect to the database. Options: 'disable', 'require', 'verify-ca', 'verify-full'.
+
+| `--log-level`
+| Set the logging level (`debug`, `info`, `warn`, `error`, `panic`).
+
+| `--config`
+| Specify an alternate configuration file.
+
+| `--resource-dir`
+| Path to the directory where Hexya should read its resources.
+
+| `--log-file`
+| File to which the log will be written.
+
+| `--log-stdout`
+| Enable stdout logging.
+
+| `--demo`
+| Load demo data for evaluating or tests.
+
+| `--debug`
+| Enable server debug mode for development.
+|===
+
+== Example `hexya.toml` Configuration
+
+[source,toml]
+----
+[Database]
+Host = "localhost"
+Port = 5432
+User = "hexya_user"
+Password = "hexya_password"
+Name = "hexya_db"
+
+[server]
+port = '8080'
+----
+
+== Contribution
+
+Hexya encourages community contributions. Follow the link:contribution.adoc[contribution guidelines] when submitting pull requests.
+
+== Additional Resources
+
+For more detailed documentation, refer to the link:http://hexya.io/docs/[official Hexya documentation] and the link:https://github.com/hexya-erp/hexya[GitHub repository].
