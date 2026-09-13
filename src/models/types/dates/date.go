@@ -1,4 +1,4 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package dates
@@ -125,27 +125,48 @@ func (d Date) Copy() Date {
 // SetYear changes the year value of d
 // returns d for chained calls
 func (d Date) SetYear(year int) Date {
-	d.Time = time.Date(year, d.Month(), d.Day(), 0, 0, 0, 0, d.Location())
+	d.Time = time.Date(year, d.Month(), d.Day(), 0, 0, 0, 0, time.UTC)
 	return d
 }
 
 // SetMonth changes the month value of d
 // returns d for chained calls
 func (d Date) SetMonth(month time.Month) Date {
-	d.Time = time.Date(d.Year(), month, d.Day(), 0, 0, 0, 0, d.Location())
+	d.Time = time.Date(d.Year(), month, d.Day(), 0, 0, 0, 0, time.UTC)
 	return d
 }
 
 // SetDay changes the day value of d
 // returns d for chained calls
 func (d Date) SetDay(day int) Date {
-	d.Time = time.Date(d.Year(), d.Month(), day, 0, 0, 0, 0, d.Location())
+	d.Time = time.Date(d.Year(), d.Month(), day, 0, 0, 0, 0, time.UTC)
 	return d
+}
+
+// In returns this date in the given timezone
+func (d Date) In(tz string) Date {
+	loc := time.UTC
+	if tz != "" {
+		var err error
+		loc, err = time.LoadLocation(tz)
+		if err != nil {
+			panic(err)
+		}
+	}
+	t := d.Time.In(loc)
+	return Date{
+		Time: time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC),
+	}
 }
 
 // Today returns the current date
 func Today() Date {
 	return Date{time.Now()}
+}
+
+// TZToday returns the current date in the given timezone
+func TZToday(tz string) Date {
+	return Today().In(tz)
 }
 
 // ParseDate returns a date from the given string value
@@ -177,20 +198,13 @@ func (d Date) AddWeeks(amount int) Date {
 // StartOfYear returns the date corresponding to the first day of d's year
 func (d Date) StartOfYear() Date {
 	return Date{
-		Time: time.Date(d.Year(), 1, 1, 0, 0, 0, 0, d.Location()),
+		Time: time.Date(d.Year(), 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 }
 
 // StartOfMonth returns the date corresponding to the first day of d's current month
 func (d Date) StartOfMonth() Date {
 	return Date{
-		Time: time.Date(d.Year(), d.Month(), 1, 0, 0, 0, 0, d.Location()),
+		Time: time.Date(d.Year(), d.Month(), 1, 0, 0, 0, 0, time.UTC),
 	}
-}
-
-// SetUnix returns the date corresponding to the given unix timestamp
-func (d Date) SetUnix(sec int64) Date {
-	return DateTime{
-		Time: time.Unix(sec, 0).In(d.Location()),
-	}.ToDate()
 }

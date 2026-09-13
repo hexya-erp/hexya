@@ -1,4 +1,4 @@
-// Copyright 2020 NDP Systèmes. All Rights Reserved.
+// Copyright 2020 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package reports_test
@@ -137,15 +137,19 @@ Age: 24
 		})
 		Convey("Testing rendering error cases", func() {
 			rep := report
-			rep.Template = "{{ eq .Unknown \"something\" }}"
+			rep.Template = "{{ eq .Age \"something\" }}"
 			_, err := rep.Render(1, nil)
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldBeIn, []string{`template: :1:3: executing "" at <eq .Unknown "something">: error calling eq: invalid type for comparison`, `template: :1:3: executing "" at <eq .Unknown "something">: error calling eq: incompatible types for comparison`})
+			So(err.Error(), ShouldBeIn, []string{
+				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: invalid type for comparison`,
+				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: incompatible types for comparison: int and string`})
 			rep = report2
-			rep.Template = "{{ eq .Unknown \"something\" }}"
+			rep.Template = "{{ eq .Age \"something\" }}"
 			_, err = rep.Render(1, nil)
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldBeIn, []string{`template: :1:3: executing "" at <eq .Unknown "something">: error calling eq: invalid type for comparison`, `template: :1:3: executing "" at <eq .Unknown "something">: error calling eq: incompatible types for comparison`})
+			So(err.Error(), ShouldBeIn, []string{
+				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: invalid type for comparison`,
+				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: incompatible types for comparison: int and string`})
 		})
 		Convey("Calling GetAction", func() {
 			act := reports.GetAction("sample_html", 3, reports.Data{"foo": "bar"})

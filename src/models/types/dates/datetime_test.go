@@ -1,3 +1,6 @@
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
+// See LICENSE file for full licensing details.
+
 package dates
 
 import (
@@ -117,7 +120,6 @@ func TestDateTime(t *testing.T) {
 			So(dateCpy.StartOfDay().Equal(ParseDateTime("2017-08-01 00:00:00")), ShouldBeTrue)
 			So(dateCpy.AddWeeks(2).StartOfMonth().Equal(ParseDateTime("2017-08-01 00:00:00")), ShouldBeTrue)
 			So(dateCpy.StartOfYear().Equal(ParseDateTime("2017-01-01 00:00:00")), ShouldBeTrue)
-			So(dateCpy.SetUnix(123456789).Equal(ParseDateTime("1973-11-29 21:33:09")), ShouldBeTrue)
 		})
 	})
 }

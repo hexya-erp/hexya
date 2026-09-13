@@ -1,4 +1,4 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 // Package exceptions provides error types used throughout Hexya

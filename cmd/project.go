@@ -1,4 +1,4 @@
-// Copyright 2018 NDP Systèmes. All Rights Reserved.
+// Copyright 2018 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package cmd

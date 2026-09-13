@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,10 @@ func XMLToDocument(xmlStr string) (*etree.Document, error) {
 // XMLToElement parses the given xml string and returns the root node
 func XMLToElement(xmlStr string) (*etree.Element, error) {
 	doc, err := XMLToDocument(xmlStr)
-	return doc.Root(), err
+	if err != nil {
+		return nil, err
+	}
+	return doc.Root(), nil
 }
 
 // NextSibling returns the next sibling of the given token or nil if this

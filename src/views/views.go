@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ const (
 	ViewTypeKanban   ViewType = "kanban"
 	ViewTypeSearch   ViewType = "search"
 	ViewTypeQWeb     ViewType = "qweb"
+	ViewTypeActivity ViewType = "activity"
 )
 
 // translatableAttributes is the list of XML attribute names the

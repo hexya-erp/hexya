@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/logging"
@@ -54,7 +55,7 @@ type Context struct {
 }
 
 // Copy returns a shallow copy of the Context
-func (c Context) Copy() *Context {
+func (c *Context) Copy() *Context {
 	newCtx := NewContext()
 	for k, v := range c.values {
 		newCtx.values[k] = v
@@ -217,7 +218,7 @@ func (c *Context) GetBool(key string) bool {
 	}
 	val := c.Get(key)
 	res, _ := nbutils.CastToFloat(val)
-	return res == 1
+	return res != 0
 }
 
 // HasKey returns true if this Context has the given key
@@ -228,12 +229,13 @@ func (c *Context) HasKey(key string) bool {
 
 // WithKey returns a copy of this context with the given key/value.
 // If key already exists, it is overwritten.
-func (c Context) WithKey(key string, value interface{}) *Context {
+func (c *Context) WithKey(key string, value interface{}) *Context {
+	res := c.Copy()
 	if _, ok := value.(RecordSet); ok {
 		log.Panic("Recordset passed in Context. Pass ID instead", "key", key, "value", value)
 	}
-	c.values[key] = value
-	return &c
+	res.values[key] = value
+	return res
 }
 
 // Delete removes the content pointed by the given key from the context.
@@ -250,8 +252,21 @@ func (c *Context) Pop(key string) interface{} {
 	return val
 }
 
+// Cleaned returns a new context which is a copy of this one but in
+// which all keys with the given prefix are removed.
+func (c *Context) Cleaned(prefix string) *Context {
+	res := NewContext()
+	for k, v := range c.values {
+		if strings.HasPrefix(k, prefix) {
+			continue
+		}
+		res.values[k] = v
+	}
+	return res
+}
+
 // IsEmpty returns true if this Context has no entries.
-func (c Context) IsEmpty() bool {
+func (c *Context) IsEmpty() bool {
 	if len(c.values) == 0 {
 		return true
 	}
@@ -259,7 +274,7 @@ func (c Context) IsEmpty() bool {
 }
 
 // ToMap returns a copy of the map of values of this context
-func (c Context) ToMap() map[string]interface{} {
+func (c *Context) ToMap() map[string]interface{} {
 	res := make(map[string]interface{})
 	for k, v := range c.values {
 		res[k] = v
@@ -289,12 +304,12 @@ func (c *Context) UnmarshalJSON(data []byte) error {
 }
 
 // String function for Context type
-func (c Context) String() string {
+func (c *Context) String() string {
 	return fmt.Sprintf("%v", c.values)
 }
 
 // Value JSON encode our Context for storing in the database.
-func (c Context) Value() (driver.Value, error) {
+func (c *Context) Value() (driver.Value, error) {
 	bytes, err := json.Marshal(c)
 	return driver.Value(bytes), err
 }
@@ -330,7 +345,7 @@ func (c *Context) Update(other *Context) {
 	}
 }
 
-var _ driver.Valuer = Context{}
+var _ driver.Valuer = &Context{}
 var _ sql.Scanner = &Context{}
 var _ xml.UnmarshalerAttr = &Context{}
 var _ json.Marshaler = &Context{}

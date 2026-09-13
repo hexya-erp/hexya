@@ -1,4 +1,4 @@
-// Copyright 2018 NDP Systèmes. All Rights Reserved.
+// Copyright 2018 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 // Package hweb provides utilities for the HWeb templating system
@@ -38,7 +38,8 @@ func NewSet(name string, loader pongo2.TemplateLoader) *TemplateSet {
 
 // Must panics, if a Template couldn't successfully parsed. This is how you
 // would use it:
-//     var baseTemplate = pongo2.Must(pongo2.FromFile("templates/base.html"))
+//
+//	var baseTemplate = pongo2.Must(pongo2.FromFile("templates/base.html"))
 func Must(tpl *Template, err error) *Template {
 	return pongo2.Must(tpl, err)
 }

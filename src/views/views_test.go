@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -257,7 +257,7 @@ func TestViews(t *testing.T) {
 			"Address":     fields.Char{},
 		})
 		models.BootStrap()
-		models.Views[partner] = []string{`<view id="test_view" model="Partner"><tree><field name="Name"></tree></view>`}
+		models.Views[partner] = []string{`<view id="test_view" model="Partner"><tree><field name="Name"/></tree></view>`}
 	})
 	Convey("Setting two languages", t, func() {
 		i18n.Langs = []string{"fr", "de"}

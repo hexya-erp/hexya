@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1274,7 +1274,7 @@ func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 // the 'lang' key of rc.Env().Context(). If for any reason the
 // string cannot be translated, then src is returned.
 //
-// You MUST pass a string literal as src to have it extracted automatically
+// # You MUST pass a string literal as src to have it extracted automatically
 //
 // The translated string will be passed to fmt.Sprintf with the optional args
 // before being returned.
