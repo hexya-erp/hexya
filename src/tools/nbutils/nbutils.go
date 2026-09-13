@@ -1,4 +1,4 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package nbutils
@@ -133,9 +133,9 @@ func Floor(value, precision float64) float64 {
 //
 // The returned values are per the following table:
 //
-//    value1 > value2 : 1
-//    value1 == value2: 0
-//    value1 < value2 : -1
+//	value1 > value2 : 1
+//	value1 == value2: 0
+//	value1 < value2 : -1
 //
 // A value is considered lower/greater than another value
 // if their rounded value is different. This is not the same as having a

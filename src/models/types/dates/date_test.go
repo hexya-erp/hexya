@@ -1,3 +1,6 @@
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
+// See LICENSE file for full licensing details.
+
 package dates
 
 import (

@@ -1,4 +1,4 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package tests
@@ -30,14 +30,14 @@ var driver, user, password, prefix, debug string
 // It is meant to be used for modules testing. Initialize your module's
 // tests with:
 //
-//     import (
-//         "testing"
-//         "github.com/hexya-erp/hexya/src/tests"
-//     )
+//	    import (
+//	        "testing"
+//	        "github.com/hexya-erp/hexya/src/tests"
+//	    )
 //
-//     func TestMain(m *testing.M) {
-//	       tests.RunTests(m, "my_module")
-//     }
+//	    func TestMain(m *testing.M) {
+//		       tests.RunTests(m, "my_module")
+//	    }
 func RunTests(m *testing.M, moduleName string, preHookFnct func()) {
 	var res int
 	defer func() {

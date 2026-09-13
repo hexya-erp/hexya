@@ -1,4 +1,4 @@
-// Copyright 2019 NDP Systèmes. All Rights Reserved.
+// Copyright 2019 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package i18n
@@ -38,16 +38,16 @@ const (
 )
 
 // NumberGrouping represents grouping values of a number as follows:
-//  - it splits a number into groups of N, N being a value in the slice
-//  - the values define groups from right to left
-//  - all values should be positive
-//  - 0 at the end means repetition of previous int
-//  - if the last value is not a 0, the grouping will end
-//    e.g. :
-//       3       -> 123456,789
-//       3,0     -> 123,456,789
-//       3,2     -> 1234,56,789
-//       3,2,0   -> 12,34,56,789
+//   - it splits a number into groups of N, N being a value in the slice
+//   - the values define groups from right to left
+//   - all values should be positive
+//   - 0 at the end means repetition of previous int
+//   - if the last value is not a 0, the grouping will end
+//     e.g. :
+//     3       -> 123456,789
+//     3,0     -> 123,456,789
+//     3,2     -> 1234,56,789
+//     3,2,0   -> 12,34,56,789
 type NumberGrouping []int
 
 // MarshalJSON function for the NumberGrouping type that should marshal as string.

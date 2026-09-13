@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -496,11 +496,11 @@ func (m *Model) BrowseOne(env Environment, id int64) *RecordCollection {
 }
 
 // AddSQLConstraint adds a table constraint in the database.
-//    - name is an arbitrary name to reference this constraint. It will be appended by
-//      the table name in the database, so there is only need to ensure that it is unique
-//      in this model.
-//    - sql is constraint definition to pass to the database.
-//    - errorString is the text to display to the user when the constraint is violated
+//   - name is an arbitrary name to reference this constraint. It will be appended by
+//     the table name in the database, so there is only need to ensure that it is unique
+//     in this model.
+//   - sql is constraint definition to pass to the database.
+//   - errorString is the text to display to the user when the constraint is violated
 func (m *Model) AddSQLConstraint(name, sql, errorString string) {
 	constraintName := fmt.Sprintf("%s_%s_mancon", name, m.tableName)
 	m.sqlConstraints[constraintName] = sqlConstraint{

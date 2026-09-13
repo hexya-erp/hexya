@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,11 +85,11 @@ func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []in
 // This method is meant to be used inside a method layer function to call its parent,
 // such as:
 //
-//    func (rs models.RecordCollection) MyMethod() string {
-//        res := rs.Super().MyMethod()
-//        res += " ok!"
-//        return res
-//    }
+//	func (rs models.RecordCollection) MyMethod() string {
+//	    res := rs.Super().MyMethod()
+//	    res += " ok!"
+//	    return res
+//	}
 //
 // Calls to a different method than the current method will call its next layer only
 // if the current method has been called from a layer of the other method. Otherwise,

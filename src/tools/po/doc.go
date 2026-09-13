@@ -1,10 +1,11 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 /*
 Package po provides support for reading and writing GNU PO file.
 
 Examples:
+
 	import (
 		"github.com/chai2010/gettext-go/gettext/po"
 	)

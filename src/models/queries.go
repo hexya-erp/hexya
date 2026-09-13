@@ -1,4 +1,4 @@
-// Copyright 2016 NDP Systèmes. All Rights Reserved.
+// Copyright 2016 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -190,7 +190,7 @@ func (q *Query) predicateSQLClause(p predicate) (string, SQLParams) {
 	return sql, args
 }
 
-//nullSQLClause returns the sql string and arguments for searching the given field with an empty argument
+// nullSQLClause returns the sql string and arguments for searching the given field with an empty argument
 func nullSQLClause(field string, op operator.Operator, fi *Field) (string, SQLParams) {
 	var (
 		sql  string
@@ -550,8 +550,9 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]FieldName, aggFncts map[string]str
 }
 
 // joinedFieldExpression joins the given expressions into a fields sql string
-//     ['profile_id' 'user_id' 'name'] => "profiles__users".name
-//     ['age'] => "mytable".age
+//
+//	['profile_id' 'user_id' 'name'] => "profiles__users".name
+//	['age'] => "mytable".age
 //
 // If withAlias is true, then returns fields with its alias. In this case, aliasIndex is used
 // to define aliases when the nominal "profile_id__user_id__name" is longer than 64 chars.

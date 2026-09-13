@@ -1,4 +1,4 @@
-// Copyright 2019 NDP Systèmes. All Rights Reserved.
+// Copyright 2019 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package nbutils
