@@ -69,8 +69,7 @@ func TestContext(t *testing.T) {
 		Convey("GetInteger should cast numbers to int64", func() {
 			So(ctx.GetInteger("int"), ShouldEqual, int64(3))
 			So(ctx.GetInteger("int64"), ShouldEqual, int64(4))
-			// Non integral float values cannot be parsed as integers and yield 0
-			So(ctx.GetInteger("float"), ShouldEqual, int64(0))
+			So(ctx.GetInteger("float"), ShouldEqual, int64(5))
 			So(ctx.GetInteger("boolTrue"), ShouldEqual, int64(1))
 		})
 		Convey("GetFloat should cast numbers to float64", func() {
@@ -79,11 +78,11 @@ func TestContext(t *testing.T) {
 			So(ctx.GetFloat("int64"), ShouldEqual, 4.0)
 			So(ctx.GetFloat("boolTrue"), ShouldEqual, 1.0)
 		})
-		Convey("GetBool should return true only for values equal to 1", func() {
+		Convey("GetBool should return true only for non zero number values", func() {
 			So(ctx.GetBool("boolTrue"), ShouldBeTrue)
 			So(ctx.GetBool("boolFalse"), ShouldBeFalse)
 			So(ctx.GetBool("one"), ShouldBeTrue)
-			So(ctx.GetBool("int"), ShouldBeFalse)
+			So(ctx.GetBool("int"), ShouldBeTrue)
 			So(ctx.GetBool("string"), ShouldBeFalse)
 		})
 	})
@@ -137,7 +136,7 @@ func TestContext(t *testing.T) {
 				WithKey("interfaces", []interface{}{7, int64(8)})
 			So(ctx.GetIntegerSlice("ints"), ShouldResemble, []int64{1, 2})
 			So(ctx.GetIntegerSlice("int64s"), ShouldResemble, []int64{3, 4})
-			So(ctx.GetIntegerSlice("floats"), ShouldResemble, []int64{0, 0})
+			So(ctx.GetIntegerSlice("floats"), ShouldResemble, []int64{5, 6})
 			So(ctx.GetIntegerSlice("interfaces"), ShouldResemble, []int64{7, 8})
 		})
 		Convey("GetFloatSlice", func() {
@@ -248,8 +247,7 @@ func TestContextSerialization(t *testing.T) {
 		Convey("Value should return a JSON encoded context", func() {
 			val, err := ctx.Value()
 			So(err, ShouldBeNil)
-			// MarshalJSON has a pointer receiver, so it is not used here
-			So(string(val.([]byte)), ShouldEqual, `{}`)
+			So(string(val.([]byte)), ShouldEqual, `{"foo":"bar"}`)
 		})
 		Convey("Scan should accept a string", func() {
 			var newCtx Context

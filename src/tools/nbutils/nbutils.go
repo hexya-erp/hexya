@@ -17,7 +17,13 @@ func CastToInteger(val interface{}) (int64, error) {
 	switch value := val.(type) {
 	case int64:
 		return value, nil
-	case int, int8, int16, int32, uint, uint8, uint16, uint32, uint64, float32, float64:
+	case float32:
+		v := math.Floor(float64(value))
+		return int64(v), nil
+	case float64:
+		v := math.Floor(value)
+		return int64(v), nil
+	case int, int8, int16, int32, uint, uint8, uint16, uint32, uint64:
 		res, _ := strconv.ParseInt(fmt.Sprintf("%v", value), 10, 64)
 		return res, nil
 	case bool:
