@@ -14,6 +14,7 @@ for d in $(go list ./... | grep -v vendor); do
         grep -v "^mode:" profile.out >> coverage.txt
         rm profile.out
     fi
+    echo
 done
 
 echo

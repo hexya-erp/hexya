@@ -58,7 +58,7 @@ jobs:
         run: go install
 
       - name: Generate hexya code
-        run: hexya generate -t ./src/tests/testmodule
+        run: hexya generate -t ./src/tests/testdata/testmodule
 
       - name: Create test databases
         env:

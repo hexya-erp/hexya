@@ -106,8 +106,8 @@ func (m *modelData) sort() {
 // can be used inside an identifier.
 func createTypeIdent(typStr string) string {
 	res := strings.Replace(typStr, ".", "", -1)
-	res = strings.Replace(res, "[", "Slice", -1)
 	res = strings.Replace(res, "map[", "Map", -1)
+	res = strings.Replace(res, "[", "Slice", -1)
 	res = strings.Replace(res, "]", "", -1)
 	res = strings.Title(res)
 	return res
