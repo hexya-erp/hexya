@@ -10,54 +10,54 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestColorize(t *testing.T) {
-	Convey("Testing Colorize function", t, func() {
+	t.Run("Testing Colorize function", func(t *testing.T) {
 		imgString, err := ReadAll("testdata/avatar.png")
-		So(err, ShouldBeNil)
-		Convey("Applying a fully opaque color", func() {
+		assert.Nil(t, err)
+		t.Run("Applying a fully opaque color", func(t *testing.T) {
 			clr := color.RGBA{R: 32, G: 224, B: 224, A: 255}
 			dstImageString := Colorize(imgString, clr)
 			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(dstImageString))
 			destImg, _, _ := image.Decode(reader)
-			Convey("Result image should not be the original one", func() {
-				So(dstImageString, ShouldNotEqual, imgString)
+			t.Run("Result image should not be the original one", func(t *testing.T) {
+				assert.NotEqualValues(t, dstImageString, imgString)
 			})
-			Convey("The target image should have the same dimensions", func() {
-				So(destImg.Bounds().Dx(), ShouldEqual, 180)
-				So(destImg.Bounds().Dy(), ShouldEqual, 180)
+			t.Run("The target image should have the same dimensions", func(t *testing.T) {
+				assert.EqualValues(t, destImg.Bounds().Dx(), 180)
+				assert.EqualValues(t, destImg.Bounds().Dy(), 180)
 			})
-			Convey("The color at 2,2 should be the given color", func() {
-				So(ColorsEqual(destImg.At(2, 2), clr), ShouldBeTrue)
+			t.Run("The color at 2,2 should be the given color", func(t *testing.T) {
+				assert.True(t, ColorsEqual(destImg.At(2, 2), clr))
 			})
-			Convey("The color at 90,90 should be the original color", func() {
-				So(ColorsEqual(destImg.At(90, 90), color.RGBA{R: 217, G: 222, B: 226, A: 255}), ShouldBeTrue)
+			t.Run("The color at 90,90 should be the original color", func(t *testing.T) {
+				assert.True(t, ColorsEqual(destImg.At(90, 90), color.RGBA{R: 217, G: 222, B: 226, A: 255}))
 			})
 		})
-		Convey("Unreadable image should be returned as is", func() {
+		t.Run("Unreadable image should be returned as is", func(t *testing.T) {
 			clr := color.RGBA{R: 32, G: 224, B: 224, A: 255}
 			dstImageString := Colorize("foo bar", clr)
-			So(dstImageString, ShouldEqual, "foo bar")
+			assert.EqualValues(t, dstImageString, "foo bar")
 		})
-		Convey("Testing random color", func() {
+		t.Run("Testing random color", func(t *testing.T) {
 			dstImageString := Colorize(imgString, color.RGBA{})
 			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(dstImageString))
 			destImg, _, _ := image.Decode(reader)
-			Convey("Result image should not be the original one", func() {
-				So(dstImageString, ShouldNotEqual, imgString)
+			t.Run("Result image should not be the original one", func(t *testing.T) {
+				assert.NotEqualValues(t, dstImageString, imgString)
 			})
-			Convey("The target image should have the same dimensions", func() {
-				So(destImg.Bounds().Dx(), ShouldEqual, 180)
-				So(destImg.Bounds().Dy(), ShouldEqual, 180)
+			t.Run("The target image should have the same dimensions", func(t *testing.T) {
+				assert.EqualValues(t, destImg.Bounds().Dx(), 180)
+				assert.EqualValues(t, destImg.Bounds().Dy(), 180)
 			})
-			Convey("The color at 2,2 should be the same as 4,4 and not the empty color", func() {
-				So(ColorsEqual(destImg.At(2, 2), destImg.At(4, 4)), ShouldBeTrue)
-				So(ColorsEqual(destImg.At(2, 2), color.RGBA{}), ShouldBeFalse)
+			t.Run("The color at 2,2 should be the same as 4,4 and not the empty color", func(t *testing.T) {
+				assert.True(t, ColorsEqual(destImg.At(2, 2), destImg.At(4, 4)))
+				assert.False(t, ColorsEqual(destImg.At(2, 2), color.RGBA{}))
 			})
-			Convey("The color at 90,90 should be the original color", func() {
-				So(ColorsEqual(destImg.At(90, 90), color.RGBA{R: 217, G: 222, B: 226, A: 255}), ShouldBeTrue)
+			t.Run("The color at 90,90 should be the original color", func(t *testing.T) {
+				assert.True(t, ColorsEqual(destImg.At(90, 90), color.RGBA{R: 217, G: 222, B: 226, A: 255}))
 			})
 
 		})
@@ -65,29 +65,29 @@ func TestColorize(t *testing.T) {
 }
 
 func TestResize(t *testing.T) {
-	Convey("Testing Resize function", t, func() {
+	t.Run("Testing Resize function", func(t *testing.T) {
 		imgString, err := ReadAll("testdata/avatar.png")
-		So(err, ShouldBeNil)
-		Convey("Resizing smaller should create a smaller image", func() {
+		assert.Nil(t, err)
+		t.Run("Resizing smaller should create a smaller image", func(t *testing.T) {
 			smallImg := Resize(imgString, 100, 150, false)
 			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(smallImg))
 			destImg, _, _ := image.Decode(reader)
-			So(destImg.Bounds().Dx(), ShouldEqual, 100)
-			So(destImg.Bounds().Dy(), ShouldEqual, 150)
+			assert.EqualValues(t, destImg.Bounds().Dx(), 100)
+			assert.EqualValues(t, destImg.Bounds().Dy(), 150)
 		})
-		Convey("Resizing bigger should create a bigger image", func() {
+		t.Run("Resizing bigger should create a bigger image", func(t *testing.T) {
 			bigImg := Resize(imgString, 300, 400, false)
 			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(bigImg))
 			destImg, _, _ := image.Decode(reader)
-			So(destImg.Bounds().Dx(), ShouldEqual, 300)
-			So(destImg.Bounds().Dy(), ShouldEqual, 400)
+			assert.EqualValues(t, destImg.Bounds().Dx(), 300)
+			assert.EqualValues(t, destImg.Bounds().Dy(), 400)
 		})
-		Convey("Resizing bigger, with avoid, should not create a bigger image", func() {
+		t.Run("Resizing bigger, with avoid, should not create a bigger image", func(t *testing.T) {
 			bigImg := Resize(imgString, 300, 400, true)
 			reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(bigImg))
 			destImg, _, _ := image.Decode(reader)
-			So(destImg.Bounds().Dx(), ShouldEqual, 180)
-			So(destImg.Bounds().Dy(), ShouldEqual, 180)
+			assert.EqualValues(t, destImg.Bounds().Dx(), 180)
+			assert.EqualValues(t, destImg.Bounds().Dy(), 180)
 		})
 	})
 }

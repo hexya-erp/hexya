@@ -6,8 +6,9 @@ package hweb
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/tools/xmlutils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var template1 = `
@@ -22,15 +23,15 @@ var template11 = `
 `
 
 func TestTranspileAttributes(t *testing.T) {
-	Convey("Testing attribute transpilation", t, func() {
+	t.Run("Testing attribute transpilation", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template1)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileAttributes(doc.ChildElements()), ShouldBeNil)
+		assert.Nil(t, transpileAttributes(doc.ChildElements()))
 		resXML, err := doc.WriteToString()
-		So(err, ShouldBeNil)
-		So(string(resXML), ShouldEqual, `
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(resXML), `
 <root class="toto_{{ name }}">
 	<child1 tag="{{ id | default:42 }}">
 	</child1>
@@ -38,13 +39,13 @@ func TestTranspileAttributes(t *testing.T) {
 <root2 class="titi_{{ value }}" attr="{{ hi }}">
 </root2>`)
 	})
-	Convey("Invalid values should fail", t, func() {
+	t.Run("Invalid values should fail", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template11)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileAttributes(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileAttributes(doc.ChildElements()).Error(), ShouldEqual, `hweb does not manage t-att attributes (t-att with value '("a", "b")')`)
+		assert.NotNil(t, transpileAttributes(doc.ChildElements()))
+		assert.EqualValues(t, transpileAttributes(doc.ChildElements()).Error(), `hweb does not manage t-att attributes (t-att with value '("a", "b")')`)
 	})
 }
 
@@ -61,15 +62,15 @@ var template2 = `
 <h2 t-raw="0"/>`
 
 func TestTranspileOutput(t *testing.T) {
-	Convey("Testing data output", t, func() {
+	t.Run("Testing data output", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template2)
 		if err != nil {
 			panic(err)
 		}
-		So(func() { transpileOutput(doc.ChildElements()) }, ShouldNotPanic)
+		assert.NotPanics(t, func() { transpileOutput(doc.ChildElements()) })
 		resXML, err := doc.WriteToString()
-		So(err, ShouldBeNil)
-		So(string(resXML), ShouldEqual, `
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(resXML), `
 <root>
 	<child1>
 		<p>{{ my_var }}</p>
@@ -109,15 +110,15 @@ var (
 )
 
 func TestTranspileConditionals(t *testing.T) {
-	Convey("Testing conditionals", t, func() {
+	t.Run("Testing conditionals", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template3)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileConditionals(doc.ChildElements()), ShouldBeNil)
+		assert.Nil(t, transpileConditionals(doc.ChildElements()))
 		resXML, err := doc.WriteToString()
-		So(err, ShouldBeNil)
-		So(string(resXML), ShouldEqual, `
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(resXML), `
 <root>
 	<child1>
 		{% if cond1 or cond2 %}
@@ -136,19 +137,19 @@ func TestTranspileConditionals(t *testing.T) {
 {% if cond7 %}<r otherAttr="sth">Bonjour</r>
 {% else %}<p>Bye</p>{% endif %}`)
 	})
-	Convey("Wrong if/elif/else order should fail", t, func() {
+	t.Run("Wrong if/elif/else order should fail", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template31)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileConditionals(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileConditionals(doc.ChildElements()).Error(), ShouldEqual, "t-elif found without t-if")
+		assert.NotNil(t, transpileConditionals(doc.ChildElements()))
+		assert.EqualValues(t, transpileConditionals(doc.ChildElements()).Error(), "t-elif found without t-if")
 		doc, err = xmlutils.XMLToDocument(template32)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileConditionals(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileConditionals(doc.ChildElements()).Error(), ShouldEqual, "t-else found without t-if")
+		assert.NotNil(t, transpileConditionals(doc.ChildElements()))
+		assert.EqualValues(t, transpileConditionals(doc.ChildElements()).Error(), "t-else found without t-if")
 	})
 }
 
@@ -178,15 +179,15 @@ Foo
 )
 
 func TestTranspileLoops(t *testing.T) {
-	Convey("Testing loops", t, func() {
+	t.Run("Testing loops", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template4)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileLoops(doc.ChildElements()), ShouldBeNil)
+		assert.Nil(t, transpileLoops(doc.ChildElements()))
 		resXML, err := doc.WriteToString()
-		So(err, ShouldBeNil)
-		So(string(resXML), ShouldEqual, `
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(resXML), `
 <root>
 	<child1>
 		{% for i in [1, 2, 3] %}
@@ -204,13 +205,13 @@ func TestTranspileLoops(t *testing.T) {
 {% endfor %}
 `)
 	})
-	Convey("t-foreach without t-as should fail", t, func() {
+	t.Run("t-foreach without t-as should fail", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template41)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileLoops(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileLoops(doc.ChildElements()).Error(), ShouldEqual, "t-foreach without t-as")
+		assert.NotNil(t, transpileLoops(doc.ChildElements()))
+		assert.EqualValues(t, transpileLoops(doc.ChildElements()).Error(), "t-foreach without t-as")
 	})
 }
 
@@ -233,15 +234,15 @@ var (
 )
 
 func TestTranspileVariables(t *testing.T) {
-	Convey("Testing setting variables", t, func() {
+	t.Run("Testing setting variables", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template5)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileVariables(doc.ChildElements()), ShouldBeNil)
+		assert.Nil(t, transpileVariables(doc.ChildElements()))
 		resXML, err := doc.WriteToString()
-		So(err, ShouldBeNil)
-		So(string(resXML), ShouldEqual, `
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(resXML), `
 <root>
 	<child1>
 		{% set var1 = my_value %}
@@ -253,20 +254,20 @@ func TestTranspileVariables(t *testing.T) {
 {% set var3 = other_value %}
 `)
 	})
-	Convey("Wrong t-set tags should fail", t, func() {
+	t.Run("Wrong t-set tags should fail", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template51)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileVariables(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileVariables(doc.ChildElements()).Error(), ShouldEqual, "t-set attribute set on non 't' XML tag")
+		assert.NotNil(t, transpileVariables(doc.ChildElements()))
+		assert.EqualValues(t, transpileVariables(doc.ChildElements()).Error(), "t-set attribute set on non 't' XML tag")
 
 		doc, err = xmlutils.XMLToDocument(template52)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileVariables(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileVariables(doc.ChildElements()).Error(), ShouldEqual, "t-set without t-value nor body")
+		assert.NotNil(t, transpileVariables(doc.ChildElements()))
+		assert.EqualValues(t, transpileVariables(doc.ChildElements()).Error(), "t-set without t-value nor body")
 	})
 }
 
@@ -288,16 +289,16 @@ var (
 )
 
 func TestTranspileCalls(t *testing.T) {
-	Convey("Testing subtemplate calls", t, func() {
+	t.Run("Testing subtemplate calls", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template6)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileCalls(doc.ChildElements()), ShouldBeNil)
+		assert.Nil(t, transpileCalls(doc.ChildElements()))
 		doc.WriteSettings.CanonicalText = true
 		resXML, err := doc.WriteToString()
-		So(err, ShouldBeNil)
-		So(string(resXML), ShouldEqual, `
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(resXML), `
 <t t-set="var1" t-value="valueOuter"/>
 {% with _0 = null %}<t t-set="var2">
 		<h1>Baz</h1>
@@ -310,10 +311,10 @@ func TestTranspileCalls(t *testing.T) {
 {% endmacro %}{% set __hexya_template_name = "subtemplate" %}{% include __hexya_template_name with var1 = valueInner %}
 {% endwith %}
 `)
-		So(transpileVariables(doc.ChildElements()), ShouldBeNil)
+		assert.Nil(t, transpileVariables(doc.ChildElements()))
 		resXML, err = doc.WriteToString()
-		So(err, ShouldBeNil)
-		So(string(resXML), ShouldEqual, `
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(resXML), `
 {% set var1 = valueOuter %}
 {% with _0 = null %}{% macro var2() %}
 		<h1>Baz</h1>
@@ -328,13 +329,13 @@ func TestTranspileCalls(t *testing.T) {
 `)
 
 	})
-	Convey("t-call on non t tag should fail", t, func() {
+	t.Run("t-call on non t tag should fail", func(t *testing.T) {
 		doc, err := xmlutils.XMLToDocument(template61)
 		if err != nil {
 			panic(err)
 		}
-		So(transpileCalls(doc.ChildElements()), ShouldNotBeNil)
-		So(transpileCalls(doc.ChildElements()).Error(), ShouldEqual, "t-call attribute set on non 't' XML tag")
+		assert.NotNil(t, transpileCalls(doc.ChildElements()))
+		assert.EqualValues(t, transpileCalls(doc.ChildElements()).Error(), "t-call attribute set on non 't' XML tag")
 	})
 }
 
@@ -359,10 +360,10 @@ var template7 = `
 `
 
 func TestToPongo(t *testing.T) {
-	Convey("Global ToPongo test", t, func() {
+	t.Run("Global ToPongo test", func(t *testing.T) {
 		res, err := ToPongo([]byte(template7))
-		So(err, ShouldBeNil)
-		So(string(res), ShouldEqual, `{% set _1 = _0 %}
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(res), `{% set _1 = _0 %}
 <a class="o_sub_menu_logo" href="/web{% if debug %}?debug{ %endif %}">
 	<span class="oe_logo_edit">Edit Company data</span>
 	<img src="/web/binary/company_logo"/>
@@ -384,25 +385,25 @@ func TestToPongo(t *testing.T) {
 </div>
 `)
 	})
-	Convey("Malformed templates should fail", t, func() {
+	t.Run("Malformed templates should fail", func(t *testing.T) {
 		_, err := ToPongo([]byte("<a"))
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "unable to parse XML: XML syntax error on line 1: unexpected EOF")
+		assert.NotNil(t, err)
+		assert.EqualValues(t, err.Error(), "unable to parse XML: XML syntax error on line 1: unexpected EOF")
 
 		_, err = ToPongo([]byte(template31))
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "t-elif found without t-if")
+		assert.NotNil(t, err)
+		assert.EqualValues(t, err.Error(), "t-elif found without t-if")
 
 		_, err = ToPongo([]byte(template41))
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "t-foreach without t-as")
+		assert.NotNil(t, err)
+		assert.EqualValues(t, err.Error(), "t-foreach without t-as")
 
 		_, err = ToPongo([]byte(template51))
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "t-set attribute set on non 't' XML tag")
+		assert.NotNil(t, err)
+		assert.EqualValues(t, err.Error(), "t-set attribute set on non 't' XML tag")
 
 		_, err = ToPongo([]byte(template61))
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "t-call attribute set on non 't' XML tag")
+		assert.NotNil(t, err)
+		assert.EqualValues(t, err.Error(), "t-call attribute set on non 't' XML tag")
 	})
 }

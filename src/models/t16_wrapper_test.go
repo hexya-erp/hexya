@@ -6,8 +6,9 @@ package models
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/security"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 type UserSet struct {
@@ -23,41 +24,41 @@ type UserData struct {
 }
 
 func TestWrappers(t *testing.T) {
-	Convey("Testing wrappers for RecordSets", t, func() {
-		So(func() { RegisterRecordSetWrapper("User", UserSet{}) }, ShouldNotPanic)
-		So(func() { RegisterRecordSetWrapper("Profile", int(8)) }, ShouldPanic)
-		So(func() { RegisterRecordSetWrapper("Post", DummyStruct{}) }, ShouldPanic)
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing wrappers for RecordSets", func(t *testing.T) {
+		assert.NotPanics(t, func() { RegisterRecordSetWrapper("User", UserSet{}) })
+		assert.Panics(t, func() { RegisterRecordSetWrapper("Profile", int(8)) })
+		assert.Panics(t, func() { RegisterRecordSetWrapper("Post", DummyStruct{}) })
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			user := env.Pool("User")
 			post := env.Pool("Post")
-			Convey("Wrapping a User should work", func() {
+			t.Run("Wrapping a User should work", func(t *testing.T) {
 				wUser := user.Wrap()
-				So(wUser, ShouldHaveSameTypeAs, UserSet{})
+				assert.IsType(t, UserSet{}, wUser)
 			})
-			Convey("Wrapping a Post should fail", func() {
-				So(func() { post.Wrap() }, ShouldPanic)
+			t.Run("Wrapping a Post should fail", func(t *testing.T) {
+				assert.Panics(t, func() { post.Wrap() })
 			})
-			Convey("Wrapping a Post as a user should work", func() {
+			t.Run("Wrapping a Post as a user should work", func(t *testing.T) {
 				wUser := post.Wrap("User")
-				So(wUser, ShouldHaveSameTypeAs, UserSet{})
+				assert.IsType(t, UserSet{}, wUser)
 			})
-		}), ShouldBeNil)
+		}))
 	})
-	Convey("Testing wrappers for ModelData", t, func() {
-		So(func() { RegisterModelDataWrapper("User", UserData{}) }, ShouldNotPanic)
-		So(func() { RegisterModelDataWrapper("Profile", int(8)) }, ShouldPanic)
-		So(func() { RegisterModelDataWrapper("Post", DummyStruct{}) }, ShouldPanic)
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing wrappers for ModelData", func(t *testing.T) {
+		assert.NotPanics(t, func() { RegisterModelDataWrapper("User", UserData{}) })
+		assert.Panics(t, func() { RegisterModelDataWrapper("Profile", int(8)) })
+		assert.Panics(t, func() { RegisterModelDataWrapper("Post", DummyStruct{}) })
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			userData := NewModelData(Registry.MustGet("User"), FieldMap{"Email": "myuser@example.com"})
 			postData := NewModelData(Registry.MustGet("Post"), FieldMap{"Title": "My Post"})
-			Convey("Wrapping a user data should work", func() {
+			t.Run("Wrapping a user data should work", func(t *testing.T) {
 				wUserData := userData.Wrap()
-				So(wUserData, ShouldHaveSameTypeAs, new(UserData))
+				assert.IsType(t, new(UserData), wUserData)
 			})
-			Convey("Wrapping a Post should fail", func() {
+			t.Run("Wrapping a Post should fail", func(t *testing.T) {
 				pUserData := postData.Wrap()
-				So(pUserData, ShouldHaveSameTypeAs, new(ModelData))
+				assert.IsType(t, new(ModelData), pUserData)
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }

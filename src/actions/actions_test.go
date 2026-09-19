@@ -19,11 +19,12 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/tools/xmlutils"
 	"github.com/hexya-erp/hexya/src/views"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var actionDef1 = `
@@ -54,7 +55,7 @@ var viewDef1 = `
 `
 
 func TestActions(t *testing.T) {
-	Convey("Creating models", t, func() {
+	t.Run("Creating models", func(t *testing.T) {
 		user := models.NewModel("User")
 		partner := models.NewModel("Partner")
 		user.AddFields(map[string]models.FieldDefinition{
@@ -66,123 +67,123 @@ func TestActions(t *testing.T) {
 		})
 		models.BootStrap()
 	})
-	Convey("Creating Action 1", t, func() {
+	t.Run("Creating Action 1", func(t *testing.T) {
 		view1, _ := xmlutils.XMLToElement(viewDef1)
 		views.LoadFromEtree(view1)
 		views.BootStrap()
 		action1, _ := xmlutils.XMLToElement(actionDef1)
 		LoadFromEtree(action1)
-		So(len(Registry.actions), ShouldEqual, 1)
+		assert.EqualValues(t, len(Registry.actions), 1)
 		action, ok := Registry.GetByXMLID("my_action")
-		So(action, ShouldNotBeNil)
-		So(ok, ShouldBeTrue)
-		So(action.XMLID, ShouldEqual, "my_action")
-		So(action.Name, ShouldEqual, "My Action")
-		So(action.Model, ShouldEqual, "Partner")
-		So(action.ViewMode, ShouldEqual, "tree,form")
+		assert.NotNil(t, action)
+		assert.True(t, ok)
+		assert.EqualValues(t, action.XMLID, "my_action")
+		assert.EqualValues(t, action.Name, "My Action")
+		assert.EqualValues(t, action.Model, "Partner")
+		assert.EqualValues(t, action.ViewMode, "tree,form")
 	})
-	Convey("Creating Action 2", t, func() {
+	t.Run("Creating Action 2", func(t *testing.T) {
 		action2, _ := xmlutils.XMLToElement(actionDef2)
 		LoadFromEtree(action2)
-		So(len(Registry.actions), ShouldEqual, 2)
+		assert.EqualValues(t, len(Registry.actions), 2)
 		action, ok := Registry.GetByXMLID("my_action_2")
-		So(action, ShouldNotBeNil)
-		So(ok, ShouldBeTrue)
-		So(action.XMLID, ShouldEqual, "my_action_2")
-		So(action.Name, ShouldEqual, "My Second Action")
-		So(action.Model, ShouldEqual, "Partner")
-		So(action.ViewMode, ShouldEqual, "tree,form")
-		So(action.View, ShouldEqual, views.ViewRef{})
-		So(action.Views, ShouldHaveLength, 2)
-		So(action.Views, ShouldContain, views.ViewTuple{ID: "base_view_partner_tree", Type: "tree"})
-		So(action.Views, ShouldContain, views.ViewTuple{ID: "base_view_partner_form", Type: "form"})
-		So(action.HelpXML.Content, ShouldEqual, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
+		assert.NotNil(t, action)
+		assert.True(t, ok)
+		assert.EqualValues(t, action.XMLID, "my_action_2")
+		assert.EqualValues(t, action.Name, "My Second Action")
+		assert.EqualValues(t, action.Model, "Partner")
+		assert.EqualValues(t, action.ViewMode, "tree,form")
+		assert.EqualValues(t, action.View, views.ViewRef{})
+		assert.Len(t, action.Views, 2)
+		assert.Contains(t, action.Views, views.ViewTuple{ID: "base_view_partner_tree", Type: "tree"})
+		assert.Contains(t, action.Views, views.ViewTuple{ID: "base_view_partner_form", Type: "form"})
+		assert.EqualValues(t, action.HelpXML.Content, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
 	})
-	Convey("Testing Boostrap and Get functions", t, func() {
+	t.Run("Testing Boostrap and Get functions", func(t *testing.T) {
 		BootStrap()
 		allActions := Registry.GetAll()
-		So(allActions, ShouldHaveLength, 2)
-		So(func() { Registry.MustGetByXMLID("my_action") }, ShouldNotPanic)
-		So(func() { Registry.MustGetByXMLID("unknown_id") }, ShouldPanic)
-		So(func() { Registry.MustGetById(1) }, ShouldNotPanic)
-		So(func() { Registry.MustGetById(2) }, ShouldNotPanic)
-		So(func() { Registry.MustGetById(3) }, ShouldPanic)
+		assert.Len(t, allActions, 2)
+		assert.NotPanics(t, func() { Registry.MustGetByXMLID("my_action") })
+		assert.Panics(t, func() { Registry.MustGetByXMLID("unknown_id") })
+		assert.NotPanics(t, func() { Registry.MustGetById(1) })
+		assert.NotPanics(t, func() { Registry.MustGetById(2) })
+		assert.Panics(t, func() { Registry.MustGetById(3) })
 		act, _ := Registry.GetByID(1)
-		So(act, ShouldNotBeNil)
-		So(act.XMLID, ShouldEqual, "my_action")
+		assert.NotNil(t, act)
+		assert.EqualValues(t, act.XMLID, "my_action")
 		userLinkedActions := Registry.GetActionLinksForModel("User")
-		So(userLinkedActions, ShouldHaveLength, 1)
+		assert.Len(t, userLinkedActions, 1)
 		tName := userLinkedActions[0].TranslatedName("fr")
-		So(tName, ShouldEqual, "My Action")
+		assert.EqualValues(t, tName, "My Action")
 		action2 := Registry.MustGetByXMLID("my_action_2")
-		So(action2.Help, ShouldEqual, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
+		assert.EqualValues(t, action2.Help, "\n\t\tThis is the help message.\n\t\t\n\t\t<strong>And this is important!</strong>\n\t")
 	})
-	Convey("Testing ActionRef objects", t, func() {
+	t.Run("Testing ActionRef objects", func(t *testing.T) {
 		actionRef := MakeActionRef("my_action")
-		Convey("Creating ActionRef instance", func() {
-			So(actionRef.ID(), ShouldEqual, "my_action")
-			So(actionRef.Name(), ShouldEqual, "My Action")
+		t.Run("Creating ActionRef instance", func(t *testing.T) {
+			assert.EqualValues(t, actionRef.ID(), "my_action")
+			assert.EqualValues(t, actionRef.Name(), "My Action")
 			data, err := json.Marshal(actionRef)
-			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `["my_action","My Action"]`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(data), `["my_action","My Action"]`)
 			val, err := actionRef.Value()
-			So(err, ShouldBeNil)
-			So(val, ShouldEqual, driver.Value("my_action"))
+			assert.Nil(t, err)
+			assert.EqualValues(t, val, driver.Value("my_action"))
 		})
-		Convey("Creating empty actionRef", func() {
+		t.Run("Creating empty actionRef", func(t *testing.T) {
 			emptyAR := MakeActionRef("unknownID")
-			So(emptyAR.ID(), ShouldEqual, "")
-			So(emptyAR.Name(), ShouldEqual, "")
+			assert.EqualValues(t, emptyAR.ID(), "")
+			assert.EqualValues(t, emptyAR.Name(), "")
 			data, err := json.Marshal(emptyAR)
-			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `false`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(data), `false`)
 			val, err := emptyAR.Value()
-			So(err, ShouldBeNil)
-			So(val, ShouldEqual, driver.Value(""))
+			assert.Nil(t, err)
+			assert.EqualValues(t, val, driver.Value(""))
 		})
-		Convey("Unmarshalling JSON actionRef", func() {
+		t.Run("Unmarshalling JSON actionRef", func(t *testing.T) {
 			data := []byte(`["action_id","Action Name"]`)
 			var ar ActionRef
 			err := json.Unmarshal(data, &ar)
-			So(err, ShouldBeNil)
-			So(ar.ID(), ShouldEqual, "action_id")
-			So(ar.Name(), ShouldEqual, "Action Name")
+			assert.Nil(t, err)
+			assert.EqualValues(t, ar.ID(), "action_id")
+			assert.EqualValues(t, ar.Name(), "Action Name")
 		})
-		Convey("Unmarshalling JSON empty actionRef", func() {
+		t.Run("Unmarshalling JSON empty actionRef", func(t *testing.T) {
 			data := []byte(`null`)
 			var ar ActionRef
 			err := json.Unmarshal(data, &ar)
-			So(err, ShouldBeNil)
-			So(ar.IsNull(), ShouldBeTrue)
+			assert.Nil(t, err)
+			assert.True(t, ar.IsNull())
 		})
-		Convey("Unmarshalling JSON false actionRef", func() {
+		t.Run("Unmarshalling JSON false actionRef", func(t *testing.T) {
 			data := []byte(`false`)
 			var ar ActionRef
 			err := json.Unmarshal(data, &ar)
-			So(err, ShouldBeNil)
-			So(ar.IsNull(), ShouldBeTrue)
+			assert.Nil(t, err)
+			assert.True(t, ar.IsNull())
 		})
-		Convey("Scanning actionRefs", func() {
+		t.Run("Scanning actionRefs", func(t *testing.T) {
 			var vr ActionRef
 			err := vr.Scan("my_action")
-			So(err, ShouldBeNil)
-			So(vr.ID(), ShouldEqual, "my_action")
-			So(vr.Name(), ShouldEqual, "My Action")
+			assert.Nil(t, err)
+			assert.EqualValues(t, vr.ID(), "my_action")
+			assert.EqualValues(t, vr.Name(), "My Action")
 
 			err = vr.Scan([]byte("my_action_2"))
-			So(err, ShouldBeNil)
-			So(vr.ID(), ShouldEqual, "my_action_2")
-			So(vr.Name(), ShouldEqual, "My Second Action")
+			assert.Nil(t, err)
+			assert.EqualValues(t, vr.ID(), "my_action_2")
+			assert.EqualValues(t, vr.Name(), "My Second Action")
 		})
 	})
-	Convey("Testing ActionString objects", t, func() {
+	t.Run("Testing ActionString objects", func(t *testing.T) {
 		act, _ := Registry.GetByXMLID("my_action")
 		as := act.ActionString()
 		d, err := json.Marshal(as)
-		So(err, ShouldBeNil)
-		So(string(d), ShouldEqual, `"ir.actions.act_window,1"`)
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(d), `"ir.actions.act_window,1"`)
 		d, err = json.Marshal(ActionString{})
-		So(err, ShouldBeNil)
-		So(string(d), ShouldEqual, "false")
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(d), "false")
 	})
 }

@@ -18,105 +18,106 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/security"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestMethods(t *testing.T) {
-	Convey("Testing simple methods", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-			Convey("Getting all users and calling `PrefixedUser`", func() {
+	t.Run("Testing simple methods", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			t.Run("Getting all users and calling `PrefixedUser`", func(t *testing.T) {
 				users := env.Pool("User")
 				users = users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				res := users.Call("PrefixedUser", "Prefix")
-				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
+				assert.EqualValues(t, res.([]string)[0], "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 			})
-			Convey("Calling `PrefixedUser` with context", func() {
+			t.Run("Calling `PrefixedUser` with context", func(t *testing.T) {
 				users := env.Pool("User")
 				users = users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				res := users.WithContext("use_double_square", true).Call("PrefixedUser", "Prefix")
-				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [[jane.smith@example.com]]")
+				assert.EqualValues(t, res.([]string)[0], "Prefix: Jane A. Smith [[jane.smith@example.com]]")
 			})
-			Convey("Calling super on subset", func() {
+			t.Run("Calling super on subset", func(t *testing.T) {
 				users := env.Pool("User").SearchAll()
-				So(users.Call("SubSetSuper").(string), ShouldEqual, "Jane A. SmithJohn Smith")
+				assert.EqualValues(t, users.Call("SubSetSuper").(string), "Jane A. SmithJohn Smith")
 			})
-			Convey("Calling recursive method", func() {
+			t.Run("Calling recursive method", func(t *testing.T) {
 				users := env.Pool("User")
-				So(users.Call("RecursiveMethod", 3, "Start"), ShouldEqual, "> > > > Start <, recursion 3 <, recursion 2 <, recursion 1 <")
+				assert.EqualValues(t, users.Call("RecursiveMethod", 3, "Start"), "> > > > Start <, recursion 3 <, recursion 2 <, recursion 1 <")
 			})
-			Convey("Direct calls from method object", func() {
+			t.Run("Direct calls from method object", func(t *testing.T) {
 				users := env.Pool("User")
 				users = users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				res := users.Model().Methods().MustGet("PrefixedUser").Call(users, "Prefix")
-				So(res.([]string)[0], ShouldEqual, "Prefix: Jane A. Smith [<jane.smith@example.com>]")
+				assert.EqualValues(t, res.([]string)[0], "Prefix: Jane A. Smith [<jane.smith@example.com>]")
 				resMulti := users.Model().Methods().MustGet("OnChangeName").CallMulti(users)
 				res1 := resMulti[0].(*ModelData)
-				So(res1.FieldMap, ShouldContainKey, "decorated_name")
-				So(res1.FieldMap["decorated_name"], ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+				assert.Contains(t, res1.FieldMap, "decorated_name")
+				assert.EqualValues(t, res1.FieldMap["decorated_name"], "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
 func TestComputedNonStoredFields(t *testing.T) {
-	Convey("Testing non stored computed fields", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-			Convey("Getting one user (Jane) and checking DisplayName", func() {
+	t.Run("Testing non stored computed fields", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			t.Run("Getting one user (Jane) and checking DisplayName", func(t *testing.T) {
 				users := env.Pool("User")
 				users = users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(users.Get(decoratedName), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
+				assert.EqualValues(t, users.Get(decoratedName), "User: Jane A. Smith [<jane.smith@example.com>]")
 			})
-			Convey("Getting all users (Jane & Will) and checking DisplayName", func() {
+			t.Run("Getting all users (Jane & Will) and checking DisplayName", func(t *testing.T) {
 				users := env.Pool("User").OrderBy("Name").Call("Fetch").(RecordSet).Collection()
-				So(users.Len(), ShouldEqual, 3)
+				assert.EqualValues(t, users.Len(), 3)
 				userRecs := users.Records()
-				So(userRecs[0].Get(decoratedName), ShouldEqual, "User: Jane A. Smith [<jane.smith@example.com>]")
-				So(userRecs[1].Get(decoratedName), ShouldEqual, "User: John Smith [<jsmith2@example.com>]")
-				So(userRecs[2].Get(decoratedName), ShouldEqual, "User: Will Smith [<will.smith@example.com>]")
+				assert.EqualValues(t, userRecs[0].Get(decoratedName), "User: Jane A. Smith [<jane.smith@example.com>]")
+				assert.EqualValues(t, userRecs[1].Get(decoratedName), "User: John Smith [<jsmith2@example.com>]")
+				assert.EqualValues(t, userRecs[2].Get(decoratedName), "User: Will Smith [<will.smith@example.com>]")
 			})
-			Convey("Testing built-in DisplayName", func() {
+			t.Run("Testing built-in DisplayName", func(t *testing.T) {
 				users := env.Pool("User")
 				users = users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(users.Get(displayName).(string), ShouldEqual, "Jane A. Smith")
+				assert.EqualValues(t, users.Get(displayName).(string), "Jane A. Smith")
 			})
-			Convey("Testing computed field through a related field", func() {
+			t.Run("Testing computed field through a related field", func(t *testing.T) {
 				users := env.Pool("User")
 				jane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(jane.Get(other), ShouldEqual, "Other information")
-				So(jane.Get(resume).(RecordSet).Collection().Get(other), ShouldEqual, "Other information")
+				assert.EqualValues(t, jane.Get(other), "Other information")
+				assert.EqualValues(t, jane.Get(resume).(RecordSet).Collection().Get(other), "Other information")
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
 func TestComputedStoredFields(t *testing.T) {
-	Convey("Testing stored computed fields", t, func() {
-		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing stored computed fields", func(t *testing.T) {
+		assert.Nil(t, ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			profileModel := Registry.MustGet("Profile")
-			Convey("Checking that user Jane is 23", func() {
+			t.Run("Checking that user Jane is 23", func(t *testing.T) {
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(userJane.Get(age), ShouldEqual, 23)
+				assert.EqualValues(t, userJane.Get(age), 23)
 			})
-			Convey("Checking that user Will has no age since no profile", func() {
+			t.Run("Checking that user Will has no age since no profile", func(t *testing.T) {
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
-				So(userWill.Get(age), ShouldEqual, 0)
+				assert.EqualValues(t, userWill.Get(age), 0)
 			})
-			Convey("It's Jane's birthday, change her age, commit and check", func() {
+			t.Run("It's Jane's birthday, change her age, commit and check", func(t *testing.T) {
 				jane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(jane.Get(Name), ShouldEqual, "Jane A. Smith")
-				So(jane.Get(profile).(RecordSet).Collection().Get(money), ShouldEqual, 12345)
+				assert.EqualValues(t, jane.Get(Name), "Jane A. Smith")
+				assert.EqualValues(t, jane.Get(profile).(RecordSet).Collection().Get(money), 12345)
 				jane.Get(profile).(RecordSet).Collection().Set(age, 24)
 
 				jane.Load()
 				jane.Get(profile).(RecordSet).Collection().Load()
-				So(jane.Get(age), ShouldEqual, 24)
+				assert.EqualValues(t, jane.Get(age), 24)
 			})
-			Convey("Adding a Profile to Will, writing to DB and checking Will's age", func() {
+			t.Run("Adding a Profile to Will, writing to DB and checking Will's age", func(t *testing.T) {
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
 				userWill.Load()
-				So(userWill.Get(Name), ShouldEqual, "Will Smith")
+				assert.EqualValues(t, userWill.Get(Name), "Will Smith")
 				willProfileData := NewModelData(profileModel).
 					Set(age, 36).
 					Set(money, 5100)
@@ -124,275 +125,295 @@ func TestComputedStoredFields(t *testing.T) {
 				userWill.Set(profile, willProfile)
 
 				userWill.Load()
-				So(userWill.Get(age), ShouldEqual, 36)
+				assert.EqualValues(t, userWill.Get(age), 36)
 			})
-			Convey("Checking inverse method by changing will's age", func() {
+			t.Run("Checking inverse method by changing will's age", func(t *testing.T) {
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
 				userWill.Load()
-				So(userWill.Get(age), ShouldEqual, 36)
+				assert.EqualValues(t, userWill.Get(age), 36)
 				userWill.Set(age, int16(34))
-				So(userWill.Get(age), ShouldEqual, 34)
+				assert.EqualValues(t, userWill.Get(age), 34)
 				userWill.Load()
-				So(userWill.Get(age), ShouldEqual, 34)
+				assert.EqualValues(t, userWill.Get(age), 34)
 			})
-			Convey("Checking that unlinking a record recomputes their dependencies", func() {
+			t.Run("Checking that unlinking a record recomputes their dependencies", func(t *testing.T) {
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
 				userWill.Get(profile).(RecordSet).Collection().Call("Unlink")
-				So(userWill.Get(age), ShouldEqual, 0)
+				assert.EqualValues(t, userWill.Get(age), 0)
 			})
-			Convey("Recreating a profile for userWill", func() {
+			t.Run("Recreating a profile for userWill", func(t *testing.T) {
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
 				willProfileData := NewModelData(profileModel).
 					Set(age, 36).
 					Set(money, 5100)
 				willProfile := env.Pool("Profile").Call("Create", willProfileData)
 				userWill.Set(profile, willProfile)
-				So(userWill.Get(age), ShouldEqual, 36)
+				assert.EqualValues(t, userWill.Get(age), 36)
 			})
-			Convey("Checking that setting a computed field with no inverse panics", func() {
+			t.Run("Checking that setting a computed field with no inverse panics", func(t *testing.T) {
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
-				So(func() { userWill.Set(decoratedName, "FooBar") }, ShouldPanic)
+				assert.Panics(t, func() { userWill.Set(decoratedName, "FooBar") })
 			})
-			Convey("Checking that a computed field can trigger another one", func() {
+			t.Run("Checking that a computed field can trigger another one", func(t *testing.T) {
 				jane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				post := jane.Get(posts).(RecordSet).Collection().Records()[0]
-				So(jane.Get(Name), ShouldEqual, "Jane A. Smith")
-				So(post.Get(writerAge), ShouldEqual, 24)
+				assert.EqualValues(t, jane.Get(Name), "Jane A. Smith")
+				assert.EqualValues(t, post.Get(writerAge), 24)
 				jane.Get(profile).(RecordSet).Collection().Set(age, 25)
-				So(post.Get(writerAge), ShouldEqual, 25)
+				assert.EqualValues(t, post.Get(writerAge), 25)
 				jane.Set(age, int16(24))
-				So(post.Get(writerAge), ShouldEqual, 24)
+				assert.EqualValues(t, post.Get(writerAge), 24)
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
 func TestRelatedNonStoredFields(t *testing.T) {
-	Convey("Testing non stored related fields", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-			users := env.Pool("User")
-			Convey("Checking that users PMoney is correct", func() {
+	t.Run("Testing non stored related fields", func(t *testing.T) {
+		t.Run("Checking that users PMoney is correct", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				userJohn := users.Search(users.Model().Field(Name).Equals("John Smith"))
-				So(userJohn.Len(), ShouldEqual, 1)
-				So(userJohn.Get(pMoney), ShouldEqual, 0)
+				assert.EqualValues(t, userJohn.Len(), 1)
+				assert.EqualValues(t, userJohn.Get(pMoney), 0)
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(userJane.Get(pMoney), ShouldEqual, 12345)
+				assert.EqualValues(t, userJane.Get(pMoney), 12345)
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
-				So(userWill.Get(pMoney), ShouldEqual, 5100)
-			})
-			Convey("Checking that PMoney is correct after update of Profile", func() {
+				assert.EqualValues(t, userWill.Get(pMoney), 5100)
+			}))
+		})
+		t.Run("Checking that PMoney is correct after update of Profile", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(userJane.Get(pMoney), ShouldEqual, 12345)
+				assert.EqualValues(t, userJane.Get(pMoney), 12345)
 				userJane.Get(profile).(RecordSet).Collection().Set(money, 54321)
-				So(userJane.Get(pMoney), ShouldEqual, 54321)
-			})
-			Convey("Checking that we can update PMoney directly", func() {
+				assert.EqualValues(t, userJane.Get(pMoney), 54321)
+			}))
+		})
+		t.Run("Checking that we can update PMoney directly", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-				So(userJane.Get(pMoney), ShouldEqual, 12345)
+				assert.EqualValues(t, userJane.Get(pMoney), 12345)
 				userJane.Set(pMoney, 67890)
-				So(userJane.Get(profile).(RecordSet).Collection().Get(money), ShouldEqual, 67890)
-				So(userJane.Get(pMoney), ShouldEqual, 67890)
+				assert.EqualValues(t, userJane.Get(profile).(RecordSet).Collection().Get(money), 67890)
+				assert.EqualValues(t, userJane.Get(pMoney), 67890)
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
-				So(userWill.Get(pMoney), ShouldEqual, 5100)
+				assert.EqualValues(t, userWill.Get(pMoney), 5100)
 
 				userJane.Union(userWill).Set(pMoney, 100)
-				So(userJane.Get(profile).(RecordSet).Collection().Get(money), ShouldEqual, 100)
-				So(userJane.Get(pMoney), ShouldEqual, 100)
-				So(userWill.Get(profile).(RecordSet).Collection().Get(money), ShouldEqual, 100)
-				So(userWill.Get(pMoney), ShouldEqual, 100)
-			})
-			Convey("Checking that we can search PMoney directly", func() {
+				assert.EqualValues(t, userJane.Get(profile).(RecordSet).Collection().Get(money), 100)
+				assert.EqualValues(t, userJane.Get(pMoney), 100)
+				assert.EqualValues(t, userWill.Get(profile).(RecordSet).Collection().Get(money), 100)
+				assert.EqualValues(t, userWill.Get(pMoney), 100)
+			}))
+		})
+		t.Run("Checking that we can search PMoney directly", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
 				pmoneyUser := users.Search(users.Model().Field(pMoney).Equals(12345))
-				So(pmoneyUser.Len(), ShouldEqual, 1)
-				So(pmoneyUser.Ids()[0], ShouldEqual, userJane.Ids()[0])
+				assert.EqualValues(t, pmoneyUser.Len(), 1)
+				assert.EqualValues(t, pmoneyUser.Ids()[0], userJane.Ids()[0])
 				pUsers := users.Search(users.Model().Field(pMoney).Equals(12345).Or().Field(pMoney).Equals(5100))
-				So(pUsers.Len(), ShouldEqual, 2)
-				So(pUsers.Ids(), ShouldContain, userJane.Ids()[0])
-				So(pUsers.Ids(), ShouldContain, userWill.Ids()[0])
-			})
-			Convey("Checking that we can order by PMoney", func() {
+				assert.EqualValues(t, pUsers.Len(), 2)
+				assert.Contains(t, pUsers.Ids(), userJane.Ids()[0])
+				assert.Contains(t, pUsers.Ids(), userWill.Ids()[0])
+			}))
+		})
+		t.Run("Checking that we can order by PMoney", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				userWill := users.Search(users.Model().Field(email).Equals("will.smith@example.com"))
 				userJane.Set(pMoney, 64)
 				pUsers := users.SearchAll().OrderBy("PMoney DESC")
-				So(pUsers.Len(), ShouldEqual, 3)
+				assert.EqualValues(t, pUsers.Len(), 3)
 				pUsersRecs := pUsers.Records()
 				// pUsersRecs[0] is userJohn because its pMoney is Null.
-				So(pUsersRecs[1].Equals(userWill), ShouldBeTrue)
-				So(pUsersRecs[2].Equals(userJane), ShouldBeTrue)
-			})
-			Convey("Checking that we can chain related fields", func() {
+				assert.True(t, pUsersRecs[1].Equals(userWill))
+				assert.True(t, pUsersRecs[2].Equals(userJane))
+			}))
+		})
+		t.Run("Checking that we can chain related fields", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 				emptyPosts := env.Pool("Post")
 				post := emptyPosts.Search(emptyPosts.Model().Field(title).Equals("1st Post"))
-				So(post.Len(), ShouldEqual, 1)
-				So(post.Get(writerMoney), ShouldEqual, 12345)
-			})
-			Convey("Checking that we can chain on a related M2O", func() {
+				assert.EqualValues(t, post.Len(), 1)
+				assert.EqualValues(t, post.Get(writerMoney), 12345)
+			}))
+		})
+		t.Run("Checking that we can chain on a related M2O", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				emptyComments := env.Pool("Comment")
 				comment := emptyComments.Search(emptyComments.Model().Field(text).Equals("First Comment"))
-				So(comment.Len(), ShouldEqual, 1)
-				So(comment.Get(writerMoney), ShouldEqual, 12345)
-				So(comment.Get(postWriter).(RecordSet).Collection().Equals(userJane), ShouldBeTrue)
-			})
-		}), ShouldBeNil)
+				assert.EqualValues(t, comment.Len(), 1)
+				assert.EqualValues(t, comment.Get(writerMoney), 12345)
+				assert.True(t, comment.Get(postWriter).(RecordSet).Collection().Equals(userJane))
+			}))
+		})
 	})
 }
 
 func TestEmbeddedModels(t *testing.T) {
-	Convey("Testing embedded models", t, func() {
-		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing embedded models", func(t *testing.T) {
+		assert.Nil(t, ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
-			Convey("Checking that Jane's resume exists", func() {
-				So(userJane.Get(resume).(RecordSet).IsEmpty(), ShouldBeFalse)
-				So(userJane.Get(resume).(RecordSet).IsNotEmpty(), ShouldBeTrue)
+			t.Run("Checking that Jane's resume exists", func(t *testing.T) {
+				assert.False(t, userJane.Get(resume).(RecordSet).IsEmpty())
+				assert.True(t, userJane.Get(resume).(RecordSet).IsNotEmpty())
 			})
-			Convey("Adding a proper resume to Jane", func() {
+			t.Run("Adding a proper resume to Jane", func(t *testing.T) {
 				userJane.Get(resume).(RecordSet).Collection().Set(experience, "Hexya developer for 10 years")
 				userJane.Set(leisure, "Music, Sports")
 				userJane.Get(resume).(RecordSet).Collection().Set(education, "MIT")
 				userJane.Set(education, "Berkeley")
 			})
-			Convey("Checking that we can access jane's resume directly", func() {
-				So(userJane.Get(experience), ShouldEqual, "Hexya developer for 10 years")
-				So(userJane.Get(leisure), ShouldEqual, "Music, Sports")
-				So(userJane.Get(education), ShouldEqual, "Berkeley")
-				So(userJane.Get(resume).(RecordSet).Collection().Get(experience), ShouldEqual, "Hexya developer for 10 years")
-				So(userJane.Get(resume).(RecordSet).Collection().Get(leisure), ShouldEqual, "Music, Sports")
-				So(userJane.Get(resume).(RecordSet).Collection().Get(education), ShouldEqual, "MIT")
+			t.Run("Checking that we can access jane's resume directly", func(t *testing.T) {
+				assert.EqualValues(t, userJane.Get(experience), "Hexya developer for 10 years")
+				assert.EqualValues(t, userJane.Get(leisure), "Music, Sports")
+				assert.EqualValues(t, userJane.Get(education), "Berkeley")
+				assert.EqualValues(t, userJane.Get(resume).(RecordSet).Collection().Get(experience), "Hexya developer for 10 years")
+				assert.EqualValues(t, userJane.Get(resume).(RecordSet).Collection().Get(leisure), "Music, Sports")
+				assert.EqualValues(t, userJane.Get(resume).(RecordSet).Collection().Get(education), "MIT")
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
 func TestMixedInModels(t *testing.T) {
-	Convey("Testing mixed in models", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-			users := env.Pool("User")
-			Convey("Checking that mixed in functions are correctly inherited", func() {
+	t.Run("Testing mixed in models", func(t *testing.T) {
+		t.Run("Checking that mixed in functions are correctly inherited", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				janeProfile := users.Search(users.Model().Field(email).Equals("jane.smith@example.com")).Get(profile).(RecordSet).Collection()
-				So(janeProfile.Call("PrintAddress"), ShouldEqual, "[<165 5th Avenue, 0305 New York>, USA]")
-				So(janeProfile.Call("SayHello"), ShouldEqual, "Hello !")
-			})
-			Convey("Checking mixing in all models", func() {
+				assert.EqualValues(t, janeProfile.Call("PrintAddress"), "[<165 5th Avenue, 0305 New York>, USA]")
+				assert.EqualValues(t, janeProfile.Call("SayHello"), "Hello !")
+			}))
+		})
+		t.Run("Checking mixing in all models", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				users := env.Pool("User")
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				userJane.Set(active, true)
-				So(userJane.Get(active).(bool), ShouldEqual, true)
-				So(userJane.Call("IsActivated").(bool), ShouldEqual, true)
+				assert.EqualValues(t, userJane.Get(active).(bool), true)
+				assert.EqualValues(t, userJane.Call("IsActivated").(bool), true)
 				janeProfile := userJane.Get(profile).(RecordSet).Collection()
 				janeProfile.Set(active, true)
-				So(janeProfile.Get(active).(bool), ShouldEqual, true)
-				So(janeProfile.Call("IsActivated").(bool), ShouldEqual, true)
-			})
-		}), ShouldBeNil)
+				assert.EqualValues(t, janeProfile.Get(active).(bool), true)
+				assert.EqualValues(t, janeProfile.Call("IsActivated").(bool), true)
+			}))
+		})
 	})
 }
 
 func TestContextedFields(t *testing.T) {
-	Convey("Testing contexted fields", t, func() {
-		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing contexted fields", func(t *testing.T) {
+		assert.Nil(t, ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			mTags := env.Pool("Tag")
 			decs := env.Pool("TagHexyaDescription")
 			var tagc *RecordCollection
-			Convey("Creating record with a single contexted field", func() {
+			t.Run("Creating record with a single contexted field", func(t *testing.T) {
 				tagc = mTags.Call("Create", NewModelData(mTags.model).
 					Set(Name, "Contexted tag").
 					Set(description, "Translated description")).(RecordSet).Collection()
-				So(tagc.Get(descriptionHexyaContexts).(RecordSet).Len(), ShouldEqual, 1)
-				So(tagc.Get(description), ShouldEqual, "Translated description")
+				assert.EqualValues(t, tagc.Get(descriptionHexyaContexts).(RecordSet).Len(), 1)
+				assert.EqualValues(t, tagc.Get(description), "Translated description")
 
 				tagc.WithContext("lang", "fr_FR").Set(description, "Description traduite")
-				So(tagc.Get(descriptionHexyaContexts).(RecordSet).Len(), ShouldEqual, 2)
-				So(tagc.Get(description), ShouldEqual, "Translated description")
+				assert.EqualValues(t, tagc.Get(descriptionHexyaContexts).(RecordSet).Len(), 2)
+				assert.EqualValues(t, tagc.Get(description), "Translated description")
 
 				newTag := mTags.WithContext("lang", "fr_FR").Search(mTags.Model().Field(Name).Equals("Contexted tag"))
 				newTag.Load(description)
-				So(newTag.Get(description), ShouldEqual, "Description traduite")
+				assert.EqualValues(t, newTag.Get(description), "Description traduite")
 
-				So(tagc.Get(description), ShouldEqual, "Translated description")
-				So(tagc.WithContext("lang", "fr_FR").Get(description), ShouldEqual, "Description traduite")
-				So(tagc.Get(description), ShouldEqual, "Translated description")
-				So(tagc.WithContext("lang", "de_DE").Get(description), ShouldEqual, "Translated description")
+				assert.EqualValues(t, tagc.Get(description), "Translated description")
+				assert.EqualValues(t, tagc.WithContext("lang", "fr_FR").Get(description), "Description traduite")
+				assert.EqualValues(t, tagc.Get(description), "Translated description")
+				assert.EqualValues(t, tagc.WithContext("lang", "de_DE").Get(description), "Translated description")
 
 				tagc.WithContext("lang", "fr_FR").Set(description, "Nouvelle traduction")
-				So(tagc.Get(description), ShouldEqual, "Translated description")
-				So(tagc.WithContext("lang", "fr_FR").Get(description), ShouldEqual, "Nouvelle traduction")
-				So(tagc.WithContext("lang", "de_DE").Get(description), ShouldEqual, "Translated description")
+				assert.EqualValues(t, tagc.Get(description), "Translated description")
+				assert.EqualValues(t, tagc.WithContext("lang", "fr_FR").Get(description), "Nouvelle traduction")
+				assert.EqualValues(t, tagc.WithContext("lang", "de_DE").Get(description), "Translated description")
 
 				tagc.WithContext("lang", "de_DE").Set(description, "übersetzte Beschreibung")
-				So(tagc.Get(description), ShouldEqual, "Translated description")
-				So(tagc.WithContext("lang", "fr_FR").Get(description), ShouldEqual, "Nouvelle traduction")
-				So(tagc.WithContext("lang", "de_DE").Get(description), ShouldEqual, "übersetzte Beschreibung")
+				assert.EqualValues(t, tagc.Get(description), "Translated description")
+				assert.EqualValues(t, tagc.WithContext("lang", "fr_FR").Get(description), "Nouvelle traduction")
+				assert.EqualValues(t, tagc.WithContext("lang", "de_DE").Get(description), "übersetzte Beschreibung")
 
 				tagc.WithContext("lang", "es_ES").Set(description, "descripción traducida")
-				So(tagc.Get(description), ShouldEqual, "Translated description")
-				So(tagc.WithContext("lang", "fr_FR").Get(description), ShouldEqual, "Nouvelle traduction")
-				So(tagc.WithContext("lang", "de_DE").Get(description), ShouldEqual, "übersetzte Beschreibung")
-				So(tagc.WithContext("lang", "es_ES").Get(description), ShouldEqual, "descripción traducida")
-				So(tagc.WithContext("lang", "it_IT").Get(description), ShouldEqual, "Translated description")
+				assert.EqualValues(t, tagc.Get(description), "Translated description")
+				assert.EqualValues(t, tagc.WithContext("lang", "fr_FR").Get(description), "Nouvelle traduction")
+				assert.EqualValues(t, tagc.WithContext("lang", "de_DE").Get(description), "übersetzte Beschreibung")
+				assert.EqualValues(t, tagc.WithContext("lang", "es_ES").Get(description), "descripción traducida")
+				assert.EqualValues(t, tagc.WithContext("lang", "it_IT").Get(description), "Translated description")
 			})
-			Convey("Creating a record with a contexted field should also create for default context", func() {
+			t.Run("Creating a record with a contexted field should also create for default context", func(t *testing.T) {
 				mTags.WithContext("lang", "fr_FR").Call("Create", NewModelData(mTags.model).
 					Set(Name, "Contexted tag 2").
 					Set(description, "Description en français")).(RecordSet).Collection()
 				tag := mTags.Search(mTags.Model().Field(Name).Equals("Contexted tag 2"))
-				So(tag.Get(description), ShouldEqual, "Description en français")
-				So(tag.WithContext("lang", "en_US").Get(description), ShouldEqual, "Description en français")
-				So(tag.WithContext("lang", "fr_FR").Get(description), ShouldEqual, "Description en français")
+				assert.EqualValues(t, tag.Get(description), "Description en français")
+				assert.EqualValues(t, tag.WithContext("lang", "en_US").Get(description), "Description en français")
+				assert.EqualValues(t, tag.WithContext("lang", "fr_FR").Get(description), "Description en français")
 				tag.WithContext("lang", "en_US").Set(description, "Description in English")
-				So(tag.WithContext("lang", "en_US").Get(description), ShouldEqual, "Description in English")
-				So(tag.WithContext("lang", "fr_FR").Get(description), ShouldEqual, "Description en français")
-				So(tag.WithContext("lang", "de_DE").Get(description), ShouldEqual, "Description en français")
-				So(tag.Get(description), ShouldEqual, "Description en français")
+				assert.EqualValues(t, tag.WithContext("lang", "en_US").Get(description), "Description in English")
+				assert.EqualValues(t, tag.WithContext("lang", "fr_FR").Get(description), "Description en français")
+				assert.EqualValues(t, tag.WithContext("lang", "de_DE").Get(description), "Description en français")
+				assert.EqualValues(t, tag.Get(description), "Description en français")
 				thc := decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				So(thc.Len(), ShouldEqual, 1)
+				assert.EqualValues(t, thc.Len(), 1)
 			})
-			Convey("Updating in another transaction should not recreate a default value", func() {
+			t.Run("Updating in another transaction should not recreate a default value", func(t *testing.T) {
 				tag := mTags.WithContext("lang", "fr_FR").Search(mTags.Model().Field(Name).Equals("Contexted tag 2"))
-				So(tag.Get(description), ShouldEqual, "Description en français")
+				assert.EqualValues(t, tag.Get(description), "Description en français")
 				thc := decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				So(thc.Len(), ShouldEqual, 1)
+				assert.EqualValues(t, thc.Len(), 1)
 
 				tag.Set(description, "Nouvelle description en français")
 				thc = decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				So(thc.Len(), ShouldEqual, 1)
-				So(tag.Get(description), ShouldEqual, "Nouvelle description en français")
+				assert.EqualValues(t, thc.Len(), 1)
+				assert.EqualValues(t, tag.Get(description), "Nouvelle description en français")
 			})
-			Convey("Changing language should recreate a default value (new transaction)", func() {
+			t.Run("Changing language should recreate a default value (new transaction)", func(t *testing.T) {
 				tag := mTags.WithContext("lang", "es_ES").Search(mTags.Model().Field(Name).Equals("Contexted tag 2"))
-				So(tag.Get(description), ShouldEqual, "Description en français")
+				assert.EqualValues(t, tag.Get(description), "Description en français")
 				thc := decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				So(thc.Len(), ShouldEqual, 1)
+				assert.EqualValues(t, thc.Len(), 1)
 
 				tag.Set(description, "descripción traducida")
 				thc = decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				So(thc.Len(), ShouldEqual, 1)
-				So(tag.Get(description), ShouldEqual, "descripción traducida")
+				assert.EqualValues(t, thc.Len(), 1)
+				assert.EqualValues(t, tag.Get(description), "descripción traducida")
 			})
-			Convey("Deleting a record with a contexted field should delete all contexts", func() {
+			t.Run("Deleting a record with a contexted field should delete all contexts", func(t *testing.T) {
 				newTag := mTags.Call("Create", NewModelData(mTags.model).
 					Set(Name, "Contexted tag 3").
 					Set(description, "Description to translate")).(RecordSet).Collection()
-				So(newTag.Get(description), ShouldEqual, "Description to translate")
+				assert.EqualValues(t, newTag.Get(description), "Description to translate")
 				newTag.WithContext("lang", "fr_FR").Set(description, "Description en français")
-				So(newTag.WithContext("lang", "fr_FR").Get(description), ShouldEqual, "Description en français")
+				assert.EqualValues(t, newTag.WithContext("lang", "fr_FR").Get(description), "Description en français")
 				newTag.WithContext("lang", "de_DE").Set(description, "übersetzte Beschreibung")
-				So(newTag.WithContext("lang", "de_DE").Get(description), ShouldEqual, "übersetzte Beschreibung")
+				assert.EqualValues(t, newTag.WithContext("lang", "de_DE").Get(description), "übersetzte Beschreibung")
 				nID := newTag.Ids()[0]
 				newTag.Call("Unlink")
 				dec := decs.Search(decs.Model().Field(record).Equals(nID).Or().Field(record).IsNull())
-				So(dec.IsEmpty(), ShouldBeTrue)
+				assert.True(t, dec.IsEmpty())
 			})
-		}), ShouldBeNil)
+		}))
 	})
-	Convey("Testing contexted group by queries", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing contexted group by queries", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			mTags := env.Pool("Tag")
 			mTags.SearchAll().Call("Unlink")
-			Convey("Simple group by query", func() {
+			t.Run("Simple group by query", func(t *testing.T) {
 				tag1 := mTags.Call("Create", NewModelData(mTags.model).
 					Set(Name, "Contexted tag").
 					Set(description, "Translated description")).(RecordSet).Collection()
@@ -405,125 +426,125 @@ func TestContextedFields(t *testing.T) {
 					Set(Name, "Contexted tag").
 					Set(description, "Other description")).(RecordSet).Collection()
 				gbq := mTags.WithContext("lang", "fr_FR").SearchAll().GroupBy(FieldName(description)).Aggregates(FieldName(description))
-				So(gbq, ShouldHaveLength, 2)
-				So(gbq[0].Values.Has(description), ShouldBeTrue)
+				assert.Len(t, gbq, 2)
+				assert.True(t, gbq[0].Values.Has(description))
 				des := gbq[0].Values.Get(description)
-				So(des, ShouldBeIn, []string{"Other description", "Description traduite"})
+				assert.Contains(t, []string{"Other description", "Description traduite"}, des)
 				switch des {
 				case "Description traduite":
-					So(gbq[0].Count, ShouldEqual, 2)
-					So(gbq[1].Count, ShouldEqual, 1)
+					assert.EqualValues(t, gbq[0].Count, 2)
+					assert.EqualValues(t, gbq[1].Count, 1)
 					des1 := gbq[1].Values.Get(description)
-					So(des1, ShouldEqual, "Other description")
+					assert.EqualValues(t, des1, "Other description")
 				case "Other description":
-					So(gbq[0].Count, ShouldEqual, 1)
-					So(gbq[1].Count, ShouldEqual, 2)
+					assert.EqualValues(t, gbq[0].Count, 1)
+					assert.EqualValues(t, gbq[1].Count, 2)
 					des1 := gbq[1].Values.Get(description)
-					So(des1, ShouldEqual, "Description traduite")
+					assert.EqualValues(t, des1, "Description traduite")
 				default:
 					t.FailNow()
 				}
 				gbq = mTags.SearchAll().GroupBy(FieldName(description)).Aggregates(FieldName(description))
-				So(gbq[0].Values.Has(description), ShouldBeTrue)
+				assert.True(t, gbq[0].Values.Has(description))
 				des = gbq[0].Values.Get(description)
-				So(des, ShouldBeIn, []string{"Other description", "Translated description"})
+				assert.Contains(t, []string{"Other description", "Translated description"}, des)
 				switch des {
 				case "Translated description":
-					So(gbq[0].Count, ShouldEqual, 2)
-					So(gbq[1].Count, ShouldEqual, 1)
+					assert.EqualValues(t, gbq[0].Count, 2)
+					assert.EqualValues(t, gbq[1].Count, 1)
 					des1 := gbq[1].Values.Get(description)
-					So(des1, ShouldEqual, "Other description")
+					assert.EqualValues(t, des1, "Other description")
 				case "Other description":
-					So(gbq[0].Count, ShouldEqual, 1)
-					So(gbq[1].Count, ShouldEqual, 2)
+					assert.EqualValues(t, gbq[0].Count, 1)
+					assert.EqualValues(t, gbq[1].Count, 2)
 					des1 := gbq[1].Values.Get(description)
-					So(des1, ShouldEqual, "Translated description")
+					assert.EqualValues(t, des1, "Translated description")
 				default:
 					t.FailNow()
 				}
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
 func TestRecursionProtection(t *testing.T) {
-	Convey("Testing protection against recursion", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-			Convey("Endless recursive method calls should panic", func() {
-				So(func() { env.Pool("User").Call("EndlessRecursion") }, ShouldPanic)
+	t.Run("Testing protection against recursion", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			t.Run("Endless recursive method calls should panic", func(t *testing.T) {
+				assert.Panics(t, func() { env.Pool("User").Call("EndlessRecursion") })
 			})
-			Convey("Loop calls should not trigger recursion protection", func() {
-				So(func() {
+			t.Run("Loop calls should not trigger recursion protection", func(t *testing.T) {
+				assert.NotPanics(t, func() {
 					for i := 0; i < int(maxRecursionDepth)+10; i++ {
 						env.Pool("Profile").Call("SayHello")
 					}
-				}, ShouldNotPanic)
+				})
 			})
-			Convey("Recursion should be triggered exactly at the max recursion depth", func() {
-				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2-1, "Hi!") }, ShouldNotPanic)
-				So(func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2, "Hi!") }, ShouldPanic)
+			t.Run("Recursion should be triggered exactly at the max recursion depth", func(t *testing.T) {
+				assert.NotPanics(t, func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2-1, "Hi!") })
+				assert.Panics(t, func() { env.Pool("User").Call("RecursiveMethod", int(maxRecursionDepth)/2, "Hi!") })
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
 func TestInternalMethodFunctions(t *testing.T) {
-	Convey("Testing internal method functions", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing internal method functions", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			users := env.Pool("User")
 			userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 			RegisterRecordSetWrapper("Profile", TestProfileSet{})
-			Convey("convertFunctionArg", func() {
-				So(convertFunctionArg(reflect.TypeOf(*new(int64)), 126).Interface(), ShouldEqual, 126)
+			t.Run("convertFunctionArg", func(t *testing.T) {
+				assert.EqualValues(t, convertFunctionArg(reflect.TypeOf(*new(int64)), 126).Interface(), 126)
 				prof := convertFunctionArg(reflect.TypeOf(TestProfileSet{}), userJane.Get(profile))
-				So(prof.Type(), ShouldEqual, reflect.TypeOf(TestProfileSet{}))
-				So(prof.Interface().(TestProfileSet).Collection().Equals(userJane.Get(profile).(RecordSet).Collection()), ShouldBeTrue)
+				assert.EqualValues(t, prof.Type(), reflect.TypeOf(TestProfileSet{}))
+				assert.True(t, prof.Interface().(TestProfileSet).Collection().Equals(userJane.Get(profile).(RecordSet).Collection()))
 				prof = convertFunctionArg(reflect.TypeOf(new(RecordCollection)), userJane.Get(profile))
-				So(prof.Type(), ShouldEqual, reflect.TypeOf(new(RecordCollection)))
-				So(prof.Interface().(*RecordCollection).Equals(userJane.Get(profile).(RecordSet).Collection()), ShouldBeTrue)
+				assert.EqualValues(t, prof.Type(), reflect.TypeOf(new(RecordCollection)))
+				assert.True(t, prof.Interface().(*RecordCollection).Equals(userJane.Get(profile).(RecordSet).Collection()))
 				vals := convertFunctionArg(reflect.TypeOf(new(ModelData)), NewModelData(users.model, FieldMap{"name": "Mike"}))
-				So(vals.Type(), ShouldEqual, reflect.TypeOf(new(ModelData)))
-				So(vals.Interface().(*ModelData).FieldMap, ShouldHaveLength, 1)
-				So(vals.Interface().(*ModelData).FieldMap, ShouldContainKey, "name")
-				So(vals.Interface().(*ModelData).FieldMap["name"], ShouldEqual, "Mike")
+				assert.EqualValues(t, vals.Type(), reflect.TypeOf(new(ModelData)))
+				assert.Len(t, vals.Interface().(*ModelData).FieldMap, 1)
+				assert.Contains(t, vals.Interface().(*ModelData).FieldMap, "name")
+				assert.EqualValues(t, vals.Interface().(*ModelData).FieldMap["name"], "Mike")
 				vals = convertFunctionArg(reflect.TypeOf(new(TestUserData)), NewModelData(users.model, FieldMap{"IsStaff": true}))
-				So(vals.Type(), ShouldEqual, reflect.TypeOf(new(ModelData)))
-				So(vals.Interface().(*ModelData).FieldMap, ShouldHaveLength, 1)
-				So(vals.Interface().(*ModelData).FieldMap, ShouldContainKey, "is_staff")
-				So(vals.Interface().(*ModelData).FieldMap["is_staff"], ShouldEqual, true)
+				assert.EqualValues(t, vals.Type(), reflect.TypeOf(new(ModelData)))
+				assert.Len(t, vals.Interface().(*ModelData).FieldMap, 1)
+				assert.Contains(t, vals.Interface().(*ModelData).FieldMap, "is_staff")
+				assert.EqualValues(t, vals.Interface().(*ModelData).FieldMap["is_staff"], true)
 				cond := users.Model().Field(Name).Equals("Jane Smith")
 				c := convertFunctionArg(reflect.TypeOf(TestUserCondition{}), cond)
-				So(c.Type(), ShouldEqual, reflect.TypeOf(TestUserCondition{}))
-				So(c.Interface().(TestUserCondition).Underlying().String(), ShouldEqual, cond.String())
+				assert.EqualValues(t, c.Type(), reflect.TypeOf(TestUserCondition{}))
+				assert.EqualValues(t, c.Interface().(TestUserCondition).Underlying().String(), cond.String())
 			})
-			Convey("MethodType", func() {
+			t.Run("MethodType", func(t *testing.T) {
 				meth := users.model.methods.MustGet("OnChangeMana")
-				So(meth.MethodType(), ShouldEqual, reflect.TypeOf(func(*RecordCollection) *ModelData { return &ModelData{} }))
+				assert.EqualValues(t, meth.MethodType(), reflect.TypeOf(func(*RecordCollection) *ModelData { return &ModelData{} }))
 			})
-			Convey("Name", func() {
+			t.Run("Name", func(t *testing.T) {
 				meth := users.model.methods.MustGet("ComputeCoolType")
-				So(meth.Name(), ShouldEqual, "ComputeCoolType")
+				assert.EqualValues(t, meth.Name(), "ComputeCoolType")
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
 func TestInvalidRecordSets(t *testing.T) {
-	Convey("Testing Invalid Recordsets", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing Invalid Recordsets", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			rc := InvalidRecordCollection("User")
-			Convey("Getting a field on an invalid RecordSet should return empty value", func() {
-				So(rc.Get(Name), ShouldEqual, "")
+			t.Run("Getting a field on an invalid RecordSet should return empty value", func(t *testing.T) {
+				assert.EqualValues(t, rc.Get(Name), "")
 			})
-			Convey("Getting a relation field on an invalid RecordSet should return invalid recordset", func() {
+			t.Run("Getting a relation field on an invalid RecordSet should return invalid recordset", func(t *testing.T) {
 				rel, ok := rc.Get(profile).(*RecordCollection)
-				So(ok, ShouldBeTrue)
-				So(rel.IsValid(), ShouldBeFalse)
-				So(rel.model.name, ShouldEqual, "Profile")
+				assert.True(t, ok)
+				assert.False(t, rel.IsValid())
+				assert.EqualValues(t, rel.model.name, "Profile")
 			})
-			Convey("Calling a method on an invalid RecordSet should panic", func() {
-				So(func() { rc.Call("PrefixedUser", ">>") }, ShouldPanic)
+			t.Run("Calling a method on an invalid RecordSet should panic", func(t *testing.T) {
+				assert.Panics(t, func() { rc.Call("PrefixedUser", ">>") })
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }

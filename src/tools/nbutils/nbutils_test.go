@@ -6,119 +6,119 @@ package nbutils
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCastToFloat(t *testing.T) {
-	Convey("Testing cast to float", t, func() {
+	t.Run("Testing cast to float", func(t *testing.T) {
 		val, err := CastToFloat(12)
-		So(val, ShouldEqual, 12)
-		So(val, ShouldHaveSameTypeAs, float64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 12)
+		assert.IsType(t, float64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToFloat(12.85)
-		So(val, ShouldEqual, 12.85)
-		So(val, ShouldHaveSameTypeAs, float64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 12.85)
+		assert.IsType(t, float64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToFloat(int32(12))
-		So(val, ShouldEqual, 12)
-		So(val, ShouldHaveSameTypeAs, float64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 12)
+		assert.IsType(t, float64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToFloat(true)
-		So(val, ShouldEqual, 1)
-		So(val, ShouldHaveSameTypeAs, float64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 1)
+		assert.IsType(t, float64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToFloat(false)
-		So(val, ShouldEqual, 0)
-		So(val, ShouldHaveSameTypeAs, float64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 0)
+		assert.IsType(t, float64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToFloat("12")
-		So(val, ShouldEqual, 0)
-		So(val, ShouldHaveSameTypeAs, float64(1))
-		So(err, ShouldNotBeNil)
+		assert.EqualValues(t, val, 0)
+		assert.IsType(t, float64(1), val)
+		assert.NotNil(t, err)
 	})
 }
 
 func TestCastToInteger(t *testing.T) {
-	Convey("Testing cast to integer", t, func() {
+	t.Run("Testing cast to integer", func(t *testing.T) {
 		val, err := CastToInteger(12)
-		So(val, ShouldEqual, 12)
-		So(val, ShouldHaveSameTypeAs, int64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 12)
+		assert.IsType(t, int64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToInteger(12.52)
-		So(val, ShouldEqual, 12)
-		So(val, ShouldHaveSameTypeAs, int64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 12)
+		assert.IsType(t, int64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToInteger(int64(12))
-		So(val, ShouldEqual, 12)
-		So(val, ShouldHaveSameTypeAs, int64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 12)
+		assert.IsType(t, int64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToInteger(true)
-		So(val, ShouldEqual, 1)
-		So(val, ShouldHaveSameTypeAs, int64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 1)
+		assert.IsType(t, int64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToInteger(false)
-		So(val, ShouldEqual, 0)
-		So(val, ShouldHaveSameTypeAs, int64(1))
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, val, 0)
+		assert.IsType(t, int64(1), val)
+		assert.Nil(t, err)
 		val, err = CastToInteger("12")
-		So(val, ShouldEqual, 0)
-		So(val, ShouldHaveSameTypeAs, int64(1))
-		So(err, ShouldNotBeNil)
+		assert.EqualValues(t, val, 0)
+		assert.IsType(t, int64(1), val)
+		assert.NotNil(t, err)
 	})
 }
 
 func TestRound(t *testing.T) {
-	Convey("Testing round", t, func() {
-		So(Round(12.23, 0.1), ShouldEqual, 12.2)
-		So(Round(12.25, 0.1), ShouldEqual, 12.3)
-		So(Round(12.2499, 0.1), ShouldEqual, 12.2)
-		So(Round(-61.160000000000004, 0.01), ShouldEqual, -61.16)
+	t.Run("Testing round", func(t *testing.T) {
+		assert.EqualValues(t, Round(12.23, 0.1), 12.2)
+		assert.EqualValues(t, Round(12.25, 0.1), 12.3)
+		assert.EqualValues(t, Round(12.2499, 0.1), 12.2)
+		assert.EqualValues(t, Round(-61.160000000000004, 0.01), -61.16)
 	})
 }
 
 func TestIsZero(t *testing.T) {
-	Convey("Testing is zero", t, func() {
-		So(IsZero(0, 1), ShouldBeTrue)
-		So(IsZero(0.1, 1), ShouldBeTrue)
-		So(IsZero(0.01, 0.1), ShouldBeTrue)
-		So(IsZero(0.1, 0.1), ShouldBeFalse)
-		So(IsZero(0.01, 0.01), ShouldBeFalse)
+	t.Run("Testing is zero", func(t *testing.T) {
+		assert.True(t, IsZero(0, 1))
+		assert.True(t, IsZero(0.1, 1))
+		assert.True(t, IsZero(0.01, 0.1))
+		assert.False(t, IsZero(0.1, 0.1))
+		assert.False(t, IsZero(0.01, 0.01))
 	})
 }
 
 func TestDigits(t *testing.T) {
-	Convey("Testing digits to precision", t, func() {
-		So(Digits{Precision: 12, Scale: 4}.ToPrecision(), ShouldEqual, 0.0001)
-		So(Digits{Precision: 12, Scale: 1}.ToPrecision(), ShouldEqual, 0.1)
-		So(Digits{Precision: 12, Scale: 0}.ToPrecision(), ShouldEqual, 1)
+	t.Run("Testing digits to precision", func(t *testing.T) {
+		assert.EqualValues(t, Digits{Precision: 12, Scale: 4}.ToPrecision(), 0.0001)
+		assert.EqualValues(t, Digits{Precision: 12, Scale: 1}.ToPrecision(), 0.1)
+		assert.EqualValues(t, Digits{Precision: 12, Scale: 0}.ToPrecision(), 1)
 	})
 }
 
 func TestFloor(t *testing.T) {
-	Convey("Testing floor", t, func() {
-		So(Floor(12.23, 0.1), ShouldEqual, 12.2)
-		So(Floor(12.25, 0.1), ShouldEqual, 12.2)
-		So(Floor(12.2499, 0.1), ShouldEqual, 12.2)
-		So(Floor(-61.160000000000004, 0.01), ShouldEqual, -61.17)
+	t.Run("Testing floor", func(t *testing.T) {
+		assert.EqualValues(t, Floor(12.23, 0.1), 12.2)
+		assert.EqualValues(t, Floor(12.25, 0.1), 12.2)
+		assert.EqualValues(t, Floor(12.2499, 0.1), 12.2)
+		assert.EqualValues(t, Floor(-61.160000000000004, 0.01), -61.17)
 	})
 }
 
 func TestCeil(t *testing.T) {
-	Convey("Testing ceil", t, func() {
-		So(Ceil(12.23, 0.1), ShouldEqual, 12.3)
-		So(Ceil(12.25, 0.1), ShouldEqual, 12.3)
-		So(Ceil(12.2499, 0.1), ShouldEqual, 12.3)
-		So(Ceil(-61.160000000000004, 0.01), ShouldEqual, -61.16)
+	t.Run("Testing ceil", func(t *testing.T) {
+		assert.EqualValues(t, Ceil(12.23, 0.1), 12.3)
+		assert.EqualValues(t, Ceil(12.25, 0.1), 12.3)
+		assert.EqualValues(t, Ceil(12.2499, 0.1), 12.3)
+		assert.EqualValues(t, Ceil(-61.160000000000004, 0.01), -61.16)
 	})
 }
 
 func TestCompare(t *testing.T) {
-	Convey("Testing compare", t, func() {
-		So(Compare(13, 13, 1), ShouldEqual, 0)
-		So(Compare(13, 13.1, 1), ShouldEqual, 0)
-		So(Compare(13, 13.01, 0.1), ShouldEqual, 0)
-		So(Compare(13, 13.1, 0.1), ShouldEqual, -1)
-		So(Compare(13, 13.01, 0.01), ShouldEqual, -1)
-		So(Compare(13.01, 13, 0.01), ShouldEqual, 1)
+	t.Run("Testing compare", func(t *testing.T) {
+		assert.EqualValues(t, Compare(13, 13, 1), 0)
+		assert.EqualValues(t, Compare(13, 13.1, 1), 0)
+		assert.EqualValues(t, Compare(13, 13.01, 0.1), 0)
+		assert.EqualValues(t, Compare(13, 13.1, 0.1), -1)
+		assert.EqualValues(t, Compare(13, 13.01, 0.01), -1)
+		assert.EqualValues(t, Compare(13.01, 13, 0.01), 1)
 	})
 }

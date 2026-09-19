@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
 	"github.com/hexya-erp/hexya/src/tools/nbutils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -69,76 +70,76 @@ func UnBootStrap() {
 	}
 }
 
-func checkUpdates(f *Field, property string, value interface{}) {
-	So(len(f.updates), ShouldBeGreaterThan, 0)
-	So(f.updates[len(f.updates)-1], ShouldContainKey, property)
-	So(f.updates[len(f.updates)-1][property], ShouldEqual, value)
+func checkUpdates(t *testing.T, f *Field, property string, value interface{}) {
+	assert.Greater(t, len(f.updates), 0)
+	assert.Contains(t, f.updates[len(f.updates)-1], property)
+	assert.EqualValues(t, f.updates[len(f.updates)-1][property], value)
 }
 
-func lastUpdateShouldResemble(f *Field, key string, s interface{}) {
-	So(f.updates[len(f.updates)-1], ShouldContainKey, key)
-	So(f.updates[len(f.updates)-1][key], ShouldResemble, s)
+func lastUpdateShouldResemble(t *testing.T, f *Field, key string, s interface{}) {
+	assert.Contains(t, f.updates[len(f.updates)-1], key)
+	assert.Equal(t, f.updates[len(f.updates)-1][key], s)
 }
 
-func lastUpdateDefFuncShouldEqual(f *Field, key string, res string) {
-	So(f.updates[len(f.updates)-1], ShouldContainKey, key)
-	So(f.updates[len(f.updates)-1][key].(func(env Environment) interface{})(Environment{}), ShouldEqual, res)
+func lastUpdateDefFuncShouldEqual(t *testing.T, f *Field, key string, res string) {
+	assert.Contains(t, f.updates[len(f.updates)-1], key)
+	assert.EqualValues(t, f.updates[len(f.updates)-1][key].(func(env Environment) interface{})(Environment{}), res)
 }
 
 func TestFieldModification(t *testing.T) {
-	Convey("Testing field modification", t, func() {
+	t.Run("Testing field modification", func(t *testing.T) {
 		numsField := Registry.MustGet("User").Fields().MustGet("Nums")
 		numsField.SetString("Nums Reloaded")
-		checkUpdates(numsField, "description", "Nums Reloaded")
+		checkUpdates(t, numsField, "description", "Nums Reloaded")
 		numsField.SetHelp("Num's Help")
-		checkUpdates(numsField, "help", "Num's Help")
+		checkUpdates(t, numsField, "help", "Num's Help")
 		numsField.SetCompute(Registry.MustGet("User").Methods().MustGet("ComputeNum"))
-		checkUpdates(numsField, "compute", "ComputeNum")
+		checkUpdates(t, numsField, "compute", "ComputeNum")
 		numsField.SetCompute(nil)
-		checkUpdates(numsField, "compute", "")
+		checkUpdates(t, numsField, "compute", "")
 		numsField.SetDefault(DefaultValue("DV"))
-		lastUpdateDefFuncShouldEqual(numsField, "defaultFunc", "DV")
+		lastUpdateDefFuncShouldEqual(t, numsField, "defaultFunc", "DV")
 		numsField.SetDepends([]string{"Dep1", "Dep2"})
-		lastUpdateShouldResemble(numsField, "depends", []string{"Dep1", "Dep2"})
+		lastUpdateShouldResemble(t, numsField, "depends", []string{"Dep1", "Dep2"})
 		numsField.SetDepends(nil)
-		lastUpdateShouldResemble(numsField, "depends", []string(nil))
+		lastUpdateShouldResemble(t, numsField, "depends", []string(nil))
 		numsField.SetGroupOperator("avg")
-		checkUpdates(numsField, "groupOperator", "avg")
+		checkUpdates(t, numsField, "groupOperator", "avg")
 		numsField.SetGroupOperator("sum")
-		checkUpdates(numsField, "groupOperator", "sum")
+		checkUpdates(t, numsField, "groupOperator", "sum")
 		numsField.SetIndex(true)
-		checkUpdates(numsField, "index", true)
+		checkUpdates(t, numsField, "index", true)
 		numsField.SetNoCopy(true)
-		checkUpdates(numsField, "noCopy", true)
+		checkUpdates(t, numsField, "noCopy", true)
 		numsField.SetNoCopy(false)
-		checkUpdates(numsField, "noCopy", false)
+		checkUpdates(t, numsField, "noCopy", false)
 		numsField.SetRelated("Profile.Money")
-		checkUpdates(numsField, "relatedPathStr", "Profile.Money")
+		checkUpdates(t, numsField, "relatedPathStr", "Profile.Money")
 		numsField.SetRelated("")
-		checkUpdates(numsField, "relatedPathStr", "")
+		checkUpdates(t, numsField, "relatedPathStr", "")
 		numsField.SetRequired(true)
-		checkUpdates(numsField, "required", true)
+		checkUpdates(t, numsField, "required", true)
 		numsField.SetRequired(false)
-		checkUpdates(numsField, "required", false)
+		checkUpdates(t, numsField, "required", false)
 		numsField.SetStored(true)
-		checkUpdates(numsField, "stored", true)
+		checkUpdates(t, numsField, "stored", true)
 		numsField.SetStored(false)
-		checkUpdates(numsField, "stored", false)
+		checkUpdates(t, numsField, "stored", false)
 		numsField.SetUnique(true)
-		checkUpdates(numsField, "unique", true)
+		checkUpdates(t, numsField, "unique", true)
 		numsField.SetUnique(false)
-		checkUpdates(numsField, "unique", false)
+		checkUpdates(t, numsField, "unique", false)
 		nameField := Registry.MustGet("User").Fields().MustGet("Name")
 		nameField.SetSize(127)
-		checkUpdates(nameField, "size", 127)
+		checkUpdates(t, nameField, "size", 127)
 		nameField.SetTranslate(true)
-		checkUpdates(nameField, "translate", true)
+		checkUpdates(t, nameField, "translate", true)
 		nameField.SetTranslate(false)
-		checkUpdates(nameField, "translate", false)
+		checkUpdates(t, nameField, "translate", false)
 		nameField.SetContexts(companyDependent)
-		lastUpdateShouldResemble(nameField, "contexts", companyDependent)
+		lastUpdateShouldResemble(t, nameField, "contexts", companyDependent)
 		nameField.AddContexts(userDependent)
-		lastUpdateShouldResemble(nameField, "contexts_add", userDependent)
+		lastUpdateShouldResemble(t, nameField, "contexts_add", userDependent)
 		nameField.SetContexts(nil)
 		nameField.SetOnchange(nil)
 		nameField.SetOnchange(Registry.MustGet("User").Methods().MustGet("OnChangeName"))
@@ -150,30 +151,30 @@ func TestFieldModification(t *testing.T) {
 		nameField.SetInverse(nil)
 		sizeField := Registry.MustGet("User").Fields().MustGet("Size")
 		sizeField.SetDigits(nbutils.Digits{Precision: 6, Scale: 2})
-		lastUpdateShouldResemble(sizeField, "digits", nbutils.Digits{Precision: 6, Scale: 2})
+		lastUpdateShouldResemble(t, sizeField, "digits", nbutils.Digits{Precision: 6, Scale: 2})
 		userField := Registry.MustGet("Post").Fields().MustGet("User")
 		userField.SetOnDelete(Cascade)
-		checkUpdates(userField, "onDelete", Cascade)
+		checkUpdates(t, userField, "onDelete", Cascade)
 		userField.SetOnDelete(SetNull)
-		checkUpdates(userField, "onDelete", SetNull)
+		checkUpdates(t, userField, "onDelete", SetNull)
 		userField.SetEmbed(true)
-		checkUpdates(userField, "embed", true)
+		checkUpdates(t, userField, "embed", true)
 		userField.SetEmbed(false)
-		checkUpdates(userField, "embed", false)
+		checkUpdates(t, userField, "embed", false)
 		userField.SetFilter(Registry.MustGet("User").Field(NewFieldName("SetActive", "set_active")).Equals(true))
 		userField.SetFilter(Condition{})
 		userField.SetRelationModel(Registry.MustGet("Tag"))
-		checkUpdates(userField, "relationModel", Registry.MustGet("Tag").Underlying())
+		checkUpdates(t, userField, "relationModel", Registry.MustGet("Tag").Underlying())
 		userField.SetRelationModel(Registry.MustGet("User"))
 		visibilityField := Registry.MustGet("Post").Fields().MustGet("Visibility")
 		visibilityField.UpdateSelection(types.Selection{"logged_in": "Logged in users"})
-		lastUpdateShouldResemble(visibilityField, "selection_add", types.Selection{"logged_in": "Logged in users"})
+		lastUpdateShouldResemble(t, visibilityField, "selection_add", types.Selection{"logged_in": "Logged in users"})
 		genderField := Registry.MustGet("Profile").Fields().MustGet("Gender")
 		genderField.SetSelection(types.Selection{"m": "Male", "f": "Female"})
-		lastUpdateShouldResemble(genderField, "selection", types.Selection{"m": "Male", "f": "Female"})
+		lastUpdateShouldResemble(t, genderField, "selection", types.Selection{"m": "Male", "f": "Female"})
 		statusField := Registry.MustGet("User").Fields().MustGet("Status")
 		statusField.SetReadOnly(false)
-		checkUpdates(statusField, "readOnly", false)
+		checkUpdates(t, statusField, "readOnly", false)
 		nFunc := func(env Environment) (b bool, conditioner Conditioner) { return }
 		statusField.SetReadOnlyFunc(nFunc)
 		statusField.SetReadOnlyFunc(nil)
@@ -183,17 +184,17 @@ func TestFieldModification(t *testing.T) {
 		statusField.SetRequiredFunc(nil)
 		tagsField := Registry.MustGet("Post").Fields().MustGet("Tags")
 		tagsField.SetM2MRelModel(Registry.MustGet("Resume"))
-		checkUpdates(tagsField, "m2mRelModel", Registry.MustGet("Resume"))
+		checkUpdates(t, tagsField, "m2mRelModel", Registry.MustGet("Resume"))
 		tagsField.SetM2MOurField(Registry.MustGet("Resume").Fields().MustGet("Education"))
-		checkUpdates(tagsField, "m2mOurField", Registry.MustGet("Resume").Fields().MustGet("Education"))
+		checkUpdates(t, tagsField, "m2mOurField", Registry.MustGet("Resume").Fields().MustGet("Education"))
 		tagsField.SetM2MTheirField(Registry.MustGet("Resume").Fields().MustGet("Experience"))
-		checkUpdates(tagsField, "m2mTheirField", Registry.MustGet("Resume").Fields().MustGet("Experience"))
+		checkUpdates(t, tagsField, "m2mTheirField", Registry.MustGet("Resume").Fields().MustGet("Experience"))
 		tagsField.SetM2MRelModel(Registry.MustGet("PostTagRel"))
 		tagsField.SetM2MOurField(Registry.MustGet("PostTagRel").Fields().MustGet("Post"))
 		tagsField.SetM2MTheirField(Registry.MustGet("PostTagRel").Fields().MustGet("Tag"))
 		commentsField := Registry.MustGet("Post").Fields().MustGet("Comments")
 		commentsField.SetReverseFK("ReverseFK")
-		checkUpdates(commentsField, "reverseFK", "ReverseFK")
+		checkUpdates(t, commentsField, "reverseFK", "ReverseFK")
 		commentsField.SetReverseFK("Post")
 		visibilityField.SetSelectionFunc(func() types.Selection {
 			return types.Selection{"1": "Yes", "2": "No"}
@@ -203,159 +204,159 @@ func TestFieldModification(t *testing.T) {
 }
 
 func TestMiscellaneous(t *testing.T) {
-	Convey("Check that Field instances are FieldNamers", t, func() {
-		So(Registry.MustGet("User").Fields().MustGet("Name").JSON(), ShouldEqual, "name")
-		So(Registry.MustGet("User").Fields().MustGet("Name").Name(), ShouldEqual, "Name")
+	t.Run("Check that Field instances are FieldNamers", func(t *testing.T) {
+		assert.EqualValues(t, Registry.MustGet("User").Fields().MustGet("Name").JSON(), "name")
+		assert.EqualValues(t, Registry.MustGet("User").Fields().MustGet("Name").Name(), "Name")
 	})
 }
 
 func TestSequences(t *testing.T) {
-	Convey("Testing sequences before bootstrap", t, func() {
+	t.Run("Testing sequences before bootstrap", func(t *testing.T) {
 		testSeq := CreateSequence("TestSequence", 5, 13)
 		_, ok := Registry.GetSequence("TestSequence")
-		So(ok, ShouldBeTrue)
-		So(testSeq.Increment, ShouldEqual, 5)
-		So(testSeq.Start, ShouldEqual, 13)
+		assert.True(t, ok)
+		assert.EqualValues(t, testSeq.Increment, 5)
+		assert.EqualValues(t, testSeq.Start, 13)
 		testSeq.Alter(3, 14)
-		So(testSeq.Increment, ShouldEqual, 3)
-		So(testSeq.Start, ShouldEqual, 14)
+		assert.EqualValues(t, testSeq.Increment, 3)
+		assert.EqualValues(t, testSeq.Start, 14)
 		testSeq.Drop()
-		So(func() { Registry.MustGetSequence("TestSequence") }, ShouldPanic)
+		assert.Panics(t, func() { Registry.MustGetSequence("TestSequence") })
 		CreateSequence("TestSequence", 5, 13)
 	})
 }
 
 func TestIllegalMethods(t *testing.T) {
-	Convey("Checking that invalid data leads to panic", t, func() {
-		So(func() { Registry.MustGet("NonExistentModel") }, ShouldPanic)
+	t.Run("Checking that invalid data leads to panic", func(t *testing.T) {
+		assert.Panics(t, func() { Registry.MustGet("NonExistentModel") })
 
 		userModel := Registry.MustGet("User")
-		So(func() { userModel.Fields().MustGet("NonExistentField") }, ShouldPanic)
-		So(func() { userModel.Methods().MustGet("NonExistentMethod") }, ShouldPanic)
+		assert.Panics(t, func() { userModel.Fields().MustGet("NonExistentField") })
+		assert.Panics(t, func() { userModel.Methods().MustGet("NonExistentMethod") })
 
-		So(func() { userModel.NewMethod("WrongType", 12) }, ShouldPanic)
-		So(func() {
+		assert.Panics(t, func() { userModel.NewMethod("WrongType", 12) })
+		assert.Panics(t, func() {
 			userModel.NewMethod("ComputeAge", func(rc *RecordCollection) {})
-		}, ShouldPanic)
-		So(func() {
+		})
+		assert.Panics(t, func() {
 			userModel.NewMethod("Create", func(rc *RecordCollection) {})
-		}, ShouldPanic)
-		So(func() { userModel.AddEmptyMethod("ComputeAge") }, ShouldPanic)
-		So(func() { userModel.Methods().MustGet("ComputeAge").Extend(12) }, ShouldPanic)
-		So(func() {
+		})
+		assert.Panics(t, func() { userModel.AddEmptyMethod("ComputeAge") })
+		assert.Panics(t, func() { userModel.Methods().MustGet("ComputeAge").Extend(12) })
+		assert.Panics(t, func() {
 			userModel.Methods().MustGet("Copy").Extend(func(rc bool, overrides RecordData) *RecordCollection { return &RecordCollection{} })
-		}, ShouldPanic)
-		So(func() {
+		})
+		assert.Panics(t, func() {
 			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection) *RecordCollection { return &RecordCollection{} })
-		}, ShouldPanic)
-		So(func() {
+		})
+		assert.Panics(t, func() {
 			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection, overrides bool) *RecordCollection { return &RecordCollection{} })
-		}, ShouldPanic)
-		So(func() {
+		})
+		assert.Panics(t, func() {
 			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection, overrides RecordData) (*RecordCollection, bool) {
 				return &RecordCollection{}, false
 			})
-		}, ShouldPanic)
-		So(func() {
+		})
+		assert.Panics(t, func() {
 			userModel.Methods().MustGet("Copy").Extend(func(rc *RecordCollection, overrides RecordData) bool { return false })
-		}, ShouldPanic)
-		So(func() {
+		})
+		assert.Panics(t, func() {
 			userModel.Methods().MustGet("OrderBy").Extend(func(rc *RecordCollection, exprs []string) *RecordCollection { return &RecordCollection{} })
-		}, ShouldPanic)
+		})
 	})
-	Convey("Test checkTypesMatch", t, func() {
+	t.Run("Test checkTypesMatch", func(t *testing.T) {
 		type TestRecordSet struct {
 			*RecordCollection
 		}
 
 		var _ FieldMapper = TestFieldMap{}
 
-		So(checkTypesMatch(reflect.TypeOf("bar"), reflect.TypeOf("bar")), ShouldBeTrue)
-		So(checkTypesMatch(reflect.TypeOf(0), reflect.TypeOf("bar")), ShouldBeFalse)
-		So(checkTypesMatch(reflect.TypeOf(new(RecordCollection)), reflect.TypeOf(TestRecordSet{})), ShouldBeTrue)
-		So(checkTypesMatch(reflect.TypeOf(TestRecordSet{}), reflect.TypeOf(new(RecordCollection))), ShouldBeTrue)
-		So(checkTypesMatch(reflect.TypeOf(TestFieldMap{}), reflect.TypeOf(FieldMap{})), ShouldBeTrue)
-		So(checkTypesMatch(reflect.TypeOf(FieldMap{}), reflect.TypeOf(TestFieldMap{})), ShouldBeTrue)
+		assert.True(t, checkTypesMatch(reflect.TypeOf("bar"), reflect.TypeOf("bar")))
+		assert.False(t, checkTypesMatch(reflect.TypeOf(0), reflect.TypeOf("bar")))
+		assert.True(t, checkTypesMatch(reflect.TypeOf(new(RecordCollection)), reflect.TypeOf(TestRecordSet{})))
+		assert.True(t, checkTypesMatch(reflect.TypeOf(TestRecordSet{}), reflect.TypeOf(new(RecordCollection))))
+		assert.True(t, checkTypesMatch(reflect.TypeOf(TestFieldMap{}), reflect.TypeOf(FieldMap{})))
+		assert.True(t, checkTypesMatch(reflect.TypeOf(FieldMap{}), reflect.TypeOf(TestFieldMap{})))
 	})
-	Convey("Test compute and onChange method signature", t, func() {
+	t.Run("Test compute and onChange method signature", func(t *testing.T) {
 		userModel := Registry.MustGet("User")
 		nameField := userModel.Fields().MustGet("Name")
 		nameField.SetOnchange(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchange(userModel.Methods().MustGet("OnChangeName"))
 		processUpdates()
 
 		nameField.SetOnchangeWarning(userModel.Methods().MustGet("OnChangeName"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeWarning(userModel.Methods().MustGet("UpdateCity"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeWarning(userModel.Methods().MustGet("NoReturnValue"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeWarning(userModel.Methods().MustGet("TwoReturnValues"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeWarning(userModel.Methods().MustGet("OnChangeNameWarning"))
 		processUpdates()
 
 		nameField.SetOnchangeFilters(userModel.Methods().MustGet("OnChangeName"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeFilters(userModel.Methods().MustGet("UpdateCity"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeFilters(userModel.Methods().MustGet("NoReturnValue"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeFilters(userModel.Methods().MustGet("TwoReturnValues"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		nameField.SetOnchangeFilters(userModel.Methods().MustGet("OnChangeNameFilters"))
 		processUpdates()
 
 		ageField := userModel.Fields().MustGet("Age")
 		ageField.SetCompute(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		ageField.SetCompute(userModel.Methods().MustGet("ComputeAge"))
 		processUpdates()
 
 		ageField.SetInverse(userModel.Methods().MustGet("SubSetSuper"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		ageField.SetInverse(userModel.Methods().MustGet("WrongInverseSetAge"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		ageField.SetInverse(userModel.Methods().MustGet("InverseSetAge"))
 		processUpdates()
 
 		dnField := userModel.Fields().MustGet("DecoratedName")
 		dnField.SetCompute(userModel.Methods().MustGet("TwoReturnValues"))
 		processUpdates()
-		So(checkComputeMethodsSignature, ShouldPanic)
+		assert.Panics(t, checkComputeMethodsSignature)
 		dnField.SetCompute(userModel.Methods().MustGet("ComputeDecoratedName"))
 		processUpdates()
 	})
-	Convey("Test methods signature check", t, func() {
+	t.Run("Test methods signature check", func(t *testing.T) {
 		userModel := Registry.MustGet("User")
-		Convey("Onchange/compute method should have no arguments", func() {
+		t.Run("Onchange/compute method should have no arguments", func(t *testing.T) {
 			meth := userModel.Methods().MustGet("InverseSetAge")
-			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+			assert.NotNil(t, checkMethType(meth, "Onchange"))
 		})
-		Convey("Onchange/compute method should return a value", func() {
+		t.Run("Onchange/compute method should return a value", func(t *testing.T) {
 			meth := userModel.Methods().MustGet("NoReturnValue")
-			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+			assert.NotNil(t, checkMethType(meth, "Onchange"))
 		})
-		Convey("Onchange/compute method returned value must be a FieldMapper", func() {
+		t.Run("Onchange/compute method returned value must be a FieldMapper", func(t *testing.T) {
 			meth := userModel.Methods().MustGet("SubSetSuper")
-			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+			assert.NotNil(t, checkMethType(meth, "Onchange"))
 		})
-		Convey("Onchange/compute method should not return more than one value", func() {
+		t.Run("Onchange/compute method should not return more than one value", func(t *testing.T) {
 			meth := userModel.Methods().MustGet("TwoReturnValues")
-			So(checkMethType(meth, "Onchange"), ShouldNotBeNil)
+			assert.NotNil(t, checkMethType(meth, "Onchange"))
 		})
 	})
 }
@@ -367,65 +368,65 @@ func TestBootStrap(t *testing.T) {
 	// Creating a manual sequence that must be loaded in the registry
 	dbExecuteNoTx(`CREATE SEQUENCE test_manseq INCREMENT BY 5 START WITH 1`)
 
-	Convey("Database creation should run fine", t, func() {
-		Convey("Dummy table should exist", func() {
-			So(TestAdapter.tables(), ShouldContainKey, "shouldbedeleted")
+	t.Run("Database creation should run fine", func(t *testing.T) {
+		t.Run("Dummy table should exist", func(t *testing.T) {
+			assert.Contains(t, TestAdapter.tables(), "shouldbedeleted")
 		})
-		Convey("Bootstrap should not panic", func() {
+		t.Run("Bootstrap should not panic", func(t *testing.T) {
 			BootStrap()
 			SyncDatabase()
 		})
-		Convey("Boostrapping twice should panic", func() {
-			So(BootStrapped(), ShouldBeTrue)
-			So(BootStrap, ShouldPanic)
+		t.Run("Boostrapping twice should panic", func(t *testing.T) {
+			assert.True(t, BootStrapped())
+			assert.Panics(t, BootStrap)
 		})
-		Convey("Creating methods after bootstrap should panic", func() {
-			So(func() {
+		t.Run("Creating methods after bootstrap should panic", func(t *testing.T) {
+			assert.Panics(t, func() {
 				Registry.MustGet("User").NewMethod("NewMethod", func(rc *RecordCollection) {})
-			}, ShouldPanic)
+			})
 		})
-		Convey("Creating SQL view should run fine", func() {
-			So(func() {
+		t.Run("Creating SQL view should run fine", func(t *testing.T) {
+			assert.NotPanics(t, func() {
 				dbExecuteNoTx(`DROP VIEW IF EXISTS user_view;
 					CREATE VIEW user_view AS (
 						SELECT u.id, u.name, p.city, u.active
 						FROM "user" u
 							LEFT JOIN "profile" p ON p.id = u.profile_id
 					)`)
-			}, ShouldNotPanic)
+			})
 		})
-		Convey("All models should have a DB table", func() {
+		t.Run("All models should have a DB table", func(t *testing.T) {
 			dbTables := TestAdapter.tables()
 			for tableName, mi := range Registry.registryByTableName {
 				if mi.IsMixin() || mi.IsManual() {
 					continue
 				}
-				So(dbTables[tableName], ShouldBeTrue)
+				assert.True(t, dbTables[tableName])
 			}
 		})
-		Convey("All DB tables should have a model", func() {
+		t.Run("All DB tables should have a model", func(t *testing.T) {
 			for dbTable := range TestAdapter.tables() {
-				So(Registry.registryByTableName, ShouldContainKey, dbTable)
+				assert.Contains(t, Registry.registryByTableName, dbTable)
 			}
 		})
-		Convey("Table constraints should have been created", func() {
-			So(TestAdapter.constraints("%_mancon"), ShouldHaveLength, 1)
-			So(TestAdapter.constraints("%_mancon")[0], ShouldEqual, "nums_premium_user_mancon")
+		t.Run("Table constraints should have been created", func(t *testing.T) {
+			assert.Len(t, TestAdapter.constraints("%_mancon"), 1)
+			assert.EqualValues(t, TestAdapter.constraints("%_mancon")[0], "nums_premium_user_mancon")
 		})
-		Convey("Boot Sequence should be created", func() {
-			So(TestAdapter.sequences("%_bootseq"), ShouldHaveLength, 1)
-			So(TestAdapter.sequences("%_bootseq")[0].Name, ShouldEqual, "test_sequence_bootseq")
+		t.Run("Boot Sequence should be created", func(t *testing.T) {
+			assert.Len(t, TestAdapter.sequences("%_bootseq"), 1)
+			assert.EqualValues(t, TestAdapter.sequences("%_bootseq")[0].Name, "test_sequence_bootseq")
 		})
-		Convey("Manual sequences should be loaded in registry", func() {
-			So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
-			So(TestAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "test_manseq")
+		t.Run("Manual sequences should be loaded in registry", func(t *testing.T) {
+			assert.Len(t, TestAdapter.sequences("%_manseq"), 1)
+			assert.EqualValues(t, TestAdapter.sequences("%_manseq")[0].Name, "test_manseq")
 			seq, ok := Registry.GetSequence("Test")
-			So(ok, ShouldBeTrue)
-			So(seq.JSON, ShouldEqual, "test_manseq")
-			So(seq.Increment, ShouldEqual, 5)
-			So(seq.Start, ShouldEqual, 1)
+			assert.True(t, ok)
+			assert.EqualValues(t, seq.JSON, "test_manseq")
+			assert.EqualValues(t, seq.Increment, 5)
+			assert.EqualValues(t, seq.Start, 1)
 		})
-		Convey("Applying DB modifications", func() {
+		t.Run("Applying DB modifications", func(t *testing.T) {
 			UnBootStrap()
 			contentField := Registry.MustGet("Post").Fields().MustGet("Content")
 			contentField.SetRequired(false)
@@ -445,27 +446,27 @@ func TestBootStrap(t *testing.T) {
 			})
 			textField := Registry.MustGet("Comment").Fields().MustGet("Text")
 			textField.SetFieldType(fieldtype.Text)
-			So(BootStrap, ShouldNotPanic)
-			So(contentField.required, ShouldBeFalse)
-			So(profileField.required, ShouldBeFalse)
-			So(numsField.index, ShouldBeFalse)
-			So(SyncDatabase, ShouldNotPanic)
+			assert.NotPanics(t, BootStrap)
+			assert.False(t, contentField.required)
+			assert.False(t, profileField.required)
+			assert.False(t, numsField.index)
+			assert.NotPanics(t, SyncDatabase)
 		})
 	})
 
-	Convey("Post testing models modifications", t, func() {
+	t.Run("Post testing models modifications", func(t *testing.T) {
 		visibilityField := Registry.MustGet("Post").Fields().MustGet("Visibility")
-		So(visibilityField.selection, ShouldHaveLength, 3)
-		So(visibilityField.selection, ShouldContainKey, "visible")
-		So(visibilityField.selection, ShouldContainKey, "invisible")
-		So(visibilityField.selection, ShouldContainKey, "logged_in")
+		assert.Len(t, visibilityField.selection, 3)
+		assert.Contains(t, visibilityField.selection, "visible")
+		assert.Contains(t, visibilityField.selection, "invisible")
+		assert.Contains(t, visibilityField.selection, "logged_in")
 		genderField := Registry.MustGet("Profile").Fields().MustGet("Gender")
-		So(genderField.selection, ShouldHaveLength, 2)
-		So(genderField.selection, ShouldContainKey, "m")
-		So(genderField.selection, ShouldContainKey, "f")
+		assert.Len(t, genderField.selection, 2)
+		assert.Contains(t, genderField.selection, "m")
+		assert.Contains(t, genderField.selection, "f")
 	})
 
-	Convey("Truncating all tables...", t, func() {
+	t.Run("Truncating all tables...", func(t *testing.T) {
 		for tn, mi := range Registry.registryByTableName {
 			if mi.IsMixin() || mi.IsManual() {
 				continue

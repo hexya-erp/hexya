@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 type dummyRecordSet struct{}
@@ -26,188 +26,188 @@ func (d *dummyRecordSet) IsNotEmpty() bool {
 var _ RecordSet = new(dummyRecordSet)
 
 func TestIsZero(t *testing.T) {
-	Convey("Testing IsZero function", t, func() {
-		Convey("nil", func() {
-			So(IsZero(nil), ShouldBeTrue)
+	t.Run("Testing IsZero function", func(t *testing.T) {
+		t.Run("nil", func(t *testing.T) {
+			assert.True(t, IsZero(nil))
 		})
-		Convey("Strings", func() {
-			So(IsZero(""), ShouldBeTrue)
-			So(IsZero("Hi"), ShouldBeFalse)
+		t.Run("Strings", func(t *testing.T) {
+			assert.True(t, IsZero(""))
+			assert.False(t, IsZero("Hi"))
 		})
-		Convey("Floats", func() {
-			So(IsZero(float64(0.0)), ShouldBeTrue)
-			So(IsZero(float64(12.4)), ShouldBeFalse)
+		t.Run("Floats", func(t *testing.T) {
+			assert.True(t, IsZero(float64(0.0)))
+			assert.False(t, IsZero(float64(12.4)))
 		})
-		Convey("Structs", func() {
+		t.Run("Structs", func(t *testing.T) {
 			type demoStruct struct {
 				field1 string
 				field2 int8
 				field3 float32
 			}
-			So(IsZero(demoStruct{}), ShouldBeTrue)
-			So(IsZero(demoStruct{field1: "Hello"}), ShouldBeFalse)
+			assert.True(t, IsZero(demoStruct{}))
+			assert.False(t, IsZero(demoStruct{field1: "Hello"}))
 		})
-		Convey("Pointers", func() {
+		t.Run("Pointers", func(t *testing.T) {
 			var nilPointer *string
-			So(IsZero(nilPointer), ShouldBeTrue)
+			assert.True(t, IsZero(nilPointer))
 			notNilString := "Hey !"
-			So(IsZero(&notNilString), ShouldBeFalse)
+			assert.False(t, IsZero(&notNilString))
 		})
-		Convey("RecordSets", func() {
-			So(IsZero(new(dummyRecordSet)), ShouldBeTrue)
+		t.Run("RecordSets", func(t *testing.T) {
+			assert.True(t, IsZero(new(dummyRecordSet)))
 		})
 	})
 }
 
 func TestAreEqual(t *testing.T) {
-	Convey("Testing ArEqual function", t, func() {
-		Convey("Different types should return an error", func() {
+	t.Run("Testing ArEqual function", func(t *testing.T) {
+		t.Run("Different types should return an error", func(t *testing.T) {
 			res, err := AreEqual(true, 1)
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparison.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparison.Error())
 		})
-		Convey("Unsupported type", func() {
+		t.Run("Unsupported type", func(t *testing.T) {
 			res, err := AreEqual([]int{1, 2}, []int{1, 2})
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 			res, err = AreEqual(12, []int{1, 2})
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 		})
-		Convey("Bool", func() {
+		t.Run("Bool", func(t *testing.T) {
 			res, err := AreEqual(true, false)
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(true, true)
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 		})
-		Convey("Complex", func() {
+		t.Run("Complex", func(t *testing.T) {
 			res, err := AreEqual(complex(2, 3), complex(3, 4))
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(complex(2, 3), complex(2, 3))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 		})
-		Convey("Int and UInt", func() {
+		t.Run("Int and UInt", func(t *testing.T) {
 			res, err := AreEqual(int(1), int(3))
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(int(1), int(1))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(uint(1), uint(1))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(int8(1), uint16(1))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(uint8(1), int32(1))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 		})
-		Convey("Float", func() {
+		t.Run("Float", func(t *testing.T) {
 			res, err := AreEqual(float64(1), float64(3))
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(float64(1), float64(1))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual(float32(1), float64(1))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 		})
-		Convey("String", func() {
+		t.Run("String", func(t *testing.T) {
 			res, err := AreEqual("Hello", "World")
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = AreEqual("Hello", "Hello")
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 		})
 	})
 }
 
 func TestIsLessThan(t *testing.T) {
-	Convey("Testing IsLessThan function", t, func() {
-		Convey("Different types should return an error", func() {
+	t.Run("Testing IsLessThan function", func(t *testing.T) {
+		t.Run("Different types should return an error", func(t *testing.T) {
 			res, err := IsLessThan(true, 1)
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparison.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparison.Error())
 		})
-		Convey("Unsupported type", func() {
+		t.Run("Unsupported type", func(t *testing.T) {
 			res, err := IsLessThan([]int{1, 2}, []int{1, 2})
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 			res, err = IsLessThan(12, []int{1, 2})
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 		})
-		Convey("Bool", func() {
+		t.Run("Bool", func(t *testing.T) {
 			res, err := IsLessThan(true, false)
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 			res, err = IsLessThan(true, true)
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 		})
-		Convey("Complex", func() {
+		t.Run("Complex", func(t *testing.T) {
 			res, err := IsLessThan(complex(2, 3), complex(3, 4))
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 			res, err = IsLessThan(complex(2, 3), complex(2, 3))
-			So(res, ShouldBeFalse)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, errBadComparisonType.Error())
+			assert.False(t, res)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), errBadComparisonType.Error())
 		})
-		Convey("Int and UInt", func() {
+		t.Run("Int and UInt", func(t *testing.T) {
 			res, err := IsLessThan(int(1), int(3))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan(int(1), int(1))
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan(uint(3), uint(1))
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan(int8(1), uint16(2))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan(uint8(1), int32(4))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 		})
-		Convey("Float", func() {
+		t.Run("Float", func(t *testing.T) {
 			res, err := IsLessThan(float64(1), float64(3))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan(float64(1), float64(1))
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan(float32(1), float64(2))
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 		})
-		Convey("String", func() {
+		t.Run("String", func(t *testing.T) {
 			res, err := IsLessThan("Hello", "World")
-			So(res, ShouldBeTrue)
-			So(err, ShouldBeNil)
+			assert.True(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan("Hello", "Hello")
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 			res, err = IsLessThan("World", "Hello")
-			So(res, ShouldBeFalse)
-			So(err, ShouldBeNil)
+			assert.False(t, res)
+			assert.Nil(t, err)
 		})
 	})
 }
@@ -251,22 +251,22 @@ var convertErrorCases = []convertTestCase{
 }
 
 func TestConvert(t *testing.T) {
-	Convey("Testing Convert", t, func() {
+	t.Run("Testing Convert", func(t *testing.T) {
 		for _, tc := range convertTestCases {
 			var target = tc.target
 			err := Convert(tc.value, target, tc.isRS)
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 			targetVal := reflect.ValueOf(target).Elem()
-			So(targetVal.Type(), ShouldEqual, reflect.TypeOf(tc.result))
-			So(reflect.DeepEqual(targetVal.Interface(), tc.result), ShouldBeTrue)
+			assert.EqualValues(t, targetVal.Type(), reflect.TypeOf(tc.result))
+			assert.True(t, reflect.DeepEqual(targetVal.Interface(), tc.result))
 		}
 	})
-	Convey("Testing conversion errors", t, func() {
+	t.Run("Testing conversion errors", func(t *testing.T) {
 		for _, tc := range convertErrorCases {
 			var target = tc.target
 			err := Convert(tc.value, target, tc.isRS)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, tc.err)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), tc.err)
 		}
 	})
 }

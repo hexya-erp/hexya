@@ -8,8 +8,9 @@ import (
 	"encoding/xml"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/types/dates"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 // testRecordSet is a dummy RecordSet implementation used to check
@@ -24,29 +25,29 @@ func (r testRecordSet) IsNotEmpty() bool                            { return tru
 func (r testRecordSet) Call(_ string, _ ...interface{}) interface{} { return nil }
 
 func TestContext(t *testing.T) {
-	Convey("Testing Context creation and access", t, func() {
-		Convey("A new Context should be empty", func() {
+	t.Run("Testing Context creation and access", func(t *testing.T) {
+		t.Run("A new Context should be empty", func(t *testing.T) {
 			ctx := NewContext()
-			So(ctx.IsEmpty(), ShouldBeTrue)
-			So(ctx.HasKey("foo"), ShouldBeFalse)
-			So(ctx.Get("foo"), ShouldBeNil)
+			assert.True(t, ctx.IsEmpty())
+			assert.False(t, ctx.HasKey("foo"))
+			assert.Nil(t, ctx.Get("foo"))
 		})
-		Convey("WithKey should set values", func() {
+		t.Run("WithKey should set values", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar").WithKey("baz", 3)
-			So(ctx.IsEmpty(), ShouldBeFalse)
-			So(ctx.HasKey("foo"), ShouldBeTrue)
-			So(ctx.Get("foo"), ShouldEqual, "bar")
-			So(ctx.Get("baz"), ShouldEqual, 3)
+			assert.False(t, ctx.IsEmpty())
+			assert.True(t, ctx.HasKey("foo"))
+			assert.EqualValues(t, ctx.Get("foo"), "bar")
+			assert.EqualValues(t, ctx.Get("baz"), 3)
 		})
-		Convey("WithKey should overwrite existing values", func() {
+		t.Run("WithKey should overwrite existing values", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar").WithKey("foo", "qux")
-			So(ctx.Get("foo"), ShouldEqual, "qux")
+			assert.EqualValues(t, ctx.Get("foo"), "qux")
 		})
-		Convey("WithKey should panic with a RecordSet value", func() {
-			So(func() { NewContext().WithKey("rs", testRecordSet{}) }, ShouldPanic)
+		t.Run("WithKey should panic with a RecordSet value", func(t *testing.T) {
+			assert.Panics(t, func() { NewContext().WithKey("rs", testRecordSet{}) })
 		})
 	})
-	Convey("Testing Context typed getters with existing values", t, func() {
+	t.Run("Testing Context typed getters with existing values", func(t *testing.T) {
 		date := dates.ParseDate("2025-01-15")
 		dateTime := dates.ParseDateTime("2025-01-15 10:20:30")
 		ctx := NewContext().
@@ -59,145 +60,145 @@ func TestContext(t *testing.T) {
 			WithKey("boolTrue", true).
 			WithKey("boolFalse", false).
 			WithKey("one", 1)
-		Convey("GetString should return the string value", func() {
-			So(ctx.GetString("string"), ShouldEqual, "bar")
+		t.Run("GetString should return the string value", func(t *testing.T) {
+			assert.EqualValues(t, ctx.GetString("string"), "bar")
 		})
-		Convey("GetDate and GetDateTime should return the date values", func() {
-			So(ctx.GetDate("date").Equal(date), ShouldBeTrue)
-			So(ctx.GetDateTime("datetime").Equal(dateTime), ShouldBeTrue)
+		t.Run("GetDate and GetDateTime should return the date values", func(t *testing.T) {
+			assert.True(t, ctx.GetDate("date").Equal(date))
+			assert.True(t, ctx.GetDateTime("datetime").Equal(dateTime))
 		})
-		Convey("GetInteger should cast numbers to int64", func() {
-			So(ctx.GetInteger("int"), ShouldEqual, int64(3))
-			So(ctx.GetInteger("int64"), ShouldEqual, int64(4))
-			So(ctx.GetInteger("float"), ShouldEqual, int64(5))
-			So(ctx.GetInteger("boolTrue"), ShouldEqual, int64(1))
+		t.Run("GetInteger should cast numbers to int64", func(t *testing.T) {
+			assert.EqualValues(t, ctx.GetInteger("int"), int64(3))
+			assert.EqualValues(t, ctx.GetInteger("int64"), int64(4))
+			assert.EqualValues(t, ctx.GetInteger("float"), int64(5))
+			assert.EqualValues(t, ctx.GetInteger("boolTrue"), int64(1))
 		})
-		Convey("GetFloat should cast numbers to float64", func() {
-			So(ctx.GetFloat("float"), ShouldEqual, 5.4)
-			So(ctx.GetFloat("int"), ShouldEqual, 3.0)
-			So(ctx.GetFloat("int64"), ShouldEqual, 4.0)
-			So(ctx.GetFloat("boolTrue"), ShouldEqual, 1.0)
+		t.Run("GetFloat should cast numbers to float64", func(t *testing.T) {
+			assert.EqualValues(t, ctx.GetFloat("float"), 5.4)
+			assert.EqualValues(t, ctx.GetFloat("int"), 3.0)
+			assert.EqualValues(t, ctx.GetFloat("int64"), 4.0)
+			assert.EqualValues(t, ctx.GetFloat("boolTrue"), 1.0)
 		})
-		Convey("GetBool should return true only for non zero number values", func() {
-			So(ctx.GetBool("boolTrue"), ShouldBeTrue)
-			So(ctx.GetBool("boolFalse"), ShouldBeFalse)
-			So(ctx.GetBool("one"), ShouldBeTrue)
-			So(ctx.GetBool("int"), ShouldBeTrue)
-			So(ctx.GetBool("string"), ShouldBeFalse)
+		t.Run("GetBool should return true only for non zero number values", func(t *testing.T) {
+			assert.True(t, ctx.GetBool("boolTrue"))
+			assert.False(t, ctx.GetBool("boolFalse"))
+			assert.True(t, ctx.GetBool("one"))
+			assert.True(t, ctx.GetBool("int"))
+			assert.False(t, ctx.GetBool("string"))
 		})
 	})
-	Convey("Testing Context typed getters with missing keys", t, func() {
+	t.Run("Testing Context typed getters with missing keys", func(t *testing.T) {
 		ctx := NewContext()
-		So(ctx.GetString("nokey"), ShouldEqual, "")
-		So(ctx.GetDate("nokey").IsZero(), ShouldBeTrue)
-		So(ctx.GetDateTime("nokey").IsZero(), ShouldBeTrue)
-		So(ctx.GetInteger("nokey"), ShouldEqual, int64(0))
-		So(ctx.GetFloat("nokey"), ShouldEqual, 0.0)
-		So(ctx.GetBool("nokey"), ShouldBeFalse)
-		So(ctx.GetStringSlice("nokey"), ShouldResemble, []string{})
-		So(ctx.GetIntegerSlice("nokey"), ShouldResemble, []int64{})
-		So(ctx.GetFloatSlice("nokey"), ShouldResemble, []float64{})
+		assert.EqualValues(t, ctx.GetString("nokey"), "")
+		assert.True(t, ctx.GetDate("nokey").IsZero())
+		assert.True(t, ctx.GetDateTime("nokey").IsZero())
+		assert.EqualValues(t, ctx.GetInteger("nokey"), int64(0))
+		assert.EqualValues(t, ctx.GetFloat("nokey"), 0.0)
+		assert.False(t, ctx.GetBool("nokey"))
+		assert.Equal(t, ctx.GetStringSlice("nokey"), []string{})
+		assert.Equal(t, ctx.GetIntegerSlice("nokey"), []int64{})
+		assert.Equal(t, ctx.GetFloatSlice("nokey"), []float64{})
 	})
-	Convey("Testing Context typed getters error paths", t, func() {
+	t.Run("Testing Context typed getters error paths", func(t *testing.T) {
 		ctx := NewContext().
 			WithKey("int", 3).
 			WithKey("string", "bar").
 			WithKey("badSlice", []string{"a"})
-		So(func() { ctx.GetString("int") }, ShouldPanic)
-		So(func() { ctx.GetDate("int") }, ShouldPanic)
-		So(func() { ctx.GetDateTime("int") }, ShouldPanic)
-		So(func() { ctx.GetInteger("string") }, ShouldPanic)
-		So(func() { ctx.GetFloat("string") }, ShouldPanic)
-		So(func() { ctx.GetIntegerSlice("int") }, ShouldPanic)
-		So(func() { ctx.GetFloatSlice("int") }, ShouldPanic)
-		So(func() { ctx.GetIntegerSlice("badSlice") }, ShouldPanic)
-		So(func() { ctx.GetFloatSlice("badSlice") }, ShouldPanic)
+		assert.Panics(t, func() { ctx.GetString("int") })
+		assert.Panics(t, func() { ctx.GetDate("int") })
+		assert.Panics(t, func() { ctx.GetDateTime("int") })
+		assert.Panics(t, func() { ctx.GetInteger("string") })
+		assert.Panics(t, func() { ctx.GetFloat("string") })
+		assert.Panics(t, func() { ctx.GetIntegerSlice("int") })
+		assert.Panics(t, func() { ctx.GetFloatSlice("int") })
+		assert.Panics(t, func() { ctx.GetIntegerSlice("badSlice") })
+		assert.Panics(t, func() { ctx.GetFloatSlice("badSlice") })
 	})
-	Convey("Testing Context slice getters", t, func() {
-		Convey("GetStringSlice", func() {
+	t.Run("Testing Context slice getters", func(t *testing.T) {
+		t.Run("GetStringSlice", func(t *testing.T) {
 			ctx := NewContext().
 				WithKey("strings", []string{"a", "b"}).
 				WithKey("interfaces", []interface{}{"c", "d"}).
 				WithKey("other", []int{1, 2})
-			So(ctx.GetStringSlice("strings"), ShouldResemble, []string{"a", "b"})
-			So(ctx.GetStringSlice("interfaces"), ShouldResemble, []string{"c", "d"})
-			So(ctx.GetStringSlice("other"), ShouldBeNil)
-			So(func() { ctx.GetStringSlice("interfaces") }, ShouldNotPanic)
+			assert.Equal(t, ctx.GetStringSlice("strings"), []string{"a", "b"})
+			assert.Equal(t, ctx.GetStringSlice("interfaces"), []string{"c", "d"})
+			assert.Nil(t, ctx.GetStringSlice("other"))
+			assert.NotPanics(t, func() { ctx.GetStringSlice("interfaces") })
 		})
-		Convey("GetStringSlice should panic with non string elements", func() {
+		t.Run("GetStringSlice should panic with non string elements", func(t *testing.T) {
 			ctx := NewContext().WithKey("interfaces", []interface{}{"c", 3})
-			So(func() { ctx.GetStringSlice("interfaces") }, ShouldPanic)
+			assert.Panics(t, func() { ctx.GetStringSlice("interfaces") })
 		})
-		Convey("GetIntegerSlice", func() {
+		t.Run("GetIntegerSlice", func(t *testing.T) {
 			ctx := NewContext().
 				WithKey("ints", []int{1, 2}).
 				WithKey("int64s", []int64{3, 4}).
 				WithKey("floats", []float64{5.2, 6.8}).
 				WithKey("interfaces", []interface{}{7, int64(8)})
-			So(ctx.GetIntegerSlice("ints"), ShouldResemble, []int64{1, 2})
-			So(ctx.GetIntegerSlice("int64s"), ShouldResemble, []int64{3, 4})
-			So(ctx.GetIntegerSlice("floats"), ShouldResemble, []int64{5, 6})
-			So(ctx.GetIntegerSlice("interfaces"), ShouldResemble, []int64{7, 8})
+			assert.Equal(t, ctx.GetIntegerSlice("ints"), []int64{1, 2})
+			assert.Equal(t, ctx.GetIntegerSlice("int64s"), []int64{3, 4})
+			assert.Equal(t, ctx.GetIntegerSlice("floats"), []int64{5, 6})
+			assert.Equal(t, ctx.GetIntegerSlice("interfaces"), []int64{7, 8})
 		})
-		Convey("GetFloatSlice", func() {
+		t.Run("GetFloatSlice", func(t *testing.T) {
 			ctx := NewContext().
 				WithKey("floats", []float64{5.2, 6.8}).
 				WithKey("ints", []int{1, 2}).
 				WithKey("interfaces", []interface{}{7, 8.5})
-			So(ctx.GetFloatSlice("floats"), ShouldResemble, []float64{5.2, 6.8})
-			So(ctx.GetFloatSlice("ints"), ShouldResemble, []float64{1, 2})
-			So(ctx.GetFloatSlice("interfaces"), ShouldResemble, []float64{7, 8.5})
+			assert.Equal(t, ctx.GetFloatSlice("floats"), []float64{5.2, 6.8})
+			assert.Equal(t, ctx.GetFloatSlice("ints"), []float64{1, 2})
+			assert.Equal(t, ctx.GetFloatSlice("interfaces"), []float64{7, 8.5})
 		})
 	})
-	Convey("Testing Context mutation methods", t, func() {
-		Convey("Delete should remove the given key", func() {
+	t.Run("Testing Context mutation methods", func(t *testing.T) {
+		t.Run("Delete should remove the given key", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar").WithKey("baz", 3)
 			ctx = ctx.Delete("foo")
-			So(ctx.HasKey("foo"), ShouldBeFalse)
-			So(ctx.HasKey("baz"), ShouldBeTrue)
+			assert.False(t, ctx.HasKey("foo"))
+			assert.True(t, ctx.HasKey("baz"))
 		})
-		Convey("Pop should return and remove the given key", func() {
+		t.Run("Pop should return and remove the given key", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar")
-			So(ctx.Pop("foo"), ShouldEqual, "bar")
-			So(ctx.HasKey("foo"), ShouldBeFalse)
-			So(ctx.Pop("nokey"), ShouldBeNil)
+			assert.EqualValues(t, ctx.Pop("foo"), "bar")
+			assert.False(t, ctx.HasKey("foo"))
+			assert.Nil(t, ctx.Pop("nokey"))
 		})
-		Convey("Cleaned should remove keys with the given prefix", func() {
+		t.Run("Cleaned should remove keys with the given prefix", func(t *testing.T) {
 			ctx := NewContext().
 				WithKey("default_foo", "bar").
 				WithKey("default_baz", 3).
 				WithKey("lang", "fr_FR")
 			res := ctx.Cleaned("default_")
-			So(res.HasKey("default_foo"), ShouldBeFalse)
-			So(res.HasKey("default_baz"), ShouldBeFalse)
-			So(res.GetString("lang"), ShouldEqual, "fr_FR")
-			So(ctx.HasKey("default_foo"), ShouldBeTrue)
+			assert.False(t, res.HasKey("default_foo"))
+			assert.False(t, res.HasKey("default_baz"))
+			assert.EqualValues(t, res.GetString("lang"), "fr_FR")
+			assert.True(t, ctx.HasKey("default_foo"))
 		})
-		Convey("Update should merge the other context", func() {
+		t.Run("Update should merge the other context", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar")
 			other := NewContext().WithKey("baz", 3).WithKey("foo", "qux")
 			ctx.Update(other)
-			So(ctx.GetString("foo"), ShouldEqual, "qux")
-			So(ctx.GetInteger("baz"), ShouldEqual, int64(3))
+			assert.EqualValues(t, ctx.GetString("foo"), "qux")
+			assert.EqualValues(t, ctx.GetInteger("baz"), int64(3))
 		})
-		Convey("Copy should return an independent context", func() {
+		t.Run("Copy should return an independent context", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar")
 			newCtx := ctx.Copy()
-			So(newCtx.GetString("foo"), ShouldEqual, "bar")
+			assert.EqualValues(t, newCtx.GetString("foo"), "bar")
 			newCtx.Delete("foo")
-			So(newCtx.HasKey("foo"), ShouldBeFalse)
-			So(ctx.HasKey("foo"), ShouldBeTrue)
+			assert.False(t, newCtx.HasKey("foo"))
+			assert.True(t, ctx.HasKey("foo"))
 		})
-		Convey("ToMap should return a copy of the values", func() {
+		t.Run("ToMap should return a copy of the values", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar")
 			m := ctx.ToMap()
-			So(m, ShouldResemble, map[string]interface{}{"foo": "bar"})
+			assert.Equal(t, m, map[string]interface{}{"foo": "bar"})
 			delete(m, "foo")
-			So(ctx.HasKey("foo"), ShouldBeTrue)
+			assert.True(t, ctx.HasKey("foo"))
 		})
-		Convey("String should render the values map", func() {
+		t.Run("String should render the values map", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar")
-			So(ctx.String(), ShouldEqual, "map[foo:bar]")
+			assert.EqualValues(t, ctx.String(), "map[foo:bar]")
 		})
 	})
 }
@@ -208,92 +209,92 @@ type testXMLStruct struct {
 }
 
 func TestContextSerialization(t *testing.T) {
-	Convey("Testing Context JSON marshalling", t, func() {
+	t.Run("Testing Context JSON marshalling", func(t *testing.T) {
 		ctx := NewContext().WithKey("foo", "bar").WithKey("baz", 3)
 		data, err := json.Marshal(ctx)
-		So(err, ShouldBeNil)
-		Convey("Unmarshalling back should give the same values", func() {
+		assert.Nil(t, err)
+		t.Run("Unmarshalling back should give the same values", func(t *testing.T) {
 			var newCtx Context
-			So(json.Unmarshal(data, &newCtx), ShouldBeNil)
-			So(newCtx.ToMap(), ShouldResemble, map[string]interface{}{
+			assert.Nil(t, json.Unmarshal(data, &newCtx))
+			assert.Equal(t, newCtx.ToMap(), map[string]interface{}{
 				"foo": "bar",
 				"baz": float64(3),
 			})
 		})
-		Convey("Unmarshalling invalid JSON should fail", func() {
+		t.Run("Unmarshalling invalid JSON should fail", func(t *testing.T) {
 			var newCtx Context
-			So(json.Unmarshal([]byte(`{"foo":}`), &newCtx), ShouldNotBeNil)
+			assert.NotNil(t, json.Unmarshal([]byte(`{"foo":}`), &newCtx))
 		})
 	})
-	Convey("Testing Context XML attribute unmarshalling", t, func() {
-		Convey("UnmarshalXMLAttr should populate the values", func() {
+	t.Run("Testing Context XML attribute unmarshalling", func(t *testing.T) {
+		t.Run("UnmarshalXMLAttr should populate the values", func(t *testing.T) {
 			var ctx Context
-			So(ctx.UnmarshalXMLAttr(xml.Attr{Value: `{"foo":"bar","baz":3}`}), ShouldBeNil)
-			So(ctx.GetString("foo"), ShouldEqual, "bar")
-			So(ctx.GetInteger("baz"), ShouldEqual, int64(3))
+			assert.Nil(t, ctx.UnmarshalXMLAttr(xml.Attr{Value: `{"foo":"bar","baz":3}`}))
+			assert.EqualValues(t, ctx.GetString("foo"), "bar")
+			assert.EqualValues(t, ctx.GetInteger("baz"), int64(3))
 		})
-		Convey("UnmarshalXMLAttr should fail with invalid JSON", func() {
+		t.Run("UnmarshalXMLAttr should fail with invalid JSON", func(t *testing.T) {
 			var ctx Context
-			So(ctx.UnmarshalXMLAttr(xml.Attr{Value: `{"foo":}`}), ShouldNotBeNil)
+			assert.NotNil(t, ctx.UnmarshalXMLAttr(xml.Attr{Value: `{"foo":}`}))
 		})
-		Convey("Unmarshalling a struct with a Context attribute should work", func() {
+		t.Run("Unmarshalling a struct with a Context attribute should work", func(t *testing.T) {
 			var ts testXMLStruct
-			So(xml.Unmarshal([]byte(`<test context="{&#34;foo&#34;:&#34;bar&#34;}"/>`), &ts), ShouldBeNil)
-			So(ts.Context.GetString("foo"), ShouldEqual, "bar")
+			assert.Nil(t, xml.Unmarshal([]byte(`<test context="{&#34;foo&#34;:&#34;bar&#34;}"/>`), &ts))
+			assert.EqualValues(t, ts.Context.GetString("foo"), "bar")
 		})
 	})
-	Convey("Testing Context database serialization", t, func() {
+	t.Run("Testing Context database serialization", func(t *testing.T) {
 		ctx := NewContext().WithKey("foo", "bar")
-		Convey("Value should return a JSON encoded context", func() {
+		t.Run("Value should return a JSON encoded context", func(t *testing.T) {
 			val, err := ctx.Value()
-			So(err, ShouldBeNil)
-			So(string(val.([]byte)), ShouldEqual, `{"foo":"bar"}`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(val.([]byte)), `{"foo":"bar"}`)
 		})
-		Convey("Scan should accept a string", func() {
+		t.Run("Scan should accept a string", func(t *testing.T) {
 			var newCtx Context
-			So(newCtx.Scan(`{"foo":"bar"}`), ShouldBeNil)
-			So(newCtx.GetString("foo"), ShouldEqual, "bar")
+			assert.Nil(t, newCtx.Scan(`{"foo":"bar"}`))
+			assert.EqualValues(t, newCtx.GetString("foo"), "bar")
 		})
-		Convey("Scan should accept a byte slice", func() {
+		t.Run("Scan should accept a byte slice", func(t *testing.T) {
 			var newCtx Context
-			So(newCtx.Scan([]byte(`{"foo":"bar"}`)), ShouldBeNil)
-			So(newCtx.GetString("foo"), ShouldEqual, "bar")
+			assert.Nil(t, newCtx.Scan([]byte(`{"foo":"bar"}`)))
+			assert.EqualValues(t, newCtx.GetString("foo"), "bar")
 		})
-		Convey("Scan should accept a map", func() {
+		t.Run("Scan should accept a map", func(t *testing.T) {
 			var newCtx Context
-			So(newCtx.Scan(map[string]interface{}{"foo": "bar"}), ShouldBeNil)
-			So(newCtx.GetString("foo"), ShouldEqual, "bar")
+			assert.Nil(t, newCtx.Scan(map[string]interface{}{"foo": "bar"}))
+			assert.EqualValues(t, newCtx.GetString("foo"), "bar")
 		})
-		Convey("Scan should fail with an unsupported type", func() {
+		t.Run("Scan should fail with an unsupported type", func(t *testing.T) {
 			var newCtx Context
-			So(newCtx.Scan(3), ShouldNotBeNil)
+			assert.NotNil(t, newCtx.Scan(3))
 		})
-		Convey("Scan should fail with malformed JSON", func() {
+		t.Run("Scan should fail with malformed JSON", func(t *testing.T) {
 			var newCtx Context
-			So(newCtx.Scan([]byte(`{"foo":}`)), ShouldNotBeNil)
+			assert.NotNil(t, newCtx.Scan([]byte(`{"foo":}`)))
 		})
-		Convey("Marshalling and Scan should round trip", func() {
+		t.Run("Marshalling and Scan should round trip", func(t *testing.T) {
 			data, err := json.Marshal(ctx)
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 			var newCtx Context
-			So(newCtx.Scan(data), ShouldBeNil)
-			So(newCtx.ToMap(), ShouldResemble, ctx.ToMap())
+			assert.Nil(t, newCtx.Scan(data))
+			assert.Equal(t, newCtx.ToMap(), ctx.ToMap())
 		})
 	})
 }
 
 func TestSelection(t *testing.T) {
-	Convey("Testing Selection marshalling", t, func() {
-		Convey("Keys should be marshalled in sorted order", func() {
+	t.Run("Testing Selection marshalling", func(t *testing.T) {
+		t.Run("Keys should be marshalled in sorted order", func(t *testing.T) {
 			sel := Selection{"b": "B", "a": "A", "c": "C"}
 			data, err := json.Marshal(sel)
-			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `[["a","A"],["b","B"],["c","C"]]`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(data), `[["a","A"],["b","B"],["c","C"]]`)
 		})
-		Convey("An empty Selection should be marshalled as null", func() {
+		t.Run("An empty Selection should be marshalled as null", func(t *testing.T) {
 			data, err := json.Marshal(Selection{})
-			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `null`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(data), `null`)
 		})
 	})
 }
