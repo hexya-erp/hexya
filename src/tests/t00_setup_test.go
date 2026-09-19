@@ -17,7 +17,7 @@ package tests
 import (
 	"testing"
 
-	_ "github.com/hexya-erp/hexya/src/tests/testmodule"
+	_ "github.com/hexya-erp/hexya/src/tests/testdata/testmodule"
 	_ "github.com/lib/pq"
 )
 

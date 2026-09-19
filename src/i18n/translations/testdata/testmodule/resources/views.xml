@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<hexya>
+    <data>
+        <view id="test_view_id" name="Test View" model="TestModel">
+            <form string="Profile Data">
+                <group>
+                    <field name="Name"/>
+                </group>
+            </form>
+        </view>
+        <menuitem id="test_menu_id" name="Test Menu" action="test_action_id"/>
+        <action id="test_action_id" name="Test Action" type="ir.actions.act_window" model="TestModel"
+                view_mode="tree,form"/>
+    </data>
+</hexya>

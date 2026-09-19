@@ -1,0 +1,25 @@
+# Test data for the menus package
+# Copyright (C) 2018 Nicolas Piganeau
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Hexya 1.0\n"
+"Report-Msgid-Bugs-To: contact@hexya.io\n"
+"POT-Creation-Date: 2018-07-17 10:34+0200\n"
+"PO-Revision-Date: 2018-02-24 21:00+0800\n"
+"Last-Translator: Nicolas Piganeau <contact@hexya.io>\n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Hexya 1.0\n"
+
+#. resource:root_menu
+msgid "Root Menu"
+msgstr "Menu racine"
+
+#. resource:my_action
+msgid "My Action"
+msgstr "Mon action"

@@ -70,4 +70,4 @@ require (
 	google.golang.org/protobuf v1.36.12 // indirect
 )
 
-replace github.com/hexya-erp/pool v1.0.2 => /home/npiganeau/Progs/hexya/hexya/src/tests/testmodule/pool
+replace github.com/hexya-erp/pool v1.0.2 => /home/npiganeau/Progs/hexya/hexya/src/tests/testdata/testmodule/pool

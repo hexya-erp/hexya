@@ -125,7 +125,7 @@ func DictToJSON(dict string) string {
 }
 
 // MakeUnique returns an unique string in reference of the given pool
-// its made of the base string plus a number if it exists within the pool
+// it is made of the base string plus a number if it exists within the pool
 func MakeUnique(str string, pool []string) string {
 	var nb int
 	tested := str
@@ -166,11 +166,10 @@ func RemoveAccent(in string) string {
 	isMn := func(r rune) bool {
 		return unicode.Is(unicode.Mn, r)
 	}
-	res := make([]byte, len(in))
 	t := transform.Chain(norm.NFD, transform.RemoveFunc(isMn), norm.NFC)
-	_, _, e := t.Transform(res, []byte(in), true)
+	res, _, e := transform.String(t, in)
 	if e != nil {
 		panic(e)
 	}
-	return string(res)
+	return res
 }
