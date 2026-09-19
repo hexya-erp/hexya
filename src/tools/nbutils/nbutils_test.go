@@ -1,4 +1,4 @@
-// Copyright 2019 NDP Systèmes. All Rights Reserved.
+// Copyright 2019 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 package nbutils
@@ -15,11 +15,11 @@ func TestCastToFloat(t *testing.T) {
 		So(val, ShouldEqual, 12)
 		So(val, ShouldHaveSameTypeAs, float64(1))
 		So(err, ShouldBeNil)
-		val, err = CastToFloat(float64(12))
-		So(val, ShouldEqual, 12)
+		val, err = CastToFloat(12.85)
+		So(val, ShouldEqual, 12.85)
 		So(val, ShouldHaveSameTypeAs, float64(1))
 		So(err, ShouldBeNil)
-		val, err = CastToFloat(int64(12))
+		val, err = CastToFloat(int32(12))
 		So(val, ShouldEqual, 12)
 		So(val, ShouldHaveSameTypeAs, float64(1))
 		So(err, ShouldBeNil)
@@ -44,7 +44,7 @@ func TestCastToInteger(t *testing.T) {
 		So(val, ShouldEqual, 12)
 		So(val, ShouldHaveSameTypeAs, int64(1))
 		So(err, ShouldBeNil)
-		val, err = CastToInteger(float64(12))
+		val, err = CastToInteger(12.52)
 		So(val, ShouldEqual, 12)
 		So(val, ShouldHaveSameTypeAs, int64(1))
 		So(err, ShouldBeNil)

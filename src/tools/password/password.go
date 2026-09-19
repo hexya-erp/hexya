@@ -1,4 +1,4 @@
-// Copyright 2020 NDP Systèmes. All Rights Reserved.
+// Copyright 2020 Nicolas Piganeau. All Rights Reserved.
 // See LICENSE file for full licensing details.
 
 // Package password provides functions to Hash and Verify PBKDF2/SHA256 passwords.

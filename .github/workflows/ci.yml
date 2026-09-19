@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.26", "1.27"]
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      HEXYA_DB_DRIVER: postgres
+      HEXYA_DB_USER: postgres
+      HEXYA_DB_PASSWORD: ""
+      HEXYA_DB_PREFIX: hexya_test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Install dart-sass
+        run: |
+          curl -sLO https://github.com/sass/dart-sass/releases/download/1.104.1/dart-sass-1.104.1-linux-x64.tar.gz
+          tar -xzf dart-sass-1.104.1-linux-x64.tar.gz
+          sudo mv dart-sass/sass /usr/local/bin/sass
+          sudo mv dart-sass/src /usr/local/bin/src
+          rm -rf dart-sass dart-sass-1.104.1-linux-x64.tar.gz
+          sass --version
+
+      - name: Install less
+        run: npm install -g less
+
+      - name: Install go dependencies
+        run: go install
+
+      - name: Generate hexya code
+        run: hexya generate -t ./src/tests/testmodule
+
+      - name: Create test databases
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -c 'create database hexya_test_models;'
+          psql -h localhost -U postgres -c 'create database hexya_test_tests;'
+
+      - name: Run tests
+        run: ./run_tests.sh
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: 4246198b-44dc-4e02-bd7a-5f35e1458085
+          fail_ci_if_error: false

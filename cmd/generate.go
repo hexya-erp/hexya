@@ -1,4 +1,4 @@
-// Copyright 2017 NDP Systèmes. All Rights Reserved.
+// Copyright 2017 Nicolas Piganeau. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -276,6 +276,8 @@ var emptyPoolGoMod = template.Must(template.New("").Parse(`
 // DO NOT MODIFY THIS FILE - ANY CHANGES WILL BE OVERWRITTEN
 
 module github.com/hexya-erp/pool
+
+go 1.22
 `))
 
 var startFileTemplate = template.Must(template.New("").Parse(`

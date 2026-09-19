@@ -1,5 +1,4 @@
-[![Build Status](https://travis-ci.com/hexya-erp/hexya.svg?branch=master)](https://travis-ci.com/hexya-erp/hexya)
-[![Go Report Card](https://goreportcard.com/badge/hexya-erp/hexya)](https://goreportcard.com/report/hexya-erp/hexya)
+[![CI](https://github.com/hexya-erp/hexya/actions/workflows/ci.yml/badge.svg)](https://github.com/hexya-erp/hexya)
 [![codecov](https://codecov.io/gh/hexya-erp/hexya/branch/master/graph/badge.svg)](https://codecov.io/gh/hexya-erp/hexya)
 [![godoc reference](https://godoc.org/github.com/hexya-erp/hexya?status.png)](https://godoc.org/github.com/hexya-erp/hexya)
 [![Gitter](https://badges.gitter.im/hexya-erp/community.svg)](https://gitter.im/hexya-erp/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
