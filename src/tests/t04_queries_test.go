@@ -17,41 +17,42 @@ package tests
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/pool/h"
 	"github.com/hexya-erp/pool/q"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestConditions(t *testing.T) {
-	Convey("Testing SQL building for queries", t, func() {
+	t.Run("Testing SQL building for queries", func(t *testing.T) {
 		if driver == "postgres" {
-			So(models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+			assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 				rs := h.User().NewSet(env)
 				rs = rs.Search(q.User().ProfileFilteredOn(q.Profile().BestPostFilteredOn(q.Post().Title().Equals("foo"))))
-				Convey("Simple query", func() {
-					So(func() { rs.Load() }, ShouldNotPanic)
+				t.Run("Simple query", func(t *testing.T) {
+					assert.NotPanics(t, func() { rs.Load() })
 				})
-				Convey("Simple query with args inflation", func() {
+				t.Run("Simple query with args inflation", func(t *testing.T) {
 					getUserID := func(rs models.RecordSet) int {
 						return int(rs.Env().Uid())
 					}
 					rs2 := h.User().Search(env, q.User().Nums().EqualsFunc(getUserID))
-					So(func() { rs2.Load() }, ShouldNotPanic)
+					assert.NotPanics(t, func() { rs2.Load() })
 				})
-				Convey("Check WHERE clause with additionnal filter", func() {
+				t.Run("Check WHERE clause with additionnal filter", func(t *testing.T) {
 					rs = rs.Search(q.User().ProfileFilteredOn(q.Profile().Age().GreaterOrEqual(12)))
-					So(func() { rs.Load() }, ShouldNotPanic)
+					assert.NotPanics(t, func() { rs.Load() })
 				})
-				Convey("Check full query with all conditions", func() {
+				t.Run("Check full query with all conditions", func(t *testing.T) {
 					rs = rs.Search(q.User().ProfileFilteredOn(q.Profile().Age().GreaterOrEqual(12)).Or().Name().ILike("John"))
 					c2 := q.User().Name().Like("jane").Or().ProfileFilteredOn(q.Profile().Money().Lower(1234.56))
 					rs = rs.Search(c2)
 					rs.Load()
-					So(func() { rs.Load() }, ShouldNotPanic)
+					assert.NotPanics(t, func() { rs.Load() })
 				})
-			}), ShouldBeNil)
+			}))
 		}
 	})
 }

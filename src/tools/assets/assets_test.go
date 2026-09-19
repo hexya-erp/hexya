@@ -9,27 +9,27 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCompileLessFiles(t *testing.T) {
-	Convey("Testing less compilation", t, func() {
+	t.Run("Testing less compilation", func(t *testing.T) {
 		input := strings.NewReader(".class { width: (1 + 1) }")
 		output := bytes.Buffer{}
 		err := LessCompiler{}.Compile(input, &output)
-		So(err, ShouldBeNil)
+		assert.Nil(t, err)
 		data, err := ioutil.ReadAll(&output)
-		So(err, ShouldBeNil)
-		So(string(data), ShouldEqual, ".class {\n  width: 2;\n}\n")
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(data), ".class {\n  width: 2;\n}\n")
 	})
-	Convey("Testing scss compilation", t, func() {
+	t.Run("Testing scss compilation", func(t *testing.T) {
 		input := strings.NewReader(".class { width: (1 + 1) }")
 		output := bytes.Buffer{}
 		err := ScssCompiler{}.Compile(input, &output)
-		So(err, ShouldBeNil)
+		assert.Nil(t, err)
 		data, err := ioutil.ReadAll(&output)
-		So(err, ShouldBeNil)
-		So(string(data), ShouldEqual, ".class {\n  width: 2;\n}\n")
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(data), ".class {\n  width: 2;\n}\n")
 	})
 
 }

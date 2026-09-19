@@ -8,179 +8,213 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/operator"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestBaseModelMethods(t *testing.T) {
-	Convey("Testing base model methods", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-			userModel := Registry.MustGet("User")
-			profileModel := Registry.MustGet("Profile")
-			tagModel := Registry.MustGet("Tag")
-			postModel := Registry.MustGet("Post")
-			commentModel := Registry.MustGet("Comment")
-			userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
-			Convey("LastUpdate", func() {
-				So(userJane.Get(lastupdate).(dates.DateTime).Sub(userJane.Get(writeDate).(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
+	t.Run("Testing base model methods", func(t *testing.T) {
+		t.Run("LastUpdate", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				commentModel := Registry.MustGet("Comment")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
+				assert.LessOrEqual(t, userJane.Get(lastupdate).(dates.DateTime).Sub(userJane.Get(writeDate).(dates.DateTime)), 1*time.Second)
 				newComment := commentModel.Create(env, NewModelData(commentModel).
 					Set(text, "MyComment"))
 				time.Sleep(1*time.Second + 100*time.Millisecond)
-				So(newComment.Get(lastupdate).(dates.DateTime).Sub(newComment.Get(createDate).(dates.DateTime)), ShouldBeLessThanOrEqualTo, 1*time.Second)
-			})
-			Convey("Load and Read", func() {
+				assert.LessOrEqual(t, newComment.Get(lastupdate).(dates.DateTime).Sub(newComment.Get(createDate).(dates.DateTime)), 1*time.Second)
+			}))
+		})
+		t.Run("Load and Read", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				userJane = userJane.Call("Load", []FieldName{ID, Name, age, posts, profile}).(RecordSet).Collection()
 				res := userJane.Call("Read", []FieldName{Name, age, posts, profile})
-				So(res, ShouldHaveLength, 1)
+				assert.Len(t, res, 1)
 				fMap := res.([]RecordData)[0].Underlying().FieldMap
-				So(fMap, ShouldHaveLength, 5)
-				So(fMap, ShouldContainKey, "name")
-				So(fMap["name"], ShouldEqual, "Jane A. Smith")
-				So(fMap, ShouldContainKey, "age")
-				So(fMap["age"], ShouldEqual, 24)
-				So(fMap, ShouldContainKey, "posts_ids")
-				So(fMap["posts_ids"].(RecordSet).Collection().Ids(), ShouldHaveLength, 2)
-				So(fMap, ShouldContainKey, "profile_id")
-				So(fMap["profile_id"].(RecordSet).Collection().Get(ID), ShouldEqual, userJane.Get(profile).(RecordSet).Collection().Get(ID))
-				So(fMap, ShouldContainKey, "id")
-				So(fMap["id"], ShouldEqual, userJane.Ids()[0])
-			})
-			Convey("Browse and BrowseOne", func() {
+				assert.Len(t, fMap, 5)
+				assert.Contains(t, fMap, "name")
+				assert.EqualValues(t, fMap["name"], "Jane A. Smith")
+				assert.Contains(t, fMap, "age")
+				assert.EqualValues(t, fMap["age"], 24)
+				assert.Contains(t, fMap, "posts_ids")
+				assert.Len(t, fMap["posts_ids"].(RecordSet).Collection().Ids(), 2)
+				assert.Contains(t, fMap, "profile_id")
+				assert.EqualValues(t, fMap["profile_id"].(RecordSet).Collection().Get(ID), userJane.Get(profile).(RecordSet).Collection().Get(ID))
+				assert.Contains(t, fMap, "id")
+				assert.EqualValues(t, fMap["id"], userJane.Ids()[0])
+			}))
+		})
+		t.Run("Browse and BrowseOne", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				jid := userJane.Ids()[0]
 				j2 := userModel.Browse(env, []int64{jid})
-				So(j2.Equals(userJane), ShouldBeTrue)
+				assert.True(t, j2.Equals(userJane))
 				j21 := userModel.BrowseOne(env, jid)
-				So(j21.Equals(userJane), ShouldBeTrue)
+				assert.True(t, j21.Equals(userJane))
 				j22 := env.Pool("User").Call("Browse", []int64{jid}).(RecordSet).Collection()
-				So(j22.Equals(userJane), ShouldBeTrue)
+				assert.True(t, j22.Equals(userJane))
 				j23 := env.Pool("User").Call("BrowseOne", jid).(RecordSet).Collection()
-				So(j23.Equals(userJane), ShouldBeTrue)
-			})
-			Convey("SearchCount", func() {
+				assert.True(t, j23.Equals(userJane))
+			}))
+		})
+		t.Run("SearchCount", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				countSingle := userJane.Call("SearchCount").(int)
-				So(countSingle, ShouldEqual, 1)
+				assert.EqualValues(t, countSingle, 1)
 				allCount := env.Pool(userModel.name).Call("SearchCount").(int)
-				So(allCount, ShouldEqual, 3)
+				assert.EqualValues(t, allCount, 3)
 				countTags := env.Pool("Tag").WithContext("lang", "fr_FR").
 					Search(Registry.MustGet("Tag").Field(description).Contains("Nouvelle ")).Call("SearchCount")
-				So(countTags, ShouldEqual, 2)
-			})
-			Convey("Copy", func() {
+				assert.EqualValues(t, countTags, 2)
+			}))
+		})
+		t.Run("Copy", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				profileModel := Registry.MustGet("Profile")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				newProfile := userJane.Get(profile).(RecordSet).Collection().Call("Copy", NewModelData(profileModel)).(RecordSet).Collection()
-				So(newProfile.Equals(userJane.Get(profile).(RecordSet).Collection()), ShouldBeFalse)
+				assert.False(t, newProfile.Equals(userJane.Get(profile).(RecordSet).Collection()))
 				userJane.Call("Write", NewModelData(userModel).Set(password, "Jane's Password"))
 				userJaneCopy := userJane.Call("Copy", NewModelData(userModel).
 					Set(Name, "Jane's Copy").
 					Set(email2, "js@example.com")).(RecordSet).Collection()
-				So(userJaneCopy.IsEmpty(), ShouldBeFalse)
-				So(userJaneCopy.Equals(userJane), ShouldBeFalse)
-				So(userJaneCopy.Get(Name), ShouldEqual, "Jane A. Smith (copy)")
-				So(userJaneCopy.Get(email), ShouldEqual, "jane.smith@example.com")
-				So(userJaneCopy.Get(email2), ShouldEqual, "js@example.com")
-				So(userJaneCopy.Get(password), ShouldBeBlank)
-				So(userJaneCopy.Get(profile).(RecordSet).Collection().Equals(userJane.Get(profile).(RecordSet)), ShouldBeFalse)
-				So(userJaneCopy.Get(profileAge), ShouldEqual, 24)
-				So(userJaneCopy.Get(age), ShouldEqual, 24)
-				So(userJaneCopy.Get(nums), ShouldEqual, 2)
-				So(userJaneCopy.Get(posts).(RecordSet).Collection().Len(), ShouldEqual, 2)
+				assert.False(t, userJaneCopy.IsEmpty())
+				assert.False(t, userJaneCopy.Equals(userJane))
+				assert.EqualValues(t, userJaneCopy.Get(Name), "Jane A. Smith (copy)")
+				assert.EqualValues(t, userJaneCopy.Get(email), "jane.smith@example.com")
+				assert.EqualValues(t, userJaneCopy.Get(email2), "js@example.com")
+				assert.Empty(t, userJaneCopy.Get(password))
+				assert.False(t, userJaneCopy.Get(profile).(RecordSet).Collection().Equals(userJane.Get(profile).(RecordSet)))
+				assert.EqualValues(t, userJaneCopy.Get(profileAge), 24)
+				assert.EqualValues(t, userJaneCopy.Get(age), 24)
+				assert.EqualValues(t, userJaneCopy.Get(nums), 2)
+				assert.EqualValues(t, userJaneCopy.Get(posts).(RecordSet).Collection().Len(), 2)
 
-				So(func() { userJane.Get(profile).(RecordSet).Collection().Call("Copy", nil) }, ShouldNotPanic)
-			})
-			Convey("FieldGet and FieldsGet", func() {
+				assert.NotPanics(t, func() { userJane.Get(profile).(RecordSet).Collection().Call("Copy", nil) })
+			}))
+		})
+		t.Run("FieldGet and FieldsGet", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				fInfo := userJane.Call("FieldGet", FieldName(Name)).(*FieldInfo)
-				So(fInfo.String, ShouldEqual, "Name")
-				So(fInfo.Help, ShouldEqual, "The user's username")
-				So(fInfo.Type, ShouldEqual, fieldtype.Char)
+				assert.EqualValues(t, fInfo.String, "Name")
+				assert.EqualValues(t, fInfo.Help, "The user's username")
+				assert.EqualValues(t, fInfo.Type, fieldtype.Char)
 				fInfos := userJane.Call("FieldsGet", FieldsGetArgs{}).(map[string]*FieldInfo)
-				So(fInfos, ShouldHaveLength, 35)
-			})
-			Convey("NameGet", func() {
-				So(userJane.Get(displayName), ShouldEqual, "Jane A. Smith")
+				assert.Len(t, fInfos, 35)
+			}))
+		})
+		t.Run("NameGet", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
+				assert.EqualValues(t, userJane.Get(displayName), "Jane A. Smith")
 				janeProfile := userJane.Get(profile).(RecordSet).Collection()
-				So(janeProfile.Get(displayName), ShouldEqual, fmt.Sprintf("Profile(%d)", janeProfile.Get(ID)))
-			})
-			Convey("DefaultGet", func() {
+				assert.EqualValues(t, janeProfile.Get(displayName), fmt.Sprintf("Profile(%d)", janeProfile.Get(ID)))
+			}))
+		})
+		t.Run("DefaultGet", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				defaults := userJane.Call("DefaultGet").(*ModelData)
-				So(defaults.FieldMap, ShouldHaveLength, 14)
-				So(defaults.FieldMap, ShouldContainKey, "status_json")
-				So(defaults.FieldMap["status_json"], ShouldEqual, 12)
-				So(defaults.FieldMap, ShouldContainKey, "hexya_external_id")
-				So(defaults.FieldMap, ShouldContainKey, "is_active")
-				So(defaults.FieldMap["is_active"], ShouldEqual, false)
-				So(defaults.FieldMap, ShouldContainKey, "active")
-				So(defaults.FieldMap["active"], ShouldEqual, true)
-				So(defaults.FieldMap, ShouldContainKey, "is_premium")
-				So(defaults.FieldMap["is_premium"], ShouldEqual, false)
-				So(defaults.FieldMap, ShouldContainKey, "is_staff")
-				So(defaults.FieldMap["is_staff"], ShouldEqual, false)
-			})
-			Convey("New", func() {
+				assert.Len(t, defaults.FieldMap, 14)
+				assert.Contains(t, defaults.FieldMap, "status_json")
+				assert.EqualValues(t, defaults.FieldMap["status_json"], 12)
+				assert.Contains(t, defaults.FieldMap, "hexya_external_id")
+				assert.Contains(t, defaults.FieldMap, "is_active")
+				assert.EqualValues(t, defaults.FieldMap["is_active"], false)
+				assert.Contains(t, defaults.FieldMap, "active")
+				assert.EqualValues(t, defaults.FieldMap["active"], true)
+				assert.Contains(t, defaults.FieldMap, "is_premium")
+				assert.EqualValues(t, defaults.FieldMap["is_premium"], false)
+				assert.Contains(t, defaults.FieldMap, "is_staff")
+				assert.EqualValues(t, defaults.FieldMap["is_staff"], false)
+			}))
+		})
+		t.Run("New", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
 				dummyUser := env.Pool("User").Call("New", NewModelData(userModel).
 					Set(Name, "DummyUser").
 					Set(email, "du@example.com")).(RecordSet).Collection()
-				So(dummyUser.Get(Name), ShouldEqual, "DummyUser")
-				So(dummyUser.Get(email), ShouldEqual, "du@example.com")
-				So(dummyUser.Get(email2), ShouldBeEmpty)
-				So(dummyUser.Ids()[0], ShouldBeLessThan, 0)
-				So(func() { dummyUser.ForceLoad() }, ShouldPanic)
-				So(func() { dummyUser.Set(email2, "du2@example.com") }, ShouldNotPanic)
-				So(dummyUser.Get(email2), ShouldEqual, "du2@example.com")
-				So(dummyUser.Get(decoratedName), ShouldEqual, "User: DummyUser [<du@example.com>]")
-				So(func() { dummyUser.unlink() }, ShouldNotPanic)
-			})
-			Convey("Onchange", func() {
-				Convey("Testing with existing RecordSet", func() {
+				assert.EqualValues(t, dummyUser.Get(Name), "DummyUser")
+				assert.EqualValues(t, dummyUser.Get(email), "du@example.com")
+				assert.Empty(t, dummyUser.Get(email2))
+				assert.Less(t, dummyUser.Ids()[0], int64(0))
+				assert.Panics(t, func() { dummyUser.ForceLoad() })
+				assert.NotPanics(t, func() { dummyUser.Set(email2, "du2@example.com") })
+				assert.EqualValues(t, dummyUser.Get(email2), "du2@example.com")
+				assert.EqualValues(t, dummyUser.Get(decoratedName), "User: DummyUser [<du@example.com>]")
+				assert.NotPanics(t, func() { dummyUser.unlink() })
+			}))
+		})
+		t.Run("Onchange", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
+				t.Run("Testing with existing RecordSet", func(t *testing.T) {
 					res := userJane.Call("Onchange", OnchangeParams{
 						Fields:   []FieldName{Name, coolType, age},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1", "Age": "1"},
 						Values:   NewModelData(userModel, FieldMap{"Name": "William", "CoolType": "cool", "IsCool": false, "DecoratedName": false, "Profile": false, "Age": int16(24)}),
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying().FieldMap
-					So(fMap, ShouldHaveLength, 3)
-					So(fMap, ShouldContainKey, "decorated_name")
-					So(fMap["decorated_name"], ShouldEqual, "User: William [<jane.smith@example.com>]")
-					So(fMap, ShouldContainKey, "is_cool")
-					So(fMap["is_cool"], ShouldEqual, true)
-					So(fMap, ShouldContainKey, "age")
-					So(fMap["age"], ShouldEqual, int16(0))
-					So(res.Warning, ShouldBeEmpty)
-					So(res.Filters, ShouldHaveLength, 1)
+					assert.Len(t, fMap, 3)
+					assert.Contains(t, fMap, "decorated_name")
+					assert.EqualValues(t, fMap["decorated_name"], "User: William [<jane.smith@example.com>]")
+					assert.Contains(t, fMap, "is_cool")
+					assert.EqualValues(t, fMap["is_cool"], true)
+					assert.Contains(t, fMap, "age")
+					assert.EqualValues(t, fMap["age"], int16(0))
+					assert.Empty(t, res.Warning)
+					assert.Len(t, res.Filters, 1)
 					var fKey FieldName
 					var fValue Conditioner
 					for k, v := range res.Filters {
 						fKey = k
 						fValue = v
 					}
-					So(fKey.Name(), ShouldEqual, lastPost.Name())
-					So(fKey.JSON(), ShouldEqual, lastPost.JSON())
-					So(fValue.Underlying().String(), ShouldEqual, `AND Street = addr
+					assert.EqualValues(t, fKey.Name(), lastPost.Name())
+					assert.EqualValues(t, fKey.JSON(), lastPost.JSON())
+					assert.EqualValues(t, fValue.Underlying().String(), `AND Street = addr
 `)
 				})
-				Convey("Testing onchange warnings", func() {
+				t.Run("Testing onchange warnings", func(t *testing.T) {
 					res := userJane.Call("Onchange", OnchangeParams{
 						Fields:   []FieldName{Name, coolType, age},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1", "age": "1"},
 						Values:   NewModelData(userModel, FieldMap{"Name": "Warning User", "CoolType": "cool", "IsCool": false, "DecoratedName": false, "Profile": false, "age": int16(24)}),
 					}).(OnchangeResult)
-					So(res.Warning, ShouldEqual, "We have a warning here")
+					assert.EqualValues(t, res.Warning, "We have a warning here")
 				})
-				Convey("Testing with new RecordSet", func() {
+				t.Run("Testing with new RecordSet", func(t *testing.T) {
 					res := env.Pool("User").Call("Onchange", OnchangeParams{
 						Fields:   []FieldName{Name, email, coolType, nums, nums},
 						Onchange: map[string]string{"Name": "1", "CoolType": "1", "Nums": "1"},
 						Values:   NewModelData(userModel, FieldMap{"Name": "", "Email": "", "CoolType": "cool", "IsCool": false, "DecoratedName": false}),
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying().FieldMap
-					So(fMap, ShouldHaveLength, 2)
-					So(fMap, ShouldContainKey, "decorated_name")
-					So(fMap["decorated_name"], ShouldEqual, "User:  [<>]")
-					So(fMap, ShouldContainKey, "is_cool")
-					So(fMap["is_cool"], ShouldEqual, true)
+					assert.Len(t, fMap, 2)
+					assert.Contains(t, fMap, "decorated_name")
+					assert.EqualValues(t, fMap["decorated_name"], "User:  [<>]")
+					assert.Contains(t, fMap, "is_cool")
+					assert.EqualValues(t, fMap["is_cool"], true)
 				})
-				Convey("Testing with new RecordSet and related field", func() {
+				t.Run("Testing with new RecordSet and related field", func(t *testing.T) {
 					post := env.Pool("Post").SearchAll().Limit(1)
 					res := env.Pool("User").Call("Onchange", OnchangeParams{
 						Fields:   []FieldName{Name, email, coolType, nums, nums, mana},
@@ -189,102 +223,132 @@ func TestBaseModelMethods(t *testing.T) {
 							"IsCool": false, "DecoratedName": false, "Mana": float32(12.3), "BestProfilePost": false}),
 					}).(OnchangeResult)
 					fMap := res.Value.Underlying().FieldMap
-					So(fMap, ShouldHaveLength, 3)
-					So(fMap, ShouldContainKey, "decorated_name")
-					So(fMap["decorated_name"], ShouldEqual, "User:  [<>]")
-					So(fMap, ShouldContainKey, "is_cool")
-					So(fMap["is_cool"], ShouldEqual, true)
-					So(fMap, ShouldContainKey, "best_profile_post_id")
-					So(fMap["best_profile_post_id"].(RecordSet).Collection().Equals(post), ShouldBeTrue)
+					assert.Len(t, fMap, 3)
+					assert.Contains(t, fMap, "decorated_name")
+					assert.EqualValues(t, fMap["decorated_name"], "User:  [<>]")
+					assert.Contains(t, fMap, "is_cool")
+					assert.EqualValues(t, fMap["is_cool"], true)
+					assert.Contains(t, fMap, "best_profile_post_id")
+					assert.True(t, fMap["best_profile_post_id"].(RecordSet).Collection().Equals(post))
 				})
-			})
-			Convey("CheckRecursion", func() {
-				So(userJane.Call("CheckRecursion").(bool), ShouldBeTrue)
+			}))
+		})
+		t.Run("CheckRecursion", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				tagModel := Registry.MustGet("Tag")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
+				assert.True(t, userJane.Call("CheckRecursion").(bool))
 				tag1 := env.Pool("Tag").Call("Create", NewModelData(tagModel).
 					Set(Name, "Tag1")).(RecordSet).Collection()
-				So(tag1.Call("CheckRecursion").(bool), ShouldBeTrue)
+				assert.True(t, tag1.Call("CheckRecursion").(bool))
 				tag2 := env.Pool("Tag").Call("Create", NewModelData(tagModel).
 					Set(Name, "Tag2").
 					Set(parent, tag1)).(RecordSet).Collection()
-				So(tag2.Call("CheckRecursion").(bool), ShouldBeTrue)
+				assert.True(t, tag2.Call("CheckRecursion").(bool))
 				tag3 := env.Pool("Tag").Call("Create", NewModelData(tagModel).
 					Set(Name, "Tag1").
 					Set(parent, tag2)).(RecordSet).Collection()
-				So(tag3.Call("CheckRecursion").(bool), ShouldBeTrue)
+				assert.True(t, tag3.Call("CheckRecursion").(bool))
 				tag1.Set(parent, tag3)
-				So(tag1.Call("CheckRecursion").(bool), ShouldBeFalse)
-				So(tag2.Call("CheckRecursion").(bool), ShouldBeFalse)
-				So(tag3.Call("CheckRecursion").(bool), ShouldBeFalse)
+				assert.False(t, tag1.Call("CheckRecursion").(bool))
+				assert.False(t, tag2.Call("CheckRecursion").(bool))
+				assert.False(t, tag3.Call("CheckRecursion").(bool))
 				tagNeg := env.Pool("Tag").Call("New", NewModelData(tagModel).
 					Set(Name, "Tag1").
 					Set(parent, tag2)).(RecordSet).Collection()
-				So(tagNeg.Call("CheckRecursion").(bool), ShouldBeTrue)
-			})
-			Convey("Browse", func() {
+				assert.True(t, tagNeg.Call("CheckRecursion").(bool))
+			}))
+		})
+		t.Run("Browse", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordSet).Collection()
-				So(browsedUser.Ids(), ShouldHaveLength, 1)
-				So(browsedUser.Ids(), ShouldContain, userJane.Ids()[0])
-			})
-			Convey("Equals", func() {
+				assert.Len(t, browsedUser.Ids(), 1)
+				assert.Contains(t, browsedUser.Ids(), userJane.Ids()[0])
+			}))
+		})
+		t.Run("Equals", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				browsedUser := env.Pool("User").Call("Browse", []int64{userJane.Ids()[0]}).(RecordSet).Collection()
-				So(browsedUser.Call("Equals", userJane), ShouldBeTrue)
+				assert.Equal(t, true, browsedUser.Call("Equals", userJane))
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field(Name).Equals("John Smith")).(RecordSet).Collection()
-				So(userJohn.Call("Equals", userJane), ShouldBeFalse)
+				assert.Equal(t, false, userJohn.Call("Equals", userJane))
 				johnAndJane := userJohn.Union(userJane)
 				usersJ := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field(Name).Like("J% Smith")).(RecordSet).Collection()
-				So(usersJ.Records(), ShouldHaveLength, 2)
-				So(usersJ.Equals(johnAndJane), ShouldBeTrue)
+				assert.Len(t, usersJ.Records(), 2)
+				assert.True(t, usersJ.Equals(johnAndJane))
 
-				So(InvalidRecordCollection("User").Equals(usersJ), ShouldBeFalse)
-				So(env.Pool("Profile").Equals(userJane), ShouldBeFalse)
-			})
-			Convey("Union", func() {
+				assert.False(t, InvalidRecordCollection("User").Equals(usersJ))
+				assert.False(t, env.Pool("Profile").Equals(userJane))
+			}))
+		})
+		t.Run("Union", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field(Name).Equals("John Smith")).(RecordSet).Collection()
 				johnAndJane := userJohn.Union(userJane)
 				userWill := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field(Name).Equals("Will Smith")).(RecordSet).Collection()
 				johnAndWill := userWill.Union(userJohn)
-				So(johnAndJane.Len(), ShouldEqual, 2)
-				So(johnAndWill.Len(), ShouldEqual, 2)
+				assert.EqualValues(t, johnAndJane.Len(), 2)
+				assert.EqualValues(t, johnAndWill.Len(), 2)
 				all := johnAndJane.Union(johnAndWill)
-				So(all.Len(), ShouldEqual, 3)
-				So(all.Intersect(userJane).Equals(userJane), ShouldBeTrue)
-				So(all.Intersect(userJohn).Equals(userJohn), ShouldBeTrue)
-				So(all.Intersect(userWill).Equals(userWill), ShouldBeTrue)
+				assert.EqualValues(t, all.Len(), 3)
+				assert.True(t, all.Intersect(userJane).Equals(userJane))
+				assert.True(t, all.Intersect(userJohn).Equals(userJohn))
+				assert.True(t, all.Intersect(userWill).Equals(userWill))
 
-				So(InvalidRecordCollection("User").Union(userJane).IsValid(), ShouldBeFalse)
-				So(func() { env.Pool("Profile").Union(userJane) }, ShouldPanic)
-			})
-			Convey("Subtract", func() {
+				assert.False(t, InvalidRecordCollection("User").Union(userJane).IsValid())
+				assert.Panics(t, func() { env.Pool("Profile").Union(userJane) })
+			}))
+		})
+		t.Run("Subtract", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field(Name).Equals("John Smith")).(RecordSet).Collection()
 				johnAndJane := userJohn.Union(userJane)
-				So(johnAndJane.Subtract(userJane).Equals(userJohn), ShouldBeTrue)
-				So(johnAndJane.Call("Subtract", userJohn).(RecordSet).Collection().Equals(userJane), ShouldBeTrue)
+				assert.True(t, johnAndJane.Subtract(userJane).Equals(userJohn))
+				assert.True(t, johnAndJane.Call("Subtract", userJohn).(RecordSet).Collection().Equals(userJane))
 
-				So(InvalidRecordCollection("User").Subtract(userJane).IsValid(), ShouldBeFalse)
-				So(func() { env.Pool("Profile").Subtract(userJane) }, ShouldPanic)
-			})
-			Convey("Intersect", func() {
+				assert.False(t, InvalidRecordCollection("User").Subtract(userJane).IsValid())
+				assert.Panics(t, func() { env.Pool("Profile").Subtract(userJane) })
+			}))
+		})
+		t.Run("Intersect", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				userJohn := env.Pool("User").Call("Search", env.Pool("User").Model().
 					Field(Name).Equals("John Smith")).(RecordSet).Collection()
 				johnAndJane := userJohn.Union(userJane)
-				So(johnAndJane.Intersect(userJane).Equals(userJane), ShouldBeTrue)
-				So(johnAndJane.Call("Intersect", userJohn).(RecordSet).Collection().Equals(userJohn), ShouldBeTrue)
+				assert.True(t, johnAndJane.Intersect(userJane).Equals(userJane))
+				assert.True(t, johnAndJane.Call("Intersect", userJohn).(RecordSet).Collection().Equals(userJohn))
 
-				So(InvalidRecordCollection("User").Intersect(userJane).IsValid(), ShouldBeFalse)
-				So(func() { env.Pool("Profile").Intersect(userJane) }, ShouldPanic)
-			})
-			Convey("ConvertLimitToInt", func() {
-				So(ConvertLimitToInt(12), ShouldEqual, 12)
-				So(ConvertLimitToInt(false), ShouldEqual, -1)
-				So(ConvertLimitToInt(0), ShouldEqual, 0)
-				So(ConvertLimitToInt(nil), ShouldEqual, 80)
-			})
-			Convey("CartesianProduct", func() {
+				assert.False(t, InvalidRecordCollection("User").Intersect(userJane).IsValid())
+				assert.Panics(t, func() { env.Pool("Profile").Intersect(userJane) })
+			}))
+		})
+		t.Run("ConvertLimitToInt", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				assert.EqualValues(t, ConvertLimitToInt(12), 12)
+				assert.EqualValues(t, ConvertLimitToInt(false), -1)
+				assert.EqualValues(t, ConvertLimitToInt(0), 0)
+				assert.EqualValues(t, ConvertLimitToInt(nil), 80)
+			}))
+		})
+		t.Run("CartesianProduct", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tagModel := Registry.MustGet("Tag")
 				tagA := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set(Name, "A")).(RecordSet).Collection()
 				tagB := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set(Name, "B")).(RecordSet).Collection()
 				tagC := env.Pool("Tag").Call("Create", NewModelData(tagModel).Set(Name, "C")).(RecordSet).Collection()
@@ -309,33 +373,33 @@ func TestBaseModelMethods(t *testing.T) {
 					return true
 				}
 
-				So(cartesianProductSlices(), ShouldHaveLength, 0)
+				assert.Len(t, cartesianProductSlices(), 0)
 
 				product0 := tagA.CartesianProduct()
-				So(product0, ShouldHaveLength, 1)
-				So(product0[0].Equals(tagA), ShouldBeTrue)
+				assert.Len(t, product0, 1)
+				assert.True(t, product0[0].Equals(tagA))
 
 				product1 := tagsAB.CartesianProduct(tagsCD)
-				So(product1, ShouldHaveLength, 4)
-				So(contains(product1,
+				assert.Len(t, product1, 4)
+				assert.True(t, contains(product1,
 					tagA.Union(tagC),
 					tagA.Union(tagD),
 					tagB.Union(tagC),
-					tagB.Union(tagD)), ShouldBeTrue)
+					tagB.Union(tagD)))
 
 				product2 := tagsAB.CartesianProduct(tagsEFG)
-				So(product2, ShouldHaveLength, 6)
-				So(contains(product2,
+				assert.Len(t, product2, 6)
+				assert.True(t, contains(product2,
 					tagA.Union(tagE),
 					tagA.Union(tagF),
 					tagA.Union(tagG),
 					tagB.Union(tagE),
 					tagB.Union(tagF),
-					tagB.Union(tagG)), ShouldBeTrue)
+					tagB.Union(tagG)))
 
 				product3 := tagsAB.CartesianProduct(tagsCD, tagsEFG)
-				So(product3, ShouldHaveLength, 12)
-				So(contains(product3,
+				assert.Len(t, product3, 12)
+				assert.True(t, contains(product3,
 					tagA.Union(tagC).Union(tagE),
 					tagA.Union(tagC).Union(tagF),
 					tagA.Union(tagC).Union(tagG),
@@ -347,9 +411,14 @@ func TestBaseModelMethods(t *testing.T) {
 					tagB.Union(tagC).Union(tagG),
 					tagB.Union(tagD).Union(tagE),
 					tagB.Union(tagD).Union(tagF),
-					tagB.Union(tagD).Union(tagG)), ShouldBeTrue)
-			})
-			Convey("Sorted", func() {
+					tagB.Union(tagD).Union(tagG)))
+			}))
+		})
+		t.Run("Sorted", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				postModel := Registry.MustGet("Post")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				for i := 0; i < 20; i++ {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
 						Set(title, fmt.Sprintf("Post no %02d", (24-i)%20)).
@@ -357,23 +426,29 @@ func TestBaseModelMethods(t *testing.T) {
 				}
 				rPosts := env.Pool("Post").Search(env.Pool("Post").Model().Field(title).Contains("Post no")).OrderBy("ID")
 				for i, post := range rPosts.Records() {
-					So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+					assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", (24-i)%20))
 				}
 
 				sortedPosts := rPosts.Call("Sorted", func(rs1 RecordSet, rs2 RecordSet) bool {
 					return rs1.Collection().Get(title).(string) < rs2.Collection().Get(title).(string)
 				}).(RecordSet).Collection().Records()
-				So(sortedPosts, ShouldHaveLength, 20)
+				assert.Len(t, sortedPosts, 20)
 				for i, post := range sortedPosts {
-					So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+					assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", i))
 				}
 
-				So(InvalidRecordCollection("Post").Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
+				assert.False(t, InvalidRecordCollection("Post").Sorted(func(rs1 RecordSet, rs2 RecordSet) bool {
 					return rs1.Collection().Get(title).(string) < rs2.Collection().Get(title).(string)
-				}).IsValid(), ShouldBeFalse)
-			})
-			Convey("SortedDefault", func() {
-				Convey("With posts", func() {
+				}).IsValid())
+			}))
+		})
+		t.Run("SortedDefault", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				tagModel := Registry.MustGet("Tag")
+				postModel := Registry.MustGet("Post")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
+				t.Run("With posts", func(t *testing.T) {
 					for i := 0; i < 20; i++ {
 						env.Pool("Post").Call("Create", NewModelData(postModel).
 							Set(title, fmt.Sprintf("Post no %02d", (24-i)%20)).
@@ -381,16 +456,16 @@ func TestBaseModelMethods(t *testing.T) {
 					}
 					rPosts := env.Pool("Post").Search(env.Pool("Post").Model().Field(title).Contains("Post no")).OrderBy("ID")
 					for i, post := range rPosts.Records() {
-						So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+						assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", (24-i)%20))
 					}
 
 					sortedPosts := rPosts.Call("SortedDefault").(RecordSet).Collection().Records()
-					So(sortedPosts, ShouldHaveLength, 20)
+					assert.Len(t, sortedPosts, 20)
 					for i, post := range sortedPosts {
-						So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+						assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", i))
 					}
 				})
-				Convey("With tags", func() {
+				t.Run("With tags", func(t *testing.T) {
 					env.Pool("Tag").SearchAll().Call("Unlink")
 					for i := 0; i < 20; i++ {
 						env.Pool("Tag").Call("Create", NewModelData(tagModel).
@@ -399,12 +474,17 @@ func TestBaseModelMethods(t *testing.T) {
 					rTags := env.Pool("Tag").SearchAll()
 					sortedTags := rTags.Call("SortedDefault").(RecordSet).Collection().Records()
 					for i, tag := range sortedTags {
-						So(tag.Get(Name), ShouldEqual, fmt.Sprintf("Tag %02d", 9-(i/2)))
-						So(tag.Get(ID), ShouldEqual, int(sortedTags[0].ids[0])+1-i+i%2-(i+1)%2)
+						assert.EqualValues(t, tag.Get(Name), fmt.Sprintf("Tag %02d", 9-(i/2)))
+						assert.EqualValues(t, tag.Get(ID), int(sortedTags[0].ids[0])+1-i+i%2-(i+1)%2)
 					}
 				})
-			})
-			Convey("SortedByField", func() {
+			}))
+		})
+		t.Run("SortedByField", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				postModel := Registry.MustGet("Post")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				for i := 0; i < 20; i++ {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
 						Set(title, fmt.Sprintf("Post no %02d", (24-i)%20)).
@@ -412,22 +492,27 @@ func TestBaseModelMethods(t *testing.T) {
 				}
 				rPosts := env.Pool("Post").Search(env.Pool("Post").Model().Field(title).Contains("Post no")).OrderBy("ID")
 				for i, post := range rPosts.Records() {
-					So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", (24-i)%20))
+					assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", (24-i)%20))
 				}
 
 				sortedPosts := rPosts.Call("SortedByField", FieldName(title), false).(RecordSet).Collection().Records()
-				So(sortedPosts, ShouldHaveLength, 20)
+				assert.Len(t, sortedPosts, 20)
 				for i, post := range sortedPosts {
-					So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+					assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", i))
 				}
 
 				revSortedPosts := rPosts.Call("SortedByField", FieldName(title), true).(RecordSet).Collection().Records()
-				So(revSortedPosts, ShouldHaveLength, 20)
+				assert.Len(t, revSortedPosts, 20)
 				for i, post := range revSortedPosts {
-					So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", 19-i))
+					assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", 19-i))
 				}
-			})
-			Convey("Testing one2many sets keep the default order", func() {
+			}))
+		})
+		t.Run("Testing one2many sets keep the default order", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				postModel := Registry.MustGet("Post")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				userJane.Get(posts).(RecordSet).Collection().Call("Unlink")
 				for i := 0; i < 20; i++ {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
@@ -436,12 +521,17 @@ func TestBaseModelMethods(t *testing.T) {
 				}
 
 				rPosts := userJane.Get(posts).(RecordSet).Collection()
-				So(rPosts.Len(), ShouldEqual, 20)
+				assert.EqualValues(t, rPosts.Len(), 20)
 				for i, post := range rPosts.Records() {
-					So(post.Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", i))
+					assert.EqualValues(t, post.Get(title), fmt.Sprintf("Post no %02d", i))
 				}
-			})
-			Convey("Filtered", func() {
+			}))
+		})
+		t.Run("Filtered", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				postModel := Registry.MustGet("Post")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				for i := 0; i < 20; i++ {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
 						Set(title, fmt.Sprintf("Post no %02d", i)).
@@ -460,79 +550,97 @@ func TestBaseModelMethods(t *testing.T) {
 					}
 					return false
 				}).(RecordSet).Collection().Records()
-				So(evenPosts, ShouldHaveLength, 10)
+				assert.Len(t, evenPosts, 10)
 				for i := 0; i < 10; i++ {
-					So(evenPosts[i].Get(title), ShouldEqual, fmt.Sprintf("Post no %02d", 2*i))
+					assert.EqualValues(t, evenPosts[i].Get(title), fmt.Sprintf("Post no %02d", 2*i))
 				}
 
-				So(InvalidRecordCollection("Post").Filtered(func(rs RecordSet) bool {
+				assert.False(t, InvalidRecordCollection("Post").Filtered(func(rs RecordSet) bool {
 					return true
-				}).IsValid(), ShouldBeFalse)
-			})
-			Convey("CheckExecutionPermissions", func() {
+				}).IsValid())
+			}))
+		})
+		t.Run("CheckExecutionPermissions", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 				res := env.Pool("User").Call("CheckExecutionPermission", Registry.MustGet("User").Methods().MustGet("Load"), []bool{true})
-				So(res, ShouldBeTrue)
-			})
-			Convey("convertTotRecordSet", func() {
+				assert.Equal(t, true, res)
+			}))
+		})
+		t.Run("convertTotRecordSet", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				profileID := userJane.Get(profile).(RecordSet).Collection().Ids()[0]
 				res := env.Pool("User").convertToRecordSet(profileID, "Profile")
-				So(res.Ids()[0], ShouldEqual, profileID)
+				assert.EqualValues(t, res.Ids()[0], profileID)
 				res = env.Pool("User").convertToRecordSet(false, "Profile")
-				So(res.IsEmpty(), ShouldBeTrue)
+				assert.True(t, res.IsEmpty())
 				res = env.Pool("User").convertToRecordSet([]interface{}{float64(profileID)}, "Profile")
-				So(res.Ids()[0], ShouldEqual, profileID)
+				assert.EqualValues(t, res.Ids()[0], profileID)
 				res = env.Pool("User").convertToRecordSet(int(profileID), "Profile")
-				So(res.Ids()[0], ShouldEqual, profileID)
+				assert.EqualValues(t, res.Ids()[0], profileID)
 				res = env.Pool("User").convertToRecordSet(float64(profileID), "Profile")
-				So(res.Ids()[0], ShouldEqual, profileID)
+				assert.EqualValues(t, res.Ids()[0], profileID)
 				res = env.Pool("User").convertToRecordSet([]float64{float64(profileID)}, "Profile")
-				So(res.Ids()[0], ShouldEqual, profileID)
+				assert.EqualValues(t, res.Ids()[0], profileID)
 				res = env.Pool("User").convertToRecordSet([]int{int(profileID)}, "Profile")
-				So(res.Ids()[0], ShouldEqual, profileID)
-				So(func() { env.Pool("User").convertToRecordSet("", "Profile") }, ShouldPanic)
+				assert.EqualValues(t, res.Ids()[0], profileID)
+				assert.Panics(t, func() { env.Pool("User").convertToRecordSet("", "Profile") })
 				res = env.Pool("User").convertToRecordSet(userJane.Get(profile), "Profile")
-				So(res.Ids()[0], ShouldEqual, profileID)
-			})
-			Convey("EnsureOne", func() {
-				So(func() { userJane.EnsureOne() }, ShouldNotPanic)
-				So(func() { env.Pool("User").EnsureOne() }, ShouldPanic)
+				assert.EqualValues(t, res.Ids()[0], profileID)
+			}))
+		})
+		t.Run("EnsureOne", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
+				assert.NotPanics(t, func() { userJane.EnsureOne() })
+				assert.Panics(t, func() { env.Pool("User").EnsureOne() })
 				users := env.Pool("User").SearchAll()
-				So(users.Len(), ShouldBeGreaterThan, 0)
-				So(func() { users.EnsureOne() }, ShouldPanic)
-			})
-			Convey("GetRecord", func() {
-				So(env.Pool("User").Call("GetRecord", userJane.Get(hexyaExternalID)).(RecordSet).Collection().Equals(userJane), ShouldBeTrue)
-			})
-			Convey("SearchByName", func() {
+				assert.Greater(t, users.Len(), 0)
+				assert.Panics(t, func() { users.EnsureOne() })
+			}))
+		})
+		t.Run("GetRecord", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
+				assert.True(t, env.Pool("User").Call("GetRecord", userJane.Get(hexyaExternalID)).(RecordSet).Collection().Equals(userJane))
+			}))
+		})
+		t.Run("SearchByName", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				userModel := Registry.MustGet("User")
+				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				j := env.Pool("User").Call("SearchByName", "Jane A. Smith", operator.Operator(""), userModel.Field(isStaff).Equals(false), 10).(RecordSet).Collection()
-				So(j.Equals(userJane), ShouldBeTrue)
-			})
-		}), ShouldBeNil)
+				assert.True(t, j.Equals(userJane))
+			}))
+		})
 	})
 }
 
 func TestPostBootSequences(t *testing.T) {
-	Convey("Testing manual sequences after bootstrap", t, func() {
+	t.Run("Testing manual sequences after bootstrap", func(t *testing.T) {
 		testSeq := Registry.MustGetSequence("Test")
 		testSeq.Drop()
 		seq := CreateSequence("ManualSequence", 1, 1)
-		So(seq.JSON, ShouldEqual, "manual_sequence_manseq")
-		So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 1)
-		So(TestAdapter.sequences("%_manseq")[0].Name, ShouldEqual, "manual_sequence_manseq")
-		So(seq.NextValue(), ShouldEqual, 1)
-		So(seq.NextValue(), ShouldEqual, 2)
+		assert.EqualValues(t, seq.JSON, "manual_sequence_manseq")
+		assert.Len(t, TestAdapter.sequences("%_manseq"), 1)
+		assert.EqualValues(t, TestAdapter.sequences("%_manseq")[0].Name, "manual_sequence_manseq")
+		assert.EqualValues(t, seq.NextValue(), 1)
+		assert.EqualValues(t, seq.NextValue(), 2)
 		seq.Alter(2, 5)
-		So(seq.NextValue(), ShouldEqual, 5)
-		So(seq.NextValue(), ShouldEqual, 7)
-		So(func() { CreateSequence("ManualSequence", 1, 1) }, ShouldPanic)
+		assert.EqualValues(t, seq.NextValue(), 5)
+		assert.EqualValues(t, seq.NextValue(), 7)
+		assert.Panics(t, func() { CreateSequence("ManualSequence", 1, 1) })
 		seq.Drop()
-		So(TestAdapter.sequences("%_manseq"), ShouldHaveLength, 0)
+		assert.Len(t, TestAdapter.sequences("%_manseq"), 0)
 	})
-	Convey("Boot sequences cannot be altered or dropped after bootstrap", t, func() {
+	t.Run("Boot sequences cannot be altered or dropped after bootstrap", func(t *testing.T) {
 		bootSeq := Registry.MustGetSequence("TestSequence")
-		So(bootSeq.boot, ShouldBeTrue)
-		So(func() { bootSeq.Alter(3, 4) }, ShouldPanic)
-		So(func() { bootSeq.Drop() }, ShouldPanic)
+		assert.True(t, bootSeq.boot)
+		assert.Panics(t, func() { bootSeq.Alter(3, 4) })
+		assert.Panics(t, func() { bootSeq.Drop() })
 	})
 }
 
@@ -543,27 +651,33 @@ func TestFreeTransientModels(t *testing.T) {
 	RunWorkerLoop()
 
 	var wizID int64
-	Convey("Test freeing transient models", t, func() {
-		So(ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
-			wizModel := env.Pool("Wizard")
-			Convey("Creating a transient record", func() {
+	t.Run("Test freeing transient models", func(t *testing.T) {
+		t.Run("Creating a transient record", func(t *testing.T) {
+			assert.Nil(t, ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+				wizModel := env.Pool("Wizard")
 				wiz := wizModel.Call("Create", NewModelData(wizModel.model).
 					Set(Name, "WizName").
 					Set(value, 13)).(RecordSet).Collection()
 				wizID = wiz.Ids()[0]
-			})
-			Convey("Loading the record immediately and it should still be there", func() {
+			}))
+		})
+		t.Run("Loading the record immediately and it should still be there", func(t *testing.T) {
+			assert.Nil(t, ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+				wizModel := env.Pool("Wizard")
 				wiz := wizModel.Call("BrowseOne", wizID).(RecordSet).Collection()
 				wiz.Load()
-				So(wiz.IsNotEmpty(), ShouldBeTrue)
-			})
-			Convey("After transient model timeout, it should not be there anymore", func() {
+				assert.True(t, wiz.IsNotEmpty())
+			}))
+		})
+		t.Run("After transient model timeout, it should not be there anymore", func(t *testing.T) {
+			assert.Nil(t, ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
+				wizModel := env.Pool("Wizard")
 				<-time.After(2 * time.Second)
 				wiz := wizModel.Call("BrowseOne", wizID).(RecordSet).Collection()
 				wiz.Load()
-				So(wiz.IsEmpty(), ShouldBeTrue)
-			})
-		}), ShouldBeNil)
+				assert.True(t, wiz.IsEmpty())
+			}))
+		})
 	})
 	StopWorkerLoop()
 	if workerStop != nil {

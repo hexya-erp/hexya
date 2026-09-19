@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/security"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 type TestProfileSet struct {
@@ -24,103 +25,103 @@ type TestUserCondition struct {
 }
 
 func TestTypes(t *testing.T) {
-	Convey("Testing models types", t, func() {
-		Convey("Testing FieldMap methods", func() {
+	t.Run("Testing models types", func(t *testing.T) {
+		t.Run("Testing FieldMap methods", func(t *testing.T) {
 			testMap := FieldMap{
 				"Name":    "John Smith",
 				"Email":   "jsmith2@example.com",
 				"Nums":    13,
 				"IsStaff": false,
 			}
-			Convey("MustGet", func() {
-				So(func() { testMap.MustGet(Registry.MustGet("User").FieldName("Name")) }, ShouldNotPanic)
-				So(func() { testMap.MustGet(Registry.MustGet("User").FieldName("NoField")) }, ShouldPanic)
-				So(func() { testMap.MustGet(Registry.MustGet("User").FieldName("Profile")) }, ShouldPanic)
+			t.Run("MustGet", func(t *testing.T) {
+				assert.NotPanics(t, func() { testMap.MustGet(Registry.MustGet("User").FieldName("Name")) })
+				assert.Panics(t, func() { testMap.MustGet(Registry.MustGet("User").FieldName("NoField")) })
+				assert.Panics(t, func() { testMap.MustGet(Registry.MustGet("User").FieldName("Profile")) })
 			})
-			Convey("RemovePKIfZero", func() {
+			t.Run("RemovePKIfZero", func(t *testing.T) {
 				testMap["id"] = int64(12)
 				testMap.RemovePKIfZero()
-				So(testMap["id"], ShouldEqual, int64(12))
+				assert.EqualValues(t, testMap["id"], int64(12))
 				testMap["id"] = int64(0)
 				testMap.RemovePKIfZero()
 				_, ok := testMap["id"]
-				So(ok, ShouldBeFalse)
+				assert.False(t, ok)
 				testMap["ID"] = int64(0)
 				testMap.RemovePKIfZero()
 				_, ok = testMap["ID"]
-				So(ok, ShouldBeFalse)
+				assert.False(t, ok)
 			})
-			Convey("OrderedKeys", func() {
+			t.Run("OrderedKeys", func(t *testing.T) {
 				keys := testMap.OrderedKeys()
-				So(keys, ShouldHaveLength, 4)
-				So(keys[0], ShouldEqual, "Email")
-				So(keys[1], ShouldEqual, "IsStaff")
-				So(keys[2], ShouldEqual, "Name")
-				So(keys[3], ShouldEqual, "Nums")
+				assert.Len(t, keys, 4)
+				assert.EqualValues(t, keys[0], "Email")
+				assert.EqualValues(t, keys[1], "IsStaff")
+				assert.EqualValues(t, keys[2], "Name")
+				assert.EqualValues(t, keys[3], "Nums")
 			})
-			Convey("Keys", func() {
+			t.Run("Keys", func(t *testing.T) {
 				keys := testMap.Keys()
-				So(keys, ShouldHaveLength, 4)
-				So(keys, ShouldContain, "Email")
-				So(keys, ShouldContain, "IsStaff")
-				So(keys, ShouldContain, "Name")
-				So(keys, ShouldContain, "Nums")
+				assert.Len(t, keys, 4)
+				assert.Contains(t, keys, "Email")
+				assert.Contains(t, keys, "IsStaff")
+				assert.Contains(t, keys, "Name")
+				assert.Contains(t, keys, "Nums")
 			})
-			Convey("FieldNames", func() {
+			t.Run("FieldNames", func(t *testing.T) {
 				keys := testMap.FieldNames(Registry.MustGet("User"))
-				So(keys, ShouldHaveLength, 4)
-				So(keys, ShouldContain, Registry.MustGet("User").FieldName("Email"))
-				So(keys, ShouldContain, Registry.MustGet("User").FieldName("IsStaff"))
-				So(keys, ShouldContain, Registry.MustGet("User").FieldName("Name"))
-				So(keys, ShouldContain, Registry.MustGet("User").FieldName("Nums"))
+				assert.Len(t, keys, 4)
+				assert.Contains(t, keys, Registry.MustGet("User").FieldName("Email"))
+				assert.Contains(t, keys, Registry.MustGet("User").FieldName("IsStaff"))
+				assert.Contains(t, keys, Registry.MustGet("User").FieldName("Name"))
+				assert.Contains(t, keys, Registry.MustGet("User").FieldName("Nums"))
 			})
-			Convey("Values", func() {
+			t.Run("Values", func(t *testing.T) {
 				keys := testMap.Values()
-				So(keys, ShouldHaveLength, 4)
-				So(keys, ShouldContain, "John Smith")
-				So(keys, ShouldContain, "jsmith2@example.com")
-				So(keys, ShouldContain, 13)
-				So(keys, ShouldContain, false)
+				assert.Len(t, keys, 4)
+				assert.Contains(t, keys, "John Smith")
+				assert.Contains(t, keys, "jsmith2@example.com")
+				assert.Contains(t, keys, 13)
+				assert.Contains(t, keys, false)
 			})
 		})
-		Convey("Checking ModelData methods", func() {
+		t.Run("Checking ModelData methods", func(t *testing.T) {
 			numsField := Registry.MustGet("User").FieldName("Nums")
 			johnValues := NewModelData(Registry.MustGet("User")).
 				Set(Registry.MustGet("User").FieldName("Email"), "jsmith2@example.com").
 				Set(numsField, 13).
 				Set(Registry.MustGet("User").FieldName("IsStaff"), false)
-			So(johnValues.Has(numsField), ShouldBeTrue)
-			So(johnValues.Get(numsField), ShouldEqual, 13)
+			assert.True(t, johnValues.Has(numsField))
+			assert.EqualValues(t, johnValues.Get(numsField), 13)
 			jv2 := johnValues.Copy()
 			johnValues.Unset(numsField)
-			So(johnValues.Has(numsField), ShouldBeFalse)
-			So(johnValues.Get(numsField), ShouldEqual, nil)
-			So(jv2.Has(numsField), ShouldBeTrue)
-			So(jv2.Get(numsField), ShouldEqual, 13)
+			assert.False(t, johnValues.Has(numsField))
+			assert.EqualValues(t, johnValues.Get(numsField), nil)
+			assert.True(t, jv2.Has(numsField))
+			assert.EqualValues(t, jv2.Get(numsField), 13)
 		})
-		Convey("Checking JSON marshalling of a ModelData", func() {
+		t.Run("Checking JSON marshalling of a ModelData", func(t *testing.T) {
 			johnValues := NewModelData(Registry.MustGet("User")).
 				Set(Registry.MustGet("User").FieldName("Email"), "jsmith2@example.com").
 				Set(Registry.MustGet("User").FieldName("Nums"), 13).
 				Set(Registry.MustGet("User").FieldName("IsStaff"), false)
 			jData, err := json.Marshal(johnValues)
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 			var fm FieldMap
 			err = json.Unmarshal(jData, &fm)
-			So(err, ShouldBeNil)
-			So(fm, ShouldHaveLength, 3)
-			So(fm, ShouldContainKey, "email")
-			So(fm, ShouldContainKey, "nums")
-			So(fm, ShouldContainKey, "is_staff")
-			So(fm["email"], ShouldEqual, "jsmith2@example.com")
-			So(fm["nums"], ShouldHaveSameTypeAs, float64(0))
-			So(fm["nums"], ShouldEqual, 13)
-			So(fm["is_staff"], ShouldEqual, false)
+			assert.Nil(t, err)
+			assert.Len(t, fm, 3)
+			assert.Contains(t, fm, "email")
+			assert.Contains(t, fm, "nums")
+			assert.Contains(t, fm, "is_staff")
+			assert.EqualValues(t, fm["email"], "jsmith2@example.com")
+			assert.IsType(t, float64(0), fm["nums"])
+			assert.EqualValues(t, fm["nums"], 13)
+			assert.EqualValues(t, fm["is_staff"], false)
 			md := NewModelData(Registry.MustGet("User"), fm)
-			So(md.Get(nums), ShouldHaveSameTypeAs, int(0))
-			So(md.Get(nums), ShouldEqual, 13)
+			assert.IsType(t, int(0), md.Get(nums))
+			assert.EqualValues(t, md.Get(nums), 13)
 		})
-		Convey("Checking NewModelData with FieldMap", func() {
+		t.Run("Checking NewModelData with FieldMap", func(t *testing.T) {
 			johnValues := NewModelData(Registry.MustGet("User"), FieldMap{
 				"Email":    "jsmith2@example.com",
 				"Nums":     13,
@@ -129,18 +130,18 @@ func TestTypes(t *testing.T) {
 				"LastPost": nil,
 				"Password": false,
 			})
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Nums")), ShouldEqual, 13)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Nums")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Profile")), ShouldEqual, 0)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Profile")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("LastPost")), ShouldEqual, nil)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("LastPost")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Password")), ShouldEqual, "")
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Password")), ShouldBeTrue)
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("Nums")), 13)
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Nums")))
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("Profile")), 0)
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Profile")))
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("LastPost")), nil)
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("LastPost")))
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("Password")), "")
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Password")))
 		})
-		Convey("Checking NewModelDataFromRS with FieldMap", func() {
+		t.Run("Checking NewModelDataFromRS with FieldMap", func(t *testing.T) {
 			var johnValues *ModelData
-			So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 				johnValues = NewModelDataFromRS(env.Pool("User"), FieldMap{
 					"Email":    "jsmith2@example.com",
 					"Nums":     13,
@@ -151,23 +152,23 @@ func TestTypes(t *testing.T) {
 					"Size":     []byte("12.34"),
 					"Mana":     []byte("234.5"),
 				})
-			}), ShouldBeNil)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Nums")), ShouldEqual, 13)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Nums")), ShouldBeTrue)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Profile")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Profile")).(RecordSet).IsEmpty(), ShouldBeTrue)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("LastPost")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("LastPost")).(RecordSet).IsEmpty(), ShouldBeTrue)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Password")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Password")), ShouldEqual, "")
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Size")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Size")), ShouldEqual, 12.34)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Size")), ShouldHaveSameTypeAs, *new(float64))
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Mana")), ShouldBeTrue)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Mana")), ShouldEqual, 234.5)
-			So(johnValues.Get(Registry.MustGet("User").FieldName("Mana")), ShouldHaveSameTypeAs, *new(float32))
+			}))
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("Nums")), 13)
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Nums")))
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Profile")))
+			assert.True(t, johnValues.Get(Registry.MustGet("User").FieldName("Profile")).(RecordSet).IsEmpty())
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("LastPost")))
+			assert.True(t, johnValues.Get(Registry.MustGet("User").FieldName("LastPost")).(RecordSet).IsEmpty())
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Password")))
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("Password")), "")
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Size")))
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("Size")), 12.34)
+			assert.IsType(t, *new(float64), johnValues.Get(Registry.MustGet("User").FieldName("Size")))
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Mana")))
+			assert.EqualValues(t, johnValues.Get(Registry.MustGet("User").FieldName("Mana")), 234.5)
+			assert.IsType(t, *new(float32), johnValues.Get(Registry.MustGet("User").FieldName("Mana")))
 		})
-		Convey("Testing Create feature of ModelData", func() {
+		t.Run("Testing Create feature of ModelData", func(t *testing.T) {
 			johnValues := NewModelData(Registry.MustGet("User")).
 				Set(Registry.MustGet("User").FieldName("Email"), "jsmith2@example.com").
 				Set(Registry.MustGet("User").FieldName("Nums"), 13).
@@ -185,11 +186,11 @@ func TestTypes(t *testing.T) {
 				Create(Registry.MustGet("User").FieldName("Posts"), NewModelData(Registry.MustGet("Post")).
 					Set(Registry.MustGet("Post").FieldName("Title"), "2nd Post").
 					Set(Registry.MustGet("Post").FieldName("Content"), "Content of second post"))
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Email")), ShouldBeTrue)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Profile")), ShouldBeTrue)
-			So(johnValues.Has(Registry.MustGet("User").FieldName("Posts")), ShouldBeTrue)
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Email")))
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Profile")))
+			assert.True(t, johnValues.Has(Registry.MustGet("User").FieldName("Posts")))
 
-			So(func() {
+			assert.Panics(t, func() {
 				NewModelData(Registry.MustGet("User")).
 					Create(Registry.MustGet("User").FieldName("Profile"), NewModelData(Registry.MustGet("Post")).
 						Set(Registry.MustGet("Profile").FieldName("Age"), 23).
@@ -198,61 +199,61 @@ func TestTypes(t *testing.T) {
 						Set(Registry.MustGet("Profile").FieldName("City"), "New York").
 						Set(Registry.MustGet("Profile").FieldName("Zip"), "0305").
 						Set(Registry.MustGet("Profile").FieldName("Country"), "USA"))
-			}, ShouldPanic)
+			})
 		})
-		Convey("Testing ModelData Scanning", func() {
+		t.Run("Testing ModelData Scanning", func(t *testing.T) {
 			md := NewModelData(Registry.MustGet("User"))
 			err := md.Scan(nil)
-			So(err, ShouldBeNil)
-			So(md.FieldMap, ShouldHaveLength, 0)
+			assert.Nil(t, err)
+			assert.Len(t, md.FieldMap, 0)
 			err = md.Scan(map[string]interface{}{"Nums": 12})
-			So(err, ShouldBeNil)
-			So(md.FieldMap, ShouldHaveLength, 1)
-			So(md.FieldMap, ShouldContainKey, "Nums")
-			So(md.FieldMap["Nums"], ShouldEqual, 12)
+			assert.Nil(t, err)
+			assert.Len(t, md.FieldMap, 1)
+			assert.Contains(t, md.FieldMap, "Nums")
+			assert.EqualValues(t, md.FieldMap["Nums"], 12)
 			err = md.Scan(FieldMap{"Nums": 12})
-			So(err, ShouldBeNil)
-			So(md.FieldMap, ShouldHaveLength, 1)
-			So(md.FieldMap, ShouldContainKey, "Nums")
-			So(md.FieldMap["Nums"], ShouldEqual, 12)
+			assert.Nil(t, err)
+			assert.Len(t, md.FieldMap, 1)
+			assert.Contains(t, md.FieldMap, "Nums")
+			assert.EqualValues(t, md.FieldMap["Nums"], 12)
 			err = md.Scan("wrong")
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "unexpected type string to represent RecordData: wrong")
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), "unexpected type string to represent RecordData: wrong")
 		})
 	})
-	Convey("Testing FieldNames", t, func() {
-		Convey("Creating a new FieldName", func() {
+	t.Run("Testing FieldNames", func(t *testing.T) {
+		t.Run("Creating a new FieldName", func(t *testing.T) {
 			fn := NewFieldName("Name", "json")
-			So(fn.Name(), ShouldEqual, "Name")
-			So(fn.JSON(), ShouldEqual, "json")
+			assert.EqualValues(t, fn.Name(), "Name")
+			assert.EqualValues(t, fn.JSON(), "json")
 		})
-		Convey("Unmarshalling FieldNames", func() {
+		t.Run("Unmarshalling FieldNames", func(t *testing.T) {
 			data := []byte(`["name1", "name2"]`)
 			var fn FieldNames
 			err := json.Unmarshal(data, &fn)
-			So(err, ShouldBeNil)
-			So(fn, ShouldHaveLength, 2)
-			So(fn[0].Name(), ShouldEqual, "name1")
-			So(fn[0].JSON(), ShouldEqual, "name1")
-			So(fn[1].Name(), ShouldEqual, "name2")
-			So(fn[1].JSON(), ShouldEqual, "name2")
+			assert.Nil(t, err)
+			assert.Len(t, fn, 2)
+			assert.EqualValues(t, fn[0].Name(), "name1")
+			assert.EqualValues(t, fn[0].JSON(), "name1")
+			assert.EqualValues(t, fn[1].Name(), "name2")
+			assert.EqualValues(t, fn[1].JSON(), "name2")
 			data = []byte(`{}`)
 			err = json.Unmarshal(data, &fn)
-			So(err, ShouldNotBeNil)
+			assert.NotNil(t, err)
 		})
-		Convey("Listing names and json of FieldNames", func() {
+		t.Run("Listing names and json of FieldNames", func(t *testing.T) {
 			fn := FieldNames{
 				fieldName{name: "Name", json: "name"},
 				fieldName{name: "User", json: "user_id"},
 			}
 			names := fn.Names()
-			So(names, ShouldHaveLength, 2)
-			So(names[0], ShouldEqual, "Name")
-			So(names[1], ShouldEqual, "User")
+			assert.Len(t, names, 2)
+			assert.EqualValues(t, names[0], "Name")
+			assert.EqualValues(t, names[1], "User")
 			jsons := fn.JSON()
-			So(jsons, ShouldHaveLength, 2)
-			So(jsons[0], ShouldEqual, "name")
-			So(jsons[1], ShouldEqual, "user_id")
+			assert.Len(t, jsons, 2)
+			assert.EqualValues(t, jsons[0], "name")
+			assert.EqualValues(t, jsons[1], "user_id")
 		})
 	})
 }

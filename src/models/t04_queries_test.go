@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/security"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
@@ -88,112 +89,132 @@ var (
 )
 
 func TestConditions(t *testing.T) {
-	Convey("Testing SQL building for queries", t, func() {
+	t.Run("Testing SQL building for queries", func(t *testing.T) {
 		if dbArgs.Driver == "postgres" {
-			So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-				rs := env.Pool("User")
-				rs = rs.Search(rs.Model().FilteredOn(profile, env.Pool("Profile").Model().FilteredOn(bestPost, env.Pool("Post").Model().Field(title).Equals("foo"))))
-				fields := []FieldName{Name, fieldName{name: "Profile.BestPost.Title", json: "profile_id.best_post_id.title"}}
-				Convey("Simple query with database field names", func() {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				var (
+					rs     *RecordCollection
+					fields []FieldName
+				)
+				reset := func() {
+					rs = env.Pool("User")
+					rs = rs.Search(rs.Model().FilteredOn(profile, env.Pool("Profile").Model().FilteredOn(bestPost, env.Pool("Post").Model().Field(title).Equals("foo"))))
+					fields = []FieldName{Name, fieldName{name: "Profile.BestPost.Title", json: "profile_id.best_post_id.title"}}
+				}
+				reset()
+				t.Run("Simple query with database field names", func(t *testing.T) {
+					reset()
 					rs = env.Pool("User").Search(rs.Model().FilteredOn(profile, env.Pool("Profile").Model().Field(bestPostTitle).Equals("foo"))).OrderBy("ID")
 					sql, args, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title, "user".id AS id FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id  WHERE "T2".title = ? ORDER BY "user".id ) foo ORDER BY id `)
-					So(args, ShouldContain, "foo")
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title, "user".id AS id FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id  WHERE "T2".title = ? ORDER BY "user".id ) foo ORDER BY id `)
+					assert.Contains(t, args, "foo")
 				})
-				Convey("Simple query with struct field names", func() {
+				t.Run("Simple query with struct field names", func(t *testing.T) {
+					reset()
 					fields = []FieldName{Name, fieldName{name: "Profile.BestPost.Title", json: "profile_id.best_post_id.title"}}
 					sql, args, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id  WHERE "T2".title = ? ORDER BY "user".id ) foo  `)
-					So(args, ShouldContain, "foo")
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id  WHERE "T2".title = ? ORDER BY "user".id ) foo  `)
+					assert.Contains(t, args, "foo")
 				})
-				Convey("Query with one2many relations", func() {
+				t.Run("Query with one2many relations", func(t *testing.T) {
+					reset()
 					rso2m := env.Pool("User").Search(rs.Model().Field(postsTitle).Equals("1st post"))
 					fields = []FieldName{Name}
 					sql, args, _ := rso2m.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user" LEFT JOIN "post" "T1" ON "user".id="T1".user_id  WHERE "T1".title = ? ORDER BY "user".id ) foo  `)
-					So(args, ShouldContain, "1st post")
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user" LEFT JOIN "post" "T1" ON "user".id="T1".user_id  WHERE "T1".title = ? ORDER BY "user".id ) foo  `)
+					assert.Contains(t, args, "1st post")
 				})
-				Convey("Simple query with args inflation", func() {
+				t.Run("Simple query with args inflation", func(t *testing.T) {
+					reset()
 					getUserID := func(rc *RecordCollection) int64 {
 						return rc.Env().Uid()
 					}
 					rs2 := env.Pool("User").Search(rs.Model().Field(nums).Equals(getUserID))
 					fields = []FieldName{Name}
 					sql, args, _ := rs2.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"  WHERE "user".nums = ? ORDER BY "user".id ) foo  `)
-					So(len(args), ShouldEqual, 1)
-					So(args, ShouldContain, security.SuperUserID)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"  WHERE "user".nums = ? ORDER BY "user".id ) foo  `)
+					assert.EqualValues(t, len(args), 1)
+					assert.Contains(t, args, security.SuperUserID)
 				})
-				Convey("true/false query", func() {
+				t.Run("true/false query", func(t *testing.T) {
+					reset()
 					rs3 := env.Pool("User").Search(rs.Model().Field(isStaff).Equals(true))
 					fields = []FieldName{Name}
 					sql, args, _ := rs3.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"  WHERE "user".is_staff = ? ORDER BY "user".id ) foo  `)
-					So(len(args), ShouldEqual, 1)
-					So(args, ShouldContain, true)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"  WHERE "user".is_staff = ? ORDER BY "user".id ) foo  `)
+					assert.EqualValues(t, len(args), 1)
+					assert.Contains(t, args, true)
 				})
-				Convey("Check WHERE clause with additionnal filter", func() {
+				t.Run("Check WHERE clause with additionnal filter", func(t *testing.T) {
+					reset()
 					rs = rs.Search(rs.Model().Field(profileAge).GreaterOrEqual(12))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user__profile__post".title = ?) AND ("user__profile".age >= ?)`)
-					So(args, ShouldContain, 12)
-					So(args, ShouldContain, "foo")
+					assert.EqualValues(t, sql, `WHERE ("user__profile__post".title = ?) AND ("user__profile".age >= ?)`)
+					assert.Contains(t, args, 12)
+					assert.Contains(t, args, "foo")
 				})
-				Convey("Check full query with all conditions", func() {
+				t.Run("Check full query with all conditions", func(t *testing.T) {
+					reset()
 					rs = rs.Search(rs.Model().Field(profileAge).GreaterOrEqual(12))
 					c2 := rs.Model().Field(Name).Contains("jane").Or().Field(profileMoney).Lower(1234.56)
 					rs = rs.Search(c2)
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE (("user__profile__post".title = ?) AND ("user__profile".age >= ?)) AND ("user".name LIKE ? OR "user__profile".money < ?)`)
-					So(args, ShouldContain, "%jane%")
-					So(args, ShouldContain, 1234.56)
+					assert.EqualValues(t, sql, `WHERE (("user__profile__post".title = ?) AND ("user__profile".age >= ?)) AND ("user".name LIKE ? OR "user__profile".money < ?)`)
+					assert.Contains(t, args, "%jane%")
+					assert.Contains(t, args, 1234.56)
 					sql, _, _ = rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id  WHERE (("T2".title = ?) AND ("T1".age >= ?)) AND ("user".name LIKE ? OR "T1".money < ?) ORDER BY "user".id ) foo  `)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id  WHERE (("T2".title = ?) AND ("T1".age >= ?)) AND ("user".name LIKE ? OR "T1".money < ?) ORDER BY "user".id ) foo  `)
 				})
-				Convey("Check multi-join queries", func() {
+				t.Run("Check multi-join queries", func(t *testing.T) {
+					reset()
 					rs = rs.Search(rs.Model().Field(profileAge).GreaterOrEqual(12))
 					c2 := rs.Model().Field(Name).Contains("jane").Or().Field(resumeEducation).Contains("MIT")
 					rs = rs.Search(c2)
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE (("user__profile__post".title = ?) AND ("user__profile".age >= ?)) AND ("user".name LIKE ? OR "user__resume".education LIKE ?)`)
-					So(args, ShouldContain, "%jane%")
-					So(args, ShouldContain, "%MIT%")
+					assert.EqualValues(t, sql, `WHERE (("user__profile__post".title = ?) AND ("user__profile".age >= ?)) AND ("user".name LIKE ? OR "user__resume".education LIKE ?)`)
+					assert.Contains(t, args, "%jane%")
+					assert.Contains(t, args, "%MIT%")
 					sql, _, _ = rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id LEFT JOIN "resume" "T3" ON "user".resume_id="T3".id  WHERE (("T2".title = ?) AND ("T1".age >= ?)) AND ("user".name LIKE ? OR "T3".education LIKE ?) ORDER BY "user".id ) foo  `)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "T2".title AS profile_id__best_post_id__title FROM "user" "user" LEFT JOIN "profile" "T1" ON "user".profile_id="T1".id LEFT JOIN "post" "T2" ON "T1".best_post_id="T2".id LEFT JOIN "resume" "T3" ON "user".resume_id="T3".id  WHERE (("T2".title = ?) AND ("T1".age >= ?)) AND ("user".name LIKE ? OR "T3".education LIKE ?) ORDER BY "user".id ) foo  `)
 				})
-				Convey("Testing query without WHERE clause", func() {
+				t.Run("Testing query without WHERE clause", func(t *testing.T) {
+					reset()
 					rs = env.Pool("User").Load()
 					fields = []FieldName{Name}
 					sql, _, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"   ORDER BY "user".id ) foo  `)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"   ORDER BY "user".id ) foo  `)
 				})
-				Convey("Testing query with LIMIT clause", func() {
+				t.Run("Testing query with LIMIT clause", func(t *testing.T) {
+					reset()
 					rs = env.Pool("User").Search(rs.Model().Field(email).IContains("jane.smith@example.com")).Call("Limit", 1).(RecordSet).Collection().Load()
 					fields = []FieldName{Name}
 					sql, _, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "user".id AS id FROM "user" "user"  WHERE "user".email ILIKE ? ORDER BY "user".id ) foo ORDER BY id LIMIT 1 `)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "user".id AS id FROM "user" "user"  WHERE "user".email ILIKE ? ORDER BY "user".id ) foo ORDER BY id LIMIT 1 `)
 				})
-				Convey("Testing query with LIMIT and OFFSET clauses", func() {
+				t.Run("Testing query with LIMIT and OFFSET clauses", func(t *testing.T) {
+					reset()
 					rs = env.Pool("User").Search(rs.Model().Field(email).IContains("jane.smith@example.com")).Call("Limit", 1).(RecordSet).Collection().Call("Offset", 2).(RecordSet).Collection().Load()
 					fields = []FieldName{Name}
 					sql, _, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "user".id AS id FROM "user" "user"  WHERE "user".email ILIKE ? ORDER BY "user".id ) foo ORDER BY id LIMIT 1 OFFSET 2`)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "user".id AS id FROM "user" "user"  WHERE "user".email ILIKE ? ORDER BY "user".id ) foo ORDER BY id LIMIT 1 OFFSET 2`)
 				})
-				Convey("Testing query with ORDER BY clauses", func() {
+				t.Run("Testing query with ORDER BY clauses", func(t *testing.T) {
+					reset()
 					rs = env.Pool("User").Search(rs.Model().Field(email).IContains("jane.smith@example.com")).Call("OrderBy", []string{"Email", "ID"}).(RecordSet).Collection().Load()
 					fields = []FieldName{Name}
 					sql, _, _ := rs.query.selectQuery(fields)
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "user".email AS email, "user".id AS id FROM "user" "user"  WHERE "user".email ILIKE ? ORDER BY "user".id ) foo ORDER BY email, id `)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name, "user".email AS email, "user".id AS id FROM "user" "user"  WHERE "user".email ILIKE ? ORDER BY "user".id ) foo ORDER BY email, id `)
 				})
-				Convey("Testing complex conditions", func() {
+				t.Run("Testing complex conditions", func(t *testing.T) {
+					reset()
 					rs = env.Pool("User").Search(rs.Model().Field(profileAge).GreaterOrEqual(12).
 						AndNot().Field(Name).IContains("Jane").
 						OrNot().FilteredOn(profile, env.Pool("Profile").Model().Field(age).Equals(20)))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user__profile".age >= ? AND NOT "user".name ILIKE ? OR NOT "user__profile".age = ?`)
-					So(args, ShouldContain, 12)
-					So(args, ShouldContain, "%Jane%")
-					So(args, ShouldContain, 20)
+					assert.EqualValues(t, sql, `WHERE "user__profile".age >= ? AND NOT "user".name ILIKE ? OR NOT "user__profile".age = ?`)
+					assert.Contains(t, args, 12)
+					assert.Contains(t, args, "%Jane%")
+					assert.Contains(t, args, 20)
 					cond1 := env.Pool("User").Model().Field(Name).IContains("Jane")
 					cond2 := env.Pool("User").Model().Field(Name).IContains("John")
 					rs = env.Pool("User").Search(
@@ -201,158 +222,176 @@ func TestConditions(t *testing.T) {
 							AndNotCond(cond1).
 							OrNotCond(cond2))
 					sql, args = rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE (("user".age >= ?) AND NOT ("user".name ILIKE ?)) OR NOT ("user".name ILIKE ?)`)
-					So(args, ShouldContain, 30)
-					So(args, ShouldContain, "%Jane%")
-					So(args, ShouldContain, "%John%")
+					assert.EqualValues(t, sql, `WHERE (("user".age >= ?) AND NOT ("user".name ILIKE ?)) OR NOT ("user".name ILIKE ?)`)
+					assert.Contains(t, args, 30)
+					assert.Contains(t, args, "%Jane%")
+					assert.Contains(t, args, "%John%")
 				})
-			}), ShouldBeNil)
+			}))
 		}
 	})
-	Convey("Testing predicate operators", t, func() {
+	t.Run("Testing predicate operators", func(t *testing.T) {
 		if dbArgs.Driver == "postgres" {
-			So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
-				rs := env.Pool("User")
-				Convey("Equals", func() {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				t.Run("Equals", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).Equals("John"))
 					cond := rs.Condition()
 					res := rs.CallMulti("SQLFromCondition", cond)
 					sql := res[0]
 					args := res[1]
-					So(sql, ShouldEqual, `"user".name = ?`)
-					So(args, ShouldContain, "John")
+					assert.EqualValues(t, sql, `"user".name = ?`)
+					assert.Contains(t, args, "John")
 				})
-				Convey("NotEquals", func() {
+				t.Run("NotEquals", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).NotEquals("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name != ?)`)
-					So(args, ShouldContain, "John")
+					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name != ?)`)
+					assert.Contains(t, args, "John")
 				})
-				Convey("Greater", func() {
+				t.Run("Greater", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).Greater(12))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".nums > ?`)
-					So(args, ShouldContain, 12)
+					assert.EqualValues(t, sql, `WHERE "user".nums > ?`)
+					assert.Contains(t, args, 12)
 				})
-				Convey("GreaterOrEqual", func() {
+				t.Run("GreaterOrEqual", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).GreaterOrEqual(12))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".nums >= ?`)
-					So(args, ShouldContain, 12)
+					assert.EqualValues(t, sql, `WHERE "user".nums >= ?`)
+					assert.Contains(t, args, 12)
 				})
-				Convey("Lower", func() {
+				t.Run("Lower", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).Lower(12))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".nums < ?`)
-					So(args, ShouldContain, 12)
+					assert.EqualValues(t, sql, `WHERE "user".nums < ?`)
+					assert.Contains(t, args, 12)
 				})
-				Convey("LowerOrEqual", func() {
+				t.Run("LowerOrEqual", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).LowerOrEqual(12))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".nums <= ?`)
-					So(args, ShouldContain, 12)
+					assert.EqualValues(t, sql, `WHERE "user".nums <= ?`)
+					assert.Contains(t, args, 12)
 				})
-				Convey("Contains", func() {
+				t.Run("Contains", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).Contains("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name LIKE ?`)
-					So(args, ShouldContain, "%John%")
+					assert.EqualValues(t, sql, `WHERE "user".name LIKE ?`)
+					assert.Contains(t, args, "%John%")
 				})
-				Convey("Not Contains", func() {
+				t.Run("Not Contains", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).NotContains("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name NOT LIKE ?)`)
-					So(args, ShouldContain, "%John%")
+					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name NOT LIKE ?)`)
+					assert.Contains(t, args, "%John%")
 				})
-				Convey("IContains", func() {
+				t.Run("IContains", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).IContains("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name ILIKE ?`)
-					So(args, ShouldContain, "%John%")
+					assert.EqualValues(t, sql, `WHERE "user".name ILIKE ?`)
+					assert.Contains(t, args, "%John%")
 				})
-				Convey("Not IContains", func() {
+				t.Run("Not IContains", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).NotIContains("John"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name NOT ILIKE ?)`)
-					So(args, ShouldContain, "%John%")
+					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name NOT ILIKE ?)`)
+					assert.Contains(t, args, "%John%")
 				})
-				Convey("Contains pattern", func() {
+				t.Run("Contains pattern", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).Like("John%"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name LIKE ?`)
-					So(args, ShouldContain, "John%")
+					assert.EqualValues(t, sql, `WHERE "user".name LIKE ?`)
+					assert.Contains(t, args, "John%")
 				})
-				Convey("IContains pattern", func() {
+				t.Run("IContains pattern", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).ILike("John%"))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".name ILIKE ?`)
-					So(args, ShouldContain, "John%")
+					assert.EqualValues(t, sql, `WHERE "user".name ILIKE ?`)
+					assert.Contains(t, args, "John%")
 				})
-				Convey("In", func() {
+				t.Run("In", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(ID).In([]int64{23, 31}))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE "user".id IN (?)`)
-					So(args, ShouldContain, []int64{23, 31})
+					assert.EqualValues(t, sql, `WHERE "user".id IN (?)`)
+					assert.Contains(t, args, []int64{23, 31})
 				})
-				Convey("Not In", func() {
+				t.Run("Not In", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(ID).NotIn([]int64{23, 31}))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".id IS NULL OR "user".id NOT IN (?))`)
-					So(args, ShouldContain, []int64{23, 31})
+					assert.EqualValues(t, sql, `WHERE ("user".id IS NULL OR "user".id NOT IN (?))`)
+					assert.Contains(t, args, []int64{23, 31})
 				})
-				Convey("Is Null", func() {
+				t.Run("Is Null", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).IsNull())
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name = ?)`)
-					So(args, ShouldContain, "")
+					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name = ?)`)
+					assert.Contains(t, args, "")
 				})
-				Convey("Is Not Null", func() {
+				t.Run("Is Not Null", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).IsNotNull())
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".name IS NOT NULL AND "user".name != ?)`)
-					So(args, ShouldContain, "")
+					assert.EqualValues(t, sql, `WHERE ("user".name IS NOT NULL AND "user".name != ?)`)
+					assert.Contains(t, args, "")
 				})
-				Convey("Empty string", func() {
+				t.Run("Empty string", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).Equals(""))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".name IS NULL OR "user".name = ?)`)
-					So(args, ShouldContain, "")
+					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name = ?)`)
+					assert.Contains(t, args, "")
 				})
-				Convey("False bool", func() {
+				t.Run("False bool", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(isStaff).Equals(false))
 					sql, args := rs.query.sqlWhereClause(true)
-					So(sql, ShouldEqual, `WHERE ("user".is_staff IS NULL OR "user".is_staff = ?)`)
-					So(args, ShouldContain, false)
+					assert.EqualValues(t, sql, `WHERE ("user".is_staff IS NULL OR "user".is_staff = ?)`)
+					assert.Contains(t, args, false)
 				})
-				Convey("Child Of without parent field", func() {
+				t.Run("Child Of without parent field", func(t *testing.T) {
+					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(ID).ChildOf(101))
 					sql, args, _ := rs.query.selectQuery([]FieldName{Name})
-					So(sql, ShouldEqual, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"  WHERE "user".id = ? ORDER BY "user".id ) foo  `)
-					So(args, ShouldContain, 101)
+					assert.EqualValues(t, sql, `SELECT * FROM (SELECT DISTINCT ON ("user".id) "user".name AS name FROM "user" "user"  WHERE "user".id = ? ORDER BY "user".id ) foo  `)
+					assert.Contains(t, args, 101)
 				})
-			}), ShouldBeNil)
+			}))
 		}
 	})
-	Convey("Testing Condition Methods", t, func() {
-		So(SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+	t.Run("Testing Condition Methods", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			cond := env.Pool("User").Model().Field(Name).IContains("Jane")
 			cond2 := env.Pool("User").Model().Field(ID).NotIn([]int64{23, 31})
-			Convey("HasField", func() {
-				So(cond.HasField(Registry.MustGet("User").Fields().MustGet("Name")), ShouldBeTrue)
-				So(cond.HasField(Registry.MustGet("User").Fields().MustGet("Status")), ShouldBeFalse)
-				So(cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("Name")), ShouldBeTrue)
-				So(cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("ID")), ShouldBeTrue)
-				So(cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("Status")), ShouldBeFalse)
+			t.Run("HasField", func(t *testing.T) {
+				assert.True(t, cond.HasField(Registry.MustGet("User").Fields().MustGet("Name")))
+				assert.False(t, cond.HasField(Registry.MustGet("User").Fields().MustGet("Status")))
+				assert.True(t, cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("Name")))
+				assert.True(t, cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("ID")))
+				assert.False(t, cond.AndCond(cond2).HasField(Registry.MustGet("User").Fields().MustGet("Status")))
 			})
-			Convey("String", func() {
-				So(cond.OrNotCond(cond2).String(), ShouldEqual, `AND Name ilike Jane
+			t.Run("String", func(t *testing.T) {
+				assert.EqualValues(t, cond.OrNotCond(cond2).String(), `AND Name ilike Jane
 OR NOT (
 AND ID not in [23 31]
 
 )
 `)
 			})
-		}), ShouldBeNil)
+		}))
 	})
 }
 
@@ -364,35 +403,35 @@ func TestConditionSerialization(t *testing.T) {
 		d = fieldName{name: "D", json: "D"}
 		f = fieldName{name: "F", json: "F"}
 	)
-	Convey("Testing condition serialization", t, func() {
-		Convey("Testing simple A AND B condition", func() {
+	t.Run("Testing condition serialization", func(t *testing.T) {
+		t.Run("Testing simple A AND B condition", func(t *testing.T) {
 			cond := newCondition().And().Field(Name).IContains("John").And().Field(age).Greater(18)
 			dom := cond.Serialize()
-			So(fmt.Sprint(dom), ShouldEqual, "[& [name ilike John] [age > 18]]")
+			assert.EqualValues(t, fmt.Sprint(dom), "[& [name ilike John] [age > 18]]")
 		})
-		Convey("Testing simple A OR B condition", func() {
+		t.Run("Testing simple A OR B condition", func(t *testing.T) {
 			cond := newCondition().And().Field(Name).IContains("John").Or().Field(age).Greater(18)
 			dom := cond.Serialize()
-			So(fmt.Sprint(dom), ShouldEqual, "[| [age > 18] [name ilike John]]")
+			assert.EqualValues(t, fmt.Sprint(dom), "[| [age > 18] [name ilike John]]")
 		})
-		Convey("Testing A AND B OR C condition", func() {
+		t.Run("Testing A AND B OR C condition", func(t *testing.T) {
 			cond := newCondition().And().Field(Name).IContains("John").And().Field(age).Greater(18).Or().Field(isStaff).Equals(true)
 			dom := cond.Serialize()
-			So(fmt.Sprint(dom), ShouldEqual, "[| [is_staff = true] & [name ilike John] [age > 18]]")
+			assert.EqualValues(t, fmt.Sprint(dom), "[| [is_staff = true] & [name ilike John] [age > 18]]")
 		})
-		Convey("Testing (A OR B) AND (C OR D) OR F condition", func() {
+		t.Run("Testing (A OR B) AND (C OR D) OR F condition", func(t *testing.T) {
 			aOrB := newCondition().And().Field(a).Equals("A Value").Or().Field(b).Equals("B Value")
 			cOrD := newCondition().And().Field(c).Equals("C Value").Or().Field(d).Equals("D Value")
 			cond := newCondition().AndCond(aOrB).AndCond(cOrD).Or().Field(f).Equals("F Value")
 			dom := cond.Serialize()
-			So(fmt.Sprint(dom), ShouldEqual, "[| [F = F Value] & | [B = B Value] [A = A Value] | [D = D Value] [C = C Value]]")
+			assert.EqualValues(t, fmt.Sprint(dom), "[| [F = F Value] & | [B = B Value] [A = A Value] | [D = D Value] [C = C Value]]")
 		})
-		Convey("Testing (A OR B OR C) AND (D) condition", func() {
+		t.Run("Testing (A OR B OR C) AND (D) condition", func(t *testing.T) {
 			aOrBOrC := newCondition().And().Field(a).Equals("A Value").Or().Field(b).Equals("B Value").Or().Field(c).Equals("C Value")
 			D := newCondition().And().Field(d).Equals("D Value")
 			cond := newCondition().AndCond(aOrBOrC).AndCond(D)
 			dom := cond.Serialize()
-			So(fmt.Sprint(dom), ShouldEqual, "[& | [C = C Value] | [B = B Value] [A = A Value] [D = D Value]]")
+			assert.EqualValues(t, fmt.Sprint(dom), "[& | [C = C Value] | [B = B Value] [A = A Value] [D = D Value]]")
 		})
 	})
 }

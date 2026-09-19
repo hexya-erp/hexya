@@ -9,30 +9,31 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/tools/fileutils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestCopy(t *testing.T) {
-	Convey("Testing Copy", t, func() {
+	t.Run("Testing Copy", func(t *testing.T) {
 		srcFileName := filepath.Join(os.TempDir(), "fileutils-input")
 		dstFileName := filepath.Join(os.TempDir(), "fileutils-output")
 		s, err := os.Create(srcFileName)
-		So(err, ShouldBeNil)
+		assert.Nil(t, err)
 		s.WriteString("This is the file's content")
 		s.Close()
 		err = fileutils.Copy(srcFileName, dstFileName)
-		So(err, ShouldBeNil)
+		assert.Nil(t, err)
 		fs, err := os.Stat(srcFileName)
-		So(err, ShouldBeNil)
+		assert.Nil(t, err)
 		fd, err := os.Stat(dstFileName)
-		So(err, ShouldBeNil)
-		So(fd.Size(), ShouldEqual, fs.Size())
+		assert.Nil(t, err)
+		assert.EqualValues(t, fd.Size(), fs.Size())
 		d, err := os.Open(dstFileName)
-		So(err, ShouldBeNil)
+		assert.Nil(t, err)
 		data, err := ioutil.ReadAll(d)
-		So(err, ShouldBeNil)
-		So(string(data), ShouldEqual, "This is the file's content")
+		assert.Nil(t, err)
+		assert.EqualValues(t, string(data), "This is the file's content")
 	})
 
 }

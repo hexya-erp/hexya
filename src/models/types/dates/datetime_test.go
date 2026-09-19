@@ -7,119 +7,120 @@ import (
 	"encoding/json"
 	"testing"
 	"time"
-)
-import . "github.com/smartystreets/goconvey/convey"
 
-func checkDateTime(dateTime DateTime) {
-	So(dateTime.Year(), ShouldEqual, 2017)
-	So(dateTime.Month(), ShouldEqual, 8)
-	So(dateTime.Day(), ShouldEqual, 1)
-	So(dateTime.Hour(), ShouldEqual, 10)
-	So(dateTime.Minute(), ShouldEqual, 2)
-	So(dateTime.Second(), ShouldEqual, 57)
+	"github.com/stretchr/testify/assert"
+)
+
+func checkDateTime(t *testing.T, dateTime DateTime) {
+	assert.EqualValues(t, dateTime.Year(), 2017)
+	assert.EqualValues(t, dateTime.Month(), 8)
+	assert.EqualValues(t, dateTime.Day(), 1)
+	assert.EqualValues(t, dateTime.Hour(), 10)
+	assert.EqualValues(t, dateTime.Minute(), 2)
+	assert.EqualValues(t, dateTime.Second(), 57)
 }
 
 func TestDateTime(t *testing.T) {
-	Convey("Testing DateTime objects", t, func() {
+	t.Run("Testing DateTime objects", func(t *testing.T) {
 		dateTime, err := ParseDateTimeWithLayout(DefaultServerDateTimeFormat, "2017-08-01 10:02:57")
 		date, _ := ParseDateWithLayout(DefaultServerDateTimeFormat, "2017-08-01 10:02:57")
-		Convey("Parsing should be correct", func() {
-			So(err, ShouldBeNil)
-			checkDateTime(dateTime)
+		t.Run("Parsing should be correct", func(t *testing.T) {
+			assert.Nil(t, err)
+			checkDateTime(t, dateTime)
 		})
-		Convey("Direct parsing functions should work", func() {
-			So(func() { ParseDateTime("2017-08-01 10:02:57") }, ShouldNotPanic)
-			So(func() { ParseDateTime("2017-08-01") }, ShouldPanic)
+		t.Run("Direct parsing functions should work", func(t *testing.T) {
+			assert.NotPanics(t, func() { ParseDateTime("2017-08-01 10:02:57") })
+			assert.Panics(t, func() { ParseDateTime("2017-08-01") })
 		})
-		Convey("Marshaling and String should work", func() {
-			So(dateTime.String(), ShouldEqual, "2017-08-01 10:02:57")
+		t.Run("Marshaling and String should work", func(t *testing.T) {
+			assert.EqualValues(t, dateTime.String(), "2017-08-01 10:02:57")
 			data, _ := json.Marshal(dateTime)
-			So(string(data), ShouldEqual, "\"2017-08-01 10:02:57\"")
+			assert.EqualValues(t, string(data), "\"2017-08-01 10:02:57\"")
 		})
-		Convey("Marshaling zero", func() {
+		t.Run("Marshaling zero", func(t *testing.T) {
 			data, _ := json.Marshal(DateTime{})
-			So(string(data), ShouldEqual, "false")
+			assert.EqualValues(t, string(data), "false")
 		})
-		Convey("Scanning datetime strings", func() {
+		t.Run("Scanning datetime strings", func(t *testing.T) {
 			dtScan := &DateTime{}
 			err := dtScan.Scan("2017-08-01 10:02:57")
-			So(err, ShouldBeNil)
-			checkDateTime(*dtScan)
-			So(dtScan.Equal(dateTime), ShouldBeTrue)
+			assert.Nil(t, err)
+			checkDateTime(t, *dtScan)
+			assert.True(t, dtScan.Equal(dateTime))
 			dtScan.Scan("")
-			So(dtScan.IsZero(), ShouldBeTrue)
+			assert.True(t, dtScan.IsZero())
 		})
-		Convey("Scanning datetime time.Time", func() {
+		t.Run("Scanning datetime time.Time", func(t *testing.T) {
 			dtScan := &DateTime{}
 			dtScan.Scan(dateTime.Time)
-			checkDateTime(*dtScan)
+			checkDateTime(t, *dtScan)
 			dtScan.Scan(time.Time{})
-			So(dtScan.IsZero(), ShouldBeTrue)
+			assert.True(t, dtScan.IsZero())
 		})
-		Convey("Scanning datetime wrong type", func() {
+		t.Run("Scanning datetime wrong type", func(t *testing.T) {
 			dtScan := &DateTime{}
 			err := dtScan.Scan([]string{"foo", "bar"})
-			So(err, ShouldNotBeNil)
+			assert.NotNil(t, err)
 		})
-		Convey("Checking ToDate", func() {
-			So(dateTime.ToDate().Equal(date), ShouldBeTrue)
+		t.Run("Checking ToDate", func(t *testing.T) {
+			assert.True(t, dateTime.ToDate().Equal(date))
 		})
-		Convey("Valuing Datetime", func() {
+		t.Run("Valuing Datetime", func(t *testing.T) {
 			val, err := dateTime.Value()
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 			ti, ok := val.(time.Time)
-			So(ok, ShouldBeTrue)
-			So(ti.Equal(date.Time), ShouldBeTrue)
+			assert.True(t, ok)
+			assert.True(t, ti.Equal(date.Time))
 		})
-		Convey("Valuing empty Datetime", func() {
+		t.Run("Valuing empty Datetime", func(t *testing.T) {
 			val, err := DateTime{}.Value()
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 			ti, ok := val.(time.Time)
-			So(ok, ShouldBeTrue)
-			So(ti.IsZero(), ShouldBeTrue)
+			assert.True(t, ok)
+			assert.True(t, ti.IsZero())
 		})
-		Convey("Now() should not panic", func() {
-			So(func() { Now() }, ShouldNotPanic)
+		t.Run("Now() should not panic", func(t *testing.T) {
+			assert.NotPanics(t, func() { Now() })
 		})
 	})
-	Convey("Checking operations and comparisons on Date and DateTime", t, func() {
+	t.Run("Checking operations and comparisons on Date and DateTime", func(t *testing.T) {
 		dateTime1 := ParseDateTime("2017-08-01 10:34:23")
 		dateTime2 := ParseDateTime("2017-08-01 10:43:11")
-		Convey("Comparing datetimes", func() {
-			So(dateTime2.Greater(dateTime1), ShouldBeTrue)
-			So(dateTime2.GreaterEqual(dateTime1), ShouldBeTrue)
-			So(dateTime2.GreaterEqual(dateTime2), ShouldBeTrue)
-			So(dateTime2.Lower(dateTime1), ShouldBeFalse)
-			So(dateTime2.LowerEqual(dateTime1), ShouldBeFalse)
-			So(dateTime2.LowerEqual(dateTime2), ShouldBeTrue)
+		t.Run("Comparing datetimes", func(t *testing.T) {
+			assert.True(t, dateTime2.Greater(dateTime1))
+			assert.True(t, dateTime2.GreaterEqual(dateTime1))
+			assert.True(t, dateTime2.GreaterEqual(dateTime2))
+			assert.False(t, dateTime2.Lower(dateTime1))
+			assert.False(t, dateTime2.LowerEqual(dateTime1))
+			assert.True(t, dateTime2.LowerEqual(dateTime2))
 		})
-		Convey("Adding durations to datetimes", func() {
-			So(dateTime1.AddDate(0, 2, 3).Equal(ParseDateTime("2017-10-04 10:34:23")), ShouldBeTrue)
-			So(dateTime1.Add(2*time.Hour+11*time.Minute).Equal(ParseDateTime("2017-08-01 12:45:23")), ShouldBeTrue)
-			So(dateTime1.AddWeeks(2).Equal(ParseDateTime("2017-08-15 10:34:23")), ShouldBeTrue)
+		t.Run("Adding durations to datetimes", func(t *testing.T) {
+			assert.True(t, dateTime1.AddDate(0, 2, 3).Equal(ParseDateTime("2017-10-04 10:34:23")))
+			assert.True(t, dateTime1.Add(2*time.Hour+11*time.Minute).Equal(ParseDateTime("2017-08-01 12:45:23")))
+			assert.True(t, dateTime1.AddWeeks(2).Equal(ParseDateTime("2017-08-15 10:34:23")))
 		})
-		Convey("Timezone tests", func() {
+		t.Run("Timezone tests", func(t *testing.T) {
 			dt1, _ := dateTime1.WithTimezone("Etc/GMT")
-			So(dt1.Equal(dateTime1.UTC()), ShouldBeTrue)
+			assert.True(t, dt1.Equal(dateTime1.UTC()))
 			dt2, _ := dateTime1.WithTimezone("Africa/Tripoli")
-			So(dt2.String() == ParseDateTime("2017-08-01 12:34:23").String(), ShouldBeTrue)
+			assert.True(t, dt2.String() == ParseDateTime("2017-08-01 12:34:23").String())
 			dt3, _ := dateTime1.WithTimezone("America/Argentina/Buenos_Aires")
-			So(dt3.String() == ParseDateTime("2017-08-01 7:34:23").String(), ShouldBeTrue)
+			assert.True(t, dt3.String() == ParseDateTime("2017-08-01 7:34:23").String())
 			date, err := dateTime1.WithTimezone("invalid/tzCode")
-			So(date == dateTime1, ShouldBeTrue)
-			So(err, ShouldNotBeNil)
+			assert.True(t, date == dateTime1)
+			assert.NotNil(t, err)
 			values := TimeZones()
-			So(values, ShouldContain, "America/Scoresbysund")
+			assert.Contains(t, values, "America/Scoresbysund")
 		})
-		Convey("Changing dates", func() {
+		t.Run("Changing dates", func(t *testing.T) {
 			dateCpy := dateTime1.Copy()
-			So(dateCpy.SetMonth(10).SetDay(4).Equal(ParseDateTime("2017-10-04 10:34:23")), ShouldBeTrue)
-			So(dateCpy.SetYear(1996).SetMonth(time.February).SetDay(30).SetHour(-2).SetMinute(50).SetSecond(-7).
-				Equal(DateTime{Time: time.Date(1996, 02, 29, 22, 49, 53, 0, time.UTC)}), ShouldBeTrue)
-			So(dateCpy.StartOfHour().Equal(ParseDateTime("2017-08-01 10:00:00")), ShouldBeTrue)
-			So(dateCpy.StartOfDay().Equal(ParseDateTime("2017-08-01 00:00:00")), ShouldBeTrue)
-			So(dateCpy.AddWeeks(2).StartOfMonth().Equal(ParseDateTime("2017-08-01 00:00:00")), ShouldBeTrue)
-			So(dateCpy.StartOfYear().Equal(ParseDateTime("2017-01-01 00:00:00")), ShouldBeTrue)
+			assert.True(t, dateCpy.SetMonth(10).SetDay(4).Equal(ParseDateTime("2017-10-04 10:34:23")))
+			assert.True(t, dateCpy.SetYear(1996).SetMonth(time.February).SetDay(30).SetHour(-2).SetMinute(50).SetSecond(-7).
+				Equal(DateTime{Time: time.Date(1996, 02, 29, 22, 49, 53, 0, time.UTC)}))
+			assert.True(t, dateCpy.StartOfHour().Equal(ParseDateTime("2017-08-01 10:00:00")))
+			assert.True(t, dateCpy.StartOfDay().Equal(ParseDateTime("2017-08-01 00:00:00")))
+			assert.True(t, dateCpy.AddWeeks(2).StartOfMonth().Equal(ParseDateTime("2017-08-01 00:00:00")))
+			assert.True(t, dateCpy.StartOfYear().Equal(ParseDateTime("2017-01-01 00:00:00")))
 		})
 	})
 }

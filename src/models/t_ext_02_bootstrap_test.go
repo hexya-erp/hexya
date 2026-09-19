@@ -6,37 +6,38 @@ package models_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestExtBootStrap(t *testing.T) {
-	Convey("Database creation should run fine", t, func() {
-		Convey("Modifying fields before bootstrap", func() {
+	t.Run("Database creation should run fine", func(t *testing.T) {
+		t.Run("Modifying fields before bootstrap", func(t *testing.T) {
 			models.UnBootStrap()
 			visibilityField := models.Registry.MustGet("ExtPost").Fields().MustGet("Visibility")
 			visibilityField.UpdateSelection(types.Selection{"logged_in": "Logged in users"})
 			genderField := models.Registry.MustGet("ExtProfile").Fields().MustGet("Gender")
 			genderField.SetSelection(types.Selection{"m": "Male", "f": "Female"})
 		})
-		Convey("Bootstrap should not panic", func() {
+		t.Run("Bootstrap should not panic", func(t *testing.T) {
 			models.BootStrap()
 			models.SyncDatabase()
 		})
-		Convey("Boostrapping twice should panic", func() {
-			So(models.BootStrapped(), ShouldBeTrue)
-			So(models.BootStrap, ShouldPanic)
+		t.Run("Boostrapping twice should panic", func(t *testing.T) {
+			assert.True(t, models.BootStrapped())
+			assert.Panics(t, models.BootStrap)
 		})
-		Convey("Creating methods after bootstrap should panic", func() {
-			So(func() {
+		t.Run("Creating methods after bootstrap should panic", func(t *testing.T) {
+			assert.Panics(t, func() {
 				models.Registry.MustGet("ExtUser").NewMethod("NewMethod", func(rc *models.RecordCollection) {})
-			}, ShouldPanic)
+			})
 		})
-		Convey("Applying DB modifications", func() {
+		t.Run("Applying DB modifications", func(t *testing.T) {
 			models.UnBootStrap()
 			contentField := models.Registry.MustGet("ExtPost").Fields().MustGet("Content")
 			contentField.SetRequired(false)
@@ -51,27 +52,27 @@ func TestExtBootStrap(t *testing.T) {
 			})
 			textField := models.Registry.MustGet("ExtComment").Fields().MustGet("Text")
 			textField.SetFieldType(fieldtype.Text)
-			So(models.BootStrap, ShouldNotPanic)
+			assert.NotPanics(t, models.BootStrap)
 			fInfos := models.Registry.MustGet("ExtPost").FieldsGet(contentField)
-			So(fInfos[contentField.JSON()].Required, ShouldBeFalse)
+			assert.False(t, fInfos[contentField.JSON()].Required)
 			fInfos = models.Registry.MustGet("ExtUser").FieldsGet(profileField, numsField)
-			So(fInfos[profileField.JSON()].Required, ShouldBeFalse)
-			So(fInfos[numsField.JSON()].Index, ShouldBeFalse)
-			So(models.SyncDatabase, ShouldNotPanic)
+			assert.False(t, fInfos[profileField.JSON()].Required)
+			assert.False(t, fInfos[numsField.JSON()].Index)
+			assert.NotPanics(t, models.SyncDatabase)
 		})
 	})
 
-	Convey("Post testing models modifications", t, func() {
+	t.Run("Post testing models modifications", func(t *testing.T) {
 		visibilityField := models.Registry.MustGet("ExtPost").Fields().MustGet("Visibility")
 		fInfos := models.Registry.MustGet("ExtPost").FieldsGet(visibilityField)
-		So(fInfos[visibilityField.JSON()].Selection, ShouldHaveLength, 3)
-		So(fInfos[visibilityField.JSON()].Selection, ShouldContainKey, "visible")
-		So(fInfos[visibilityField.JSON()].Selection, ShouldContainKey, "invisible")
-		So(fInfos[visibilityField.JSON()].Selection, ShouldContainKey, "logged_in")
+		assert.Len(t, fInfos[visibilityField.JSON()].Selection, 3)
+		assert.Contains(t, fInfos[visibilityField.JSON()].Selection, "visible")
+		assert.Contains(t, fInfos[visibilityField.JSON()].Selection, "invisible")
+		assert.Contains(t, fInfos[visibilityField.JSON()].Selection, "logged_in")
 		genderField := models.Registry.MustGet("ExtProfile").Fields().MustGet("Gender")
 		fInfos = models.Registry.MustGet("ExtProfile").FieldsGet(genderField)
-		So(fInfos[genderField.JSON()].Selection, ShouldHaveLength, 2)
-		So(fInfos[genderField.JSON()].Selection, ShouldContainKey, "m")
-		So(fInfos[genderField.JSON()].Selection, ShouldContainKey, "f")
+		assert.Len(t, fInfos[genderField.JSON()].Selection, 2)
+		assert.Contains(t, fInfos[genderField.JSON()].Selection, "m")
+		assert.Contains(t, fInfos[genderField.JSON()].Selection, "f")
 	})
 }

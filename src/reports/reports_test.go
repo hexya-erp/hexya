@@ -6,15 +6,16 @@ package reports_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/actions"
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/reports"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestReports(t *testing.T) {
-	Convey("Creating models", t, func() {
+	t.Run("Creating models", func(t *testing.T) {
 		user := models.NewModel("User")
 		user.AddFields(map[string]models.FieldDefinition{
 			"UserName": fields.Char{},
@@ -22,7 +23,7 @@ func TestReports(t *testing.T) {
 		})
 		models.BootStrap()
 	})
-	Convey("Testing TextReport", t, func() {
+	t.Run("Testing TextReport", func(t *testing.T) {
 		report := reports.TextReport{
 			Id:       "sample_report",
 			Name:     "Sample Report",
@@ -46,122 +47,122 @@ Age: {{ .Age }}
 		report2.Id = "sample_html"
 		report2.Filename = "sample.html"
 		report2.MimeType = "text/html"
-		Convey("Registering a text report", func() {
-			So(func() { reports.Register(&report) }, ShouldNotPanic)
-			So(func() { reports.Register(&report2) }, ShouldNotPanic)
+		t.Run("Registering a text report", func(t *testing.T) {
+			assert.NotPanics(t, func() { reports.Register(&report) })
+			assert.NotPanics(t, func() { reports.Register(&report2) })
 		})
-		Convey("Registering twice should panic", func() {
-			So(func() { reports.Register(&report) }, ShouldPanic)
+		t.Run("Registering twice should panic", func(t *testing.T) {
+			assert.Panics(t, func() { reports.Register(&report) })
 		})
-		Convey("Replacing a text report", func() {
+		t.Run("Replacing a text report", func(t *testing.T) {
 			rep := report
 			rep.Name = "New Sample Report"
-			So(func() { reports.Registry.Replace(&rep) }, ShouldNotPanic)
+			assert.NotPanics(t, func() { reports.Registry.Replace(&rep) })
 		})
-		Convey("Replacing a report that doesn't exist should fail", func() {
+		t.Run("Replacing a report that doesn't exist should fail", func(t *testing.T) {
 			rep := report
 			rep.Id = "sample_report_2"
-			So(func() { reports.Registry.Replace(&rep) }, ShouldPanic)
+			assert.Panics(t, func() { reports.Registry.Replace(&rep) })
 		})
-		Convey("Bootstrapping reports", func() {
+		t.Run("Bootstrapping reports", func(t *testing.T) {
 			rep2 := reports.Registry.MustGet("sample_html").(*reports.TextReport)
 			rep2.Modeler = nil
-			So(reports.BootStrap, ShouldPanic)
+			assert.Panics(t, reports.BootStrap)
 			rep2.Modeler = models.Registry.MustGet("User")
 			rep2.Filename = ""
-			So(reports.BootStrap, ShouldPanic)
+			assert.Panics(t, reports.BootStrap)
 			rep2.Filename = "sample.html"
-			So(reports.BootStrap, ShouldNotPanic)
+			assert.NotPanics(t, reports.BootStrap)
 		})
-		Convey("Bootstrapping twice should panic", func() {
-			So(reports.BootStrap, ShouldPanic)
+		t.Run("Bootstrapping twice should panic", func(t *testing.T) {
+			assert.Panics(t, reports.BootStrap)
 		})
-		Convey("Registering a report after bootstrap should panic", func() {
-			So(func() { reports.Registry.Replace(&report) }, ShouldPanic)
+		t.Run("Registering a report after bootstrap should panic", func(t *testing.T) {
+			assert.Panics(t, func() { reports.Registry.Replace(&report) })
 		})
-		Convey("Fetching a report from registry", func() {
+		t.Run("Fetching a report from registry", func(t *testing.T) {
 			rep, ok := reports.Registry.Get("sample_report")
-			So(ok, ShouldBeTrue)
-			So(rep, ShouldNotBeNil)
-			So(func() { reports.Registry.MustGet("sample_report") }, ShouldNotPanic)
-			So(func() { reports.Registry.MustGet("sample_report_2") }, ShouldPanic)
-			So(rep.String(), ShouldEqual, "New Sample Report")
+			assert.True(t, ok)
+			assert.NotNil(t, rep)
+			assert.NotPanics(t, func() { reports.Registry.MustGet("sample_report") })
+			assert.Panics(t, func() { reports.Registry.MustGet("sample_report_2") })
+			assert.EqualValues(t, rep.String(), "New Sample Report")
 		})
-		Convey("Rendering text report", func() {
+		t.Run("Rendering text report", func(t *testing.T) {
 			rep := reports.Registry.MustGet("sample_report")
 			doc, err := rep.Render(1, nil)
-			So(err, ShouldBeNil)
-			So(doc.MimeType, ShouldEqual, "text/plain")
-			So(doc.Filename, ShouldEqual, "sample.txt")
-			So(string(doc.Content), ShouldEqual, `
+			assert.Nil(t, err)
+			assert.EqualValues(t, doc.MimeType, "text/plain")
+			assert.EqualValues(t, doc.Filename, "sample.txt")
+			assert.EqualValues(t, string(doc.Content), `
 Welcome to my sample report
 ===========================
 Name: Jane Smith
 Age: 24
 `)
 		})
-		Convey("Rendering html report", func() {
+		t.Run("Rendering html report", func(t *testing.T) {
 			rep := reports.Registry.MustGet("sample_html")
 			doc, err := rep.Render(1, nil)
-			So(err, ShouldBeNil)
-			So(doc.MimeType, ShouldEqual, "text/html")
-			So(doc.Filename, ShouldEqual, "sample.html")
-			So(string(doc.Content), ShouldEqual, `
+			assert.Nil(t, err)
+			assert.EqualValues(t, doc.MimeType, "text/html")
+			assert.EqualValues(t, doc.Filename, "sample.html")
+			assert.EqualValues(t, string(doc.Content), `
 Welcome to my sample report
 ===========================
 Name: Jane Smith
 Age: 24
 `)
 		})
-		Convey("Testing loading error cases", func() {
+		t.Run("Testing loading error cases", func(t *testing.T) {
 			rep := report
 			rep.Filename = ""
 			err := rep.Init()
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "incomplete TextReport: Filename is not set")
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), "incomplete TextReport: Filename is not set")
 			rep.Filename = report.Filename
 			rep.DataFunc = nil
 			err = rep.Init()
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "incomplete TextReport: DataFunc is not set")
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), "incomplete TextReport: DataFunc is not set")
 			rep.DataFunc = report.DataFunc
 			rep.Template = `BEGIN {{ .Name } END`
 			err = rep.Init()
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "error while loading TextReport template: template: :1: unexpected \"}\" in operand")
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), "error while loading TextReport template: template: :1: unexpected \"}\" in operand")
 			rep.Template = report.Template
 			rep.MimeType = "application/json"
 			err = rep.Init()
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "unsupported mime type 'application/json' for TextReport")
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), "unsupported mime type 'application/json' for TextReport")
 		})
-		Convey("Testing rendering error cases", func() {
+		t.Run("Testing rendering error cases", func(t *testing.T) {
 			rep := report
 			rep.Template = "{{ eq .Age \"something\" }}"
 			_, err := rep.Render(1, nil)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldBeIn, []string{
+			assert.NotNil(t, err)
+			assert.Contains(t, []string{
 				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: invalid type for comparison`,
-				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: incompatible types for comparison: int and string`})
+				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: incompatible types for comparison: int and string`}, err.Error())
 			rep = report2
 			rep.Template = "{{ eq .Age \"something\" }}"
 			_, err = rep.Render(1, nil)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldBeIn, []string{
+			assert.NotNil(t, err)
+			assert.Contains(t, []string{
 				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: invalid type for comparison`,
-				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: incompatible types for comparison: int and string`})
+				`template: :1:3: executing "" at <eq .Age "something">: error calling eq: incompatible types for comparison: int and string`}, err.Error())
 		})
-		Convey("Calling GetAction", func() {
+		t.Run("Calling GetAction", func(t *testing.T) {
 			act := reports.GetAction("sample_html", 3, reports.Data{"foo": "bar"})
-			So(act.Type, ShouldEqual, actions.ActionReport)
-			So(act.Name, ShouldEqual, "Sample Report")
-			So(act.Model, ShouldEqual, "User")
-			So(act.Data, ShouldResemble, map[string]interface{}{"foo": "bar"})
-			So(act.ReportName, ShouldEqual, "sample_html")
-			So(act.ReportFile, ShouldEqual, "sample_html")
-			So(act.ReportType, ShouldEqual, "TextReport")
-			So(act.Context.GetIntegerSlice("active_ids"), ShouldHaveLength, 1)
-			So(act.Context.GetIntegerSlice("active_ids"), ShouldContain, int64(3))
+			assert.EqualValues(t, act.Type, actions.ActionReport)
+			assert.EqualValues(t, act.Name, "Sample Report")
+			assert.EqualValues(t, act.Model, "User")
+			assert.Equal(t, act.Data, map[string]interface{}{"foo": "bar"})
+			assert.EqualValues(t, act.ReportName, "sample_html")
+			assert.EqualValues(t, act.ReportFile, "sample_html")
+			assert.EqualValues(t, act.ReportType, "TextReport")
+			assert.Len(t, act.Context.GetIntegerSlice("active_ids"), 1)
+			assert.Contains(t, act.Context.GetIntegerSlice("active_ids"), int64(3))
 		})
 	})
 }

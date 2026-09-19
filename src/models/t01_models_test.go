@@ -23,7 +23,6 @@ import (
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func testPrefixdUser(rc *RecordCollection, prefix string) []string {
@@ -35,7 +34,7 @@ func testPrefixdUser(rc *RecordCollection, prefix string) []string {
 }
 
 func TestModelDeclaration(t *testing.T) {
-	Convey("Creating DataBase...", t, func() {
+	t.Run("Creating DataBase...", func(t *testing.T) {
 		userModel := NewModel("User")
 		profileModel := NewModel("Profile")
 		post := NewModel("Post")

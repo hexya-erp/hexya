@@ -20,12 +20,13 @@ import (
 	"encoding/xml"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/beevik/etree"
 	"github.com/hexya-erp/hexya/src/i18n"
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/tools/xmlutils"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 var viewDef1 = `
@@ -176,17 +177,16 @@ func loadView(xml string) {
 }
 
 func TestViews(t *testing.T) {
-	Convey("Creating View 1", t, func() {
+	t.Run("Creating View 1", func(t *testing.T) {
 		loadView(viewDef1)
-		So(len(Registry.views), ShouldEqual, 1)
-		So(Registry.GetByID("my_id"), ShouldNotBeNil)
+		assert.EqualValues(t, len(Registry.views), 1)
+		assert.NotNil(t, Registry.GetByID("my_id"))
 		view := Registry.GetByID("my_id")
-		So(view.ID, ShouldEqual, "my_id")
-		So(view.Name, ShouldEqual, "My View")
-		So(view.Model, ShouldEqual, "User")
-		So(view.Priority, ShouldEqual, 16)
-		So(documentToXMLString(view.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, view.ID, "my_id")
+		assert.EqualValues(t, view.Name, "My View")
+		assert.EqualValues(t, view.Model, "User")
+		assert.EqualValues(t, view.Priority, 16)
+		assert.EqualValues(t, documentToXMLString(view.Arch("")), `<form>
 	<group>
 		<field name="UserName"/>
 		<label for="Age"/>
@@ -195,19 +195,18 @@ func TestViews(t *testing.T) {
 </form>
 `)
 	})
-	Convey("Creating View 2", t, func() {
+	t.Run("Creating View 2", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
-		So(len(Registry.views), ShouldEqual, 2)
-		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		assert.EqualValues(t, len(Registry.views), 2)
+		assert.NotNil(t, Registry.GetByID("my_other_id"))
 		view := Registry.GetByID("my_other_id")
-		So(view.ID, ShouldEqual, "my_other_id")
-		So(view.Name, ShouldEqual, "my.other.id")
-		So(view.Model, ShouldEqual, "Partner")
-		So(view.Priority, ShouldEqual, 12)
-		So(documentToXMLString(view.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, view.ID, "my_other_id")
+		assert.EqualValues(t, view.Name, "my.other.id")
+		assert.EqualValues(t, view.Model, "Partner")
+		assert.EqualValues(t, view.Priority, 12)
+		assert.EqualValues(t, documentToXMLString(view.Arch("")), `<form>
 	<h1>
 		<field name="Name"/>
 	</h1>
@@ -220,10 +219,10 @@ func TestViews(t *testing.T) {
 </form>
 `)
 	})
-	Convey("Bootstrapping views before models should panic", t, func() {
-		So(BootStrap, ShouldPanic)
+	t.Run("Bootstrapping views before models should panic", func(t *testing.T) {
+		assert.Panics(t, BootStrap)
 	})
-	Convey("Creating models and boostrap them", t, func() {
+	t.Run("Creating models and boostrap them", func(t *testing.T) {
 		group := models.NewModel("Group")
 		category := models.NewModel("Category")
 		user := models.NewModel("User")
@@ -259,21 +258,20 @@ func TestViews(t *testing.T) {
 		models.BootStrap()
 		models.Views[partner] = []string{`<view id="test_view" model="Partner"><tree><field name="Name"/></tree></view>`}
 	})
-	Convey("Setting two languages", t, func() {
+	t.Run("Setting two languages", func(t *testing.T) {
 		i18n.Langs = []string{"fr", "de"}
 	})
-	Convey("Inheriting View 2", t, func() {
+	t.Run("Inheriting View 2", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
 		loadView(viewDef3)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 3)
-		So(Registry.GetByID("my_id"), ShouldNotBeNil)
-		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		assert.EqualValues(t, len(Registry.views), 3)
+		assert.NotNil(t, Registry.GetByID("my_id"))
+		assert.NotNil(t, Registry.GetByID("my_other_id"))
 		view1 := Registry.GetByID("my_id")
-		So(documentToXMLString(view1.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(view1.Arch("")), `<form>
 	<group>
 		<field name="user_name"/>
 		<label for="age"/>
@@ -282,8 +280,7 @@ func TestViews(t *testing.T) {
 </form>
 `)
 		view2 := Registry.GetByID("my_other_id")
-		So(documentToXMLString(view2.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(view2.Arch("")), `<form>
 	<h1>
 		<field name="name"/>
 	</h1>
@@ -298,19 +295,18 @@ func TestViews(t *testing.T) {
 </form>
 `)
 	})
-	Convey("More inheritance on View 2", t, func() {
+	t.Run("More inheritance on View 2", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
 		loadView(viewDef3)
 		loadView(viewDef4)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 3)
-		So(Registry.GetByID("my_id"), ShouldNotBeNil)
-		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		assert.EqualValues(t, len(Registry.views), 3)
+		assert.NotNil(t, Registry.GetByID("my_id"))
+		assert.NotNil(t, Registry.GetByID("my_other_id"))
 		view2 := Registry.GetByID("my_other_id")
-		So(documentToXMLString(view2.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(view2.Arch("")), `<form>
 	<h2>
 		<field name="name"/>
 	</h2>
@@ -329,7 +325,7 @@ func TestViews(t *testing.T) {
 </form>
 `)
 	})
-	Convey("Modifying inherited modifications on View 2", t, func() {
+	t.Run("Modifying inherited modifications on View 2", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
@@ -337,12 +333,11 @@ func TestViews(t *testing.T) {
 		loadView(viewDef4)
 		loadView(viewDef5)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 3)
-		So(Registry.GetByID("my_id"), ShouldNotBeNil)
-		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
+		assert.EqualValues(t, len(Registry.views), 3)
+		assert.NotNil(t, Registry.GetByID("my_id"))
+		assert.NotNil(t, Registry.GetByID("my_other_id"))
 		view2 := Registry.GetByID("my_other_id")
-		So(documentToXMLString(view2.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(view2.Arch("")), `<form>
 	<h2>
 		<field name="name"/>
 	</h2>
@@ -361,7 +356,7 @@ func TestViews(t *testing.T) {
 </form>
 `)
 	})
-	Convey("Bootstrapping views", t, func() {
+	t.Run("Bootstrapping views", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
@@ -373,14 +368,14 @@ func TestViews(t *testing.T) {
 		view1 := Registry.GetByID("my_id")
 		view2 := Registry.GetByID("my_other_id")
 		view3 := Registry.GetByID("my_tree_id")
-		So(view1, ShouldNotBeNil)
-		So(view2, ShouldNotBeNil)
-		So(view3, ShouldNotBeNil)
-		So(view1.Type, ShouldEqual, ViewTypeForm)
-		So(view2.Type, ShouldEqual, ViewTypeForm)
-		So(view3.Type, ShouldEqual, ViewTypeTree)
+		assert.NotNil(t, view1)
+		assert.NotNil(t, view2)
+		assert.NotNil(t, view3)
+		assert.EqualValues(t, view1.Type, ViewTypeForm)
+		assert.EqualValues(t, view2.Type, ViewTypeForm)
+		assert.EqualValues(t, view3.Type, ViewTypeTree)
 	})
-	Convey("Testing embedded views", t, func() {
+	t.Run("Testing embedded views", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
@@ -390,28 +385,27 @@ func TestViews(t *testing.T) {
 		loadView(viewDef6)
 		loadView(viewDef7)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 5)
-		So(Registry.GetByID("embedded_form"), ShouldNotBeNil)
-		So(Registry.GetByID("embedded_form_childview_1"), ShouldBeNil)
-		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
+		assert.EqualValues(t, len(Registry.views), 5)
+		assert.NotNil(t, Registry.GetByID("embedded_form"))
+		assert.Nil(t, Registry.GetByID("embedded_form_childview_1"))
+		assert.Nil(t, Registry.GetByID("embedded_form_childview_2"))
 		view := Registry.GetByID("embedded_form")
-		So(view.ID, ShouldEqual, "embedded_form")
-		So(documentToXMLString(view.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, view.ID, "embedded_form")
+		assert.EqualValues(t, documentToXMLString(view.Arch("")), `<form>
 	<field name="user_name"/>
 	<field name="age" on_change="1"/>
 	<field name="category_ids"/>
 	<field name="groups_ids"/>
 </form>
 `)
-		So(view.SubViews, ShouldHaveLength, 2)
-		So(view.SubViews, ShouldContainKey, "Categories")
-		So(view.SubViews, ShouldContainKey, "Groups")
+		assert.Len(t, view.SubViews, 2)
+		assert.Contains(t, view.SubViews, "Categories")
+		assert.Contains(t, view.SubViews, "Groups")
 		viewCategories := view.SubViews["Categories"]
-		So(viewCategories, ShouldHaveLength, 2)
+		assert.Len(t, viewCategories, 2)
 		viewCategoriesForm := viewCategories[ViewTypeForm]
-		So(viewCategoriesForm.ID, ShouldEqual, "embedded_form_childview_Categories_1")
-		So(documentToXMLString(viewCategoriesForm.Arch("")), ShouldEqual, `<form>
+		assert.EqualValues(t, viewCategoriesForm.ID, "embedded_form_childview_Categories_1")
+		assert.EqualValues(t, documentToXMLString(viewCategoriesForm.Arch("")), `<form>
 	<h1>This is my form</h1>
 	<field name="name"/>
 	<field name="color"/>
@@ -419,24 +413,24 @@ func TestViews(t *testing.T) {
 </form>
 `)
 		viewCategoriesTree := viewCategories[ViewTypeTree]
-		So(viewCategoriesTree.ID, ShouldEqual, "embedded_form_childview_Categories_0")
-		So(documentToXMLString(viewCategoriesTree.Arch("")), ShouldEqual, `<tree>
+		assert.EqualValues(t, viewCategoriesTree.ID, "embedded_form_childview_Categories_0")
+		assert.EqualValues(t, documentToXMLString(viewCategoriesTree.Arch("")), `<tree>
 	<field name="name"/>
 	<field name="color"/>
 </tree>
 `)
 
 		viewGroups := view.SubViews["Groups"]
-		So(viewGroups, ShouldHaveLength, 1)
+		assert.Len(t, viewGroups, 1)
 		viewGroupsTree := viewGroups[ViewTypeTree]
-		So(viewGroupsTree.ID, ShouldEqual, "embedded_form_childview_Groups_0")
-		So(documentToXMLString(viewGroupsTree.Arch("")), ShouldEqual, `<tree>
+		assert.EqualValues(t, viewGroupsTree.ID, "embedded_form_childview_Groups_0")
+		assert.EqualValues(t, documentToXMLString(viewGroupsTree.Arch("")), `<tree>
 	<field name="name"/>
 	<field name="active"/>
 </tree>
 `)
 	})
-	Convey("Inheriting embedded views", t, func() {
+	t.Run("Inheriting embedded views", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
@@ -447,28 +441,27 @@ func TestViews(t *testing.T) {
 		loadView(viewDef7)
 		loadView(viewDef71)
 		BootStrap()
-		So(len(Registry.views), ShouldEqual, 5)
-		So(Registry.GetByID("embedded_form"), ShouldNotBeNil)
-		So(Registry.GetByID("embedded_form_childview_1"), ShouldBeNil)
-		So(Registry.GetByID("embedded_form_childview_2"), ShouldBeNil)
+		assert.EqualValues(t, len(Registry.views), 5)
+		assert.NotNil(t, Registry.GetByID("embedded_form"))
+		assert.Nil(t, Registry.GetByID("embedded_form_childview_1"))
+		assert.Nil(t, Registry.GetByID("embedded_form_childview_2"))
 		view := Registry.GetByID("embedded_form")
-		So(view.ID, ShouldEqual, "embedded_form")
-		So(documentToXMLString(view.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, view.ID, "embedded_form")
+		assert.EqualValues(t, documentToXMLString(view.Arch("")), `<form>
 	<field required="1" name="user_name"/>
 	<field name="age" on_change="1"/>
 	<field name="category_ids"/>
 	<field name="groups_ids"/>
 </form>
 `)
-		So(view.SubViews, ShouldHaveLength, 2)
-		So(view.SubViews, ShouldContainKey, "Categories")
-		So(view.SubViews, ShouldContainKey, "Groups")
+		assert.Len(t, view.SubViews, 2)
+		assert.Contains(t, view.SubViews, "Categories")
+		assert.Contains(t, view.SubViews, "Groups")
 		viewCategories := view.SubViews["Categories"]
-		So(viewCategories, ShouldHaveLength, 2)
+		assert.Len(t, viewCategories, 2)
 		viewCategoriesForm := viewCategories[ViewTypeForm]
-		So(viewCategoriesForm.ID, ShouldEqual, "embedded_form_childview_Categories_1")
-		So(documentToXMLString(viewCategoriesForm.Arch("")), ShouldEqual, `<form>
+		assert.EqualValues(t, viewCategoriesForm.ID, "embedded_form_childview_Categories_1")
+		assert.EqualValues(t, documentToXMLString(viewCategoriesForm.Arch("")), `<form>
 	<h1>This is my form</h1>
 	<field readonly="1" name="name"/>
 	<field name="color"/>
@@ -476,48 +469,48 @@ func TestViews(t *testing.T) {
 </form>
 `)
 		viewCategoriesTree := viewCategories[ViewTypeTree]
-		So(viewCategoriesTree.ID, ShouldEqual, "embedded_form_childview_Categories_0")
-		So(documentToXMLString(viewCategoriesTree.Arch("")), ShouldEqual, `<tree>
+		assert.EqualValues(t, viewCategoriesTree.ID, "embedded_form_childview_Categories_0")
+		assert.EqualValues(t, documentToXMLString(viewCategoriesTree.Arch("")), `<tree>
 	<field name="name"/>
 	<field name="color"/>
 </tree>
 `)
 
 		viewGroups := view.SubViews["Groups"]
-		So(viewGroups, ShouldHaveLength, 1)
+		assert.Len(t, viewGroups, 1)
 		viewGroupsTree := viewGroups[ViewTypeTree]
-		So(viewGroupsTree.ID, ShouldEqual, "embedded_form_childview_Groups_0")
-		So(documentToXMLString(viewGroupsTree.Arch("")), ShouldEqual, `<tree>
+		assert.EqualValues(t, viewGroupsTree.ID, "embedded_form_childview_Groups_0")
+		assert.EqualValues(t, documentToXMLString(viewGroupsTree.Arch("")), `<tree>
 	<field name="name"/>
 	<field name="active"/>
 </tree>
 `)
 	})
-	Convey("Testing GetViews functions", t, func() {
+	t.Run("Testing GetViews functions", func(t *testing.T) {
 		allViews := Registry.GetAll()
-		So(allViews, ShouldHaveLength, 5)
+		assert.Len(t, allViews, 5)
 		userViews := Registry.GetAllViewsForModel("User")
-		So(userViews, ShouldHaveLength, 3)
+		assert.Len(t, userViews, 3)
 		userFirstView := Registry.GetFirstViewForModel("User", ViewTypeForm)
-		So(userFirstView.ID, ShouldEqual, "my_id")
+		assert.EqualValues(t, userFirstView.ID, "my_id")
 	})
-	Convey("Testing default views", t, func() {
+	t.Run("Testing default views", func(t *testing.T) {
 		soModel := models.NewModel("SaleOrder")
 		soModel.AddFields(map[string]models.FieldDefinition{
 			"Name": fields.Char{},
 		})
 		soSearch := Registry.GetFirstViewForModel("SaleOrder", ViewTypeSearch)
-		So(documentToXMLString(soSearch.arch), ShouldEqual, `<search>
+		assert.EqualValues(t, documentToXMLString(soSearch.arch), `<search>
 	<field name="name"/>
 </search>
 `)
 		soTree := Registry.GetFirstViewForModel("SaleOrder", ViewTypeTree)
-		So(documentToXMLString(soTree.arch), ShouldEqual, `<tree>
+		assert.EqualValues(t, documentToXMLString(soTree.arch), `<tree>
 	<field name="name"/>
 </tree>
 `)
 	})
-	Convey("Create new base view from inheritance", t, func() {
+	t.Run("Create new base view from inheritance", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
@@ -528,12 +521,11 @@ func TestViews(t *testing.T) {
 		loadView(viewDef7)
 		loadView(viewDef8)
 		BootStrap()
-		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
-		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
+		assert.NotNil(t, Registry.GetByID("my_other_id"))
+		assert.NotNil(t, Registry.GetByID("new_base_view"))
 		view2 := Registry.GetByID("my_other_id")
 		newView := Registry.GetByID("new_base_view")
-		So(documentToXMLString(view2.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(view2.Arch("")), `<form>
 	<h2>
 		<field name="name"/>
 	</h2>
@@ -551,8 +543,7 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
-		So(documentToXMLString(newView.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(newView.Arch("")), `<form>
 	<h2>
 		<field name="name"/>
 	</h2>
@@ -572,7 +563,7 @@ func TestViews(t *testing.T) {
 </form>
 `)
 	})
-	Convey("Inheriting new base view from inheritance", t, func() {
+	t.Run("Inheriting new base view from inheritance", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef1)
 		loadView(viewDef2)
@@ -584,12 +575,11 @@ func TestViews(t *testing.T) {
 		loadView(viewDef8)
 		loadView(viewDef9)
 		BootStrap()
-		So(Registry.GetByID("my_other_id"), ShouldNotBeNil)
-		So(Registry.GetByID("new_base_view"), ShouldNotBeNil)
+		assert.NotNil(t, Registry.GetByID("my_other_id"))
+		assert.NotNil(t, Registry.GetByID("new_base_view"))
 		view2 := Registry.GetByID("my_other_id")
 		newView := Registry.GetByID("new_base_view")
-		So(documentToXMLString(view2.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(view2.Arch("")), `<form>
 	<h2>
 		<field name="name"/>
 	</h2>
@@ -607,8 +597,7 @@ func TestViews(t *testing.T) {
 	</group>
 </form>
 `)
-		So(documentToXMLString(newView.Arch("")), ShouldEqual,
-			`<form>
+		assert.EqualValues(t, documentToXMLString(newView.Arch("")), `<form>
 	<h2>
 		<field name="name"/>
 	</h2>
@@ -629,95 +618,94 @@ func TestViews(t *testing.T) {
 `)
 	})
 
-	Convey("Testing ViewRef objects", t, func() {
+	t.Run("Testing ViewRef objects", func(t *testing.T) {
 		userFormRef := MakeViewRef("my_id")
-		Convey("Creating ViewRef instance", func() {
-			So(userFormRef.ID(), ShouldEqual, "my_id")
-			So(userFormRef.Name(), ShouldEqual, "My View")
+		t.Run("Creating ViewRef instance", func(t *testing.T) {
+			assert.EqualValues(t, userFormRef.ID(), "my_id")
+			assert.EqualValues(t, userFormRef.Name(), "My View")
 			data, err := json.Marshal(userFormRef)
-			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `["my_id","My View"]`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(data), `["my_id","My View"]`)
 			val, err := userFormRef.Value()
-			So(err, ShouldBeNil)
-			So(val, ShouldEqual, driver.Value("my_id"))
+			assert.Nil(t, err)
+			assert.EqualValues(t, val, driver.Value("my_id"))
 		})
-		Convey("Creating empty viewRef", func() {
+		t.Run("Creating empty viewRef", func(t *testing.T) {
 			emptyVR := MakeViewRef("unknownID")
-			So(emptyVR.ID(), ShouldEqual, "")
-			So(emptyVR.Name(), ShouldEqual, "")
+			assert.EqualValues(t, emptyVR.ID(), "")
+			assert.EqualValues(t, emptyVR.Name(), "")
 			data, err := json.Marshal(emptyVR)
-			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `null`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(data), `null`)
 			val, err := emptyVR.Value()
-			So(err, ShouldBeNil)
-			So(val, ShouldEqual, driver.Value(""))
+			assert.Nil(t, err)
+			assert.EqualValues(t, val, driver.Value(""))
 		})
-		Convey("Unmarshalling JSON viewRef", func() {
+		t.Run("Unmarshalling JSON viewRef", func(t *testing.T) {
 			data := []byte(`["view_id","View Name"]`)
 			var vr ViewRef
 			err := json.Unmarshal(data, &vr)
-			So(err, ShouldBeNil)
-			So(vr.ID(), ShouldEqual, "view_id")
-			So(vr.Name(), ShouldEqual, "View Name")
+			assert.Nil(t, err)
+			assert.EqualValues(t, vr.ID(), "view_id")
+			assert.EqualValues(t, vr.Name(), "View Name")
 		})
-		Convey("Unmarshalling JSON empty viewRef", func() {
+		t.Run("Unmarshalling JSON empty viewRef", func(t *testing.T) {
 			data := []byte(`null`)
 			var vr ViewRef
 			err := json.Unmarshal(data, &vr)
-			So(err, ShouldBeNil)
-			So(vr.IsNull(), ShouldBeTrue)
+			assert.Nil(t, err)
+			assert.True(t, vr.IsNull())
 		})
-		Convey("Unmarshalling XML viewRef", func() {
+		t.Run("Unmarshalling XML viewRef", func(t *testing.T) {
 			type stuff struct {
 				Ref ViewRef `xml:"ref,attr"`
 			}
 			data := []byte(`<stuff ref="my_id"/>`)
 			var st stuff
 			err := xml.Unmarshal(data, &st)
-			So(err, ShouldBeNil)
-			So(st.Ref.ID(), ShouldEqual, "my_id")
-			So(st.Ref.Name(), ShouldEqual, "My View")
+			assert.Nil(t, err)
+			assert.EqualValues(t, st.Ref.ID(), "my_id")
+			assert.EqualValues(t, st.Ref.Name(), "My View")
 		})
-		Convey("Scanning viewRefs", func() {
+		t.Run("Scanning viewRefs", func(t *testing.T) {
 			var vr ViewRef
 			err := vr.Scan("my_id")
-			So(err, ShouldBeNil)
-			So(vr.ID(), ShouldEqual, "my_id")
-			So(vr.Name(), ShouldEqual, "My View")
+			assert.Nil(t, err)
+			assert.EqualValues(t, vr.ID(), "my_id")
+			assert.EqualValues(t, vr.Name(), "My View")
 
 			err = vr.Scan([]byte("my_tree_id"))
-			So(err, ShouldBeNil)
-			So(vr.ID(), ShouldEqual, "my_tree_id")
-			So(vr.Name(), ShouldEqual, "my.tree.id")
+			assert.Nil(t, err)
+			assert.EqualValues(t, vr.ID(), "my_tree_id")
+			assert.EqualValues(t, vr.Name(), "my.tree.id")
 		})
 	})
-	Convey("Testing ViewTuple objects", t, func() {
-		Convey("Marshalling a ViewTuple", func() {
+	t.Run("Testing ViewTuple objects", func(t *testing.T) {
+		t.Run("Marshalling a ViewTuple", func(t *testing.T) {
 			vt := ViewTuple{
 				ID:   "my_id",
 				Type: ViewTypeForm,
 			}
 			data, err := json.Marshal(vt)
-			So(err, ShouldBeNil)
-			So(string(data), ShouldEqual, `["my_id","form"]`)
+			assert.Nil(t, err)
+			assert.EqualValues(t, string(data), `["my_id","form"]`)
 		})
-		Convey("Unmarshalling ViewTuples", func() {
+		t.Run("Unmarshalling ViewTuples", func(t *testing.T) {
 			data := []byte(`["my_tree_id","tree"]`)
 			var vt ViewTuple
 			err := json.Unmarshal(data, &vt)
-			So(err, ShouldBeNil)
-			So(vt.ID, ShouldEqual, "my_tree_id")
-			So(vt.Type, ShouldEqual, ViewTypeTree)
+			assert.Nil(t, err)
+			assert.EqualValues(t, vt.ID, "my_tree_id")
+			assert.EqualValues(t, vt.Type, ViewTypeTree)
 		})
 	})
-	Convey("Testing search view sanitizing", t, func() {
+	t.Run("Testing search view sanitizing", func(t *testing.T) {
 		Registry = NewCollection()
 		loadView(viewDef10)
 		BootStrap()
-		So(Registry.GetByID("search_view"), ShouldNotBeNil)
+		assert.NotNil(t, Registry.GetByID("search_view"))
 		searchView := Registry.GetByID("search_view")
-		So(documentToXMLString(searchView.Arch("")), ShouldEqual,
-			`<search>
+		assert.EqualValues(t, documentToXMLString(searchView.Arch("")), `<search>
 	<field name="user_name" domain="[]"/>
 </search>
 `)

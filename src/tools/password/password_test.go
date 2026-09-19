@@ -6,22 +6,22 @@ package password
 import (
 	"testing"
 
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPasswords(t *testing.T) {
 	var hashed string
-	Convey("Testing password hashing and verifying", t, func() {
-		Convey("Hashing a password should not fail", func() {
+	t.Run("Testing password hashing and verifying", func(t *testing.T) {
+		t.Run("Hashing a password should not fail", func(t *testing.T) {
 			var err error
 			hashed, err = Hash("secret")
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 		})
-		Convey("Verifying the password should work", func() {
-			So(Verify("secret", hashed), ShouldBeTrue)
+		t.Run("Verifying the password should work", func(t *testing.T) {
+			assert.True(t, Verify("secret", hashed))
 		})
-		Convey("Verifiying with wrong password should fail", func() {
-			So(Verify("wrong-password", hashed), ShouldBeFalse)
+		t.Run("Verifiying with wrong password should fail", func(t *testing.T) {
+			assert.False(t, Verify("wrong-password", hashed))
 		})
 	})
 }

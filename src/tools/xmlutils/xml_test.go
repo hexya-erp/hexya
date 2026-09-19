@@ -7,14 +7,15 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/beevik/etree"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestConcatXML(t *testing.T) {
-	Convey("Testing XML Concatenation", t, func() {
+	t.Run("Testing XML Concatenation", func(t *testing.T) {
 		res, sha, err := ConcatXML([]string{"testdata/xml1.xml", "testdata/xml2.xml", "testdata/xml3.xml"})
-		So(string(res), ShouldEqual, `<rootTag>
+		assert.EqualValues(t, string(res), `<rootTag>
     <firstTag>
         Foo
     </firstTag>
@@ -27,22 +28,22 @@ Lorem Ipsum
     </data>
     <data2/>
 </rootTag>`)
-		So(fmt.Sprintf("%x", sha), ShouldEqual, "e8965a6008bac9638d86a804d78ab8f2ca30a06d")
-		So(err, ShouldBeNil)
+		assert.EqualValues(t, fmt.Sprintf("%x", sha), "e8965a6008bac9638d86a804d78ab8f2ca30a06d")
+		assert.Nil(t, err)
 	})
-	Convey("Non existent file should fail", t, func() {
+	t.Run("Non existent file should fail", func(t *testing.T) {
 		res, sha, err := ConcatXML([]string{"testdata/xml1.xml", "testdata/xml-not-exists.xml"})
-		So(res, ShouldBeEmpty)
-		So(fmt.Sprintf("%x", sha), ShouldEqual, "0000000000000000000000000000000000000000")
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "unable to open XML file testdata/xml-not-exists.xml: open testdata/xml-not-exists.xml: no such file or directory")
+		assert.Empty(t, res)
+		assert.EqualValues(t, fmt.Sprintf("%x", sha), "0000000000000000000000000000000000000000")
+		assert.NotNil(t, err)
+		assert.EqualValues(t, err.Error(), "unable to open XML file testdata/xml-not-exists.xml: open testdata/xml-not-exists.xml: no such file or directory")
 	})
-	Convey("Invalid XML input should fail", t, func() {
+	t.Run("Invalid XML input should fail", func(t *testing.T) {
 		res, sha, err := ConcatXML([]string{"testdata/xml1.xml", "testdata/xmlfail.xml"})
-		So(res, ShouldBeEmpty)
-		So(fmt.Sprintf("%x", sha), ShouldEqual, "0000000000000000000000000000000000000000")
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "unable to parse XML file testdata/xmlfail.xml: EOF")
+		assert.Empty(t, res)
+		assert.EqualValues(t, fmt.Sprintf("%x", sha), "0000000000000000000000000000000000000000")
+		assert.NotNil(t, err)
+		assert.EqualValues(t, err.Error(), "unable to parse XML file testdata/xmlfail.xml: EOF")
 	})
 }
 
@@ -106,15 +107,15 @@ var (
 )
 
 func TestApplyExtensions(t *testing.T) {
-	Convey("Testing ApplyExtensions", t, func() {
-		baseElem, _ := XMLToDocument(baseXML)
-		specDoc := etree.NewDocument()
-		Convey("Correct XML Extension spec", func() {
+	t.Run("Testing ApplyExtensions", func(t *testing.T) {
+		t.Run("Correct XML Extension spec", func(t *testing.T) {
+			baseElem, _ := XMLToDocument(baseXML)
+			specDoc := etree.NewDocument()
 			specDoc.ReadFromString(specs)
 			res, err := ApplyExtensions(baseElem, specDoc)
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 			xml, _ := DocumentToXML(res)
-			So(string(xml), ShouldEqual, `<form>
+			assert.EqualValues(t, string(xml), `<form>
 	<h2>
 		<field name="Name"/>
 	</h2>
@@ -133,55 +134,62 @@ func TestApplyExtensions(t *testing.T) {
 </form>
 `)
 		})
-		Convey("Template spec", func() {
+		t.Run("Template spec", func(t *testing.T) {
+			specDoc := etree.NewDocument()
 			baseTmplDoc, _ := XMLToDocument(baseTemplate)
 			specDoc.ReadFromString(templateAppendSpec)
 			res, err := ApplyExtensions(baseTmplDoc, specDoc)
-			So(err, ShouldBeNil)
+			assert.Nil(t, err)
 			xml, _ := DocumentToXMLNoIndent(res)
-			So(string(xml), ShouldEqual, `
+			assert.EqualValues(t, string(xml), `
 	<script type="text/javascript" src="/path/to/my/src.js"> </script>
 	<script type="text/javascript" src="/path/to/my/other/src.js"> </script>
 	<script type="text/javascript" src="/path/to/third/src.js"> </script>
 `)
 		})
-		Convey("XML which is not a spec should fail", func() {
+		t.Run("XML which is not a spec should fail", func(t *testing.T) {
+			baseElem, _ := XMLToDocument(baseXML)
+			specDoc := etree.NewDocument()
 			specDoc.ReadFromString(notASpec)
 			res, err := ApplyExtensions(baseElem, specDoc)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, `error in spec <foo>
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), `error in spec <foo>
 	Bar
 </foo>
 : invalid view inherit spec`)
-			So(res, ShouldBeNil)
+			assert.Nil(t, res)
 		})
-		Convey("Specs for unknown parent should fail", func() {
+		t.Run("Specs for unknown parent should fail", func(t *testing.T) {
+			baseElem, _ := XMLToDocument(baseXML)
+			specDoc := etree.NewDocument()
 			specDoc.ReadFromString(noParentSpec)
 			res, err := ApplyExtensions(baseElem, specDoc)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "node not found in parent view: //field[@name='noSuchField']")
-			So(res, ShouldBeNil)
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), "node not found in parent view: //field[@name='noSuchField']")
+			assert.Nil(t, res)
 		})
-		Convey("Specs without position attribute should fail", func() {
+		t.Run("Specs without position attribute should fail", func(t *testing.T) {
+			baseElem, _ := XMLToDocument(baseXML)
+			specDoc := etree.NewDocument()
 			specDoc.ReadFromString(noPositionSpec)
 			res, err := ApplyExtensions(baseElem, specDoc)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, `spec should include 'position' attribute : <field name="Email">
+			assert.NotNil(t, err)
+			assert.EqualValues(t, err.Error(), `spec should include 'position' attribute : <field name="Email">
 	<field name="Something"/>
 </field>
 `)
-			So(res, ShouldBeNil)
+			assert.Nil(t, res)
 		})
 	})
 }
 
 func TestHasParentTag(t *testing.T) {
-	Convey("Checking parent tag", t, func() {
+	t.Run("Checking parent tag", func(t *testing.T) {
 		baseElem, _ := XMLToElement(baseXML)
 		field := baseElem.FindElement("//field[@name='Function']")
-		So(HasParentTag(field, "group"), ShouldBeTrue)
-		So(HasParentTag(field, "form"), ShouldBeTrue)
-		So(HasParentTag(field, "h1"), ShouldBeFalse)
-		So(HasParentTag(field, "field"), ShouldBeFalse)
+		assert.True(t, HasParentTag(field, "group"))
+		assert.True(t, HasParentTag(field, "form"))
+		assert.False(t, HasParentTag(field, "h1"))
+		assert.False(t, HasParentTag(field, "field"))
 	})
 }

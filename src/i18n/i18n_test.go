@@ -7,188 +7,189 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models/types"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
-func checkTranslation() {
-	So(Registry.fieldSelection, ShouldHaveLength, 2)
-	So(Registry.fieldSelection, ShouldContainKey, selectionRef{lang: "fr", model: "Profile", field: "State", source: "Active"})
-	So(Registry.fieldSelection[selectionRef{lang: "fr", model: "Profile", field: "State", source: "Active"}], ShouldEqual, "Actif")
-	So(Registry.fieldSelection, ShouldContainKey, selectionRef{lang: "fr", model: "Profile", field: "State", source: "Inactive"})
-	So(Registry.fieldSelection[selectionRef{lang: "fr", model: "Profile", field: "State", source: "Inactive"}], ShouldEqual, "Inactif")
-	So(Registry.fieldDescription, ShouldContainKey, fieldRef{lang: "fr", model: "User", field: "Active"})
-	So(Registry.fieldDescription[fieldRef{lang: "fr", model: "User", field: "Active"}], ShouldEqual, "Actif")
-	So(Registry.fieldHelp, ShouldContainKey, fieldRef{lang: "fr", model: "User", field: "Active"})
-	So(Registry.fieldHelp[fieldRef{lang: "fr", model: "User", field: "Active"}], ShouldEqual, "Lorsqu'il est inactif,\nun utilisateur ne sera pas autorisé à se connecter")
-	So(Registry.resource, ShouldContainKey, resourceRef{lang: "fr", id: "user_view_id", source: "Profile Data"})
-	So(Registry.resource[resourceRef{lang: "fr", id: "user_view_id", source: "Profile Data"}], ShouldEqual, "Données du profil")
-	So(Registry.code, ShouldContainKey, codeRef{lang: "fr", context: "base", source: "You are not allowed to perform this operation"})
-	So(Registry.code[codeRef{lang: "fr", context: "base", source: "You are not allowed to perform this operation"}], ShouldEqual, "Vous n'êtes pas autorisé à faire cette opération")
-	So(Registry.custom[customRef{lang: "fr", id: "Create", module: "testModule"}], ShouldEqual, "Créer")
-	So(Registry.custom[customRef{lang: "fr", id: "Warning", module: "testModule"}], ShouldEqual, "Attention")
+func checkTranslation(t *testing.T) {
+	assert.Len(t, Registry.fieldSelection, 2)
+	assert.Contains(t, Registry.fieldSelection, selectionRef{lang: "fr", model: "Profile", field: "State", source: "Active"})
+	assert.EqualValues(t, Registry.fieldSelection[selectionRef{lang: "fr", model: "Profile", field: "State", source: "Active"}], "Actif")
+	assert.Contains(t, Registry.fieldSelection, selectionRef{lang: "fr", model: "Profile", field: "State", source: "Inactive"})
+	assert.EqualValues(t, Registry.fieldSelection[selectionRef{lang: "fr", model: "Profile", field: "State", source: "Inactive"}], "Inactif")
+	assert.Contains(t, Registry.fieldDescription, fieldRef{lang: "fr", model: "User", field: "Active"})
+	assert.EqualValues(t, Registry.fieldDescription[fieldRef{lang: "fr", model: "User", field: "Active"}], "Actif")
+	assert.Contains(t, Registry.fieldHelp, fieldRef{lang: "fr", model: "User", field: "Active"})
+	assert.EqualValues(t, Registry.fieldHelp[fieldRef{lang: "fr", model: "User", field: "Active"}], "Lorsqu'il est inactif,\nun utilisateur ne sera pas autorisé à se connecter")
+	assert.Contains(t, Registry.resource, resourceRef{lang: "fr", id: "user_view_id", source: "Profile Data"})
+	assert.EqualValues(t, Registry.resource[resourceRef{lang: "fr", id: "user_view_id", source: "Profile Data"}], "Données du profil")
+	assert.Contains(t, Registry.code, codeRef{lang: "fr", context: "base", source: "You are not allowed to perform this operation"})
+	assert.EqualValues(t, Registry.code[codeRef{lang: "fr", context: "base", source: "You are not allowed to perform this operation"}], "Vous n'êtes pas autorisé à faire cette opération")
+	assert.EqualValues(t, Registry.custom[customRef{lang: "fr", id: "Create", module: "testModule"}], "Créer")
+	assert.EqualValues(t, Registry.custom[customRef{lang: "fr", id: "Warning", module: "testModule"}], "Attention")
 }
 
 func TestI18N(t *testing.T) {
-	Convey("Testing translation framework", t, func() {
-		Convey("Loading translation from file", func() {
-			So(func() { LoadPOFile("testdata/fr.po") }, ShouldNotPanic)
-			checkTranslation()
+	t.Run("Testing translation framework", func(t *testing.T) {
+		t.Run("Loading translation from file", func(t *testing.T) {
+			assert.NotPanics(t, func() { LoadPOFile("testdata/fr.po") })
+			checkTranslation(t)
 		})
-		Convey("Loading a second time the same file should not change anything", func() {
+		t.Run("Loading a second time the same file should not change anything", func(t *testing.T) {
 			LoadPOFile("testdata/fr.po")
-			checkTranslation()
+			checkTranslation(t)
 		})
-		Convey("Translating field description should work", func() {
+		t.Run("Translating field description should work", func(t *testing.T) {
 			trans := TranslateFieldDescription("fr", "User", "Active", "")
-			So(trans, ShouldEqual, "Actif")
+			assert.EqualValues(t, trans, "Actif")
 			trans = TranslateFieldDescription("de", "User", "Active", "Active")
-			So(trans, ShouldEqual, "Active")
+			assert.EqualValues(t, trans, "Active")
 			trans = TranslateFieldDescription("fr", "User", "Login", "Login")
-			So(trans, ShouldEqual, "Login")
+			assert.EqualValues(t, trans, "Login")
 		})
-		Convey("Translating field help should work", func() {
+		t.Run("Translating field help should work", func(t *testing.T) {
 			trans := TranslateFieldHelp("fr", "User", "Active", "")
-			So(trans, ShouldEqual, "Lorsqu'il est inactif,\nun utilisateur ne sera pas autorisé à se connecter")
+			assert.EqualValues(t, trans, "Lorsqu'il est inactif,\nun utilisateur ne sera pas autorisé à se connecter")
 			trans = TranslateFieldHelp("de", "User", "Active", "defaultValue")
-			So(trans, ShouldEqual, "defaultValue")
+			assert.EqualValues(t, trans, "defaultValue")
 			trans = TranslateFieldHelp("fr", "User", "Login", "defaultHelp")
-			So(trans, ShouldEqual, "defaultHelp")
+			assert.EqualValues(t, trans, "defaultHelp")
 		})
-		Convey("Translating field selection should work", func() {
+		t.Run("Translating field selection should work", func(t *testing.T) {
 			trans := TranslateFieldSelection("fr", "Profile", "State", types.Selection{"active": "Active", "inactive": "Inactive"})
-			So(trans, ShouldHaveLength, 2)
-			So(trans["active"], ShouldEqual, "Actif")
-			So(trans["inactive"], ShouldEqual, "Inactif")
+			assert.Len(t, trans, 2)
+			assert.EqualValues(t, trans["active"], "Actif")
+			assert.EqualValues(t, trans["inactive"], "Inactif")
 			trans = TranslateFieldSelection("de", "Profile", "State", types.Selection{"active": "Active", "inactive": "Inactive"})
-			So(trans, ShouldHaveLength, 2)
-			So(trans["active"], ShouldEqual, "Active")
-			So(trans["inactive"], ShouldEqual, "Inactive")
+			assert.Len(t, trans, 2)
+			assert.EqualValues(t, trans["active"], "Active")
+			assert.EqualValues(t, trans["inactive"], "Inactive")
 			trans = TranslateFieldSelection("fr", "Profile", "State", types.Selection{"active": "Active", "inactive": "Unknown"})
-			So(trans, ShouldHaveLength, 2)
-			So(trans["active"], ShouldEqual, "Actif")
-			So(trans["inactive"], ShouldEqual, "Unknown")
+			assert.Len(t, trans, 2)
+			assert.EqualValues(t, trans["active"], "Actif")
+			assert.EqualValues(t, trans["inactive"], "Unknown")
 		})
-		Convey("Translating views should work", func() {
+		t.Run("Translating views should work", func(t *testing.T) {
 			trans := TranslateResourceItem("fr", "user_view_id", "Profile Data")
-			So(trans, ShouldEqual, "Données du profil")
+			assert.EqualValues(t, trans, "Données du profil")
 			trans = TranslateResourceItem("de", "user_view_id", "Profile Data")
-			So(trans, ShouldEqual, "Profile Data")
+			assert.EqualValues(t, trans, "Profile Data")
 			trans = TranslateResourceItem("fr", "user_view2_id", "Profile Data")
-			So(trans, ShouldEqual, "Profile Data")
+			assert.EqualValues(t, trans, "Profile Data")
 		})
-		Convey("Translating code should work", func() {
+		t.Run("Translating code should work", func(t *testing.T) {
 			trans := TranslateCode("fr", "base", "You are not allowed to perform this operation")
-			So(trans, ShouldEqual, "Vous n'êtes pas autorisé à faire cette opération")
+			assert.EqualValues(t, trans, "Vous n'êtes pas autorisé à faire cette opération")
 			trans = TranslateCode("de", "base", "You are not allowed to perform this operation")
-			So(trans, ShouldEqual, "You are not allowed to perform this operation")
+			assert.EqualValues(t, trans, "You are not allowed to perform this operation")
 			trans = TranslateCode("fr", "stock", "You are not allowed to perform this operation")
-			So(trans, ShouldEqual, "You are not allowed to perform this operation")
+			assert.EqualValues(t, trans, "You are not allowed to perform this operation")
 		})
-		Convey("Translating custom should work", func() {
+		t.Run("Translating custom should work", func(t *testing.T) {
 			trans := TranslateCustom("fr", "Create", "testModule")
-			So(trans, ShouldEqual, "Créer")
+			assert.EqualValues(t, trans, "Créer")
 			trans = TranslateCustom("de", "Create", "testModule")
-			So(trans, ShouldEqual, "Create")
+			assert.EqualValues(t, trans, "Create")
 			trans = TranslateCustom("fr", "Stock", "testModule")
-			So(trans, ShouldEqual, "Stock")
+			assert.EqualValues(t, trans, "Stock")
 		})
-		Convey("Testing translation overrides", func() {
+		t.Run("Testing translation overrides", func(t *testing.T) {
 			LoadPOFile("testdata/fr-override.po")
 			trans := TranslateFieldSelection("fr", "Profile", "State", types.Selection{"active": "Active", "inactive": "Inactive"})
-			So(trans, ShouldHaveLength, 2)
-			So(trans["active"], ShouldEqual, "Activé")
-			So(trans["inactive"], ShouldEqual, "Inactif")
+			assert.Len(t, trans, 2)
+			assert.EqualValues(t, trans["active"], "Activé")
+			assert.EqualValues(t, trans["inactive"], "Inactif")
 			transField := TranslateFieldDescription("fr", "User", "Active", "")
-			So(transField, ShouldEqual, "Actif")
+			assert.EqualValues(t, transField, "Actif")
 			transView := TranslateResourceItem("fr", "user_view_id", "Profile Data")
-			So(transView, ShouldEqual, "Données du profil")
+			assert.EqualValues(t, transView, "Données du profil")
 		})
-		Convey("Testing invalid PO files", func() {
-			So(func() { LoadPOFile("testdata/invalid-po.txt") }, ShouldPanic)
-			So(func() { LoadPOFile("testdata/no-lang.po") }, ShouldPanic)
-			So(func() { LoadPOFile("testdata/invalid-field.po") }, ShouldPanic)
-			So(func() { LoadPOFile("testdata/invalid-help.po") }, ShouldPanic)
-			So(func() { LoadPOFile("testdata/invalid-selection.po") }, ShouldPanic)
-			So(func() { LoadPOFile("testdata/invalid-comment.po") }, ShouldNotPanic)
+		t.Run("Testing invalid PO files", func(t *testing.T) {
+			assert.Panics(t, func() { LoadPOFile("testdata/invalid-po.txt") })
+			assert.Panics(t, func() { LoadPOFile("testdata/no-lang.po") })
+			assert.Panics(t, func() { LoadPOFile("testdata/invalid-field.po") })
+			assert.Panics(t, func() { LoadPOFile("testdata/invalid-help.po") })
+			assert.Panics(t, func() { LoadPOFile("testdata/invalid-selection.po") })
+			assert.NotPanics(t, func() { LoadPOFile("testdata/invalid-comment.po") })
 		})
 	})
 }
 
 func TestLanguagesData(t *testing.T) {
-	Convey("Testing languages data", t, func() {
-		Convey("Registering and overriding locales", func() {
-			So(locales, ShouldHaveLength, 78)
-			So(locales, ShouldContainKey, "nl")
-			So(locales, ShouldNotContainKey, "wz")
+	t.Run("Testing languages data", func(t *testing.T) {
+		t.Run("Registering and overriding locales", func(t *testing.T) {
+			assert.Len(t, locales, 78)
+			assert.Contains(t, locales, "nl")
+			assert.NotContains(t, locales, "wz")
 			all := GetAllLanguageList()
-			So(all, ShouldHaveLength, 78)
-			So(all, ShouldNotContain, "wz")
-			So(RegisterLocale(&Locale{
+			assert.Len(t, all, 78)
+			assert.NotContains(t, all, "wz")
+			assert.Nil(t, RegisterLocale(&Locale{
 				Name:      "New Locale",
 				ISOCode:   "wz",
 				Direction: LangDirectionLTR,
-			}), ShouldBeNil)
-			So(OverrideLocale(&Locale{
+			}))
+			assert.Nil(t, OverrideLocale(&Locale{
 				Name:      "New Dutch",
 				ISOCode:   "nl",
 				Direction: LangDirectionLTR,
-			}), ShouldBeNil)
-			So(locales, ShouldHaveLength, 79)
-			So(locales, ShouldContainKey, "nl")
-			So(locales, ShouldContainKey, "wz")
+			}))
+			assert.Len(t, locales, 79)
+			assert.Contains(t, locales, "nl")
+			assert.Contains(t, locales, "wz")
 			all = GetAllLanguageList()
-			So(all, ShouldHaveLength, 79)
-			So(all, ShouldContain, "wz")
+			assert.Len(t, all, 79)
+			assert.Contains(t, all, "wz")
 			os.Remove("testdata/server/i18n/testModule")
 		})
-		Convey("Registering/overriding invalid locale should fail", func() {
-			So(RegisterLocale(&Locale{}), ShouldNotBeNil)
-			So(OverrideLocale(&Locale{}), ShouldNotBeNil)
-			So(RegisterLocale(&Locale{
+		t.Run("Registering/overriding invalid locale should fail", func(t *testing.T) {
+			assert.NotNil(t, RegisterLocale(&Locale{}))
+			assert.NotNil(t, OverrideLocale(&Locale{}))
+			assert.NotNil(t, RegisterLocale(&Locale{
 				ISOCode: "wz",
-			}), ShouldNotBeNil)
-			So(RegisterLocale(&Locale{
+			}))
+			assert.NotNil(t, RegisterLocale(&Locale{
 				Name:    "New Locale",
 				ISOCode: "wz",
-			}), ShouldNotBeNil)
+			}))
 		})
-		Convey("Registering existing locale should fail", func() {
-			So(RegisterLocale(&Locale{
+		t.Run("Registering existing locale should fail", func(t *testing.T) {
+			assert.NotNil(t, RegisterLocale(&Locale{
 				Name:      "New Locale",
 				ISOCode:   "wz",
 				Direction: LangDirectionLTR,
-			}), ShouldNotBeNil)
+			}))
 		})
-		Convey("Overriding non existing locale should fail", func() {
-			So(OverrideLocale(&Locale{
+		t.Run("Overriding non existing locale should fail", func(t *testing.T) {
+			assert.NotNil(t, OverrideLocale(&Locale{
 				Name:      "New Locale",
 				ISOCode:   "zz",
 				Direction: LangDirectionLTR,
-			}), ShouldNotBeNil)
+			}))
 		})
-		Convey("Checking existing language data", func() {
+		t.Run("Checking existing language data", func(t *testing.T) {
 			frParams := GetLocale("fr")
-			So(frParams, ShouldNotBeNil)
-			So(frParams.Name, ShouldEqual, "French / Français")
+			assert.NotNil(t, frParams)
+			assert.EqualValues(t, frParams.Name, "French / Français")
 		})
-		Convey("Checking non-existing language data", func() {
+		t.Run("Checking non-existing language data", func(t *testing.T) {
 			frParams := GetLocale("noexists")
-			So(frParams, ShouldNotBeNil)
-			So(frParams.Name, ShouldEqual, "UNKNOWN_LOCALE (noexists)")
+			assert.NotNil(t, frParams)
+			assert.EqualValues(t, frParams.Name, "UNKNOWN_LOCALE (noexists)")
 		})
 	})
 }
 
 func TestCustomTranslations(t *testing.T) {
-	Convey("Testing retrieving custom translations", t, func() {
-		Convey("Listing all custom translations", func() {
+	t.Run("Testing retrieving custom translations", func(t *testing.T) {
+		t.Run("Listing all custom translations", func(t *testing.T) {
 			tr := GetAllCustomTranslations()
-			So(tr, ShouldHaveLength, 1)
-			So(tr, ShouldContainKey, "fr")
-			So(tr["fr"], ShouldHaveLength, 1)
-			So(tr["fr"], ShouldContainKey, "testModule")
-			So(tr["fr"]["testModule"], ShouldHaveLength, 2)
+			assert.Len(t, tr, 1)
+			assert.Contains(t, tr, "fr")
+			assert.Len(t, tr["fr"], 1)
+			assert.Contains(t, tr["fr"], "testModule")
+			assert.Len(t, tr["fr"]["testModule"], 2)
 		})
 	})
 }

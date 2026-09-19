@@ -19,16 +19,17 @@ import (
 	"log"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/hexya-erp/hexya/src/models"
 	"github.com/hexya-erp/hexya/src/models/fields"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/models/types/dates"
-	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestExtModelDeclaration(t *testing.T) {
-	Convey("Creating DataBase...", t, func() {
+	t.Run("Creating DataBase...", func(t *testing.T) {
 		userModel := models.NewModel("ExtUser")
 		profileModel := models.NewModel("ExtProfile")
 		post := models.NewModel("ExtPost")
@@ -470,15 +471,15 @@ func TestExtModelDeclaration(t *testing.T) {
 }
 
 func TestExtErroneousDeclarations(t *testing.T) {
-	Convey("Testing wrong field declarations", t, func() {
-		Convey("Ours = Theirs in M2M field def", func() {
+	t.Run("Testing wrong field declarations", func(t *testing.T) {
+		t.Run("Ours = Theirs in M2M field def", func(t *testing.T) {
 			userModel := models.Registry.MustGet("User")
-			So(func() {
+			assert.Panics(t, func() {
 				userModel.AddFields(map[string]models.FieldDefinition{
 					"Tags": fields.Many2Many{RelationModel: models.Registry.MustGet("ExtTag"),
 						M2MOurField: "FT", M2MTheirField: "FT"},
 				})
-			}, ShouldPanic)
+			})
 		})
 	})
 }
