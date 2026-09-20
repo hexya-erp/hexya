@@ -16,6 +16,7 @@ package models
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hexya-erp/hexya/src/models/types"
 	"github.com/hexya-erp/hexya/src/tools/logging"
@@ -90,29 +91,30 @@ func (env Environment) checkRecursion() {
 // DumpCache returns a human readable string of this Environment's
 // cache for debugging purposes.
 func (env Environment) DumpCache() string {
-	res := "Data\n====\n"
+	var res strings.Builder
+	res.WriteString("Data\n====\n")
 	for modelName, model := range env.cache.data {
 		for id, record := range model {
-			res += fmt.Sprintf("> Model: %s, ID: %d\n", modelName, id)
+			res.WriteString(fmt.Sprintf("> Model: %s, ID: %d\n", modelName, id))
 			for field, value := range record {
-				res += fmt.Sprintf("    %s: %#v\n", field, value)
+				res.WriteString(fmt.Sprintf("    %s: %#v\n", field, value))
 			}
 		}
 	}
-	res += "\nM2M Links\n=========\n"
+	res.WriteString("\nM2M Links\n=========\n")
 	for relModel, pairs := range env.cache.m2mLinks {
-		res += fmt.Sprintf("> RelModel: %s, pairs: %v\n", relModel, pairs)
+		res.WriteString(fmt.Sprintf("> RelModel: %s, pairs: %v\n", relModel, pairs))
 	}
-	res += "\nX2M Links\n=========\n"
+	res.WriteString("\nX2M Links\n=========\n")
 	for modelName, records := range env.cache.x2mRelated {
 		for id, record := range records {
-			res += fmt.Sprintf("> Model: %s, ID: %d\n", modelName, id)
+			res.WriteString(fmt.Sprintf("> Model: %s, ID: %d\n", modelName, id))
 			for fieldName, fields := range record {
-				res += fmt.Sprintf("    %s: %#v\n", fieldName, fields)
+				res.WriteString(fmt.Sprintf("    %s: %#v\n", fieldName, fields))
 			}
 		}
 	}
-	return res
+	return res.String()
 }
 
 // newEnvironment returns a new Environment for the given user ID

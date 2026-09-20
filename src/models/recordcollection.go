@@ -42,13 +42,13 @@ type RecordCollection struct {
 }
 
 // Scan implements sql.Scanner
-func (rc *RecordCollection) Scan(src interface{}) error {
+func (rc *RecordCollection) Scan(src any) error {
 	if !rc.IsValid() {
 		return fmt.Errorf("recordset should be valid before scanning %s", src)
 	}
 	switch r := src.(type) {
-	case *interface{}, nil, bool:
-	case []interface{}:
+	case *any, nil, bool:
+	case []any:
 		if len(r) > 0 {
 			ids := make([]int64, len(r))
 			for i, v := range r {
@@ -647,7 +647,7 @@ func (rc *RecordCollection) relatedFieldMap(fMap FieldMap, field FieldName) (Fie
 
 // substituteSQLErrorMessage changes the message from the given recover data
 // if it comes from the database with the message defined in this model
-func (rc *RecordCollection) substituteSQLErrorMessage(r interface{}) interface{} {
+func (rc *RecordCollection) substituteSQLErrorMessage(r any) any {
 	err, ok := r.(error)
 	if !ok {
 		return r
@@ -912,7 +912,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 
 // Get returns the value of the given fieldName for the first record of this RecordCollection.
 // It returns the type's zero value if the RecordCollection is empty.
-func (rc *RecordCollection) Get(fieldName FieldName) interface{} {
+func (rc *RecordCollection) Get(fieldName FieldName) any {
 	fi := rc.model.getRelatedFieldInfo(fieldName)
 	if !rc.IsValid() {
 		res := reflect.Zero(fi.structField.Type).Interface()
@@ -923,7 +923,7 @@ func (rc *RecordCollection) Get(fieldName FieldName) interface{} {
 	}
 	rc.CheckExecutionPermission(rc.model.methods.MustGet("Load"))
 	rc.Fetch()
-	var res interface{}
+	var res any
 
 	exprs := splitFieldNames(fieldName, ExprSep)
 	switch {
@@ -955,7 +955,7 @@ func (rc *RecordCollection) Get(fieldName FieldName) interface{} {
 		res, _ = rc.get(fieldName, all)
 	}
 
-	if res == nil || res == (*interface{})(nil) {
+	if res == nil || res == (*any)(nil) {
 		// res is nil if we do not have access rights on the field.
 		// then return the field's type zero value
 		res = reflect.Zero(fi.structField.Type).Interface()
@@ -969,7 +969,7 @@ func (rc *RecordCollection) Get(fieldName FieldName) interface{} {
 
 // ConvertToRecordSet the given val which can be of type *interface{}(nil) int64, []int64
 // for the given related model name
-func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName string) *RecordCollection {
+func (rc *RecordCollection) convertToRecordSet(val any, relatedModelName string) *RecordCollection {
 	if rc.env == nil {
 		return InvalidRecordCollection(relatedModelName)
 	}
@@ -985,7 +985,7 @@ func (rc *RecordCollection) convertToRecordSet(val interface{}, relatedModelName
 // If all is true, all fields of the model are loaded, otherwise only field.
 //
 // Second returned value is true if a call to the DB was necessary (i.e. not in cache)
-func (rc *RecordCollection) get(field FieldName, all bool) (interface{}, bool) {
+func (rc *RecordCollection) get(field FieldName, all bool) (any, bool) {
 	rc.Fetch()
 	var dbCalled bool
 	isInCache := rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field.JSON()}, rc.query.ctxArgsSlug(), true)
@@ -1007,7 +1007,7 @@ func (rc *RecordCollection) get(field FieldName, all bool) (interface{}, bool) {
 // Set sets field given by fieldName to the given value. If the RecordSet has several
 // Records, all of them will be updated. Each call to Set makes an update query in the
 // database. It panics if it is called on an empty RecordSet.
-func (rc *RecordCollection) Set(fieldName FieldName, value interface{}) {
+func (rc *RecordCollection) Set(fieldName FieldName, value any) {
 	md := NewModelData(rc.model).Set(fieldName, value)
 	rc.Call("Write", md)
 }
@@ -1278,7 +1278,7 @@ func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 //
 // The translated string will be passed to fmt.Sprintf with the optional args
 // before being returned.
-func (rc *RecordCollection) T(src string, args ...interface{}) string {
+func (rc *RecordCollection) T(src string, args ...any) string {
 	lang := rc.Env().Context().GetString("lang")
 	transCode := i18n.TranslateCode(lang, "", src)
 	return fmt.Sprintf(transCode, args...)

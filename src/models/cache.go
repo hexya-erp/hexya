@@ -49,7 +49,7 @@ func (nepe nonExistentPathError) Error() string {
 
 // updateEntry creates or updates an entry in the cache defined by its model, id and fieldName.
 // fieldName can be a path
-func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interface{}, ctxSlug string) error {
+func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value any, ctxSlug string) error {
 	if id == 0 {
 		return errors.New("skipped entry with id = 0")
 	}
@@ -63,7 +63,7 @@ func (c *cache) updateEntry(mi *Model, id int64, fieldName string, value interfa
 
 // updateEntryByRef creates or updates an entry to the cache from a cacheRef
 // and a field json name (no path).
-func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value interface{}, ctxSlug string) {
+func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value any, ctxSlug string) {
 	fi := mi.fields.MustGet(jsonName)
 	switch fi.fieldType {
 	case fieldtype.One2Many:
@@ -102,7 +102,7 @@ func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value int
 }
 
 // setDataValue sets the value for the jsonName field of record ref to value
-func (c *cache) setDataValue(model string, id int64, jsonName string, value interface{}) {
+func (c *cache) setDataValue(model string, id int64, jsonName string, value any) {
 	c.Lock()
 	defer c.Unlock()
 	if _, ok := c.data[model]; !ok {
@@ -278,7 +278,7 @@ func (c *cache) removeEntry(mi *Model, id int64, fieldName, ctxSlug string) {
 // relative to this Model (e.g. "User.Profile.Age").
 //
 // If the requested value cannot be found, get returns nil
-func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) interface{} {
+func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) any {
 	mi, id, fName, err := c.getRelatedRef(mi, id, fieldName, ctxSlug)
 	if err != nil {
 		return nil

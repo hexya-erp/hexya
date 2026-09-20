@@ -21,7 +21,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/beevik/etree"
@@ -40,7 +40,7 @@ func ConcatXML(fileNames []string) ([]byte, [sha1.Size]byte, error) {
 	var reStruct basicXML
 	for _, fileName := range fileNames {
 		var content basicXML
-		cnt, err := ioutil.ReadFile(fileName)
+		cnt, err := os.ReadFile(fileName)
 		if err != nil {
 			return nil, [sha1.Size]byte{}, fmt.Errorf("unable to open XML file %s: %s", fileName, err)
 		}

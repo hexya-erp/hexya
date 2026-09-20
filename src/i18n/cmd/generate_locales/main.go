@@ -38,7 +38,7 @@ func main() {
 			break
 		}
 		recMap := make(map[string]string)
-		for i := 0; i < len(headers); i++ {
+		for i := range headers {
 			recMap[headers[i]] = record[i]
 		}
 		dtSubst := map[string]string{

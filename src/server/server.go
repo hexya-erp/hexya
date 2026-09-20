@@ -101,9 +101,9 @@ type RequestRPC struct {
 // A ResponseRPC is the message format sent back to a client
 // in case of success
 type ResponseRPC struct {
-	JsonRPC string      `json:"jsonrpc"`
-	ID      int64       `json:"id"`
-	Result  interface{} `json:"result"`
+	JsonRPC string `json:"jsonrpc"`
+	ID      int64  `json:"id"`
+	Result  any    `json:"result"`
 }
 
 // A ResponseError is the message format sent back to a
@@ -123,9 +123,9 @@ type JSONRPCErrorData struct {
 
 // JSONRPCError is the format of an Error in a ResponseError
 type JSONRPCError struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
 }
 
 var hexyaServer *Server

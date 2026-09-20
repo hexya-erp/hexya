@@ -56,7 +56,7 @@ func generateAndUpdatePOFiles(moduleDir string, langs []string, tmpl *template.T
 		panic(err)
 	}
 	modulePath := packs[0].PkgPath
-	conf := make(map[string]interface{})
+	conf := make(map[string]any)
 	conf["moduleDir"] = moduleDir
 	conf["modulePath"] = modulePath
 	conf["langs"] = langs

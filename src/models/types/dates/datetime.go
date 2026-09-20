@@ -52,7 +52,7 @@ func (d DateTime) Value() (driver.Value, error) {
 }
 
 // Scan casts the database output to a DateTime
-func (d *DateTime) Scan(src interface{}) error {
+func (d *DateTime) Scan(src any) error {
 	switch t := src.(type) {
 	case time.Time:
 		d.Time = t

@@ -35,7 +35,7 @@ func (p *Header) parseHeader(msg *Message) {
 		return
 	}
 	lines := strings.Split(msg.MsgStr, "\n")
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		idx := strings.Index(lines[i], ":")
 		if idx < 0 {
 			continue

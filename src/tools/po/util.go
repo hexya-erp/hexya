@@ -10,7 +10,7 @@ import (
 
 func decodePoString(text string) string {
 	lines := strings.Split(text, "\n")
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		left := strings.Index(lines[i], `"`)
 		right := strings.LastIndex(lines[i], `"`)
 		if left < 0 || right < 0 || left == right {
@@ -50,7 +50,7 @@ func encodePoString(text string) string {
 	}
 	var buf bytes.Buffer
 	lines := strings.Split(text, "\n")
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		if lines[i] == "" {
 			if i != len(lines)-1 {
 				buf.WriteString(`"\n"` + "\n")
@@ -89,7 +89,7 @@ func encodeCommentPoString(text string) string {
 	if len(lines) > 1 {
 		buf.WriteString(`""` + "\n")
 	}
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		if len(lines) > 0 {
 			buf.WriteString("#| ")
 		}

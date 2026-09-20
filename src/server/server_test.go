@@ -114,7 +114,7 @@ func TestContextRPC(t *testing.T) {
 		assert.Nil(t, json.Unmarshal(resp.Body.Bytes(), &res))
 		assert.Equal(t, "2.0", res.JsonRPC)
 		assert.Equal(t, int64(12), res.ID)
-		assert.Equal(t, map[string]interface{}{"foo": "bar"}, res.Result)
+		assert.Equal(t, map[string]any{"foo": "bar"}, res.Result)
 	})
 	t.Run("Getting the id from the context", func(t *testing.T) {
 		resp := testRequest(func(c *Context) {
@@ -138,8 +138,8 @@ func TestContextRPC(t *testing.T) {
 		assert.Equal(t, int64(12), res.ID)
 		assert.Equal(t, http.StatusInternalServerError, res.Error.Code)
 		assert.Equal(t, "Hexya Server Error", res.Error.Message)
-		data := res.Error.Data.(map[string]interface{})
-		assert.Equal(t, []interface{}{"Error Message"}, data["arguments"])
+		data := res.Error.Data.(map[string]any)
+		assert.Equal(t, []any{"Error Message"}, data["arguments"])
 		assert.Equal(t, "user_error", data["exception_type"])
 		assert.Equal(t, "Debug Info", data["debug"])
 	})
@@ -172,7 +172,7 @@ func TestContextBindRPCParams(t *testing.T) {
 	}
 	t.Run("Binding valid params", func(t *testing.T) {
 		var data params
-		var id interface{}
+		var id any
 		resp := testRequest(func(c *Context) {
 			c.BindRPCParams(&data)
 			id, _ = c.Get("id")
@@ -195,7 +195,7 @@ func TestContextBindRPCParams(t *testing.T) {
 }
 
 func TestContextSession(t *testing.T) {
-	var session interface{}
+	var session any
 	resp := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/session", nil)
 	hexyaServer.Group("/").GET("session", func(c *Context) {

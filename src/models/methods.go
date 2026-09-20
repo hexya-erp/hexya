@@ -212,13 +212,13 @@ func (m *Method) Underlying() *Method {
 
 // Call executes the given method with the given parameters
 // and returns (only) the first returned value
-func (m *Method) Call(rc *RecordCollection, params ...interface{}) interface{} {
+func (m *Method) Call(rc *RecordCollection, params ...any) any {
 	return rc.Call(m.name, params...)
 }
 
 // CallMulti executes the given method with the given parameters
 // and returns all returned value as []interface{}.
-func (m *Method) CallMulti(rc *RecordCollection, params ...interface{}) []interface{} {
+func (m *Method) CallMulti(rc *RecordCollection, params ...any) []any {
 	return rc.CallMulti(m.name, params...)
 }
 
@@ -248,17 +248,17 @@ func copyMethod(m *Model, method *Method) *Method {
 // func(RecordCollection, args...) function Value suitable for use in a
 // methodLayer.
 func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
-	wrapperType := reflect.TypeOf(func(*RecordCollection, ...interface{}) []interface{} { return nil })
+	wrapperType := reflect.TypeOf(func(*RecordCollection, ...any) []any { return nil })
 	if fnctVal.Type() == wrapperType {
 		// fnctVal is already wrapped, we just return it
 		return fnctVal
 	}
-	methodLayerFunction := func(rc *RecordCollection, args ...interface{}) []interface{} {
+	methodLayerFunction := func(rc *RecordCollection, args ...any) []any {
 		argZeroType := fnctVal.Type().In(0)
 		argsVals := make([]reflect.Value, len(args)+1)
 		argsVals[0] = reflect.New(argZeroType).Elem()
 		switch argZeroType {
-		case reflect.TypeOf(new(RecordCollection)):
+		case reflect.TypeFor[*RecordCollection]():
 			argsVals[0].Set(reflect.ValueOf(rc))
 		default:
 			modelName := argZeroType.Name()[:len(argZeroType.Name())-3]
@@ -279,7 +279,7 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 			retVal = fnctVal.Call(argsVals)
 		}
 
-		res := make([]interface{}, len(retVal))
+		res := make([]any, len(retVal))
 		for i, val := range retVal {
 			res[i] = val.Interface()
 		}
@@ -289,7 +289,7 @@ func wrapFunctionForMethodLayer(fnctVal reflect.Value) reflect.Value {
 }
 
 // convertFunctionArg converts the given argument to match that of fnctArgType.
-func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value {
+func convertFunctionArg(fnctArgType reflect.Type, arg any) reflect.Value {
 	var val reflect.Value
 	switch at := arg.(type) {
 	case Conditioner:
@@ -297,7 +297,7 @@ func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value
 			// Target is a Conditioner nothing to change
 			return reflect.ValueOf(at)
 		}
-		if fnctArgType == reflect.TypeOf(new(Condition)) {
+		if fnctArgType == reflect.TypeFor[*Condition]() {
 			// Target is a pointer to an untyped Condition
 			return reflect.ValueOf(at.Underlying())
 		}
@@ -310,7 +310,7 @@ func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value
 			// Target is a RecordData nothing to change
 			return reflect.ValueOf(at)
 		}
-		if fnctArgType == reflect.TypeOf(new(ModelData)) {
+		if fnctArgType == reflect.TypeFor[*ModelData]() {
 			// Target is a *ModelData so we send Underlying
 			return reflect.ValueOf(at.Underlying())
 		}
@@ -323,10 +323,10 @@ func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value
 		// Given arg is already a typed ModelData
 		return reflect.ValueOf(arg)
 	case RecordSet:
-		if fnctArgType == reflect.TypeOf((*RecordSet)(nil)).Elem() {
+		if fnctArgType == reflect.TypeFor[RecordSet]() {
 			return reflect.ValueOf(at)
 		}
-		if fnctArgType == reflect.TypeOf(new(RecordCollection)) {
+		if fnctArgType == reflect.TypeFor[*RecordCollection]() {
 			return reflect.ValueOf(at.Collection())
 		}
 		return reflect.ValueOf(at.Collection().Wrap())
@@ -341,7 +341,7 @@ func convertFunctionArg(fnctArgType reflect.Type, arg interface{}) reflect.Value
 // that is treated differently by code generation.
 //
 // Do NOT factorize code with NewMethod or the code generation will fail
-func (m *Model) addMethod(methodName string, fnct interface{}) *Method {
+func (m *Model) addMethod(methodName string, fnct any) *Method {
 	meth, exists, inModel := m.methods.get(methodName)
 	if exists && !inModel {
 		// We are trying to add an existing mixin method as a new method
@@ -356,7 +356,7 @@ func (m *Model) addMethod(methodName string, fnct interface{}) *Method {
 }
 
 // NewMethod is used in modules to declare a new method for this model.
-func (m *Model) NewMethod(methodName string, fnct interface{}) *Method {
+func (m *Model) NewMethod(methodName string, fnct any) *Method {
 	meth, exists, inModel := m.methods.get(methodName)
 	if exists && !inModel {
 		// We are trying to add an existing mixin method as a new method
@@ -394,7 +394,7 @@ func (m *Model) AddEmptyMethod(methodName string) *Method {
 }
 
 // finalize adds the given fnct as first method layer to this method
-func (m *Method) finalize(fnct interface{}) *Method {
+func (m *Method) finalize(fnct any) *Method {
 	if m.topLayer != nil {
 		log.Panic("Call to NewMethod (finalize) with an existing method name", "model", m.model.name, "method", m.name)
 	}
@@ -407,7 +407,7 @@ func (m *Method) finalize(fnct interface{}) *Method {
 
 // Extend adds the given fnct function as a new layer on this method.
 // fnct must be of the same signature as the first layer of this method.
-func (m *Method) Extend(fnct interface{}) *Method {
+func (m *Method) Extend(fnct any) *Method {
 	m.checkMethodAndFnctType(fnct)
 	val := reflect.ValueOf(fnct)
 	if m.methodType != nil {
@@ -461,16 +461,16 @@ func checkTypesMatch(type1, type2 reflect.Type) bool {
 	if type1 == type2 {
 		return true
 	}
-	if type1 == reflect.TypeOf(new(RecordCollection)) && type2.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+	if type1 == reflect.TypeFor[*RecordCollection]() && type2.Implements(reflect.TypeFor[RecordSet]()) {
 		return true
 	}
-	if type2 == reflect.TypeOf(new(RecordCollection)) && type1.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+	if type2 == reflect.TypeFor[*RecordCollection]() && type1.Implements(reflect.TypeFor[RecordSet]()) {
 		return true
 	}
-	if type1 == reflect.TypeOf(FieldMap{}) && type2.Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()) {
+	if type1 == reflect.TypeFor[FieldMap]() && type2.Implements(reflect.TypeFor[FieldMapper]()) {
 		return true
 	}
-	if type2 == reflect.TypeOf(FieldMap{}) && type1.Implements(reflect.TypeOf((*FieldMapper)(nil)).Elem()) {
+	if type2 == reflect.TypeFor[FieldMap]() && type1.Implements(reflect.TypeFor[FieldMapper]()) {
 		return true
 	}
 	if type2.Kind() == reflect.Interface && type1.Implements(type2) {
@@ -499,7 +499,7 @@ func (m *Model) findMethodInMixin(methodName string) (*Method, bool) {
 
 // checkMethodAndFnctType checks whether the given arguments are valid for
 // NewMethod or Extend. It panics if this is not the case
-func (m *Method) checkMethodAndFnctType(fnct interface{}) {
+func (m *Method) checkMethodAndFnctType(fnct any) {
 	if m.model.methods.bootstrapped {
 		log.Panic("Create/ExtendMethod must be run before BootStrap", "model", m.name, "method", m.name)
 	}
@@ -508,7 +508,7 @@ func (m *Method) checkMethodAndFnctType(fnct interface{}) {
 		log.Panic("fnct parameter must be a function", "model", m.name, "method", m.name, "fnct", fnct)
 	}
 	funcType := val.Type()
-	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+	if funcType.NumIn() == 0 || !funcType.In(0).Implements(reflect.TypeFor[RecordSet]()) {
 		log.Panic("Function must have a `RecordSet` as first argument to be used as method.",
 			"model", m.model.name, "method", m.name, "type", funcType.In(0))
 	}

@@ -701,15 +701,15 @@ func computeExportPath(typ types.Type) string {
 // beginning of each line and prepend "// ". It also strips empty lines at
 // the beginning.
 func formatDocString(doc string) string {
-	var res string
+	var res strings.Builder
 	var dataStarted bool
-	for _, line := range strings.Split(doc, "\n") {
+	for line := range strings.SplitSeq(doc, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" && !dataStarted {
 			continue
 		}
 		dataStarted = true
-		res += fmt.Sprintf("// %s\n", line)
+		res.WriteString(fmt.Sprintf("// %s\n", line))
 	}
-	return strings.TrimRight(res, "/ \n")
+	return strings.TrimRight(res.String(), "/ \n")
 }

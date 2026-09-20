@@ -157,7 +157,7 @@ Age: 24
 			assert.EqualValues(t, act.Type, actions.ActionReport)
 			assert.EqualValues(t, act.Name, "Sample Report")
 			assert.EqualValues(t, act.Model, "User")
-			assert.Equal(t, act.Data, map[string]interface{}{"foo": "bar"})
+			assert.Equal(t, act.Data, map[string]any{"foo": "bar"})
 			assert.EqualValues(t, act.ReportName, "sample_html")
 			assert.EqualValues(t, act.ReportFile, "sample_html")
 			assert.EqualValues(t, act.ReportType, "TextReport")

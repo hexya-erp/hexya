@@ -17,6 +17,7 @@ package models_test
 import (
 	"fmt"
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,11 +97,11 @@ func TestExtModelDeclaration(t *testing.T) {
 
 		userModel.NewMethod("SubSetSuper",
 			func(rc *models.RecordCollection) string {
-				var res string
+				var res strings.Builder
 				for _, rec := range rc.Records() {
-					res += rec.Get(rec.Model().FieldName("Name")).(string)
+					res.WriteString(rec.Get(rec.Model().FieldName("Name")).(string))
 				}
-				return res
+				return res.String()
 			})
 
 		userModel.Methods().MustGet("SubSetSuper").Extend(
@@ -296,19 +297,19 @@ func TestExtModelDeclaration(t *testing.T) {
 			})
 
 		post.Methods().MustGet("WithContext").Extend(
-			func(rc *models.RecordCollection, key string, value interface{}) *models.RecordCollection {
+			func(rc *models.RecordCollection, key string, value any) *models.RecordCollection {
 				return rc.Super().Call("WithContext", key, value).(*models.RecordCollection)
 			})
 
 		post.NewMethod("ComputeTagsNames",
 			func(rc *models.RecordCollection) *models.ModelData {
-				var res string
+				var res strings.Builder
 				for _, rec := range rc.Records() {
 					for _, tg := range rec.Get(rec.Model().FieldName("Tags")).(models.RecordSet).Collection().Records() {
-						res += tg.Get(tg.Model().FieldName("Name")).(string) + " "
+						res.WriteString(tg.Get(tg.Model().FieldName("Name")).(string) + " ")
 					}
 				}
-				return models.NewModelData(rc.Model()).Set(rc.Model().FieldName("TagsNames"), res)
+				return models.NewModelData(rc.Model()).Set(rc.Model().FieldName("TagsNames"), res.String())
 			})
 
 		post.NewMethod("ComputeWriterAge",

@@ -17,7 +17,7 @@ var log logging.Logger
 // This function must be called prior to any access to the templates Registry.
 func BootStrap() {
 	// Inherit/Extend templates
-	for loop := 0; loop < maxInheritanceDepth; loop++ {
+	for range maxInheritanceDepth {
 		// First step: we extend all we can with pure extension templates (no ID)
 		for i, xmlTmpl := range Registry.collection.rawInheritedTemplates {
 			if xmlTmpl == nil {

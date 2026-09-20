@@ -30,7 +30,7 @@ func NewTemplateSet() *TemplateSet {
 }
 
 // Instance returns the TemplateRenderer given by its name with the given data
-func (ts *TemplateSet) Instance(name string, data interface{}) render.Render {
+func (ts *TemplateSet) Instance(name string, data any) render.Render {
 	template := hweb.Must(ts.FromCache(name))
 	return TemplateRenderer{
 		Template: template,

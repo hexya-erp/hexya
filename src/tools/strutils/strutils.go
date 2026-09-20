@@ -17,6 +17,7 @@ package strutils
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -39,7 +40,7 @@ func SnakeCase(in string) string {
 	length := len(runes)
 
 	var out []rune
-	for i := 0; i < length; i++ {
+	for i := range length {
 		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
 			out = append(out, '_')
 		}
@@ -57,7 +58,7 @@ func Title(in string) string {
 	length := len(runes)
 
 	var out []rune
-	for i := 0; i < length; i++ {
+	for i := range length {
 		if i > 0 && unicode.IsUpper(runes[i]) && ((i+1 < length && unicode.IsLower(runes[i+1])) || unicode.IsLower(runes[i-1])) {
 			out = append(out, ' ')
 		}
@@ -83,7 +84,7 @@ func StartsAndEndsWith(str, prefix, suffix string) bool {
 
 // MarshalToJSONString marshals the given data to its JSON representation and
 // returns it as a string. It panics in case of error.
-func MarshalToJSONString(data interface{}) string {
+func MarshalToJSONString(data any) string {
 	if _, ok := data.(string); !ok {
 		domBytes, err := json.Marshal(data)
 		if err != nil {
@@ -138,17 +139,12 @@ func MakeUnique(str string, pool []string) string {
 
 // IsIn returns true if the given str is the same as one of the strings given in lst
 func IsIn(str string, lst ...string) bool {
-	for _, l := range lst {
-		if str == l {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(lst, str)
 }
 
 // TrimArgs returns a slice of string containing every given arg
 // converted to printed string and trimmed down to a length of 30
-func TrimArgs(args []interface{}) []string {
+func TrimArgs(args []any) []string {
 	argStr := make([]string, len(args))
 	for i, arg := range args {
 		str := fmt.Sprintf("%v", arg)

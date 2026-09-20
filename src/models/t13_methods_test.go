@@ -475,7 +475,7 @@ func TestRecursionProtection(t *testing.T) {
 			})
 			t.Run("Loop calls should not trigger recursion protection", func(t *testing.T) {
 				assert.NotPanics(t, func() {
-					for i := 0; i < int(maxRecursionDepth)+10; i++ {
+					for range int(maxRecursionDepth) + 10 {
 						env.Pool("Profile").Call("SayHello")
 					}
 				})
@@ -495,31 +495,31 @@ func TestInternalMethodFunctions(t *testing.T) {
 			userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 			RegisterRecordSetWrapper("Profile", TestProfileSet{})
 			t.Run("convertFunctionArg", func(t *testing.T) {
-				assert.EqualValues(t, convertFunctionArg(reflect.TypeOf(*new(int64)), 126).Interface(), 126)
-				prof := convertFunctionArg(reflect.TypeOf(TestProfileSet{}), userJane.Get(profile))
-				assert.EqualValues(t, prof.Type(), reflect.TypeOf(TestProfileSet{}))
+				assert.EqualValues(t, convertFunctionArg(reflect.TypeFor[int64](), 126).Interface(), 126)
+				prof := convertFunctionArg(reflect.TypeFor[TestProfileSet](), userJane.Get(profile))
+				assert.EqualValues(t, prof.Type(), reflect.TypeFor[TestProfileSet]())
 				assert.True(t, prof.Interface().(TestProfileSet).Collection().Equals(userJane.Get(profile).(RecordSet).Collection()))
-				prof = convertFunctionArg(reflect.TypeOf(new(RecordCollection)), userJane.Get(profile))
-				assert.EqualValues(t, prof.Type(), reflect.TypeOf(new(RecordCollection)))
+				prof = convertFunctionArg(reflect.TypeFor[*RecordCollection](), userJane.Get(profile))
+				assert.EqualValues(t, prof.Type(), reflect.TypeFor[*RecordCollection]())
 				assert.True(t, prof.Interface().(*RecordCollection).Equals(userJane.Get(profile).(RecordSet).Collection()))
-				vals := convertFunctionArg(reflect.TypeOf(new(ModelData)), NewModelData(users.model, FieldMap{"name": "Mike"}))
-				assert.EqualValues(t, vals.Type(), reflect.TypeOf(new(ModelData)))
+				vals := convertFunctionArg(reflect.TypeFor[*ModelData](), NewModelData(users.model, FieldMap{"name": "Mike"}))
+				assert.EqualValues(t, vals.Type(), reflect.TypeFor[*ModelData]())
 				assert.Len(t, vals.Interface().(*ModelData).FieldMap, 1)
 				assert.Contains(t, vals.Interface().(*ModelData).FieldMap, "name")
 				assert.EqualValues(t, vals.Interface().(*ModelData).FieldMap["name"], "Mike")
-				vals = convertFunctionArg(reflect.TypeOf(new(TestUserData)), NewModelData(users.model, FieldMap{"IsStaff": true}))
-				assert.EqualValues(t, vals.Type(), reflect.TypeOf(new(ModelData)))
+				vals = convertFunctionArg(reflect.TypeFor[*TestUserData](), NewModelData(users.model, FieldMap{"IsStaff": true}))
+				assert.EqualValues(t, vals.Type(), reflect.TypeFor[*ModelData]())
 				assert.Len(t, vals.Interface().(*ModelData).FieldMap, 1)
 				assert.Contains(t, vals.Interface().(*ModelData).FieldMap, "is_staff")
 				assert.EqualValues(t, vals.Interface().(*ModelData).FieldMap["is_staff"], true)
 				cond := users.Model().Field(Name).Equals("Jane Smith")
-				c := convertFunctionArg(reflect.TypeOf(TestUserCondition{}), cond)
-				assert.EqualValues(t, c.Type(), reflect.TypeOf(TestUserCondition{}))
+				c := convertFunctionArg(reflect.TypeFor[TestUserCondition](), cond)
+				assert.EqualValues(t, c.Type(), reflect.TypeFor[TestUserCondition]())
 				assert.EqualValues(t, c.Interface().(TestUserCondition).Underlying().String(), cond.String())
 			})
 			t.Run("MethodType", func(t *testing.T) {
 				meth := users.model.methods.MustGet("OnChangeMana")
-				assert.EqualValues(t, meth.MethodType(), reflect.TypeOf(func(*RecordCollection) *ModelData { return &ModelData{} }))
+				assert.EqualValues(t, meth.MethodType(), reflect.TypeFor[func(*RecordCollection) *ModelData]())
 			})
 			t.Run("Name", func(t *testing.T) {
 				meth := users.model.methods.MustGet("ComputeCoolType")

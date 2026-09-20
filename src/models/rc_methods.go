@@ -25,7 +25,7 @@ import (
 
 // Call calls the given method name methName on the given RecordCollection
 // with the given arguments and returns (only) the first result as interface{}.
-func (rc *RecordCollection) Call(methName string, args ...interface{}) interface{} {
+func (rc *RecordCollection) Call(methName string, args ...any) any {
 	res := rc.CallMulti(methName, args...)
 	if len(res) == 0 {
 		return nil
@@ -35,7 +35,7 @@ func (rc *RecordCollection) Call(methName string, args ...interface{}) interface
 
 // CallMulti calls the given method name methName on the given RecordCollection
 // with the given arguments and return the result as []interface{}.
-func (rc *RecordCollection) CallMulti(methName string, args ...interface{}) []interface{} {
+func (rc *RecordCollection) CallMulti(methName string, args ...any) []any {
 	log.Debug("Calling Recordset method", "model", rc.model.name, "method", methName, "ids", rc.ids, "args", strutils.TrimArgs(args))
 	if !rc.IsValid() {
 		panic(fmt.Errorf("you cannot call a method on an invalid RecordSet. Model: %s, Method: %s", rc.model.name, methName))
@@ -110,7 +110,7 @@ func (rc *RecordCollection) MethodType(methName string) reflect.Type {
 }
 
 // callMulti is a wrapper around reflect.Value.Call() to use with interface{} type.
-func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...interface{}) []interface{} {
+func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...any) []any {
 	rc.CheckExecutionPermission(methLayer.method)
 	inVals := make([]reflect.Value, len(args)+1)
 	inVals[0] = reflect.ValueOf(rc)
@@ -124,7 +124,7 @@ func (rc *RecordCollection) callMulti(methLayer *methodLayer, args ...interface{
 
 	retVal := methLayer.funcValue.Call(inVals)[0]
 
-	res := make([]interface{}, retVal.Len())
+	res := make([]any, retVal.Len())
 	for i := 0; i < retVal.Len(); i++ {
 		res[i] = retVal.Index(i).Interface()
 	}

@@ -89,7 +89,7 @@ func (d *postgresAdapter) connectionString(params ConnectionParams) string {
 
 // operatorSQL returns the sql string and placeholders for the given DomainOperator
 // Also modifies the given args to match the syntax of the operator.
-func (d *postgresAdapter) operatorSQL(do operator.Operator, arg interface{}) (string, interface{}) {
+func (d *postgresAdapter) operatorSQL(do operator.Operator, arg any) (string, any) {
 	op := pgOperators[do]
 	switch do {
 	case operator.Contains, operator.IContains, operator.NotContains, operator.NotIContains:

@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -363,7 +362,7 @@ func isRecordSetType(typ string, models map[string]ModelASTData) (bool, bool) {
 }
 
 // CreateFileFromTemplate generates a new file from the given template and data
-func CreateFileFromTemplate(fileName string, template *template.Template, data interface{}) {
+func CreateFileFromTemplate(fileName string, template *template.Template, data any) {
 	var srcBuffer bytes.Buffer
 	template.Execute(&srcBuffer, data)
 	srcData, err := format.Source(srcBuffer.Bytes())
@@ -372,7 +371,7 @@ func CreateFileFromTemplate(fileName string, template *template.Template, data i
 			fileName, "mData", fmt.Sprintf("%#v", data), "src", srcBuffer.String())
 	}
 	// Write to file
-	err = ioutil.WriteFile(fileName, srcData, 0644)
+	err = os.WriteFile(fileName, srcData, 0644)
 	if err != nil {
 		log.Panic("Error while saving generated source file", "error", err, "fileName", fileName)
 	}

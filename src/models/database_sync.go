@@ -192,7 +192,7 @@ func createDBColumn(fi *Field) {
 		updateQuery := fmt.Sprintf(`
 			UPDATE %s SET %s = ? WHERE %s IS NULL
 		`, adapter.quoteTableName(fi.model.tableName), fi.json, fi.json)
-		var defaultValue interface{}
+		var defaultValue any
 		SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
 			defaultValue = fi.defaultFunc(env)
 		})

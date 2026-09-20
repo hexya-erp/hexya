@@ -57,7 +57,7 @@ func TestBaseModelMethods(t *testing.T) {
 		t.Run("Sorted", func(t *testing.T) {
 			assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 				userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
-				for i := 0; i < 20; i++ {
+				for i := range 20 {
 					h.Post().Create(env, h.Post().NewData().
 						SetTitle(fmt.Sprintf("Post no %02d", (24-i)%20)).
 						SetUser(userJane))
@@ -79,7 +79,7 @@ func TestBaseModelMethods(t *testing.T) {
 		t.Run("Filtered", func(t *testing.T) {
 			assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 				userJane := h.User().Search(env, q.User().Email().Equals("jane.smith@example.com"))
-				for i := 0; i < 20; i++ {
+				for i := range 20 {
 					h.Post().Create(env, h.Post().NewData().
 						SetTitle(fmt.Sprintf("Post no %02d", i)).
 						SetUser(userJane))
@@ -95,7 +95,7 @@ func TestBaseModelMethods(t *testing.T) {
 					return false
 				}).Records()
 				assert.Len(t, evenPosts, 10)
-				for i := 0; i < 10; i++ {
+				for i := range 10 {
 					assert.EqualValues(t, evenPosts[i].Title(), fmt.Sprintf("Post no %02d", 2*i))
 				}
 			}))

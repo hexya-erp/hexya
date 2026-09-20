@@ -70,20 +70,20 @@ func UnBootStrap() {
 	}
 }
 
-func checkUpdates(t *testing.T, f *Field, property string, value interface{}) {
+func checkUpdates(t *testing.T, f *Field, property string, value any) {
 	assert.Greater(t, len(f.updates), 0)
 	assert.Contains(t, f.updates[len(f.updates)-1], property)
 	assert.EqualValues(t, f.updates[len(f.updates)-1][property], value)
 }
 
-func lastUpdateShouldResemble(t *testing.T, f *Field, key string, s interface{}) {
+func lastUpdateShouldResemble(t *testing.T, f *Field, key string, s any) {
 	assert.Contains(t, f.updates[len(f.updates)-1], key)
 	assert.Equal(t, f.updates[len(f.updates)-1][key], s)
 }
 
 func lastUpdateDefFuncShouldEqual(t *testing.T, f *Field, key string, res string) {
 	assert.Contains(t, f.updates[len(f.updates)-1], key)
-	assert.EqualValues(t, f.updates[len(f.updates)-1][key].(func(env Environment) interface{})(Environment{}), res)
+	assert.EqualValues(t, f.updates[len(f.updates)-1][key].(func(env Environment) any)(Environment{}), res)
 }
 
 func TestFieldModification(t *testing.T) {
@@ -271,12 +271,12 @@ func TestIllegalMethods(t *testing.T) {
 
 		var _ FieldMapper = TestFieldMap{}
 
-		assert.True(t, checkTypesMatch(reflect.TypeOf("bar"), reflect.TypeOf("bar")))
-		assert.False(t, checkTypesMatch(reflect.TypeOf(0), reflect.TypeOf("bar")))
-		assert.True(t, checkTypesMatch(reflect.TypeOf(new(RecordCollection)), reflect.TypeOf(TestRecordSet{})))
-		assert.True(t, checkTypesMatch(reflect.TypeOf(TestRecordSet{}), reflect.TypeOf(new(RecordCollection))))
-		assert.True(t, checkTypesMatch(reflect.TypeOf(TestFieldMap{}), reflect.TypeOf(FieldMap{})))
-		assert.True(t, checkTypesMatch(reflect.TypeOf(FieldMap{}), reflect.TypeOf(TestFieldMap{})))
+		assert.True(t, checkTypesMatch(reflect.TypeFor[string](), reflect.TypeFor[string]()))
+		assert.False(t, checkTypesMatch(reflect.TypeFor[int](), reflect.TypeFor[string]()))
+		assert.True(t, checkTypesMatch(reflect.TypeFor[*RecordCollection](), reflect.TypeFor[TestRecordSet]()))
+		assert.True(t, checkTypesMatch(reflect.TypeFor[TestRecordSet](), reflect.TypeFor[*RecordCollection]()))
+		assert.True(t, checkTypesMatch(reflect.TypeFor[TestFieldMap](), reflect.TypeFor[FieldMap]()))
+		assert.True(t, checkTypesMatch(reflect.TypeFor[FieldMap](), reflect.TypeFor[TestFieldMap]()))
 	})
 	t.Run("Test compute and onChange method signature", func(t *testing.T) {
 		userModel := Registry.MustGet("User")
@@ -439,8 +439,8 @@ func TestBootStrap(t *testing.T) {
 				name:        "Date",
 				json:        "date",
 				fieldType:   fieldtype.Date,
-				structField: reflect.StructField{Type: reflect.TypeOf(dates.Date{})},
-				defaultFunc: func(env Environment) interface{} {
+				structField: reflect.StructField{Type: reflect.TypeFor[dates.Date]()},
+				defaultFunc: func(env Environment) any {
 					return dates.Today()
 				},
 			})

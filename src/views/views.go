@@ -81,7 +81,7 @@ func (vr ViewRef) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON is the JSON unmarshalling method of ViewRef.
 // It unmarshals null into an empty ViewRef.
 func (vr *ViewRef) UnmarshalJSON(data []byte) error {
-	var dst interface{}
+	var dst any
 	if err := json.Unmarshal(data, &dst); err == nil && dst == nil {
 		*vr = ViewRef{"", ""}
 		return nil
@@ -108,7 +108,7 @@ func (vr ViewRef) Value() (driver.Value, error) {
 
 // Scan fetches the name of our view from the ID
 // stored in the database to fill the ViewRef.
-func (vr *ViewRef) Scan(src interface{}) error {
+func (vr *ViewRef) Scan(src any) error {
 	var source string
 	switch s := src.(type) {
 	case string:
@@ -159,13 +159,13 @@ func (vt ViewTuple) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON method for ViewTuple
 func (vt *ViewTuple) UnmarshalJSON(data []byte) error {
-	var src interface{}
+	var src any
 	err := json.Unmarshal(data, &src)
 	if err != nil {
 		return err
 	}
 	switch s := src.(type) {
-	case []interface{}:
+	case []any:
 		vID, _ := s[0].(string)
 		vt.ID = vID
 		vt.Type = ViewType(s[1].(string))
@@ -402,7 +402,7 @@ func (v *View) extractSubViews(model *models.Model, fInfos map[string]*models.Fi
 		// Remove all children elements.
 		// We do it in a separate loop on tokens to remove text and comments too.
 		numChild := len(f.Child)
-		for j := 0; j < numChild; j++ {
+		for range numChild {
 			f.RemoveChild(f.Child[0])
 		}
 	}

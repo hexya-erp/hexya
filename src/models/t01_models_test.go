@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
@@ -95,11 +96,11 @@ func TestModelDeclaration(t *testing.T) {
 
 		userModel.NewMethod("SubSetSuper",
 			func(rc *RecordCollection) string {
-				var res string
+				var res strings.Builder
 				for _, rec := range rc.Records() {
-					res += rec.Get(rec.Model().FieldName("Name")).(string)
+					res.WriteString(rec.Get(rec.Model().FieldName("Name")).(string))
 				}
-				return res
+				return res.String()
 			})
 
 		userModel.Methods().MustGet("SubSetSuper").Extend(
@@ -296,19 +297,19 @@ func TestModelDeclaration(t *testing.T) {
 			})
 
 		post.Methods().MustGet("WithContext").Extend(
-			func(rc *RecordCollection, key string, value interface{}) *RecordCollection {
+			func(rc *RecordCollection, key string, value any) *RecordCollection {
 				return rc.Super().Call("WithContext", key, value).(*RecordCollection)
 			})
 
 		post.NewMethod("ComputeTagsNames",
 			func(rc *RecordCollection) *ModelData {
-				var res string
+				var res strings.Builder
 				for _, rec := range rc.Records() {
 					for _, tg := range rec.Get(rec.Model().FieldName("Tags")).(RecordSet).Collection().Records() {
-						res += tg.Get(tg.Model().FieldName("Name")).(string) + " "
+						res.WriteString(tg.Get(tg.Model().FieldName("Name")).(string) + " ")
 					}
 				}
-				return NewModelData(rc.Model()).Set(rc.Model().FieldName("TagsNames"), res)
+				return NewModelData(rc.Model()).Set(rc.Model().FieldName("TagsNames"), res.String())
 			})
 
 		post.NewMethod("ComputeWriterAge",
@@ -350,7 +351,7 @@ func TestModelDeclaration(t *testing.T) {
 			json:            "name",
 			description:     "Name",
 			fieldType:       fieldtype.Char,
-			structField:     reflect.StructField{Type: reflect.TypeOf("")},
+			structField:     reflect.StructField{Type: reflect.TypeFor[string]()},
 			help:            "The user's username",
 			unique:          true,
 			noCopy:          true,
@@ -363,7 +364,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "DecoratedName",
 			json:        "decorated_name",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			compute:     "ComputeDecoratedName",
 		})
 		userModel.fields.add(&Field{
@@ -371,7 +372,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Email",
 			json:        "email",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			help:        "The user's email address",
 			size:        100,
 			index:       true,
@@ -381,7 +382,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Password",
 			json:        "password",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			noCopy:      true,
 		})
 		userModel.fields.add(&Field{
@@ -389,7 +390,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Status",
 			json:        "status_json",
 			fieldType:   fieldtype.Integer,
-			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[int16]()},
 			defaultFunc: DefaultValue(int16(12)),
 			readOnly:    true,
 		})
@@ -398,7 +399,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "IsStaff",
 			json:        "is_staff",
 			fieldType:   fieldtype.Boolean,
-			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			structField: reflect.StructField{Type: reflect.TypeFor[bool]()},
 			defaultFunc: DefaultValue(false),
 		})
 		userModel.fields.add(&Field{
@@ -406,7 +407,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "IsActive",
 			json:        "is_active",
 			fieldType:   fieldtype.Boolean,
-			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			structField: reflect.StructField{Type: reflect.TypeFor[bool]()},
 			defaultFunc: DefaultValue(false),
 		})
 		userModel.fields.add(&Field{
@@ -414,7 +415,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Profile",
 			json:             "profile_id",
 			fieldType:        fieldtype.One2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			relatedModelName: "Profile",
 			onDelete:         SetNull,
 			required:         true,
@@ -424,7 +425,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Age",
 			json:        "age",
 			fieldType:   fieldtype.Integer,
-			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[int16]()},
 			compute:     "ComputeAge",
 			inverse:     "InverseSetAge",
 			depends:     []string{"Profile", "Profile.Age"},
@@ -436,7 +437,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Posts",
 			json:             "posts_ids",
 			fieldType:        fieldtype.One2Many,
-			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			structField:      reflect.StructField{Type: reflect.TypeFor[[]int64]()},
 			relatedModelName: "Post",
 			reverseFK:        "User",
 			noCopy:           false,
@@ -446,7 +447,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:           "PMoney",
 			json:           "p_money",
 			fieldType:      fieldtype.Float,
-			structField:    reflect.StructField{Type: reflect.TypeOf(float64(1))},
+			structField:    reflect.StructField{Type: reflect.TypeFor[float64]()},
 			relatedPathStr: "Profile.Money",
 			defaultFunc:    DefaultValue(0),
 		})
@@ -455,7 +456,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "LastPost",
 			json:             "last_post_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         SetNull,
 			relatedModelName: "Post",
 		})
@@ -464,7 +465,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Resume",
 			json:             "resume_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			relatedModelName: "Resume",
 			onDelete:         Cascade,
 			required:         false,
@@ -476,7 +477,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "IsCool",
 			json:        "is_cool",
 			fieldType:   fieldtype.Boolean,
-			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			structField: reflect.StructField{Type: reflect.TypeFor[bool]()},
 			defaultFunc: DefaultValue(false),
 		})
 		userModel.fields.add(&Field{
@@ -484,7 +485,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "CoolType",
 			json:        "cool_type",
 			fieldType:   fieldtype.Selection,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			selection: types.Selection{
 				"cool":    "Yes, its a cool user",
 				"no-cool": "No, forget it"},
@@ -497,14 +498,14 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Email2",
 			json:        "email2",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		userModel.fields.add(&Field{
 			model:       userModel,
 			name:        "IsPremium",
 			json:        "is_premium",
 			fieldType:   fieldtype.Boolean,
-			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			structField: reflect.StructField{Type: reflect.TypeFor[bool]()},
 			defaultFunc: DefaultValue(false),
 		})
 		userModel.fields.add(&Field{
@@ -512,7 +513,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Nums",
 			json:        "nums",
 			fieldType:   fieldtype.Integer,
-			structField: reflect.StructField{Type: reflect.TypeOf(0)},
+			structField: reflect.StructField{Type: reflect.TypeFor[int]()},
 			defaultFunc: DefaultValue(0),
 		})
 		userModel.fields.add(&Field{
@@ -520,7 +521,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Size",
 			json:        "size",
 			fieldType:   fieldtype.Float,
-			structField: reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[float64]()},
 			defaultFunc: DefaultValue(0),
 		})
 		userModel.fields.add(&Field{
@@ -528,7 +529,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "BestProfilePost",
 			json:             "best_profile_post_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         SetNull,
 			relatedModelName: "Post",
 			relatedPathStr:   "Profile.BestPost",
@@ -538,7 +539,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Mana",
 			json:        "mana",
 			fieldType:   fieldtype.Float,
-			structField: reflect.StructField{Type: reflect.TypeOf(float32(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[float32]()},
 			onChange:    "OnChangeMana",
 			defaultFunc: DefaultValue(0),
 		})
@@ -547,7 +548,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Education",
 			json:        "education",
 			fieldType:   fieldtype.Text,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			description: "Educational Background",
 		})
 		userModel.AddSQLConstraint("nums_premium", "CHECK((is_premium = TRUE AND nums IS NOT NULL AND nums > 0) OR (IS_PREMIUM = false))",
@@ -558,7 +559,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Age",
 			json:        "age",
 			fieldType:   fieldtype.Integer,
-			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[int16]()},
 			defaultFunc: DefaultValue(0),
 		})
 		profileModel.fields.add(&Field{
@@ -566,7 +567,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Gender",
 			json:        "gender",
 			fieldType:   fieldtype.Selection,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			selection:   types.Selection{"male": "Male", "female": "Female"},
 		})
 		profileModel.fields.add(&Field{
@@ -574,7 +575,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Money",
 			json:        "money",
 			fieldType:   fieldtype.Float,
-			structField: reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[float64]()},
 			defaultFunc: DefaultValue(0),
 		})
 		profileModel.fields.add(&Field{
@@ -582,7 +583,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "User",
 			json:             "user_id",
 			fieldType:        fieldtype.Rev2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			relatedModelName: "User",
 			reverseFK:        "Profile",
 			noCopy:           true,
@@ -592,7 +593,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "BestPost",
 			json:             "best_post_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         Cascade,
 			relatedModelName: "Post",
 		})
@@ -601,21 +602,21 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "City",
 			json:        "city",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		profileModel.fields.add(&Field{
 			model:       profileModel,
 			name:        "Country",
 			json:        "country",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		profileModel.fields.add(&Field{
 			model:          profileModel,
 			name:           "UserName",
 			json:           "user_name",
 			fieldType:      fieldtype.Char,
-			structField:    reflect.StructField{Type: reflect.TypeOf("")},
+			structField:    reflect.StructField{Type: reflect.TypeFor[string]()},
 			relatedPathStr: "User.Name",
 		})
 		post.fields.add(&Field{
@@ -623,7 +624,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "User",
 			json:             "user_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         SetNull,
 			relatedModelName: "User",
 		})
@@ -632,7 +633,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Title",
 			json:        "title",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			required:    true,
 		})
 		post.fields.add(&Field{
@@ -640,7 +641,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Content",
 			json:        "content",
 			fieldType:   fieldtype.HTML,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			required:    true,
 		})
 		m2mRelModel, m2mOurField, m2mTheirField := CreateM2MRelModelInfo("PostTagRel", "Post", "Tag", "Post", "Tag", false)
@@ -649,7 +650,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Tags",
 			json:             "tags_ids",
 			fieldType:        fieldtype.Many2Many,
-			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			structField:      reflect.StructField{Type: reflect.TypeFor[[]int64]()},
 			relatedModelName: "Tag",
 			m2mRelModel:      m2mRelModel,
 			m2mOurField:      m2mOurField,
@@ -660,21 +661,21 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Abstract",
 			json:        "abstract",
 			fieldType:   fieldtype.Text,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		post.fields.add(&Field{
 			model:       post,
 			name:        "Attachment",
 			json:        "attachment",
 			fieldType:   fieldtype.Binary,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		post.fields.add(&Field{
 			model:       post,
 			name:        "Read",
 			json:        "read",
 			fieldType:   fieldtype.Boolean,
-			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			structField: reflect.StructField{Type: reflect.TypeFor[bool]()},
 			compute:     "ComputeRead",
 			defaultFunc: DefaultValue(false),
 		})
@@ -683,14 +684,14 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "LastRead",
 			json:        "last_read",
 			fieldType:   fieldtype.Date,
-			structField: reflect.StructField{Type: reflect.TypeOf(dates.Date{})},
+			structField: reflect.StructField{Type: reflect.TypeFor[dates.Date]()},
 		})
 		post.fields.add(&Field{
 			model:       post,
 			name:        "Visibility",
 			json:        "visibility",
 			fieldType:   fieldtype.Selection,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			selection: types.Selection{
 				"invisible": "Invisible",
 				"visible":   "Visible",
@@ -701,7 +702,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Comments",
 			json:             "comments_ids",
 			fieldType:        fieldtype.One2Many,
-			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			structField:      reflect.StructField{Type: reflect.TypeFor[[]int64]()},
 			relatedModelName: "Comment",
 			reverseFK:        "Post",
 			noCopy:           true,
@@ -711,7 +712,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:           "LastCommentText",
 			json:           "last_comment_text",
 			fieldType:      fieldtype.Text,
-			structField:    reflect.StructField{Type: reflect.TypeOf("")},
+			structField:    reflect.StructField{Type: reflect.TypeFor[string]()},
 			relatedPathStr: "Comments.Text",
 		})
 		post.fields.add(&Field{
@@ -719,7 +720,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:           "LastTagName",
 			json:           "last_tag_name",
 			fieldType:      fieldtype.Char,
-			structField:    reflect.StructField{Type: reflect.TypeOf("")},
+			structField:    reflect.StructField{Type: reflect.TypeFor[string]()},
 			relatedPathStr: "Tags.Name",
 		})
 		post.fields.add(&Field{
@@ -727,7 +728,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "TagsNames",
 			json:        "tags_names",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			compute:     "ComputeTagsNames",
 		})
 		post.fields.add(&Field{
@@ -735,7 +736,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "WriterAge",
 			json:        "writer_age",
 			fieldType:   fieldtype.Integer,
-			structField: reflect.StructField{Type: reflect.TypeOf(int16(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[int16]()},
 			compute:     "ComputeWriterAge",
 			depends:     []string{"User.Age"},
 			stored:      true,
@@ -746,7 +747,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:           "WriterMoney",
 			json:           "writer_money",
 			fieldType:      fieldtype.Float,
-			structField:    reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			structField:    reflect.StructField{Type: reflect.TypeFor[float64]()},
 			relatedPathStr: "User.PMoney",
 			defaultFunc:    DefaultValue(0),
 		})
@@ -757,7 +758,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Post",
 			json:             "post_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         SetNull,
 			relatedModelName: "Post",
 		})
@@ -766,7 +767,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "PostWriter",
 			json:             "post_writer_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         SetNull,
 			relatedModelName: "User",
 			relatedPathStr:   "Post.User",
@@ -776,7 +777,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:           "WriterMoney",
 			json:           "writer_money",
 			fieldType:      fieldtype.Float,
-			structField:    reflect.StructField{Type: reflect.TypeOf(float64(0))},
+			structField:    reflect.StructField{Type: reflect.TypeFor[float64]()},
 			relatedPathStr: "PostWriter.PMoney",
 			defaultFunc:    DefaultValue(0),
 		})
@@ -785,7 +786,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Text",
 			json:        "text",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 
 		tag.fields.add(&Field{
@@ -793,7 +794,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Name",
 			json:        "name",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			constraint:  "CheckNameDescription",
 		})
 		tag.fields.add(&Field{
@@ -801,7 +802,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "BestPost",
 			json:             "best_post_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         SetNull,
 			relatedModelName: "Post",
 		})
@@ -810,7 +811,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Posts",
 			json:             "posts_ids",
 			fieldType:        fieldtype.Many2Many,
-			structField:      reflect.StructField{Type: reflect.TypeOf([]int64{})},
+			structField:      reflect.StructField{Type: reflect.TypeFor[[]int64]()},
 			relatedModelName: "Post",
 			m2mRelModel:      m2mRelModel,
 			m2mOurField:      m2mTheirField,
@@ -821,7 +822,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:             "Parent",
 			json:             "parent_id",
 			fieldType:        fieldtype.Many2One,
-			structField:      reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField:      reflect.StructField{Type: reflect.TypeFor[int64]()},
 			onDelete:         SetNull,
 			relatedModelName: "Tag",
 		})
@@ -830,7 +831,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Description",
 			json:        "description",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			contexts: FieldContexts{"lang": func(rs RecordSet) string {
 				res := rs.Env().Context().GetString("lang")
 				return res
@@ -842,7 +843,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Note",
 			json:        "note",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			contexts: FieldContexts{"lang": func(rs RecordSet) string {
 				res := rs.Env().Context().GetString("lang")
 				return res
@@ -855,7 +856,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Rate",
 			json:        "rate",
 			fieldType:   fieldtype.Float,
-			structField: reflect.StructField{Type: reflect.TypeOf(float32(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[float32]()},
 			constraint:  "CheckRate",
 			defaultFunc: DefaultValue(0),
 		})
@@ -866,14 +867,14 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Education",
 			json:        "education",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		cv.fields.add(&Field{
 			model:       cv,
 			name:        "Experience",
 			json:        "experience",
 			fieldType:   fieldtype.Text,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			contexts: FieldContexts{"lang": func(rs RecordSet) string {
 				res := rs.Env().Context().GetString("lang")
 				return res
@@ -884,14 +885,14 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Leisure",
 			json:        "leisure",
 			fieldType:   fieldtype.Text,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		cv.fields.add(&Field{
 			model:       cv,
 			name:        "Other",
 			json:        "other",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 			compute:     "ComputeOther",
 		})
 
@@ -900,21 +901,21 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Street",
 			json:        "street",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		addressMI.fields.add(&Field{
 			model:       addressMI,
 			name:        "Zip",
 			json:        "zip",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		addressMI.fields.add(&Field{
 			model:       addressMI,
 			name:        "City",
 			json:        "city",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		profileModel.InheritModel(addressMI)
 
@@ -923,7 +924,7 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Active",
 			json:        "active",
 			fieldType:   fieldtype.Boolean,
-			structField: reflect.StructField{Type: reflect.TypeOf(false)},
+			structField: reflect.StructField{Type: reflect.TypeFor[bool]()},
 			defaultFunc: DefaultValue(true),
 		})
 		Registry.MustGet("ModelMixin").InheritModel(activeMI)
@@ -933,14 +934,14 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Name",
 			json:        "name",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		viewModel.fields.add(&Field{
 			model:       viewModel,
 			name:        "City",
 			json:        "city",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 
 		wizard.fields.add(&Field{
@@ -948,14 +949,14 @@ func TestModelDeclaration(t *testing.T) {
 			name:        "Name",
 			json:        "name",
 			fieldType:   fieldtype.Char,
-			structField: reflect.StructField{Type: reflect.TypeOf("")},
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		})
 		wizard.fields.add(&Field{
 			model:       wizard,
 			name:        "Value",
 			json:        "value",
 			fieldType:   fieldtype.Integer,
-			structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
+			structField: reflect.StructField{Type: reflect.TypeFor[int64]()},
 			defaultFunc: DefaultValue(0),
 		})
 	})

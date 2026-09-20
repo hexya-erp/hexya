@@ -205,7 +205,7 @@ func cleanPoolDir(dirName string) {
 	dropPoolDirFromGoWork()
 }
 
-func writeFileFromTemplate(fileName string, tmpl *template.Template, data interface{}) error {
+func writeFileFromTemplate(fileName string, tmpl *template.Template, data any) error {
 	var buf bytes.Buffer
 	tmpl.Execute(&buf, data)
 	err := os.WriteFile(fileName, buf.Bytes(), 0644)

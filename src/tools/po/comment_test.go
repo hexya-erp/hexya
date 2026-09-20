@@ -10,7 +10,7 @@ import (
 
 func TestPoComment(t *testing.T) {
 	var x Comment
-	for i := 0; i < len(testPoComments); i++ {
+	for i := range testPoComments {
 		if i != 2 {
 			continue
 		}

@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/csv"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -93,12 +92,12 @@ func LoadCSVDataFile(fileName string) {
 }
 
 func getRecordValuesMap(headers []string, modelName string, record []string, env Environment, line int, fileName string) FieldMap {
-	values := make(map[string]interface{})
+	values := make(map[string]any)
 	model := Registry.MustGet(modelName)
-	for i := 0; i < len(headers); i++ {
+	for i := range headers {
 		fi := model.getRelatedFieldInfo(model.FieldName(headers[i]))
 		var (
-			val interface{}
+			val any
 			err error
 		)
 		switch {
@@ -133,7 +132,7 @@ func getRecordValuesMap(headers []string, modelName string, record []string, env
 			}
 			dir := filepath.Dir(fileName)
 			bFileName := filepath.Join(dir, record[i])
-			fileContent, err := ioutil.ReadFile(bFileName)
+			fileContent, err := os.ReadFile(bFileName)
 			if err != nil {
 				log.Panic("Unable to open file with binary data", "error", err, "line", line, "field", headers[i], "value", record[i])
 			}

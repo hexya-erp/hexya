@@ -23,7 +23,7 @@ type Context struct {
 }
 
 // RPC serializes the given struct as JSON-RPC into the response body.
-func (c *Context) RPC(code int, obj interface{}, err ...error) {
+func (c *Context) RPC(code int, obj any, err ...error) {
 	id, ok := c.Get("id")
 	if !ok {
 		var req RequestRPC
@@ -64,7 +64,7 @@ func (c *Context) RPC(code int, obj interface{}, err ...error) {
 }
 
 // BindRPCParams binds the RPC parameters to the given data object.
-func (c *Context) BindRPCParams(data interface{}) {
+func (c *Context) BindRPCParams(data any) {
 	var req RequestRPC
 	if err := c.BindJSON(&req); err != nil {
 		c.AbortWithError(http.StatusBadRequest, err)

@@ -217,9 +217,9 @@ func (m *Model) scanToFieldMap(r sqlx.ColScanner, dest *FieldMap, substs map[str
 	// Step 1: We create a []interface{} which is in fact a []*interface{}
 	// and we scan our DB row into it. This enables us to Get null values
 	// without panic, since null values will map to nil.
-	dbValues := make([]interface{}, len(columns))
+	dbValues := make([]any, len(columns))
 	for i := range dbValues {
-		dbValues[i] = new(interface{})
+		dbValues[i] = new(any)
 	}
 
 	err = r.Scan(dbValues...)
@@ -272,7 +272,7 @@ func (m *Model) convertValuesToFieldType(fMap *FieldMap, writeDB bool) {
 			val := reflect.ValueOf(fMapValue)
 			switch {
 			case fi.fieldType.IsFKRelationType() && val.Kind() == reflect.Int64 && val.Int() == 0:
-				val = reflect.ValueOf((*interface{})(nil))
+				val = reflect.ValueOf((*any)(nil))
 				destVals.SetMapIndex(reflect.ValueOf(colName), val)
 			}
 		}
@@ -426,7 +426,7 @@ func (m *Model) FieldsGet(fields ...FieldName) map[string]*FieldInfo {
 		if fInfo.relatedModel != nil {
 			relation = fInfo.relatedModel.name
 		}
-		var filter interface{}
+		var filter any
 		if fInfo.filter != nil {
 			filter = fInfo.filter.Serialize()
 		}
@@ -474,7 +474,7 @@ func (m *Model) FilteredOn(field FieldName, condition *Condition) *Condition {
 }
 
 // Create creates a new record in this model with the given data.
-func (m *Model) Create(env Environment, data interface{}) *RecordCollection {
+func (m *Model) Create(env Environment, data any) *RecordCollection {
 	return env.Pool(m.name).Call("Create", data).(RecordSet).Collection()
 }
 
@@ -591,17 +591,13 @@ func CreateModel(name string, options Option) *Model {
 		defaultOrderStr: []string{"ID"},
 	}
 	pk := &Field{
-		name:      "ID",
-		json:      "id",
-		model:     mi,
-		required:  true,
-		noCopy:    true,
-		fieldType: fieldtype.Integer,
-		structField: reflect.TypeOf(
-			struct {
-				ID int64
-			}{},
-		).Field(0),
+		name:        "ID",
+		json:        "id",
+		model:       mi,
+		required:    true,
+		noCopy:      true,
+		fieldType:   fieldtype.Integer,
+		structField: reflect.TypeFor[struct{ ID int64 }]().Field(0),
 	}
 	mi.fields.add(pk)
 	Registry.add(mi)

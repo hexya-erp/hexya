@@ -419,7 +419,7 @@ func TestBaseModelMethods(t *testing.T) {
 				userModel := Registry.MustGet("User")
 				postModel := Registry.MustGet("Post")
 				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
-				for i := 0; i < 20; i++ {
+				for i := range 20 {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
 						Set(title, fmt.Sprintf("Post no %02d", (24-i)%20)).
 						Set(user, userJane))
@@ -449,7 +449,7 @@ func TestBaseModelMethods(t *testing.T) {
 				postModel := Registry.MustGet("Post")
 				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				t.Run("With posts", func(t *testing.T) {
-					for i := 0; i < 20; i++ {
+					for i := range 20 {
 						env.Pool("Post").Call("Create", NewModelData(postModel).
 							Set(title, fmt.Sprintf("Post no %02d", (24-i)%20)).
 							Set(user, userJane))
@@ -467,7 +467,7 @@ func TestBaseModelMethods(t *testing.T) {
 				})
 				t.Run("With tags", func(t *testing.T) {
 					env.Pool("Tag").SearchAll().Call("Unlink")
-					for i := 0; i < 20; i++ {
+					for i := range 20 {
 						env.Pool("Tag").Call("Create", NewModelData(tagModel).
 							Set(Name, fmt.Sprintf("Tag %02d", i/2)))
 					}
@@ -485,7 +485,7 @@ func TestBaseModelMethods(t *testing.T) {
 				userModel := Registry.MustGet("User")
 				postModel := Registry.MustGet("Post")
 				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
-				for i := 0; i < 20; i++ {
+				for i := range 20 {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
 						Set(title, fmt.Sprintf("Post no %02d", (24-i)%20)).
 						Set(user, userJane))
@@ -514,7 +514,7 @@ func TestBaseModelMethods(t *testing.T) {
 				postModel := Registry.MustGet("Post")
 				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
 				userJane.Get(posts).(RecordSet).Collection().Call("Unlink")
-				for i := 0; i < 20; i++ {
+				for i := range 20 {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
 						Set(title, fmt.Sprintf("Post no %02d", 19-i)).
 						Set(user, userJane))
@@ -532,7 +532,7 @@ func TestBaseModelMethods(t *testing.T) {
 				userModel := Registry.MustGet("User")
 				postModel := Registry.MustGet("Post")
 				userJane := userModel.Search(env, userModel.Field(email).Equals("jane.smith@example.com"))
-				for i := 0; i < 20; i++ {
+				for i := range 20 {
 					env.Pool("Post").Call("Create", NewModelData(postModel).
 						Set(title, fmt.Sprintf("Post no %02d", i)).
 						Set(user, userJane))
@@ -551,7 +551,7 @@ func TestBaseModelMethods(t *testing.T) {
 					return false
 				}).(RecordSet).Collection().Records()
 				assert.Len(t, evenPosts, 10)
-				for i := 0; i < 10; i++ {
+				for i := range 10 {
 					assert.EqualValues(t, evenPosts[i].Get(title), fmt.Sprintf("Post no %02d", 2*i))
 				}
 
@@ -575,7 +575,7 @@ func TestBaseModelMethods(t *testing.T) {
 				assert.EqualValues(t, res.Ids()[0], profileID)
 				res = env.Pool("User").convertToRecordSet(false, "Profile")
 				assert.True(t, res.IsEmpty())
-				res = env.Pool("User").convertToRecordSet([]interface{}{float64(profileID)}, "Profile")
+				res = env.Pool("User").convertToRecordSet([]any{float64(profileID)}, "Profile")
 				assert.EqualValues(t, res.Ids()[0], profileID)
 				res = env.Pool("User").convertToRecordSet(int(profileID), "Profile")
 				assert.EqualValues(t, res.Ids()[0], profileID)

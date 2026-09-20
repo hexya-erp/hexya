@@ -18,6 +18,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 
@@ -50,16 +51,16 @@ type RecordSet interface {
 	// IsNotEmpty returns true if this RecordSet has at least one record
 	IsNotEmpty() bool
 	// Call executes the given method (as string) with the given arguments
-	Call(string, ...interface{}) interface{}
+	Call(string, ...any) any
 	// Collection returns the underlying RecordCollection instance
 	Collection() *RecordCollection
 	// Get returns the value of the given fieldName for the first record of this RecordCollection.
 	// It returns the type's zero value if the RecordCollection is empty.
-	Get(FieldName) interface{}
+	Get(FieldName) any
 	// Set sets field given by fieldName to the given value. If the RecordSet has several
 	// Records, all of them will be updated. Each call to Set makes an update query in the
 	// database. It panics if it is called on an empty RecordSet.
-	Set(FieldName, interface{})
+	Set(FieldName, any)
 	// T translates the given string to the language specified by
 	// the 'lang' key of rc.Env().Context(). If for any reason the
 	// string cannot be translated, then src is returned.
@@ -68,7 +69,7 @@ type RecordSet interface {
 	//
 	// The translated string will be passed to fmt.Sprintf with the optional args
 	// before being returned.
-	T(string, ...interface{}) string
+	T(string, ...any) string
 	// EnsureOne panics if this Recordset is not a singleton
 	EnsureOne()
 }
@@ -205,13 +206,13 @@ type ModelData struct {
 var _ RecordData = new(ModelData)
 
 // Scan implements sql.Scanner
-func (md *ModelData) Scan(src interface{}) error {
+func (md *ModelData) Scan(src any) error {
 	switch val := src.(type) {
 	case nil:
 		return nil
 	case FieldMapper:
 		md.FieldMap = val.Underlying()
-	case map[string]interface{}:
+	case map[string]any:
 		md.FieldMap = val
 	default:
 		return fmt.Errorf("unexpected type %T to represent RecordData: %s", src, src)
@@ -222,7 +223,7 @@ func (md *ModelData) Scan(src interface{}) error {
 // Get returns the value of the given field.
 //
 // The field can be either its name or is JSON name.
-func (md *ModelData) Get(field FieldName) interface{} {
+func (md *ModelData) Get(field FieldName) any {
 	res, _ := md.FieldMap.Get(field)
 	return res
 }
@@ -245,7 +246,7 @@ func (md *ModelData) Has(field FieldName) bool {
 // Otherwise, a new entry is inserted.
 //
 // It returns the given ModelData so that calls can be chained
-func (md *ModelData) Set(field FieldName, value interface{}) *ModelData {
+func (md *ModelData) Set(field FieldName, value any) *ModelData {
 	md.FieldMap.Set(field, value)
 	return md
 }
@@ -275,9 +276,7 @@ func (md *ModelData) Create(field FieldName, related *ModelData) *ModelData {
 // Copy returns a copy of this ModelData
 func (md *ModelData) Copy() *ModelData {
 	ntc := make(map[string][]*ModelData)
-	for k, v := range md.ToCreate {
-		ntc[k] = v
-	}
+	maps.Copy(ntc, md.ToCreate)
 	return &ModelData{
 		Model:    md.Model,
 		FieldMap: md.FieldMap.Copy(),
@@ -323,7 +322,7 @@ func (md *ModelData) Underlying() *ModelData {
 }
 
 // fixFieldValue changes the given value for the given field by applying several fixes
-func fixFieldValue(v interface{}, fi *Field) interface{} {
+func fixFieldValue(v any, fi *Field) any {
 	if _, ok := v.(bool); ok && fi.fieldType != fieldtype.Boolean {
 		// Client returns false when empty
 		v = reflect.Zero(fi.structField.Type).Interface()
@@ -371,7 +370,7 @@ func ReadDataValue[T any](d *ModelData, fn FieldName) T {
 // This method is mainly used in generated code
 func ReadRelatedDataValue[T RecordSet](d *ModelData, fn FieldName) T {
 	val := d.Get(fn)
-	if !d.Has(fn) || val == nil || val == (*interface{})(nil) || d.Model.Name() != (*new(T)).ModelName() {
+	if !d.Has(fn) || val == nil || val == (*any)(nil) || d.Model.Name() != (*new(T)).ModelName() {
 		val = InvalidRecordCollection((*new(T)).ModelName())
 	}
 	return val.(RecordSet).Collection().Wrap().(T)

@@ -68,7 +68,7 @@ type dbAdapter interface {
 	// connectionString returns the connection string for the given parameters
 	connectionString(ConnectionParams) string
 	// operatorSQL returns the sql string and placeholders for the given DomainOperator
-	operatorSQL(operator.Operator, interface{}) (string, interface{})
+	operatorSQL(operator.Operator, any) (string, any)
 	// typeSQL returns the SQL type string, including columns constraints if any
 	typeSQL(fi *Field) string
 	// columnSQLDefinition returns the SQL type string, including columns constraints if any
@@ -127,19 +127,19 @@ type Cursor struct {
 
 // Execute a query without returning any rows. It panics in case of error.
 // The args are for any placeholder parameters in the query.
-func (c *Cursor) Execute(query string, args ...interface{}) sql.Result {
+func (c *Cursor) Execute(query string, args ...any) sql.Result {
 	return dbExecute(c.tx, query, args...)
 }
 
 // Get queries a row into the database and maps the result into dest.
 // The query must return only one row. Get panics on errors
-func (c *Cursor) Get(dest interface{}, query string, args ...interface{}) {
+func (c *Cursor) Get(dest any, query string, args ...any) {
 	dbGet(c.tx, dest, query, args...)
 }
 
 // Select queries multiple rows and map the result into dest which must be a slice.
 // Select panics on errors.
-func (c *Cursor) Select(dest interface{}, query string, args ...interface{}) {
+func (c *Cursor) Select(dest any, query string, args ...any) {
 	dbSelect(c.tx, dest, query, args...)
 }
 
@@ -175,7 +175,7 @@ func DBClose() {
 
 // dbExecute is a wrapper around sqlx.MustExec
 // It executes a query that returns no row
-func dbExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
+func dbExecute(cr *sqlx.Tx, query string, args ...any) sql.Result {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	res, err := cr.Exec(query, args...)
@@ -184,7 +184,7 @@ func dbExecute(cr *sqlx.Tx, query string, args ...interface{}) sql.Result {
 }
 
 // dbExecuteNoTx simply executes the given query in the database without any transaction
-func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
+func dbExecuteNoTx(query string, args ...any) sql.Result {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	res, err := db.Exec(query, args...)
@@ -195,7 +195,7 @@ func dbExecuteNoTx(query string, args ...interface{}) sql.Result {
 // dbGet is a wrapper around sqlx.Get
 // It gets the value of a single row found by the given query and arguments
 // It panics in case of error
-func dbGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
+func dbGet(cr *sqlx.Tx, dest any, query string, args ...any) {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	err := cr.Get(dest, query, args...)
@@ -205,7 +205,7 @@ func dbGet(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
 // dbGetNoTx is a wrapper around sqlx.Get outside a transaction
 // It gets the value of a single row found by the
 // given query and arguments
-func dbGetNoTx(dest interface{}, query string, args ...interface{}) {
+func dbGetNoTx(dest any, query string, args ...any) {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	err := db.Get(dest, query, args...)
@@ -215,7 +215,7 @@ func dbGetNoTx(dest interface{}, query string, args ...interface{}) {
 // dbSelect is a wrapper around sqlx.Select
 // It gets the value of a multiple rows found by the given query and arguments
 // dest must be a slice. It panics in case of error
-func dbSelect(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) {
+func dbSelect(cr *sqlx.Tx, dest any, query string, args ...any) {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	err := cr.Select(dest, query, args...)
@@ -225,7 +225,7 @@ func dbSelect(cr *sqlx.Tx, dest interface{}, query string, args ...interface{}) 
 // dbSelect is a wrapper around sqlx.Select outside a transaction
 // It gets the value of a multiple rows found by the given query and arguments
 // dest must be a slice. It panics in case of error
-func dbSelectNoTx(dest interface{}, query string, args ...interface{}) {
+func dbSelectNoTx(dest any, query string, args ...any) {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	err := db.Select(dest, query, args...)
@@ -235,7 +235,7 @@ func dbSelectNoTx(dest interface{}, query string, args ...interface{}) {
 // dbQuery is a wrapper around sqlx.Queryx
 // It returns a sqlx.Rowsx found by the given query and arguments
 // It panics in case of error
-func dbQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
+func dbQuery(cr *sqlx.Tx, query string, args ...any) *sqlx.Rows {
 	query, args = sanitizeQuery(query, args...)
 	t := time.Now()
 	rows, err := cr.Queryx(query, args...)
@@ -245,7 +245,7 @@ func dbQuery(cr *sqlx.Tx, query string, args ...interface{}) *sqlx.Rows {
 
 // sanitizeQuery calls 'In' expansion and 'Rebind' on the given query and
 // returns the new values to use. It panics in case of error
-func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
+func sanitizeQuery(query string, args ...any) (string, []any) {
 	originalArgs := args
 	q, args, err := sqlx.In(query, args...)
 	if err != nil {
@@ -257,7 +257,7 @@ func sanitizeQuery(query string, args ...interface{}) (string, []interface{}) {
 
 // Log the result of the given sql query started at start time with the
 // given args, and error. This function panics after logging if error is not nil.
-func logSQLResult(err error, start time.Time, query string, args ...interface{}) {
+func logSQLResult(err error, start time.Time, query string, args ...any) {
 	logCtx := log.New("query", query, "args", strutils.TrimArgs(args), "duration", time.Now().Sub(start))
 	if err != nil {
 		// We don't log.Panic to keep db error information in recovery

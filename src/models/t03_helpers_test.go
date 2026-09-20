@@ -206,7 +206,7 @@ func TestTypes(t *testing.T) {
 			err := md.Scan(nil)
 			assert.Nil(t, err)
 			assert.Len(t, md.FieldMap, 0)
-			err = md.Scan(map[string]interface{}{"Nums": 12})
+			err = md.Scan(map[string]any{"Nums": 12})
 			assert.Nil(t, err)
 			assert.Len(t, md.FieldMap, 1)
 			assert.Contains(t, md.FieldMap, "Nums")
