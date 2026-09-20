@@ -4,7 +4,8 @@
 package templates
 
 import (
-	"io/ioutil"
+	"io"
+
 	"net/http/httptest"
 	"testing"
 
@@ -384,7 +385,7 @@ func TestTemplates(t *testing.T) {
 			}})
 		w := httptest.NewRecorder()
 		inst.Render(w)
-		body, _ := ioutil.ReadAll(w.Result().Body)
+		body, _ := io.ReadAll(w.Result().Body)
 		assert.EqualValues(t, string(body), `
 	<div>
 		<span>

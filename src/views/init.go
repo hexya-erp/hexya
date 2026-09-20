@@ -24,7 +24,7 @@ func BootStrap() {
 	}
 	loadModelViews()
 	// Inherit/Extend views
-	for loop := 0; loop < maxInheritanceDepth; loop++ {
+	for range maxInheritanceDepth {
 		// First step: we extend all we can with pure extension views (no ID)
 		for i, xmlView := range Registry.rawInheritedViews {
 			if xmlView == nil {

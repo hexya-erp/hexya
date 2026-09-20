@@ -262,7 +262,7 @@ func transpileConditionals(elts []*etree.Element) error {
 		endCD := etree.NewCharData("{% endif %}")
 		lastTag.elem.Parent().InsertChild(xmlutils.NextSibling(lastTag.elem), endCD)
 
-		for i := 0; i < len(loop); i++ {
+		for i := range loop {
 			cond := escapeXMLEntities(loop[i].attr.Value)
 			var dir string
 			switch loop[i].attr.Key {

@@ -17,6 +17,7 @@ package testmodule
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/hexya-erp/hexya/src/actions"
 	"github.com/hexya-erp/hexya/src/models"
@@ -110,11 +111,11 @@ func user_ext_RecursiveMethod(rs m.UserSet, depth int, result string) string {
 }
 
 func user_SubSetSuper(rs m.UserSet) string {
-	var res string
+	var res strings.Builder
 	for _, rec := range rs.Records() {
-		res += rec.Name()
+		res.WriteString(rec.Name())
 	}
-	return res
+	return res.String()
 }
 
 func user_ext_SubSetSuper(rs m.UserSet) string {

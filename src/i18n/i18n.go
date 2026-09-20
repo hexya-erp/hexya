@@ -115,7 +115,7 @@ func (tc *TranslationsCollection) LoadPOFile(fileName string) {
 		log.Panic("Language should be specified in PO file header", "file", fileName)
 	}
 	for _, msg := range poFile.Messages {
-		for _, line := range strings.Split(msg.ExtractedComment, "\n") {
+		for line := range strings.SplitSeq(msg.ExtractedComment, "\n") {
 			tokens := strings.Split(line, ":")
 			if len(tokens) != 2 {
 				log.Warn("Invalid format for PO comment. Should be '#. key:value'", "file", fileName, "line", msg.StartLine, "comment", line)

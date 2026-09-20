@@ -101,7 +101,7 @@ func (ar ActionRef) Value() (driver.Value, error) {
 
 // Scan fetches the name of our action from the ID
 // stored in the database to fill the ActionRef.
-func (ar *ActionRef) Scan(src interface{}) error {
+func (ar *ActionRef) Scan(src any) error {
 	switch s := src.(type) {
 	case string:
 		*ar = MakeActionRef(s)
@@ -258,38 +258,38 @@ type actionHelp struct {
 // A Action is the definition of an action. Actions define the
 // behavior of the system in response to user requests.
 type Action struct {
-	ID           int64                  `json:"id" xml:"-"`
-	XMLID        string                 `json:"xmlid" xml:"id,attr"`
-	Type         ActionType             `json:"type" xml:"type,attr"`
-	Name         string                 `json:"name" xml:"name,attr"`
-	Model        string                 `json:"res_model" xml:"model,attr"`
-	ResID        int64                  `json:"res_id" xml:"res_id,attr"`
-	Method       string                 `json:"method" xml:"method,attr"`
-	Groups       []string               `json:"groups_id" xml:"groups,attr"`
-	Domain       string                 `json:"domain" xml:"domain,attr"`
-	HelpXML      actionHelp             `json:"-" xml:"help"`
-	Help         string                 `json:"help" xml:"-"`
-	SearchView   views.ViewRef          `json:"search_view_id" xml:"search_view_id,attr"`
-	SrcModel     string                 `json:"src_model" xml:"src_model,attr"`
-	Usage        string                 `json:"usage" xml:"usage,attr"`
-	Views        []views.ViewTuple      `json:"views" xml:"view"`
-	View         views.ViewRef          `json:"view_id" xml:"view_id,attr"`
-	AutoRefresh  bool                   `json:"auto_refresh" xml:"auto_refresh,attr"`
-	ManualSearch bool                   `json:"-" xml:"-"`
-	ActViewType  ActionViewType         `json:"-" xml:"view_type"`
-	ViewMode     string                 `json:"view_mode" xml:"view_mode,attr"`
-	Multi        bool                   `json:"multi" xml:"multi,attr"`
-	Target       string                 `json:"target" xml:"target,attr"`
-	AutoSearch   bool                   `json:"auto_search" xml:"auto_search,attr"`
-	Filter       bool                   `json:"filter" xml:"filter,attr"`
-	Limit        int64                  `json:"limit" xml:"limit,attr"`
-	Context      *types.Context         `json:"context" xml:"context,attr"`
-	Flags        map[string]interface{} `json:"flags"`
-	Tag          string                 `json:"tag"`
-	ReportName   string                 `json:"report_name"`
-	ReportType   string                 `json:"report_type"`
-	ReportFile   string                 `json:"report_file"`
-	Data         map[string]interface{} `json:"data"`
+	ID           int64             `json:"id" xml:"-"`
+	XMLID        string            `json:"xmlid" xml:"id,attr"`
+	Type         ActionType        `json:"type" xml:"type,attr"`
+	Name         string            `json:"name" xml:"name,attr"`
+	Model        string            `json:"res_model" xml:"model,attr"`
+	ResID        int64             `json:"res_id" xml:"res_id,attr"`
+	Method       string            `json:"method" xml:"method,attr"`
+	Groups       []string          `json:"groups_id" xml:"groups,attr"`
+	Domain       string            `json:"domain" xml:"domain,attr"`
+	HelpXML      actionHelp        `json:"-" xml:"help"`
+	Help         string            `json:"help" xml:"-"`
+	SearchView   views.ViewRef     `json:"search_view_id" xml:"search_view_id,attr"`
+	SrcModel     string            `json:"src_model" xml:"src_model,attr"`
+	Usage        string            `json:"usage" xml:"usage,attr"`
+	Views        []views.ViewTuple `json:"views" xml:"view"`
+	View         views.ViewRef     `json:"view_id" xml:"view_id,attr"`
+	AutoRefresh  bool              `json:"auto_refresh" xml:"auto_refresh,attr"`
+	ManualSearch bool              `json:"-" xml:"-"`
+	ActViewType  ActionViewType    `json:"-" xml:"view_type"`
+	ViewMode     string            `json:"view_mode" xml:"view_mode,attr"`
+	Multi        bool              `json:"multi" xml:"multi,attr"`
+	Target       string            `json:"target" xml:"target,attr"`
+	AutoSearch   bool              `json:"auto_search" xml:"auto_search,attr"`
+	Filter       bool              `json:"filter" xml:"filter,attr"`
+	Limit        int64             `json:"limit" xml:"limit,attr"`
+	Context      *types.Context    `json:"context" xml:"context,attr"`
+	Flags        map[string]any    `json:"flags"`
+	Tag          string            `json:"tag"`
+	ReportName   string            `json:"report_name"`
+	ReportType   string            `json:"report_type"`
+	ReportFile   string            `json:"report_file"`
+	Data         map[string]any    `json:"data"`
 	names        map[string]string
 }
 

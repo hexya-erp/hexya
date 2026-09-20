@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"sort"
 )
 
@@ -21,7 +21,7 @@ type File struct {
 
 // Load loads a named po file.
 func Load(name string) (*File, error) {
-	data, err := ioutil.ReadFile(name)
+	data, err := os.ReadFile(name)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func LoadData(data []byte) (*File, error) {
 
 // Save saves a po file.
 func (f *File) Save(name string) error {
-	return ioutil.WriteFile(name, []byte(f.String()), 0666)
+	return os.WriteFile(name, []byte(f.String()), 0666)
 }
 
 // Data returns a po file format data.

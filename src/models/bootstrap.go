@@ -16,6 +16,7 @@ package models
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 	"time"
@@ -93,13 +94,9 @@ func processUpdates() {
 				for property, value := range update {
 					switch property {
 					case "selection_add":
-						for k, v := range value.(types.Selection) {
-							fi.selection[k] = v
-						}
+						maps.Copy(fi.selection, value.(types.Selection))
 					case "contexts_add":
-						for k, v := range value.(FieldContexts) {
-							fi.contexts[k] = v
-						}
+						maps.Copy(fi.contexts, value.(FieldContexts))
 					default:
 						fi.SetProperty(property, value)
 					}
@@ -218,7 +215,7 @@ func addMixinMethods(mixinModel, model *Model) {
 		} else {
 			// The method does not exist
 			newMethInfo := copyMethod(model, methInfo)
-			for i := 0; i < len(layersInv); i++ {
+			for i := range layersInv {
 				newMethInfo.addMethodLayer(layersInv[i].funcValue)
 			}
 			model.methods.set(methName, newMethInfo)
@@ -343,7 +340,7 @@ func inflateContexts() {
 				jsonReverseFK:    "record_id",
 				structField: reflect.StructField{
 					Name: fName,
-					Type: reflect.TypeOf([]int64{}),
+					Type: reflect.TypeFor[[]int64](),
 				},
 			}
 			mi.fields.add(o2mField)

@@ -4,7 +4,6 @@
 package po
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -36,7 +35,7 @@ func TestReadPOFile(t *testing.T) {
 func TestWritePOFile(t *testing.T) {
 	fileName := filepath.Join(os.TempDir(), "testfile.po")
 	testFile.Save(fileName)
-	fileData, err := ioutil.ReadFile(fileName)
+	fileData, err := os.ReadFile(fileName)
 	if err != nil {
 		t.Fatal("Unable to reload saved PO file")
 	}

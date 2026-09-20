@@ -31,13 +31,13 @@ const maxSQLidentifierLength = 63
 // An SQLParams is a list of parameters that are passed to the
 // DB server with the query string and that will be used in the
 // placeholders.
-type SQLParams []interface{}
+type SQLParams []any
 
 // Extend returns a new SQLParams with both params of this SQLParams and
 // of p2 SQLParams.
 func (p SQLParams) Extend(p2 SQLParams) SQLParams {
-	pi := []interface{}(p)
-	pi2 := []interface{}(p2)
+	pi := []any(p)
+	pi2 := []any(p2)
 	res := append(pi, pi2...)
 	return res
 }
@@ -346,7 +346,7 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 	for k, v := range data {
 		fi := q.recordSet.model.fields.MustGet(k)
 		if fi.fieldType.IsFKRelationType() && !fi.required {
-			if _, ok := v.(*interface{}); ok {
+			if _, ok := v.(*any); ok {
 				// We have a null fk field
 				continue
 			}
@@ -665,7 +665,7 @@ func (q *Query) generateTableJoins(fieldExprs []FieldName) []tableJoin {
 func (q *Query) tablesSQL(fExprs [][]FieldName) (string, map[string]string) {
 	adapter := adapters[db.DriverName()]
 	var (
-		res        string
+		res        strings.Builder
 		aliasIndex int
 	)
 	joinsMap := make(map[string]string)
@@ -679,11 +679,11 @@ func (q *Query) tablesSQL(fExprs [][]FieldName) (string, map[string]string) {
 					joinsMap[j.alias] = j.alias
 				}
 				aliasIndex++
-				res += j.sqlString()
+				res.WriteString(j.sqlString())
 			}
 		}
 	}
-	return res, joinsMap
+	return res.String(), joinsMap
 }
 
 // thisTable returns the quoted table name of this query's recordset table
@@ -748,13 +748,13 @@ func (q *Query) substituteConditionExprs(substMap map[FieldName][]FieldName) {
 // substitute it with the result.
 //
 // multi should be true if the operator of the predicate is IN
-func (q *Query) evaluateConditionArgFunctions(p predicate) interface{} {
+func (q *Query) evaluateConditionArgFunctions(p predicate) any {
 	fnctVal := reflect.ValueOf(p.arg)
 	if fnctVal.Kind() != reflect.Func {
 		return p.arg
 	}
 	firstArgType := fnctVal.Type().In(0)
-	if !firstArgType.Implements(reflect.TypeOf((*RecordSet)(nil)).Elem()) {
+	if !firstArgType.Implements(reflect.TypeFor[RecordSet]()) {
 		return p.arg
 	}
 	argValue := reflect.ValueOf(q.recordSet)
@@ -811,12 +811,12 @@ func (q *Query) ctxArgsSlug() string {
 // argsSlug returns a slug of the given condition arguments
 func (q *Query) argsSlug(c *Condition) string {
 	var (
-		res  string
+		res  strings.Builder
 		args []string
 	)
 	for _, p := range c.predicates {
 		if p.isCond {
-			res += q.argsSlug(p.cond)
+			res.WriteString(q.argsSlug(p.cond))
 			continue
 		}
 		arg := fmt.Sprintf("%v", q.evaluateConditionArgFunctions(p))
@@ -826,8 +826,8 @@ func (q *Query) argsSlug(c *Condition) string {
 		args = append(args, arg)
 	}
 	sort.Strings(args)
-	res += strings.Join(args, "")
-	return res
+	res.WriteString(strings.Join(args, ""))
+	return res.String()
 }
 
 // newQuery returns a new empty query

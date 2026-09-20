@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"strings"
@@ -43,7 +44,7 @@ type RecordSet interface {
 	// IsNotEmpty returns true if this RecordSet has at least one record
 	IsNotEmpty() bool
 	// Call executes the given method (as string) with the given arguments
-	Call(string, ...interface{}) interface{}
+	Call(string, ...any) any
 }
 
 var log logging.Logger
@@ -51,21 +52,19 @@ var log logging.Logger
 // A Context is a map of objects that is passed along from function to function
 // during a transaction. A Context is read only.
 type Context struct {
-	values map[string]interface{}
+	values map[string]any
 }
 
 // Copy returns a shallow copy of the Context
 func (c *Context) Copy() *Context {
 	newCtx := NewContext()
-	for k, v := range c.values {
-		newCtx.values[k] = v
-	}
+	maps.Copy(newCtx.values, c.values)
 	return newCtx
 }
 
 // Get returns the value of the given key in this Context
 // It returns nil if the key is not in this context
-func (c *Context) Get(key string) interface{} {
+func (c *Context) Get(key string) any {
 	value := c.values[key]
 	return value
 }
@@ -149,7 +148,7 @@ func (c *Context) GetStringSlice(key string) []string {
 	switch value := val.(type) {
 	case []string:
 		res = value
-	case []interface{}:
+	case []any:
 		res = make([]string, len(value))
 		for i, v := range value {
 			res[i] = v.(string)
@@ -229,7 +228,7 @@ func (c *Context) HasKey(key string) bool {
 
 // WithKey returns a copy of this context with the given key/value.
 // If key already exists, it is overwritten.
-func (c *Context) WithKey(key string, value interface{}) *Context {
+func (c *Context) WithKey(key string, value any) *Context {
 	res := c.Copy()
 	if _, ok := value.(RecordSet); ok {
 		log.Panic("Recordset passed in Context. Pass ID instead", "key", key, "value", value)
@@ -246,7 +245,7 @@ func (c *Context) Delete(key string) *Context {
 
 // Pop removes the content pointed by the given key from the context.
 // and returns the value
-func (c *Context) Pop(key string) interface{} {
+func (c *Context) Pop(key string) any {
 	val := c.Get(key)
 	c.Delete(key)
 	return val
@@ -274,17 +273,15 @@ func (c *Context) IsEmpty() bool {
 }
 
 // ToMap returns a copy of the map of values of this context
-func (c *Context) ToMap() map[string]interface{} {
-	res := make(map[string]interface{})
-	for k, v := range c.values {
-		res[k] = v
-	}
+func (c *Context) ToMap() map[string]any {
+	res := make(map[string]any)
+	maps.Copy(res, c.values)
 	return res
 }
 
 // UnmarshalXMLAttr is the XML unmarshalling method of Context.
 func (c *Context) UnmarshalXMLAttr(attr xml.Attr) error {
-	var cm map[string]interface{}
+	var cm map[string]any
 	err := json.Unmarshal([]byte(attr.Value), &cm)
 	(*c).values = cm
 	return err
@@ -297,7 +294,7 @@ func (c *Context) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON method for Context
 func (c *Context) UnmarshalJSON(data []byte) error {
-	var cm map[string]interface{}
+	var cm map[string]any
 	err := json.Unmarshal(data, &cm)
 	(*c).values = cm
 	return err
@@ -315,14 +312,14 @@ func (c *Context) Value() (driver.Value, error) {
 }
 
 // Scan JSON decodes the value of the database into a Context
-func (c *Context) Scan(src interface{}) error {
+func (c *Context) Scan(src any) error {
 	var data []byte
 	switch s := src.(type) {
 	case string:
 		data = []byte(s)
 	case []byte:
 		data = s
-	case map[string]interface{}:
+	case map[string]any:
 		c.values = s
 		return nil
 	default:
@@ -353,7 +350,7 @@ var _ json.Unmarshaler = &Context{}
 
 // NewContext returns a new Context instance
 func NewContext() *Context {
-	values := make(map[string]interface{})
+	values := make(map[string]any)
 	return &Context{
 		values: values,
 	}

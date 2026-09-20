@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -69,7 +68,7 @@ func (sc ScssCompiler) Compile(in io.Reader, out io.Writer, includePaths ...stri
 
 // sanitize the import directives of the input SCSS
 func (sc ScssCompiler) sanitize(in io.Reader, out io.Writer) error {
-	data, err := ioutil.ReadAll(in)
+	data, err := io.ReadAll(in)
 	if err != nil {
 		return fmt.Errorf("error while reading input CSS: %v", err)
 	}

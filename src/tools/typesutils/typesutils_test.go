@@ -213,10 +213,10 @@ func TestIsLessThan(t *testing.T) {
 }
 
 type convertTestCase struct {
-	value  interface{}
-	target interface{}
+	value  any
+	target any
 	isRS   bool
-	result interface{}
+	result any
 	err    string
 }
 
@@ -232,19 +232,19 @@ var convertTestCases = []convertTestCase{
 	{value: []byte("1"), target: new(float64), result: float64(1)},
 	{value: "1", target: new(sql.NullFloat64), result: sql.NullFloat64{Float64: 1, Valid: true}},
 	{value: 1, target: new(int64), result: int64(1), isRS: true},
-	{value: []interface{}{}, target: new(int64), result: int64(0), isRS: true},
-	{value: []interface{}{}, target: new([]int64), result: []int64{}, isRS: true},
+	{value: []any{}, target: new(int64), result: int64(0), isRS: true},
+	{value: []any{}, target: new([]int64), result: []int64{}, isRS: true},
 	{value: []int64{1, 2}, target: new([]int64), result: []int64{1, 2}, isRS: true},
 	{value: []int64{1}, target: new(int64), result: int64(1), isRS: true},
-	{value: (*interface{})(nil), target: new(int64), result: int64(0), isRS: true},
-	{value: (*interface{})(nil), target: new([]int64), result: []int64{}, isRS: true},
+	{value: (*any)(nil), target: new(int64), result: int64(0), isRS: true},
+	{value: (*any)(nil), target: new([]int64), result: []int64{}, isRS: true},
 }
 
 var convertErrorCases = []convertTestCase{
 	{value: "SOMESTRING", target: new(sql.NullFloat64), err: "unable to scan into target Type: converting driver.Value type string (\"SOMESTRING\") to a float64: invalid syntax"},
 	{value: []byte("STRING"), target: new(float32), err: "strconv.ParseFloat: parsing \"STRING\": invalid syntax"},
 	{value: []byte("STRING"), target: new(float64), err: "strconv.ParseFloat: parsing \"STRING\": invalid syntax"},
-	{value: []interface{}{1}, target: new([]int64), isRS: true, err: "non empty []interface{} given"},
+	{value: []any{1}, target: new([]int64), isRS: true, err: "non empty []interface{} given"},
 	{value: "ST", target: new(float32), isRS: true, err: "expected number value, got ST: value ST cannot be casted to int64"},
 	{value: 1, target: new(float64), isRS: true, err: "non consistent type"},
 	{value: false, target: new(int), err: "impossible conversion of false (bool) to int"},

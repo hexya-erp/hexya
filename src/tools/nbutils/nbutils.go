@@ -13,7 +13,7 @@ import (
 
 // CastToInteger casts the given val to int64 if it is
 // a number type. Returns an error otherwise
-func CastToInteger(val interface{}) (int64, error) {
+func CastToInteger(val any) (int64, error) {
 	switch value := val.(type) {
 	case int64:
 		return value, nil
@@ -38,7 +38,7 @@ func CastToInteger(val interface{}) (int64, error) {
 
 // CastToFloat casts the given val to float64 if it is
 // a number type. Panics otherwise
-func CastToFloat(val interface{}) (float64, error) {
+func CastToFloat(val any) (float64, error) {
 	switch value := val.(type) {
 	case float64:
 		return value, nil

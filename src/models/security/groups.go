@@ -16,6 +16,7 @@ package security
 
 import (
 	"fmt"
+	"maps"
 	"sync"
 )
 
@@ -236,9 +237,7 @@ func (gc *GroupCollection) HasMembership(uid int64, group *Group) bool {
 // uid belongs to, including inherited groups.
 func (gc *GroupCollection) UserGroups(uid int64) map[*Group]InheritanceInfo {
 	res := make(map[*Group]InheritanceInfo, len(gc.memberships[uid])+1)
-	for k, v := range gc.memberships[uid] {
-		res[k] = v
-	}
+	maps.Copy(res, gc.memberships[uid])
 	res[GroupEveryone] = NativeGroup
 	return res
 }

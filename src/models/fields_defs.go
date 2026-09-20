@@ -30,7 +30,7 @@ func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 		json:  json,
 		structField: reflect.StructField{
 			Name: name,
-			Type: reflect.TypeOf(*new(bool)),
+			Type: reflect.TypeFor[bool](),
 		},
 		fieldType: fieldtype.NoType,
 	}
@@ -40,7 +40,7 @@ func (df DummyField) DeclareField(fc *FieldsCollection, name string) *Field {
 // CreateFieldFromStruct creates a generic Field with the data from the given fStruct
 //
 // fStruct must be a pointer to a struct and goType a pointer to a type instance
-func CreateFieldFromStruct(fc *FieldsCollection, fStruct interface{}, name string, fieldType fieldtype.Type, goType interface{}) *Field {
+func CreateFieldFromStruct(fc *FieldsCollection, fStruct any, name string, fieldType fieldtype.Type, goType any) *Field {
 	val := reflect.ValueOf(fStruct).Elem()
 	typ := reflect.TypeOf(goType).Elem()
 	if val.FieldByName("GoType").IsValid() && !val.FieldByName("GoType").IsNil() {
@@ -103,7 +103,7 @@ func CreateFieldFromStruct(fc *FieldsCollection, fStruct interface{}, name strin
 		noCopy:          noCopy,
 		structField:     structField,
 		fieldType:       fieldType,
-		defaultFunc:     val.FieldByName("Default").Interface().(func(Environment) interface{}),
+		defaultFunc:     val.FieldByName("Default").Interface().(func(Environment) any),
 		onChange:        onchange,
 		onChangeWarning: onchangeWarning,
 		onChangeFilters: onchangeFilters,
@@ -152,17 +152,17 @@ func getFuncNames(compute, inverse, onchange, onchangeWarning, onchangeFilters, 
 }
 
 // addUpdate adds an update entry for for this field with the given property and the given value
-func (f *Field) addUpdate(property string, value interface{}) {
+func (f *Field) addUpdate(property string, value any) {
 	if Registry.bootstrapped {
 		log.Panic("Fields must not be modified after bootstrap", "model", f.model.name, "field", f.name, "property", property, "value", value)
 	}
-	update := map[string]interface{}{property: value}
+	update := map[string]any{property: value}
 	f.updates = append(f.updates, update)
 }
 
 // SetProperty sets the given property value in this field
 // This method uses switch as they are unexported struct fields
-func (f *Field) SetProperty(property string, value interface{}) {
+func (f *Field) SetProperty(property string, value any) {
 	switch property {
 	case "fieldType":
 		f.fieldType = value.(fieldtype.Type)
@@ -207,7 +207,7 @@ func (f *Field) SetProperty(property string, value interface{}) {
 	case "noCopy":
 		f.noCopy = value.(bool)
 	case "defaultFunc":
-		f.defaultFunc = value.(func(Environment) interface{})
+		f.defaultFunc = value.(func(Environment) any)
 	case "onDelete":
 		f.onDelete = value.(OnDeleteAction)
 	case "onChange":
@@ -400,7 +400,7 @@ func (f *Field) AddContexts(value FieldContexts) *Field {
 }
 
 // SetDefault overrides the value of the Default parameter of this Field
-func (f *Field) SetDefault(value func(Environment) interface{}) *Field {
+func (f *Field) SetDefault(value func(Environment) any) *Field {
 	f.addUpdate("defaultFunc", value)
 	return f
 }

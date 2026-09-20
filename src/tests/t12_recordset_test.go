@@ -80,12 +80,12 @@ func TestCreateRecordSet(t *testing.T) {
 				assert.EqualValues(t, post1.FirstTagName(), "Trending")
 				post1Tags := post1.Tags()
 				assert.EqualValues(t, post1Tags.Len(), 2)
-				assert.Contains(t, []interface{}{"Trending", "Jane's"}, post1Tags.Records()[0].Name())
-				assert.Contains(t, []interface{}{"Trending", "Jane's"}, post1Tags.Records()[1].Name())
+				assert.Contains(t, []any{"Trending", "Jane's"}, post1Tags.Records()[0].Name())
+				assert.Contains(t, []any{"Trending", "Jane's"}, post1Tags.Records()[1].Name())
 				post2Tags := post2.Tags()
 				assert.EqualValues(t, post2Tags.Len(), 2)
-				assert.Contains(t, []interface{}{"Books", "Jane's"}, post2Tags.Records()[0].Name())
-				assert.Contains(t, []interface{}{"Books", "Jane's"}, post2Tags.Records()[1].Name())
+				assert.Contains(t, []any{"Books", "Jane's"}, post2Tags.Records()[0].Name())
+				assert.Contains(t, []any{"Books", "Jane's"}, post2Tags.Records()[1].Name())
 
 				assert.Empty(t, post1.FirstCommentText())
 				h.Comment().Create(env, h.Comment().NewData().SetPost(post1).SetText("First Comment"))
@@ -496,8 +496,8 @@ func TestUpdateRecordSet(t *testing.T) {
 
 				post2Tags := h.Post().Search(env, q.Post().Title().Equals("2nd Post")).Tags()
 				assert.EqualValues(t, post2Tags.Len(), 2)
-				assert.Contains(t, []interface{}{"Books", "Jane's"}, post2Tags.Records()[0].Name())
-				assert.Contains(t, []interface{}{"Books", "Jane's"}, post2Tags.Records()[1].Name())
+				assert.Contains(t, []any{"Books", "Jane's"}, post2Tags.Records()[0].Name())
+				assert.Contains(t, []any{"Books", "Jane's"}, post2Tags.Records()[1].Name())
 			})
 			t.Run("Updating One2many fields", func(t *testing.T) {
 				posts := h.Post().NewSet(env)

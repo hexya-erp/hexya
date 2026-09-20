@@ -155,7 +155,7 @@ func addIDIfNotPresent(fields []FieldName) []FieldName {
 
 // getGroupCondition returns the condition to retrieve the individual aggregated rows in vals
 // knowing that they were grouped by groups and that we had the given initial condition
-func getGroupCondition(groups []FieldName, vals map[string]interface{}, initialCondition *Condition) *Condition {
+func getGroupCondition(groups []FieldName, vals map[string]any, initialCondition *Condition) *Condition {
 	res := initialCondition
 	for _, group := range groups {
 		res = res.And().Field(group).Equals(vals[group.JSON()])
@@ -165,7 +165,7 @@ func getGroupCondition(groups []FieldName, vals map[string]interface{}, initialC
 
 // substituteKeys returns a new map with its keys substituted following substMap after changing sqlSep into ExprSep.
 // vals keys that are not found in substMap are not returned
-func substituteKeys(vals map[string]interface{}, substMap map[string]string) map[string]interface{} {
+func substituteKeys(vals map[string]any, substMap map[string]string) map[string]any {
 	res := make(FieldMap)
 	for f, v := range vals {
 		k := strings.Replace(f, sqlSep, ExprSep, -1)
@@ -180,12 +180,12 @@ func substituteKeys(vals map[string]interface{}, substMap map[string]string) map
 
 // serializePredicates returns a list that mimics Odoo domains from the given
 // condition predicates.
-func serializePredicates(predicates []predicate) []interface{} {
-	var res []interface{}
+func serializePredicates(predicates []predicate) []any {
+	var res []any
 	i := 0
 	for i < len(predicates) {
 		if predicates[i].isOr {
-			subRes := []interface{}{"|"}
+			subRes := []any{"|"}
 			subRes = appendPredicateToSerial(subRes, predicates[i])
 			subRes, i = consumeAndPredicates(i+1, predicates, subRes)
 			res = append(subRes, res...)
@@ -198,7 +198,7 @@ func serializePredicates(predicates []predicate) []interface{} {
 
 // consumeAndPredicates appends res with all successive AND predicates
 // starting from position i and returns the next position as second argument.
-func consumeAndPredicates(i int, predicates []predicate, res []interface{}) ([]interface{}, int) {
+func consumeAndPredicates(i int, predicates []predicate, res []any) ([]any, int) {
 	if i >= len(predicates) || predicates[i].isOr {
 		return res, i
 	}
@@ -219,19 +219,19 @@ func consumeAndPredicates(i int, predicates []predicate, res []interface{}) ([]i
 
 // appendPredicateToSerial appends the given predicate to the given serialized
 // predicate list and returns the result.
-func appendPredicateToSerial(res []interface{}, predicate predicate) []interface{} {
+func appendPredicateToSerial(res []any, predicate predicate) []any {
 	if predicate.isCond {
 		res = append(res, serializePredicates(predicate.cond.predicates)...)
 	} else {
-		res = append(res, []interface{}{joinFieldNames(predicate.exprs, ExprSep).JSON(), predicate.operator, predicate.arg})
+		res = append(res, []any{joinFieldNames(predicate.exprs, ExprSep).JSON(), predicate.operator, predicate.arg})
 	}
 	return res
 }
 
 // DefaultValue returns a function that is suitable for the Default parameter of
 // model fields and that simply returns value.
-func DefaultValue(value interface{}) func(env Environment) interface{} {
-	return func(env Environment) interface{} {
+func DefaultValue(value any) func(env Environment) any {
+	return func(env Environment) any {
 		return value
 	}
 }
@@ -279,7 +279,7 @@ func splitFieldNames(f FieldName, sep string) []FieldName {
 		log.Panic("name and json paths lengths are inconsistent", "fieldName", f)
 	}
 	res := make([]FieldName, len(ntoks))
-	for i := 0; i < len(ntoks); i++ {
+	for i := range ntoks {
 		res[i] = fieldName{
 			name: ntoks[i],
 			json: jtoks[i],

@@ -48,17 +48,17 @@ func TestLocale(t *testing.T) {
 		t.Run("FormatFloat", func(t *testing.T) {
 			fr := GetLocale("fr")
 			val := 1234567890.123456
-			assert.EqualValues(t, fr.FormatFloat(val, nbutils.Digits{12, 3}), "1 234 567 890,123")
+			assert.EqualValues(t, fr.FormatFloat(val, nbutils.Digits{Precision: 12, Scale: 3}), "1 234 567 890,123")
 			en := GetLocale("en")
-			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{12, 3}), "1,234,567,890.123")
+			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{Precision: 12, Scale: 3}), "1,234,567,890.123")
 			en.Grouping = NumberGrouping{3, 2}
-			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{12, 3}), "12345,67,890.123")
+			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{Precision: 12, Scale: 3}), "12345,67,890.123")
 			en.Grouping = NumberGrouping{3, 2, 0}
-			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{12, 3}), "1,23,45,67,890.123")
+			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{Precision: 12, Scale: 3}), "1,23,45,67,890.123")
 			en.Grouping = NumberGrouping{2, 3, 2}
-			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{12, 5}), "123,45,678,90.12346")
+			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{Precision: 12, Scale: 5}), "123,45,678,90.12346")
 			en.Grouping = NumberGrouping{2, 3, 2, 0}
-			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{12, 3}), "1,23,45,678,90.123")
+			assert.EqualValues(t, en.FormatFloat(val, nbutils.Digits{Precision: 12, Scale: 3}), "1,23,45,678,90.123")
 		})
 		t.Run("FormatDate, FormatTime, FormatDateTime", func(t *testing.T) {
 			en := GetLocale("en")

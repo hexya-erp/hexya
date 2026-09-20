@@ -6,7 +6,7 @@ Author Nicolas Piganeau
 
 == Prerequisites
 
-This tutorial requires having installed Hexya <<install.adoc>>.
+This tutorial requires having installed Hexya <<install.adoc#>>.
 
 IMPORTANT: We suppose that you have created a project called `hexya-demo` inside a directory of the same name,
 with `github.com/hexya-erp/hexya-demo` as path.

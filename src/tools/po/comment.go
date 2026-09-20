@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -139,7 +140,7 @@ func (p *Comment) readReferenceComment(r *lineReader) (err error) {
 			return nil
 		}
 		ss := strings.Split(strings.TrimSpace(s[len(prefix):]), " ")
-		for i := 0; i < len(ss); i++ {
+		for i := range ss {
 			idx := strings.Index(ss[i], ":")
 			if idx <= 0 {
 				continue
@@ -164,7 +165,7 @@ func (p *Comment) readFlagsComment(r *lineReader) (err error) {
 			return nil
 		}
 		ss := strings.Split(strings.TrimSpace(s[len(prefix):]), ",")
-		for i := 0; i < len(ss); i++ {
+		for i := range ss {
 			p.Flags = append(p.Flags, strings.TrimSpace(ss[i]))
 		}
 	}
@@ -215,12 +216,7 @@ func (p *Comment) readString(r *lineReader) (msg string, err error) {
 
 // GetFuzzy gets the fuzzy flag.
 func (p *Comment) GetFuzzy() bool {
-	for _, s := range p.Flags {
-		if s == "fuzzy" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.Flags, "fuzzy")
 }
 
 // SetFuzzy sets the fuzzy flag.
@@ -233,13 +229,13 @@ func (p Comment) String() string {
 	var buf bytes.Buffer
 	if p.TranslatorComment != "" {
 		ss := strings.Split(p.TranslatorComment, "\n")
-		for i := 0; i < len(ss); i++ {
+		for i := range ss {
 			fmt.Fprintf(&buf, "# %s\n", ss[i])
 		}
 	}
 	if p.ExtractedComment != "" {
 		ss := strings.Split(p.ExtractedComment, "\n")
-		for i := 0; i < len(ss); i++ {
+		for i := range ss {
 			fmt.Fprintf(&buf, "#. %s\n", ss[i])
 		}
 	}

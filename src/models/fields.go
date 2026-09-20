@@ -230,7 +230,7 @@ type Field struct {
 	dependencies     []computeData
 	embed            bool
 	noCopy           bool
-	defaultFunc      func(Environment) interface{}
+	defaultFunc      func(Environment) any
 	onDelete         OnDeleteAction
 	onChange         string
 	onChangeWarning  string
@@ -240,7 +240,7 @@ type Field struct {
 	filter           *Condition
 	contexts         FieldContexts
 	ctxType          ctxType
-	updates          []map[string]interface{}
+	updates          []map[string]any
 }
 
 // isComputedField returns true if this field is computed
@@ -331,7 +331,7 @@ func checkFieldInfo(fi *Field) {
 		fi.embed = false
 	}
 
-	if fi.structField.Type == reflect.TypeOf(RecordCollection{}) && fi.relatedModel.name == "" {
+	if fi.structField.Type == reflect.TypeFor[RecordCollection]() && fi.relatedModel.name == "" {
 		log.Panic("Undefined relation model on related field", "model", fi.model.name, "field", fi.name,
 			"type", fi.fieldType)
 	}
@@ -398,7 +398,7 @@ func CreateM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 		onDelete:         Cascade,
 		structField: reflect.StructField{
 			Name: field1,
-			Type: reflect.TypeOf(int64(0)),
+			Type: reflect.TypeFor[int64](),
 		},
 	}
 	newMI.fields.add(ourField)
@@ -415,7 +415,7 @@ func CreateM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 		onDelete:         Cascade,
 		structField: reflect.StructField{
 			Name: field2,
-			Type: reflect.TypeOf(int64(0)),
+			Type: reflect.TypeFor[int64](),
 		},
 	}
 	newMI.fields.add(theirField)
@@ -440,17 +440,13 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		defaultOrderStr: []string{"ID"},
 	}
 	pkField := &Field{
-		name:      "ID",
-		json:      "id",
-		model:     &newModel,
-		required:  true,
-		noCopy:    true,
-		fieldType: fieldtype.Integer,
-		structField: reflect.TypeOf(
-			struct {
-				ID int64
-			}{},
-		).Field(0),
+		name:        "ID",
+		json:        "id",
+		model:       &newModel,
+		required:    true,
+		noCopy:      true,
+		fieldType:   fieldtype.Integer,
+		structField: reflect.TypeFor[struct{ ID int64 }]().Field(0),
 	}
 	newModel.fields.add(pkField)
 	fkField := &Field{
@@ -467,7 +463,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 		ctxType:          ctxFK,
 		structField: reflect.StructField{
 			Name: "Record",
-			Type: reflect.TypeOf(int64(0)),
+			Type: reflect.TypeFor[int64](),
 		},
 	}
 	newModel.fields.add(fkField)
@@ -496,7 +492,7 @@ func createContextsModel(fi *Field, contexts FieldContexts) *Model {
 			ctxType:   ctxContext,
 			structField: reflect.StructField{
 				Name: ctName,
-				Type: reflect.TypeOf(""),
+				Type: reflect.TypeFor[string](),
 			},
 		}
 		newModel.fields.add(ctField)
@@ -606,7 +602,7 @@ func checkMethType(method *Method, label string) error {
 		msg = fmt.Sprintf("%s should return a value", label)
 	case methType.NumOut() > 1:
 		msg = fmt.Sprintf("Too many return values for %s", label)
-	case !methType.Out(0).Implements(reflect.TypeOf((*RecordData)(nil)).Elem()):
+	case !methType.Out(0).Implements(reflect.TypeFor[RecordData]()):
 		msg = fmt.Sprintf("%s returned value must implement models.RecordData", label)
 	}
 	if msg != "" {
@@ -627,7 +623,7 @@ func checkOnChangeWarningType(method *Method) error {
 		msg = "OnChangeWarning methods should return a value"
 	case methType.NumOut() > 1:
 		msg = "Too many return values for OnChangeWarning method"
-	case methType.Out(0) != reflect.TypeOf("string"):
+	case methType.Out(0) != reflect.TypeFor[string]():
 		msg = "OnChangeWarning methods returned value must be of type string"
 	}
 	if msg != "" {
@@ -648,7 +644,7 @@ func checkOnChangeFiltersType(method *Method) error {
 		msg = "OnChangeFilters methods should return a value"
 	case methType.NumOut() > 1:
 		msg = "Too many return values for OnChangeFilters method"
-	case methType.Out(0) != reflect.TypeOf(map[FieldName]Conditioner{}):
+	case methType.Out(0) != reflect.TypeFor[map[FieldName]Conditioner]():
 		msg = "OnChangeFilters methods returned value must be of type map[models.FieldName]models.Conditioner"
 	}
 	if msg != "" {

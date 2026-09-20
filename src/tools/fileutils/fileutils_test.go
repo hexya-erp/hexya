@@ -4,7 +4,7 @@
 package fileutils_test
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,7 +31,7 @@ func TestCopy(t *testing.T) {
 		assert.EqualValues(t, fd.Size(), fs.Size())
 		d, err := os.Open(dstFileName)
 		assert.Nil(t, err)
-		data, err := ioutil.ReadAll(d)
+		data, err := io.ReadAll(d)
 		assert.Nil(t, err)
 		assert.EqualValues(t, string(data), "This is the file's content")
 	})

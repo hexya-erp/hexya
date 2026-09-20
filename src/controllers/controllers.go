@@ -117,7 +117,7 @@ func (g *Group) OverrideController(method, relativePath string, fnct server.Hand
 		log.Panic("Trying to override a non-existent controller",
 			"method", method, "path", relativePath)
 	}
-	g.controllers[route].handlers = append([]server.HandlerFunc{fnct})
+	g.controllers[route].handlers = []server.HandlerFunc{fnct}
 }
 
 // AddStatic creates a new route at relativePath that will serve

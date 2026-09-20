@@ -17,6 +17,7 @@ package models
 import (
 	"database/sql"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -371,9 +372,7 @@ func commonMixinOnChange(rc *RecordCollection, params OnchangeParams) OnchangeRe
 			// Filters
 			if fi.onChangeFilters != "" {
 				ff := rrs.Call(fi.onChangeFilters).(map[FieldName]Conditioner)
-				for k, v := range ff {
-					filters[k] = v
-				}
+				maps.Copy(filters, ff)
 			}
 		}
 		// Collect modified values
@@ -554,7 +553,7 @@ func commonMixinWithEnv(rc *RecordCollection, env Environment) *RecordCollection
 
 // WithContext returns a copy of the current RecordSet with
 // its context extended by the given key and value.
-func commonMixinWithContext(rc *RecordCollection, key string, value interface{}) *RecordCollection {
+func commonMixinWithContext(rc *RecordCollection, key string, value any) *RecordCollection {
 	return rc.WithContext(key, value)
 }
 
@@ -582,7 +581,7 @@ func declareBaseMixin() {
 		description: "Created On",
 		json:        "create_date",
 		fieldType:   fieldtype.DateTime,
-		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
+		structField: reflect.StructField{Type: reflect.TypeFor[dates.DateTime]()},
 		noCopy:      true,
 	})
 	baseMixin.fields.add(&Field{
@@ -591,9 +590,9 @@ func declareBaseMixin() {
 		description: "Created By",
 		json:        "create_uid",
 		fieldType:   fieldtype.Integer,
-		structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
+		structField: reflect.StructField{Type: reflect.TypeFor[int64]()},
 		noCopy:      true,
-		defaultFunc: func(env Environment) interface{} {
+		defaultFunc: func(env Environment) any {
 			return env.uid
 		},
 	})
@@ -603,7 +602,7 @@ func declareBaseMixin() {
 		description: "Updated On",
 		json:        "write_date",
 		fieldType:   fieldtype.DateTime,
-		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
+		structField: reflect.StructField{Type: reflect.TypeFor[dates.DateTime]()},
 		noCopy:      true,
 	})
 	baseMixin.fields.add(&Field{
@@ -612,9 +611,9 @@ func declareBaseMixin() {
 		description: "UpdatedBy",
 		json:        "write_uid",
 		fieldType:   fieldtype.Integer,
-		structField: reflect.StructField{Type: reflect.TypeOf(int64(0))},
+		structField: reflect.StructField{Type: reflect.TypeFor[int64]()},
 		noCopy:      true,
-		defaultFunc: func(env Environment) interface{} {
+		defaultFunc: func(env Environment) any {
 			return env.uid
 		},
 	})
@@ -624,7 +623,7 @@ func declareBaseMixin() {
 		description: "Last Updated On",
 		json:        "__last_update",
 		fieldType:   fieldtype.DateTime,
-		structField: reflect.StructField{Type: reflect.TypeOf(dates.DateTime{})},
+		structField: reflect.StructField{Type: reflect.TypeFor[dates.DateTime]()},
 		compute:     "ComputeLastUpdate",
 		depends:     []string{"WriteDate", "CreateDate"},
 	})
@@ -634,7 +633,7 @@ func declareBaseMixin() {
 		description: "Display Name",
 		json:        "display_name",
 		fieldType:   fieldtype.Char,
-		structField: reflect.StructField{Type: reflect.TypeOf("")},
+		structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		compute:     "ComputeDisplayName",
 		depends:     []string{""},
 	})
@@ -670,13 +669,13 @@ func declareModelMixin() {
 		description: "Record External ID",
 		json:        "hexya_external_id",
 		fieldType:   fieldtype.Char,
-		structField: reflect.StructField{Type: reflect.TypeOf("")},
+		structField: reflect.StructField{Type: reflect.TypeFor[string]()},
 		noCopy:      true,
 		unique:      true,
 		index:       true,
 		required:    true,
 		readOnly:    true,
-		defaultFunc: func(env Environment) interface{} {
+		defaultFunc: func(env Environment) any {
 			return uuid.New().String()
 		},
 	})
@@ -686,14 +685,14 @@ func declareModelMixin() {
 		description: "Data Version",
 		json:        "hexya_version",
 		fieldType:   fieldtype.Integer,
-		structField: reflect.StructField{Type: reflect.TypeOf(0)},
+		structField: reflect.StructField{Type: reflect.TypeFor[int]()},
 		noCopy:      true,
 		defaultFunc: DefaultValue(0),
 	})
 }
 
 // ConvertLimitToInt converts the given limit as interface{} to an int
-func ConvertLimitToInt(limit interface{}) int {
+func ConvertLimitToInt(limit any) int {
 	if l, ok := limit.(bool); ok && !l {
 		return -1
 	}
@@ -709,7 +708,7 @@ type FieldInfo struct {
 	ChangeDefault    bool                                  `json:"change_default"`
 	Help             string                                `json:"help"`
 	Searchable       bool                                  `json:"searchable"`
-	Views            map[string]interface{}                `json:"views"`
+	Views            map[string]any                        `json:"views"`
 	Required         bool                                  `json:"required"`
 	Manual           bool                                  `json:"manual"`
 	ReadOnly         bool                                  `json:"readonly"`
@@ -722,7 +721,7 @@ type FieldInfo struct {
 	String           string                                `json:"string"`
 	Relation         string                                `json:"relation"`
 	Selection        types.Selection                       `json:"selection"`
-	Domain           interface{}                           `json:"domain"`
+	Domain           any                                   `json:"domain"`
 	OnChange         bool                                  `json:"-"`
 	ReverseFK        string                                `json:"-"`
 	Name             string                                `json:"-"`
@@ -730,7 +729,7 @@ type FieldInfo struct {
 	ReadOnlyFunc     func(Environment) (bool, Conditioner) `json:"-"`
 	RequiredFunc     func(Environment) (bool, Conditioner) `json:"-"`
 	InvisibleFunc    func(Environment) (bool, Conditioner) `json:"-"`
-	DefaultFunc      func(Environment) interface{}         `json:"-"`
+	DefaultFunc      func(Environment) any                 `json:"-"`
 	GoType           reflect.Type                          `json:"-"`
 	Index            bool                                  `json:"-"`
 }

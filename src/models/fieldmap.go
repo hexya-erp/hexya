@@ -4,12 +4,13 @@
 package models
 
 import (
+	"maps"
 	"sort"
 )
 
 // FieldMap is a map of interface{} specifically used for holding model
 // fields values.
-type FieldMap map[string]interface{}
+type FieldMap map[string]any
 
 // Keys returns the FieldMap keys as a slice of strings
 func (fm FieldMap) Keys() (res []string) {
@@ -41,7 +42,7 @@ func (fm FieldMap) FieldNames(model *Model) FieldNames {
 }
 
 // Values returns the FieldMap values as a slice of interface{}
-func (fm FieldMap) Values() (res []interface{}) {
+func (fm FieldMap) Values() (res []any) {
 	for _, v := range fm {
 		res = append(res, v)
 	}
@@ -69,7 +70,7 @@ func (fm *FieldMap) RemovePKIfZero() {
 // Get returns the value of the given field referring to the given model.
 // field can be either a field name (or path) or a field JSON name (or path).
 // The second returned value is true if the field has been found in the FieldMap
-func (fm FieldMap) Get(field FieldName) (interface{}, bool) {
+func (fm FieldMap) Get(field FieldName) (any, bool) {
 	val, ok := fm[field.Name()]
 	if !ok {
 		val, ok = fm[field.JSON()]
@@ -83,7 +84,7 @@ func (fm FieldMap) Get(field FieldName) (interface{}, bool) {
 // MustGet returns the value of the given field referring to the given model.
 // field can be either a field name (or path) or a field JSON name (or path).
 // It panics if the field is not found.
-func (fm FieldMap) MustGet(field FieldName) interface{} {
+func (fm FieldMap) MustGet(field FieldName) any {
 	val, ok := fm.Get(field)
 	if !ok {
 		log.Panic("Field not found in FieldMap", "field", field.Name(), "fMap", fm)
@@ -95,7 +96,7 @@ func (fm FieldMap) MustGet(field FieldName) interface{} {
 // If the field already exists, then it is updated with value.
 // Otherwise, a new entry is inserted in the FieldMap with the
 // JSON name of the field.
-func (fm *FieldMap) Set(field FieldName, value interface{}) {
+func (fm *FieldMap) Set(field FieldName, value any) {
 	key := field.Name()
 	_, ok := (*fm)[key]
 	if !ok {
@@ -135,8 +136,6 @@ var _ FieldMapper = FieldMap{}
 // Copy returns a shallow copy of this FieldMap
 func (fm FieldMap) Copy() FieldMap {
 	res := make(FieldMap, len(fm))
-	for k, v := range fm {
-		res[k] = v
-	}
+	maps.Copy(res, fm)
 	return res
 }

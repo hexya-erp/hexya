@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/hexya-erp/hexya/src/models/operator"
 )
@@ -32,7 +33,7 @@ const (
 type predicate struct {
 	exprs    []FieldName
 	operator operator.Operator
-	arg      interface{}
+	arg      any
 	cond     *Condition
 	isOr     bool
 	isNot    bool
@@ -50,7 +51,7 @@ func (p predicate) Operator() operator.Operator {
 }
 
 // Argument returns the argument of this predicate
-func (p predicate) Argument() interface{} {
+func (p predicate) Argument() any {
 	return p.arg
 }
 
@@ -70,7 +71,7 @@ func (p *predicate) AlterOperator(op operator.Operator) *predicate {
 }
 
 // AlterArgument changes the argument of this predicate
-func (p *predicate) AlterArgument(arg interface{}) *predicate {
+func (p *predicate) AlterArgument(arg any) *predicate {
 	p.arg = arg
 	return p
 }
@@ -160,7 +161,7 @@ func (c Condition) OrNotCond(cond *Condition) *Condition {
 }
 
 // Serialize returns the condition as a list which mimics Odoo domains.
-func (c Condition) Serialize() []interface{} {
+func (c Condition) Serialize() []any {
 	return serializePredicates(c.predicates)
 }
 
@@ -190,23 +191,23 @@ func (c Condition) PredicatesWithField(f *Field) []*predicate {
 
 // String method for the Condition. Recursively print all predicates.
 func (c Condition) String() string {
-	var res string
+	var res strings.Builder
 	for _, p := range c.predicates {
 		if p.isOr {
-			res += "OR "
+			res.WriteString("OR ")
 		} else {
-			res += "AND "
+			res.WriteString("AND ")
 		}
 		if p.isNot {
-			res += "NOT "
+			res.WriteString("NOT ")
 		}
 		if p.isCond {
-			res += fmt.Sprintf("(\n%s\n)\n", p.cond.String())
+			res.WriteString(fmt.Sprintf("(\n%s\n)\n", p.cond.String()))
 			continue
 		}
-		res += fmt.Sprintf("%s %s %v\n", joinFieldNames(p.exprs, ExprSep).Name(), p.operator, p.arg)
+		res.WriteString(fmt.Sprintf("%s %s %v\n", joinFieldNames(p.exprs, ExprSep).Name(), p.operator, p.arg))
 	}
-	return res
+	return res.String()
 }
 
 // Underlying returns the underlying Condition (i.e. itself)
@@ -272,7 +273,7 @@ var _ FieldName = ConditionField{}
 //
 // This method is low level and should be avoided. Use operator methods such as Equals()
 // instead.
-func (c ConditionField) AddOperator(op operator.Operator, data interface{}) *Condition {
+func (c ConditionField) AddOperator(op operator.Operator, data any) *Condition {
 	cond := c.cs.cond
 	data = sanitizeArgs(data, op.IsMulti())
 	if data != nil && op.IsMulti() && reflect.ValueOf(data).Kind() == reflect.Slice && reflect.ValueOf(data).Len() == 0 {
@@ -299,7 +300,7 @@ func (c ConditionField) AddOperator(op operator.Operator, data interface{}) *Con
 // If multi is true, a recordset will be converted into a slice of int64
 // otherwise, it will return an int64 and panic if the recordset is not
 // a singleton
-func sanitizeArgs(args interface{}, multi bool) interface{} {
+func sanitizeArgs(args any, multi bool) any {
 	if rs, ok := args.(RecordSet); ok {
 		if multi {
 			return rs.Ids()
@@ -316,77 +317,77 @@ func sanitizeArgs(args interface{}, multi bool) interface{} {
 }
 
 // Equals appends the '=' operator to the current Condition
-func (c ConditionField) Equals(data interface{}) *Condition {
+func (c ConditionField) Equals(data any) *Condition {
 	return c.AddOperator(operator.Equals, data)
 }
 
 // NotEquals appends the '!=' operator to the current Condition
-func (c ConditionField) NotEquals(data interface{}) *Condition {
+func (c ConditionField) NotEquals(data any) *Condition {
 	return c.AddOperator(operator.NotEquals, data)
 }
 
 // Greater appends the '>' operator to the current Condition
-func (c ConditionField) Greater(data interface{}) *Condition {
+func (c ConditionField) Greater(data any) *Condition {
 	return c.AddOperator(operator.Greater, data)
 }
 
 // GreaterOrEqual appends the '>=' operator to the current Condition
-func (c ConditionField) GreaterOrEqual(data interface{}) *Condition {
+func (c ConditionField) GreaterOrEqual(data any) *Condition {
 	return c.AddOperator(operator.GreaterOrEqual, data)
 }
 
 // Lower appends the '<' operator to the current Condition
-func (c ConditionField) Lower(data interface{}) *Condition {
+func (c ConditionField) Lower(data any) *Condition {
 	return c.AddOperator(operator.Lower, data)
 }
 
 // LowerOrEqual appends the '<=' operator to the current Condition
-func (c ConditionField) LowerOrEqual(data interface{}) *Condition {
+func (c ConditionField) LowerOrEqual(data any) *Condition {
 	return c.AddOperator(operator.LowerOrEqual, data)
 }
 
 // Like appends the 'LIKE' operator to the current Condition
-func (c ConditionField) Like(data interface{}) *Condition {
+func (c ConditionField) Like(data any) *Condition {
 	return c.AddOperator(operator.Like, data)
 }
 
 // ILike appends the 'ILIKE' operator to the current Condition
-func (c ConditionField) ILike(data interface{}) *Condition {
+func (c ConditionField) ILike(data any) *Condition {
 	return c.AddOperator(operator.ILike, data)
 }
 
 // Contains appends the 'LIKE %%' operator to the current Condition
-func (c ConditionField) Contains(data interface{}) *Condition {
+func (c ConditionField) Contains(data any) *Condition {
 	return c.AddOperator(operator.Contains, data)
 }
 
 // NotContains appends the 'NOT LIKE %%' operator to the current Condition
-func (c ConditionField) NotContains(data interface{}) *Condition {
+func (c ConditionField) NotContains(data any) *Condition {
 	return c.AddOperator(operator.NotContains, data)
 }
 
 // IContains appends the 'ILIKE %%' operator to the current Condition
-func (c ConditionField) IContains(data interface{}) *Condition {
+func (c ConditionField) IContains(data any) *Condition {
 	return c.AddOperator(operator.IContains, data)
 }
 
 // NotIContains appends the 'NOT ILIKE %%' operator to the current Condition
-func (c ConditionField) NotIContains(data interface{}) *Condition {
+func (c ConditionField) NotIContains(data any) *Condition {
 	return c.AddOperator(operator.NotIContains, data)
 }
 
 // In appends the 'IN' operator to the current Condition
-func (c ConditionField) In(data interface{}) *Condition {
+func (c ConditionField) In(data any) *Condition {
 	return c.AddOperator(operator.In, data)
 }
 
 // NotIn appends the 'NOT IN' operator to the current Condition
-func (c ConditionField) NotIn(data interface{}) *Condition {
+func (c ConditionField) NotIn(data any) *Condition {
 	return c.AddOperator(operator.NotIn, data)
 }
 
 // ChildOf appends the 'child of' operator to the current Condition
-func (c ConditionField) ChildOf(data interface{}) *Condition {
+func (c ConditionField) ChildOf(data any) *Condition {
 	return c.AddOperator(operator.ChildOf, data)
 }
 

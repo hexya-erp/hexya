@@ -18,8 +18,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,17 +41,17 @@ var (
 // A Logger writes logs to a handler
 type Logger interface {
 	// Panic logs a error level message then panics
-	Panic(msg string, ctx ...interface{})
+	Panic(msg string, ctx ...any)
 	// Error logs an error level message
-	Error(msg string, ctx ...interface{})
+	Error(msg string, ctx ...any)
 	// Warn logs a warning level message
-	Warn(msg string, ctx ...interface{})
+	Warn(msg string, ctx ...any)
 	// Info logs an information level message
-	Info(msg string, ctx ...interface{})
+	Info(msg string, ctx ...any)
 	// Debug logs a debug level message. This may be very verbose
-	Debug(msg string, ctx ...interface{})
+	Debug(msg string, ctx ...any)
 	// New returns a child logger with the given context
-	New(ctx ...interface{}) Logger
+	New(ctx ...any) Logger
 	// Sync the logger cache
 	Sync() error
 }
@@ -58,24 +59,25 @@ type Logger interface {
 // zapLogger is an implementation of logger using Uber's zap library
 type zapLogger struct {
 	zap    *zap.SugaredLogger
-	ctx    []interface{}
+	ctx    []any
 	parent *zapLogger
 }
 
 // Panic logs a error level message then panics
-func (l *zapLogger) Panic(msg string, ctx ...interface{}) {
+func (l *zapLogger) Panic(msg string, ctx ...any) {
 	if l.checkParent() {
 		l.zap.Errorw(msg, ctx...)
 	}
-	panicData := msg + "\n"
+	var panicData strings.Builder
+	panicData.WriteString(msg + "\n")
 	for i := 0; i < len(ctx); i += 2 {
-		panicData += fmt.Sprintf("\t%v : %v\n", ctx[i], ctx[i+1])
+		panicData.WriteString(fmt.Sprintf("\t%v : %v\n", ctx[i], ctx[i+1]))
 	}
-	panic(panicData)
+	panic(panicData.String())
 }
 
 // Error logs an error level message
-func (l *zapLogger) Error(msg string, ctx ...interface{}) {
+func (l *zapLogger) Error(msg string, ctx ...any) {
 	if !l.checkParent() {
 		return
 	}
@@ -83,7 +85,7 @@ func (l *zapLogger) Error(msg string, ctx ...interface{}) {
 }
 
 // Warn logs a warning level message
-func (l *zapLogger) Warn(msg string, ctx ...interface{}) {
+func (l *zapLogger) Warn(msg string, ctx ...any) {
 	if !l.checkParent() {
 		return
 	}
@@ -91,7 +93,7 @@ func (l *zapLogger) Warn(msg string, ctx ...interface{}) {
 }
 
 // Info logs an information level message
-func (l *zapLogger) Info(msg string, ctx ...interface{}) {
+func (l *zapLogger) Info(msg string, ctx ...any) {
 	if !l.checkParent() {
 		return
 	}
@@ -99,7 +101,7 @@ func (l *zapLogger) Info(msg string, ctx ...interface{}) {
 }
 
 // Debug logs a debug level message. This may be very verbose
-func (l *zapLogger) Debug(msg string, ctx ...interface{}) {
+func (l *zapLogger) Debug(msg string, ctx ...any) {
 	if !l.checkParent() {
 		return
 	}
@@ -115,7 +117,7 @@ func (l *zapLogger) Sync() error {
 }
 
 // New returns a child logger with the given context
-func (l *zapLogger) New(ctx ...interface{}) Logger {
+func (l *zapLogger) New(ctx ...any) Logger {
 	return &zapLogger{
 		ctx:    ctx,
 		parent: l,
@@ -180,7 +182,7 @@ func GetLogger(moduleName string) Logger {
 // error with the panic message. This function is separated from
 // LogAndPanic so that unwanted panics can still be logged with
 // this function.
-func LogPanicData(panicData interface{}) error {
+func LogPanicData(panicData any) error {
 	msg := fmt.Sprintf("%v", panicData)
 	log.Error("Hexya panicked", "msg", msg)
 
@@ -207,7 +209,7 @@ func stack(skip int) []byte {
 		// Print this much at least.  If we can't find the source, it won't show.
 		fmt.Fprintf(buf, "%s:%d (0x%x)\n", file, line, pc)
 		if file != lastFile {
-			data, err := ioutil.ReadFile(file)
+			data, err := os.ReadFile(file)
 			if err != nil {
 				continue
 			}

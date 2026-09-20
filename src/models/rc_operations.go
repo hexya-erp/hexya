@@ -4,6 +4,7 @@
 package models
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/hexya-erp/hexya/src/tools/typesutils"
@@ -83,11 +84,8 @@ func (rc *RecordCollection) Intersect(other RecordSet) *RecordCollection {
 	rc.Fetch()
 	idMap := make(map[int64]bool)
 	for _, id := range rc.ids {
-		for _, ido := range other.Ids() {
-			if ido == id {
-				idMap[id] = true
-				break
-			}
+		if slices.Contains(other.Ids(), id) {
+			idMap[id] = true
 		}
 	}
 	ids := make([]int64, len(idMap))

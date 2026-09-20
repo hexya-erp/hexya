@@ -46,7 +46,7 @@ func TestExtBootStrap(t *testing.T) {
 			numsField := models.Registry.MustGet("ExtUser").Fields().MustGet("Nums")
 			numsField.SetDefault(nil).SetIndex(false)
 			models.Registry.MustGet("ExtComment").AddFields(map[string]models.FieldDefinition{
-				"Date": fields.Date{Default: func(env models.Environment) interface{} {
+				"Date": fields.Date{Default: func(env models.Environment) any {
 					return dates.Today()
 				}},
 			})

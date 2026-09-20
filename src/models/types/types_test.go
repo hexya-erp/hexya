@@ -17,12 +17,12 @@ import (
 // that passing a RecordSet to a Context panics.
 type testRecordSet struct{}
 
-func (r testRecordSet) ModelName() string                           { return "TestModel" }
-func (r testRecordSet) Ids() []int64                                { return []int64{1} }
-func (r testRecordSet) Len() int                                    { return 1 }
-func (r testRecordSet) IsEmpty() bool                               { return false }
-func (r testRecordSet) IsNotEmpty() bool                            { return true }
-func (r testRecordSet) Call(_ string, _ ...interface{}) interface{} { return nil }
+func (r testRecordSet) ModelName() string           { return "TestModel" }
+func (r testRecordSet) Ids() []int64                { return []int64{1} }
+func (r testRecordSet) Len() int                    { return 1 }
+func (r testRecordSet) IsEmpty() bool               { return false }
+func (r testRecordSet) IsNotEmpty() bool            { return true }
+func (r testRecordSet) Call(_ string, _ ...any) any { return nil }
 
 func TestContext(t *testing.T) {
 	t.Run("Testing Context creation and access", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestContext(t *testing.T) {
 		t.Run("GetStringSlice", func(t *testing.T) {
 			ctx := NewContext().
 				WithKey("strings", []string{"a", "b"}).
-				WithKey("interfaces", []interface{}{"c", "d"}).
+				WithKey("interfaces", []any{"c", "d"}).
 				WithKey("other", []int{1, 2})
 			assert.Equal(t, ctx.GetStringSlice("strings"), []string{"a", "b"})
 			assert.Equal(t, ctx.GetStringSlice("interfaces"), []string{"c", "d"})
@@ -126,7 +126,7 @@ func TestContext(t *testing.T) {
 			assert.NotPanics(t, func() { ctx.GetStringSlice("interfaces") })
 		})
 		t.Run("GetStringSlice should panic with non string elements", func(t *testing.T) {
-			ctx := NewContext().WithKey("interfaces", []interface{}{"c", 3})
+			ctx := NewContext().WithKey("interfaces", []any{"c", 3})
 			assert.Panics(t, func() { ctx.GetStringSlice("interfaces") })
 		})
 		t.Run("GetIntegerSlice", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestContext(t *testing.T) {
 				WithKey("ints", []int{1, 2}).
 				WithKey("int64s", []int64{3, 4}).
 				WithKey("floats", []float64{5.2, 6.8}).
-				WithKey("interfaces", []interface{}{7, int64(8)})
+				WithKey("interfaces", []any{7, int64(8)})
 			assert.Equal(t, ctx.GetIntegerSlice("ints"), []int64{1, 2})
 			assert.Equal(t, ctx.GetIntegerSlice("int64s"), []int64{3, 4})
 			assert.Equal(t, ctx.GetIntegerSlice("floats"), []int64{5, 6})
@@ -144,7 +144,7 @@ func TestContext(t *testing.T) {
 			ctx := NewContext().
 				WithKey("floats", []float64{5.2, 6.8}).
 				WithKey("ints", []int{1, 2}).
-				WithKey("interfaces", []interface{}{7, 8.5})
+				WithKey("interfaces", []any{7, 8.5})
 			assert.Equal(t, ctx.GetFloatSlice("floats"), []float64{5.2, 6.8})
 			assert.Equal(t, ctx.GetFloatSlice("ints"), []float64{1, 2})
 			assert.Equal(t, ctx.GetFloatSlice("interfaces"), []float64{7, 8.5})
@@ -192,7 +192,7 @@ func TestContext(t *testing.T) {
 		t.Run("ToMap should return a copy of the values", func(t *testing.T) {
 			ctx := NewContext().WithKey("foo", "bar")
 			m := ctx.ToMap()
-			assert.Equal(t, m, map[string]interface{}{"foo": "bar"})
+			assert.Equal(t, m, map[string]any{"foo": "bar"})
 			delete(m, "foo")
 			assert.True(t, ctx.HasKey("foo"))
 		})
@@ -216,7 +216,7 @@ func TestContextSerialization(t *testing.T) {
 		t.Run("Unmarshalling back should give the same values", func(t *testing.T) {
 			var newCtx Context
 			assert.Nil(t, json.Unmarshal(data, &newCtx))
-			assert.Equal(t, newCtx.ToMap(), map[string]interface{}{
+			assert.Equal(t, newCtx.ToMap(), map[string]any{
 				"foo": "bar",
 				"baz": float64(3),
 			})
@@ -262,7 +262,7 @@ func TestContextSerialization(t *testing.T) {
 		})
 		t.Run("Scan should accept a map", func(t *testing.T) {
 			var newCtx Context
-			assert.Nil(t, newCtx.Scan(map[string]interface{}{"foo": "bar"}))
+			assert.Nil(t, newCtx.Scan(map[string]any{"foo": "bar"}))
 			assert.EqualValues(t, newCtx.GetString("foo"), "bar")
 		})
 		t.Run("Scan should fail with an unsupported type", func(t *testing.T) {

@@ -5,7 +5,7 @@ package assets
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -18,7 +18,7 @@ func TestCompileLessFiles(t *testing.T) {
 		output := bytes.Buffer{}
 		err := LessCompiler{}.Compile(input, &output)
 		assert.Nil(t, err)
-		data, err := ioutil.ReadAll(&output)
+		data, err := io.ReadAll(&output)
 		assert.Nil(t, err)
 		assert.EqualValues(t, string(data), ".class {\n  width: 2;\n}\n")
 	})
@@ -27,7 +27,7 @@ func TestCompileLessFiles(t *testing.T) {
 		output := bytes.Buffer{}
 		err := ScssCompiler{}.Compile(input, &output)
 		assert.Nil(t, err)
-		data, err := ioutil.ReadAll(&output)
+		data, err := io.ReadAll(&output)
 		assert.Nil(t, err)
 		assert.EqualValues(t, string(data), ".class {\n  width: 2;\n}\n")
 	})

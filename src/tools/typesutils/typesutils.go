@@ -28,7 +28,7 @@ type RecordSet interface {
 }
 
 // IsZero returns true if the given value is the zero value of its type or nil
-func IsZero(value interface{}) bool {
+func IsZero(value any) bool {
 	if value == nil {
 		return true
 	}
@@ -75,7 +75,7 @@ func basicKind(v reflect.Value) (kind, error) {
 }
 
 // AreEqual returns true if both given values are equal.
-func AreEqual(arg1, arg2 interface{}) (bool, error) {
+func AreEqual(arg1, arg2 any) (bool, error) {
 	v1 := reflect.ValueOf(arg1)
 	k1, err := basicKind(v1)
 	if err != nil {
@@ -123,7 +123,7 @@ func AreEqual(arg1, arg2 interface{}) (bool, error) {
 
 // IsLessThan returns true if arg1 is less than arg2
 // It panics if the kind of arg1 or arg2 is not a basic kind.
-func IsLessThan(arg1, arg2 interface{}) (bool, error) {
+func IsLessThan(arg1, arg2 any) (bool, error) {
 	v1 := reflect.ValueOf(arg1)
 	k1, err := basicKind(v1)
 	if err != nil {
@@ -167,7 +167,7 @@ func IsLessThan(arg1, arg2 interface{}) (bool, error) {
 // Convert the given value to the given Type. Set isRS to true if the value represents a RecordSet
 //
 // If the target type implements sql.Scanner, then the Scan method is used for the conversion.
-func Convert(value interface{}, target interface{}, isRS bool) error {
+func Convert(value any, target any, isRS bool) error {
 	targetType := reflect.TypeOf(target).Elem()
 	if targetType == reflect.TypeOf(value) {
 		// If we already have the good type, don't do anything
@@ -178,7 +178,7 @@ func Convert(value interface{}, target interface{}, isRS bool) error {
 	case value == nil:
 		// value is nil, we keep target unchanged
 		return nil
-	case reflect.PtrTo(targetType).Implements(reflect.TypeOf((*sql.Scanner)(nil)).Elem()):
+	case reflect.PointerTo(targetType).Implements(reflect.TypeFor[sql.Scanner]()):
 		// the type implements sql.Scanner, so we call Scan
 		valPtr := reflect.ValueOf(target)
 		scanFunc := valPtr.MethodByName("Scan")
@@ -204,10 +204,10 @@ func Convert(value interface{}, target interface{}, isRS bool) error {
 
 // getSimpleTypeValue returns value as a reflect.Value with type of targetType
 // It returns an error if the value cannot be converted to the target type
-func getSimpleTypeValue(value interface{}, target interface{}) error {
+func getSimpleTypeValue(value any, target any) error {
 	targetType := reflect.TypeOf(target).Elem()
 	val := reflect.ValueOf(value)
-	var res interface{}
+	var res any
 	_, tIsBool := target.(*bool)
 	_, tIsFloat32 := target.(*float32)
 	_, tIsFloat64 := target.(*float64)
@@ -217,14 +217,14 @@ func getSimpleTypeValue(value interface{}, target interface{}) error {
 		res = !reflect.DeepEqual(val.Interface(), reflect.Zero(val.Type()).Interface())
 	case typ.ConvertibleTo(targetType):
 		res = val.Convert(targetType).Interface()
-	case typ == reflect.TypeOf([]byte{}) && tIsFloat32:
+	case typ == reflect.TypeFor[[]byte]() && tIsFloat32:
 		// backend may return floats as []byte when stored as numeric
 		fval, err := strconv.ParseFloat(string(value.([]byte)), 32)
 		if err != nil {
 			return err
 		}
 		res = float32(fval)
-	case typ == reflect.TypeOf([]byte{}) && tIsFloat64:
+	case typ == reflect.TypeFor[[]byte]() && tIsFloat64:
 		// backend may return floats as []byte when stored as numeric
 		fval, err := strconv.ParseFloat(string(value.([]byte)), 64)
 		if err != nil {
@@ -242,16 +242,16 @@ func getSimpleTypeValue(value interface{}, target interface{}) error {
 // getRelationFieldValue returns value as a reflect.Value with type of targetType
 // It returns an error if the value is not consistent with a relation field value
 // (i.e. is not of type RecordSet or int64 or []int64)
-func getRelationFieldValue(value interface{}, target interface{}) error {
+func getRelationFieldValue(value any, target any) error {
 	var (
 		ids []int64
-		res interface{}
+		res any
 	)
 	// Step 1: set ids
 	switch tValue := value.(type) {
 	case RecordSet:
 		ids = tValue.Ids()
-	case []interface{}:
+	case []any:
 		if len(tValue) == 0 {
 			ids = []int64{}
 			break
@@ -259,7 +259,7 @@ func getRelationFieldValue(value interface{}, target interface{}) error {
 		return errors.New("non empty []interface{} given")
 	case []int64:
 		ids = tValue
-	case *interface{}:
+	case *any:
 		ids = []int64{}
 	default:
 		nbValue, nbErr := nbutils.CastToInteger(tValue)
