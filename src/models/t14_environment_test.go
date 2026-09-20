@@ -102,7 +102,7 @@ func TestEnvironment(t *testing.T) {
 				userJane := users.Search(users.Model().Field(email).Equals("jane.smith@example.com"))
 				userJane.Load()
 				assert.Empty(t, env.cache.m2mLinks)
-				assert.Len(t, env.cache.data, 4)
+				assert.Len(t, env.cache.data, 3)
 				assert.Contains(t, env.cache.data, users.model.name)
 				assert.Contains(t, env.cache.data[users.model.name], userJane.ids[0])
 				janeEntry := env.cache.data[users.model.name][userJane.ids[0]]
@@ -229,7 +229,7 @@ X2M Links
 `)
 				userJane.Load()
 				userJane.Load(postsTags)
-				assert.Greater(t, len(env.DumpCache()), 1360)
+				assert.Greater(t, len(env.DumpCache()), 1200)
 			}))
 		})
 		t.Run("Check that new works correctly", func(t *testing.T) {

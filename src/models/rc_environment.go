@@ -23,7 +23,6 @@ import (
 func (rc *RecordCollection) WithEnv(env Environment) *RecordCollection {
 	rSet := rc.clone()
 	rSet.env = &env
-	rSet.applyContexts()
 	return rSet
 }
 

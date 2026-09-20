@@ -16,6 +16,7 @@ package models
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/operator"
@@ -55,6 +56,23 @@ var pgTypes = map[fieldtype.Type]string{
 	fieldtype.Selection: "character varying",
 	fieldtype.Many2One:  "integer",
 	fieldtype.One2One:   "integer",
+	fieldtype.JSON:      "jsonb",
+}
+
+// pgContextedType is the type of the columns holding contexted values
+const pgContextedType = "jsonb"
+
+// pgCasts is the cast to apply to the values of contexted fields when they are
+// written to or read from their jsonb column.
+var pgCasts = map[fieldtype.Type]string{
+	fieldtype.Boolean:  "::boolean",
+	fieldtype.Date:     "::date",
+	fieldtype.DateTime: "::timestamp without time zone",
+	fieldtype.Integer:  "::integer",
+	fieldtype.Float:    "::numeric",
+	fieldtype.Many2One: "::integer",
+	fieldtype.One2One:  "::integer",
+	fieldtype.Binary:   "::bytea",
 }
 
 // connectionString returns the connection string for the given parameters
@@ -100,6 +118,9 @@ func (d *postgresAdapter) operatorSQL(do operator.Operator, arg any) (string, an
 
 // typeSQL returns the sql type string for the given Field
 func (d *postgresAdapter) typeSQL(fi *Field) string {
+	if fi.isContextedField() {
+		return pgContextedType
+	}
 	typ, _ := pgTypes[fi.fieldType]
 	return typ
 }
@@ -108,6 +129,12 @@ func (d *postgresAdapter) typeSQL(fi *Field) string {
 //
 // If null is true, then the column will be nullable, whatever the field defines
 func (d *postgresAdapter) columnSQLDefinition(fi *Field, null bool) string {
+	if fi.isContextedField() {
+		// Contexted values are stored in a jsonb document which holds the value
+		// of the field for each context. Such column can neither be constrained
+		// nor unique.
+		return pgContextedType
+	}
 	var res string
 	typ, ok := pgTypes[fi.fieldType]
 	res = typ
@@ -138,10 +165,117 @@ func (d *postgresAdapter) columnSQLDefinition(fi *Field, null bool) string {
 // fieldIsNull returns true if the given Field results in a
 // NOT NULL column in database.
 func (d *postgresAdapter) fieldIsNotNull(fi *Field) bool {
+	if fi.isContextedField() {
+		return false
+	}
 	if fi.required {
 		return true
 	}
 	return false
+}
+
+// contextedValueSQL returns the SQL expression that returns the value of the
+// given contexted field for the given context values.
+//
+// The returned expression looks up each possible branch of the contexted value
+// document, from the most specific to the most generic, and returns the first
+// one that is set.
+func (d *postgresAdapter) contextedValueSQL(fi *Field, colExpr string, ctxValues map[string]string) string {
+	paths := contextedPaths(fi.contextNames(), ctxValues)
+	exprs := make([]string, len(paths))
+	for i, path := range paths {
+		var expr strings.Builder
+		expr.WriteString(colExpr)
+		for _, key := range path[:len(path)-1] {
+			expr.WriteString("->")
+			expr.WriteString(pgQuoteString(key))
+		}
+		expr.WriteString("->>")
+		expr.WriteString(pgQuoteString(ctxValueKey))
+		exprs[i] = expr.String()
+	}
+	res := exprs[0]
+	if len(exprs) > 1 {
+		res = fmt.Sprintf("COALESCE(%s)", strings.Join(exprs, ", "))
+	}
+	if cast := pgCasts[fi.fieldType]; cast != "" {
+		res = fmt.Sprintf("(%s)%s", res, cast)
+	}
+	return res
+}
+
+// contextedSetSQL returns the SQL expression that sets the value of the given
+// path in the contexted value document given by docExpr.
+func (d *postgresAdapter) contextedSetSQL(fi *Field, docExpr, lookupExpr string, path []string) string {
+	res := fmt.Sprintf("COALESCE(%s, %s)", docExpr, d.emptyContextedValueSQL())
+	// We must create the intermediate nodes of the path ourselves since
+	// jsonb_set only creates the last one.
+	for i := 1; i < len(path); i++ {
+		node := pgArrayLiteral(path[:i])
+		res = fmt.Sprintf("jsonb_set(%s, %s, COALESCE(%s#>%s, %s), true)",
+			res, node, lookupExpr, node, d.emptyContextedValueSQL())
+	}
+	cast := pgCasts[fi.fieldType]
+	if cast == "" {
+		// to_jsonb needs to know the type of its argument
+		cast = "::text"
+	}
+	return fmt.Sprintf("jsonb_set(%s, %s, COALESCE(to_jsonb(?%s), 'null'::jsonb), true)",
+		res, pgArrayLiteral(path), cast)
+}
+
+// emptyContextedValueSQL returns the SQL expression of an empty contexted
+// value document.
+func (d *postgresAdapter) emptyContextedValueSQL() string {
+	return "'{}'::jsonb"
+}
+
+// contextedIndexSQL returns the statement to create an index with the given
+// name on all the context values of the given contexted field.
+//
+// Text-ish fields are indexed with a trigram index on the array of all the
+// values of the document, so that a single index serves every context. Such
+// an index only speeds up 'like' and 'ilike' conditions.
+//
+// This method creates the pg_trgm extension if needed and returns an empty
+// string if it is not available.
+func (d *postgresAdapter) contextedIndexSQL(fi *Field, table, indexName string) string {
+	if !pgTrigramTypes[fi.fieldType] {
+		return fmt.Sprintf(`CREATE INDEX %s ON %s USING gin (%s)`,
+			indexName, d.quoteTableName(table), fi.json)
+	}
+	if err := dbTryExecuteNoTx("CREATE EXTENSION IF NOT EXISTS pg_trgm"); err != nil {
+		log.Warn("Unable to create the pg_trgm extension. Contexted field will not be indexed",
+			"model", fi.model.name, "field", fi.name, "error", err)
+		return ""
+	}
+	return fmt.Sprintf(`CREATE INDEX %s ON %s USING gin ((jsonb_path_query_array(%s, '$.**._'::jsonpath)::text) gin_trgm_ops)`,
+		indexName, d.quoteTableName(table), fi.json)
+}
+
+// pgTrigramTypes are the field types whose contexted values are indexed with
+// a trigram index.
+var pgTrigramTypes = map[fieldtype.Type]bool{
+	fieldtype.Char:      true,
+	fieldtype.Text:      true,
+	fieldtype.HTML:      true,
+	fieldtype.Selection: true,
+}
+
+// pgQuoteString returns the given string as a single quoted SQL literal
+func pgQuoteString(str string) string {
+	return fmt.Sprintf("'%s'", strings.Replace(str, "'", "''", -1))
+}
+
+// pgArrayLiteral returns the given strings as a postgres text array literal
+func pgArrayLiteral(values []string) string {
+	res := make([]string, len(values))
+	for i, val := range values {
+		val = strings.Replace(val, `\`, `\\`, -1)
+		val = strings.Replace(val, `"`, `\"`, -1)
+		res[i] = fmt.Sprintf(`"%s"`, val)
+	}
+	return pgQuoteString(fmt.Sprintf("{%s}", strings.Join(res, ",")))
 }
 
 // tables returns a map of table names of the database

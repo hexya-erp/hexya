@@ -89,7 +89,7 @@ func (rc *RecordCollection) retrieveComputeData(fields FieldNames) []recomputePa
 		if !cData.stored {
 			// Field is not stored, just invalidating cache
 			for _, id := range recs.Ids() {
-				rc.env.cache.removeEntry(recs.model, id, cData.fieldName, rc.query.ctxArgsSlug())
+				rc.env.cache.removeEntry(recs.model, id, cData.fieldName, recs.ctxSlug())
 			}
 			continue
 		}

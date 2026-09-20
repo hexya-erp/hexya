@@ -199,6 +199,29 @@ var fields_Comment = map[string]models.FieldDefinition{
 	"Text":        fields.Text{},
 }
 
+// langContexts is a field context that makes a field depend on the language
+// of the environment.
+var langContexts = models.FieldContexts{
+	"lang": func(rs models.RecordSet) string {
+		return rs.Env().Context().GetString("lang")
+	},
+}
+
+// companyContexts is a field context that makes a field depend on the company
+// of the environment.
+var companyContexts = models.FieldContexts{
+	"company": func(rs models.RecordSet) string {
+		return rs.Env().Context().GetString("company")
+	},
+}
+
+// langCompanyContexts is a field context that makes a field depend on both the
+// language and the company of the environment.
+var langCompanyContexts = models.FieldContexts{
+	"lang":    langContexts["lang"],
+	"company": companyContexts["company"],
+}
+
 var fields_Tag = map[string]models.FieldDefinition{
 	"Name":        fields.Char{Constraint: h.Tag().Methods().CheckNameDescription()},
 	"BestPost":    fields.Many2One{RelationModel: h.Post()},
@@ -206,6 +229,9 @@ var fields_Tag = map[string]models.FieldDefinition{
 	"Parent":      fields.Many2One{RelationModel: h.Tag()},
 	"Description": fields.Char{Constraint: h.Tag().Methods().CheckNameDescription()},
 	"Rate":        fields.Float{Constraint: h.Tag().Methods().CheckRate(), GoType: new(float32)},
+	"Note":        fields.Text{Translate: true},
+	"Slogan":      fields.Char{Contexts: langCompanyContexts},
+	"Price":       fields.Float{Contexts: companyContexts},
 }
 
 func tag_CheckNameDescription(rs m.TagSet) {

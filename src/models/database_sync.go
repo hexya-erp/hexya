@@ -316,19 +316,35 @@ func updateDBIndexes(m *Model) {
 		indexInDB := adapter.indexExists(m.tableName, fmt.Sprintf("%s_%s_index", m.tableName, colName))
 		switch {
 		case fi.index && !indexInDB:
-			createColumnIndex(m.tableName, colName)
+			createColumnIndex(m.tableName, fi)
 		case indexInDB && !fi.index:
 			dropColumnIndex(m.tableName, colName)
 		}
 	}
 }
 
-// createColumnIndex creates an column index for colName in the given table
-func createColumnIndex(tableName, colName string) {
+// createColumnIndex creates an column index for the given field in the given table
+func createColumnIndex(tableName string, fi *Field) {
 	adapter := adapters[db.DriverName()]
+	indexName := fmt.Sprintf("%s_%s_index", tableName, fi.json)
+	if fi.isContextedField() {
+		// Contexted values are stored in a JSON document, so we must ask the
+		// adapter for a suitable index.
+		query := adapter.contextedIndexSQL(fi, tableName, indexName)
+		if query == "" {
+			log.Warn("Contexted fields cannot be indexed with this database adapter",
+				"model", fi.model.name, "field", fi.name)
+			return
+		}
+		if err := dbTryExecuteNoTx(query); err != nil {
+			log.Warn("Unable to create index on contexted field",
+				"model", fi.model.name, "field", fi.name, "error", err)
+		}
+		return
+	}
 	query := fmt.Sprintf(`
 		CREATE INDEX %s ON %s (%s)
-	`, fmt.Sprintf("%s_%s_index", tableName, colName), adapter.quoteTableName(tableName), colName)
+	`, indexName, adapter.quoteTableName(tableName), fi.json)
 	dbExecuteNoTx(query)
 }
 

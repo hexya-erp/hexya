@@ -17,7 +17,6 @@ package models
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
@@ -53,52 +52,41 @@ type orderPredicate struct {
 type Query struct {
 	recordSet *RecordCollection
 	cond      *Condition
-	ctxCond   *Condition
 	fetchAll  bool
 	limit     int
 	offset    int
 	groups    []FieldName
-	ctxGroups []FieldName
 	orders    []orderPredicate
-	ctxOrders []orderPredicate
 }
 
 // clone returns a pointer to a deep copy of this Query
 //
 // rc is the RecordCollection the new query will be bound to.
-func (q Query) clone(rc *RecordCollection) *Query {
+func (q *Query) clone(rc *RecordCollection) *Query {
+	nq := *q
 	newCond := *q.cond
-	q.cond = &newCond
-	newCtxCond := *q.ctxCond
-	q.ctxCond = &newCtxCond
-	q.recordSet = rc
-	return &q
+	nq.cond = &newCond
+	nq.recordSet = rc
+	return &nq
 }
 
 // sqlWhereClause returns the sql string and parameters corresponding to the
 // WHERE clause of this Query
-//
-// If withCtx is set, the extra conditions are included
-func (q *Query) sqlWhereClause(withCtx bool) (string, SQLParams) {
+func (q *Query) sqlWhereClause() (string, SQLParams) {
 	sql, args := q.conditionSQLClause(q.cond)
-	extraSQL, extraArgs := q.conditionSQLClause(q.ctxCond)
-	if sql == "" && extraSQL == "" {
+	if sql == "" {
 		return "", SQLParams{}
 	}
-	resSQL := "WHERE "
-	var resArgs SQLParams
-	switch {
-	case extraSQL == "" || !withCtx:
-		resSQL += sql
-		resArgs = args
-	case sql == "":
-		resSQL += extraSQL
-		resArgs = extraArgs
-	default:
-		resSQL += fmt.Sprintf("(%s) AND (%s)", sql, extraSQL)
-		resArgs = args.Extend(extraArgs)
+	return "WHERE " + sql, args
+}
+
+// fieldContextValues returns the value of each context of the given contexted
+// field, evaluated against this query's RecordCollection.
+func (q *Query) fieldContextValues(fi *Field) map[string]string {
+	if q.recordSet == nil {
+		return nil
 	}
-	return resSQL, resArgs
+	return fi.contextValues(q.recordSet)
 }
 
 // sqlClauses returns the sql string and parameters corresponding to the
@@ -244,22 +232,6 @@ func (q *Query) sqlOrderByClause() string {
 	return fmt.Sprintf("ORDER BY %s", strings.Join(resSlice, ", "))
 }
 
-// sqlCtxOrderByClause returns the sql string for the ORDER BY clause of the ctx fields
-// of this Query.
-func (q *Query) sqlCtxOrderBy() string {
-	resSlice := make([]string, len(q.ctxOrders))
-	for i, order := range q.ctxOrders {
-		resSlice[i], _, _ = q.joinedFieldExpression(splitFieldNames(order.field, ExprSep), false, 0)
-		if order.desc {
-			resSlice[i] += " DESC"
-		}
-	}
-	if len(resSlice) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("%s", strings.Join(resSlice, ", "))
-}
-
 // sqlOrderByClauseForGroupBy returns the sql string for the ORDER BY clause
 // of this Query, which should be a group by clause.
 func (q *Query) sqlOrderByClauseForGroupBy(aggFncts map[string]string) string {
@@ -298,26 +270,6 @@ func (q *Query) sqlGroupByClause() string {
 	for i, field := range fExprs {
 		_, _, resSlice[i] = q.joinedFieldExpression(field, true, i)
 	}
-	res := strings.Join(resSlice, ", ")
-	ctxStr := strings.TrimSpace(q.sqlCtxGroupByClause())
-	if ctxStr != "" {
-		res = fmt.Sprintf("%s, %s", res, ctxStr)
-	}
-	return res
-}
-
-// sqlCtxGroupByClause returns the sql string for the GROUP BY clause
-// of contexted fields for this Query (without the GROUP BY keywords)
-func (q *Query) sqlCtxGroupByClause() string {
-	var fExprs [][]FieldName
-	for _, group := range q.ctxGroups {
-		oExprs := splitFieldNames(group, ExprSep)
-		fExprs = append(fExprs, oExprs)
-	}
-	resSlice := make([]string, len(q.ctxGroups))
-	for i, field := range fExprs {
-		_, _, resSlice[i] = q.joinedFieldExpression(field, true, i)
-	}
 	return strings.Join(resSlice, ", ")
 }
 
@@ -325,7 +277,7 @@ func (q *Query) sqlCtxGroupByClause() string {
 // the rows pointed at by this Query object.
 func (q *Query) deleteQuery() (string, SQLParams) {
 	adapter := adapters[db.DriverName()]
-	sql, args := q.sqlWhereClause(false)
+	sql, args := q.sqlWhereClause()
 	delQuery := fmt.Sprintf(`DELETE FROM %s %s`, adapter.quoteTableName(q.recordSet.model.tableName), sql)
 	return delQuery, args
 }
@@ -338,10 +290,9 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 		log.Panic("No data given for insert")
 	}
 	var (
-		cols []string
-		vals SQLParams
-		i    int
-		sql  string
+		cols   []string
+		values []string
+		vals   SQLParams
 	)
 	for k, v := range data {
 		fi := q.recordSet.model.fields.MustGet(k)
@@ -352,14 +303,39 @@ func (q *Query) insertQuery(data FieldMap) (string, SQLParams) {
 			}
 		}
 		cols = append(cols, fi.json)
+		if fi.isContextedField() {
+			expr, args := q.contextedInsertExpression(fi, v)
+			values = append(values, expr)
+			vals = vals.Extend(args)
+			continue
+		}
+		values = append(values, "?")
 		vals = append(vals, v)
-		i++
 	}
 	tableName := adapter.quoteTableName(q.recordSet.model.tableName)
-	fields := strings.Join(cols, ", ")
-	values := "?" + strings.Repeat(", ?", i-1)
-	sql = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id", tableName, fields, values)
+	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) RETURNING id",
+		tableName, strings.Join(cols, ", "), strings.Join(values, ", "))
 	return sql, vals
+}
+
+// contextedInsertExpression returns the SQL expression and its parameters to
+// insert the given value in the contexted value document of the given field.
+//
+// The value is set both for the default context and for the context of this
+// query's environment, so that a record created in a given context can be
+// read from any other context.
+func (q *Query) contextedInsertExpression(fi *Field, value any) (string, SQLParams) {
+	adapter := adapters[db.DriverName()]
+	empty := adapter.emptyContextedValueSQL()
+	paths := contextedPaths(fi.contextNames(), q.fieldContextValues(fi))
+	// The last path is always the path of the default value.
+	expr := adapter.contextedSetSQL(fi, empty, empty, paths[len(paths)-1])
+	args := SQLParams{value}
+	if len(paths) > 1 {
+		expr = adapter.contextedSetSQL(fi, expr, empty, paths[0])
+		args = append(args, value)
+	}
+	return expr, args
 }
 
 // countQuery returns the SQL query string and parameters to count
@@ -379,20 +355,16 @@ func (q *Query) countQuery() (string, SQLParams) {
 // expression pointing at the field, either as names or columns
 // (e.g. 'User.Name' or 'user_id.name')
 func (q *Query) selectCommonQuery(fields []FieldName) (string, SQLParams, map[string]string) {
-	fieldExprs, allExprs := q.selectData(fields, true)
+	fieldExprs, allExprs := q.selectData(fields)
 	// Build up the query
 	// Fields
 	fieldsSQL, fieldSubsts := q.fieldsSQL(fieldExprs)
 	// Tables
 	tablesSQL, joinsMap := q.tablesSQL(allExprs)
 	// Where clause and args
-	whereSQL, args := q.sqlWhereClause(true)
-	ctxOrderSQL := q.sqlCtxOrderBy()
-	if ctxOrderSQL != "" {
-		ctxOrderSQL = fmt.Sprintf(", %s", ctxOrderSQL)
-	}
-	selQuery := fmt.Sprintf(`SELECT DISTINCT ON (%s.id) %s FROM %s %s ORDER BY %s.id %s`,
-		q.thisTable(), fieldsSQL, tablesSQL, whereSQL, q.thisTable(), ctxOrderSQL)
+	whereSQL, args := q.sqlWhereClause()
+	selQuery := fmt.Sprintf(`SELECT DISTINCT ON (%s.id) %s FROM %s %s ORDER BY %s.id `,
+		q.thisTable(), fieldsSQL, tablesSQL, whereSQL, q.thisTable())
 	selQuery = strutils.Substitute(selQuery, joinsMap)
 	return selQuery, args, fieldSubsts
 }
@@ -428,7 +400,7 @@ func (q *Query) selectGroupQuery(fieldsList []FieldName, aggFncts map[string]str
 		log.Panic("Calling selectGroupQuery on a query without Group By clause")
 	}
 	// Recompute fieldsList, addy group bys
-	fieldExprs, _ := q.selectData(fieldsList, true)
+	fieldExprs, _ := q.selectData(fieldsList)
 	fieldsList = []FieldName{}
 	for _, fe := range fieldExprs {
 		fieldsList = append(fieldsList, joinFieldNames(fe, ExprSep))
@@ -450,7 +422,7 @@ func (q *Query) selectGroupQuery(fieldsList []FieldName, aggFncts map[string]str
 // selectData returns for this query:
 // - Expressions defined by the given fields and that must appear in the field list of the select clause.
 // - All expressions that also include expressions used in the where clause.
-func (q *Query) selectData(fields []FieldName, withCtx bool) ([][]FieldName, [][]FieldName) {
+func (q *Query) selectData(fields []FieldName) ([][]FieldName, [][]FieldName) {
 	q.substituteChildOfPredicates()
 	// Get all expressions, first given by fields removing duplicates
 	var fieldExprs [][]FieldName
@@ -463,7 +435,7 @@ func (q *Query) selectData(fields []FieldName, withCtx bool) ([][]FieldName, [][
 		}
 	}
 	// Add 'order by' exprs removing duplicates
-	oExprs := q.getOrderByExpressions(withCtx)
+	oExprs := q.getOrderByExpressions()
 	for _, oExpr := range oExprs {
 		if _, ok := fieldsExprsMap[joinFieldNames(oExpr, ExprSep).JSON()]; !ok {
 			fieldExprs = append(fieldExprs, oExpr)
@@ -495,22 +467,28 @@ func (q *Query) updateQuery(data FieldMap) (string, SQLParams) {
 	if len(data) == 0 {
 		log.Panic("No data given for update")
 	}
-	cols := make([]string, len(data))
-	vals := make(SQLParams, len(data))
 	var (
-		i   int
-		sql string
+		cols []string
+		vals SQLParams
 	)
 	for k, v := range data {
 		fi := q.recordSet.model.fields.MustGet(k)
-		cols[i] = fmt.Sprintf("%s = ?", fi.json)
-		vals[i] = v
-		i++
+		if fi.isContextedField() {
+			// We only update the branch of the contexted value document that
+			// corresponds to the context of this query's environment.
+			paths := contextedPaths(fi.contextNames(), q.fieldContextValues(fi))
+			expr := adapter.contextedSetSQL(fi, fi.json, fi.json, paths[0])
+			cols = append(cols, fmt.Sprintf("%s = %s", fi.json, expr))
+			vals = append(vals, v)
+			continue
+		}
+		cols = append(cols, fmt.Sprintf("%s = ?", fi.json))
+		vals = append(vals, v)
 	}
 	tableName := adapter.quoteTableName(q.recordSet.model.tableName)
 	updates := strings.Join(cols, ", ")
-	whereSQL, args := q.sqlWhereClause(false)
-	sql = fmt.Sprintf("UPDATE %s SET %s %s", tableName, updates, whereSQL)
+	whereSQL, args := q.sqlWhereClause()
+	sql := fmt.Sprintf("UPDATE %s SET %s %s", tableName, updates, whereSQL)
 	vals = append(vals, args...)
 	return sql, vals
 }
@@ -560,15 +538,22 @@ func (q *Query) fieldsGroupSQL(fieldExprs [][]FieldName, aggFncts map[string]str
 func (q *Query) joinedFieldExpression(exprs []FieldName, withAlias bool, aliasIndex int) (string, string, string) {
 	joins := q.generateTableJoins(exprs)
 	lastJoin := joins[len(joins)-1]
+	field := fmt.Sprintf("%s.%s", lastJoin.alias, lastJoin.expr.JSON())
+	if fi := q.recordSet.model.getRelatedFieldInfo(joinFieldNames(exprs, ExprSep)); fi.isContextedField() {
+		// Contexted fields are stored as a jsonb document, so we must extract
+		// the value that matches the context of this query's environment.
+		adapter := adapters[db.DriverName()]
+		field = adapter.contextedValueSQL(fi, field, q.fieldContextValues(fi))
+	}
 	if withAlias {
 		fAlias := joinFieldNames(exprs, sqlSep).JSON()
 		oldAlias := fAlias
 		if len(fAlias) > maxSQLidentifierLength {
 			fAlias = fmt.Sprintf("f%d", aliasIndex)
 		}
-		return fmt.Sprintf("%s.%s AS %s", lastJoin.alias, lastJoin.expr.JSON(), fAlias), oldAlias, fAlias
+		return fmt.Sprintf("%s AS %s", field, fAlias), oldAlias, fAlias
 	}
-	return fmt.Sprintf("%s.%s", lastJoin.alias, lastJoin.expr.JSON()), "", ""
+	return field, "", ""
 }
 
 // generateTableJoins transforms a list of fields expression into a list of tableJoins
@@ -765,29 +750,14 @@ func (q *Query) evaluateConditionArgFunctions(p predicate) any {
 // getAllExpressions returns all expressions used in this query,
 // both in the condition and the order by clause.
 func (q *Query) getAllExpressions() [][]FieldName {
-	return append(q.getOrderByExpressions(true),
+	return append(q.getOrderByExpressions(),
 		append(q.getGroupByExpressions(), q.cond.getAllExpressions(q.recordSet.model)...)...)
 }
 
 // getOrderByExpressions returns all expressions used in order by clause of this query.
-//
-// If withCtx is true, ctxOrder expressions are also returned
-func (q *Query) getOrderByExpressions(withCtx bool) [][]FieldName {
+func (q *Query) getOrderByExpressions() [][]FieldName {
 	var exprs [][]FieldName
 	for _, order := range q.orders {
-		oExprs := splitFieldNames(order.field, ExprSep)
-		exprs = append(exprs, oExprs)
-	}
-	if withCtx {
-		exprs = append(exprs, q.getCtxOrderByExpressions()...)
-	}
-	return exprs
-}
-
-// getOrderByExpressions returns expressions used in context order by clause of this query.
-func (q *Query) getCtxOrderByExpressions() [][]FieldName {
-	var exprs [][]FieldName
-	for _, order := range q.ctxOrders {
 		oExprs := splitFieldNames(order.field, ExprSep)
 		exprs = append(exprs, oExprs)
 	}
@@ -803,33 +773,6 @@ func (q *Query) getGroupByExpressions() [][]FieldName {
 	return exprs
 }
 
-// ctxArgsSlug returns a slug of the arguments of the context condition of this query
-func (q *Query) ctxArgsSlug() string {
-	return q.argsSlug(q.ctxCond)
-}
-
-// argsSlug returns a slug of the given condition arguments
-func (q *Query) argsSlug(c *Condition) string {
-	var (
-		res  strings.Builder
-		args []string
-	)
-	for _, p := range c.predicates {
-		if p.isCond {
-			res.WriteString(q.argsSlug(p.cond))
-			continue
-		}
-		arg := fmt.Sprintf("%v", q.evaluateConditionArgFunctions(p))
-		arg = strings.Replace(arg, ExprSep, "-", -1)
-		arg = strings.Replace(arg, ContextSep, "-", -1)
-		arg = strings.Replace(arg, "<nil>", "", -1)
-		args = append(args, arg)
-	}
-	sort.Strings(args)
-	res.WriteString(strings.Join(args, ""))
-	return res.String()
-}
-
 // newQuery returns a new empty query
 // If rs is given, bind this query to the given RecordSet.
 func newQuery(rs ...*RecordCollection) *Query {
@@ -839,7 +782,6 @@ func newQuery(rs ...*RecordCollection) *Query {
 	}
 	return &Query{
 		cond:      newCondition(),
-		ctxCond:   newCondition(),
 		recordSet: rset,
 	}
 }

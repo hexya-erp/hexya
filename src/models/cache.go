@@ -77,12 +77,12 @@ func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value any
 			c.setX2MValue(mi.name, id, jsonName, ids[0], ctxSlug)
 			break
 		}
-		c.setDataValue(mi.name, id, jsonName, true)
+		c.setDataValue(mi, id, jsonName, true, ctxSlug)
 
 	case fieldtype.Rev2One:
 		relID := value.(int64)
 		c.updateEntry(fi.relatedModel, relID, fi.jsonReverseFK, id, ctxSlug)
-		c.setDataValue(mi.name, id, jsonName, true)
+		c.setDataValue(mi, id, jsonName, true, ctxSlug)
 
 	case fieldtype.Many2Many:
 		ids := value.([]int64)
@@ -95,16 +95,19 @@ func (c *cache) updateEntryByRef(mi *Model, id int64, jsonName string, value any
 		}
 		c.removeM2MLinks(fi, id)
 		c.addM2MLink(fi, id, ids)
-		c.setDataValue(mi.name, id, jsonName, true)
+		c.setDataValue(mi, id, jsonName, true, ctxSlug)
 	default:
-		c.setDataValue(mi.name, id, jsonName, value)
+		c.setDataValue(mi, id, jsonName, value, ctxSlug)
 	}
 }
 
 // setDataValue sets the value for the jsonName field of record ref to value
-func (c *cache) setDataValue(model string, id int64, jsonName string, value any) {
+//
+// The values of contexted fields are stored separately for each context.
+func (c *cache) setDataValue(mi *Model, id int64, jsonName string, value any, ctxSlug string) {
 	c.Lock()
 	defer c.Unlock()
+	model := mi.name
 	if _, ok := c.data[model]; !ok {
 		c.data[model] = make(map[int64]FieldMap)
 	}
@@ -112,7 +115,26 @@ func (c *cache) setDataValue(model string, id int64, jsonName string, value any)
 		c.data[model][id] = make(FieldMap)
 		c.data[model][id]["id"] = id
 	}
-	c.data[model][id][jsonName] = value
+	c.data[model][id][cacheFieldKey(mi, jsonName, ctxSlug)] = value
+}
+
+// removeContextedEntries removes from the cache all the values of the given
+// contexted field for the record with the given id, except the one stored
+// under the keep cache key.
+//
+// Pass an empty keep to remove the values of all the contexts.
+func (c *cache) removeContextedEntries(mi *Model, id int64, jsonName, keep string) {
+	c.Lock()
+	defer c.Unlock()
+	for key := range c.data[mi.name][id] {
+		if key != jsonName && !strings.HasPrefix(key, jsonName+ContextSep) {
+			continue
+		}
+		if key == keep {
+			continue
+		}
+		delete(c.data[mi.name][id], key)
+	}
 }
 
 // setX2MValue sets the id for the jsonName field of record ref in the x2mRelation map
@@ -159,10 +181,11 @@ func (c *cache) getX2MValue(model string, id int64, jsonName string, ctxSlug str
 }
 
 // deleteFieldData removes the cache entry for the jsonName field of record ref
-func (c *cache) deleteFieldData(model string, id int64, jsonName string) {
+func (c *cache) deleteFieldData(mi *Model, id int64, jsonName, ctxSlug string) {
 	c.Lock()
 	defer c.Unlock()
-	delete(c.data[model][id], jsonName)
+	model := mi.name
+	delete(c.data[model][id], cacheFieldKey(mi, jsonName, ctxSlug))
 	if _, exists := c.x2mRelated[model][id]; exists {
 		delete(c.x2mRelated[model][id], jsonName)
 	}
@@ -266,7 +289,7 @@ func (c *cache) removeEntry(mi *Model, id int64, fieldName, ctxSlug string) {
 	if !c.checkIfInCache(mi, []int64{id}, []string{fieldName}, ctxSlug, true) {
 		return
 	}
-	c.deleteFieldData(mi.name, id, fieldName)
+	c.deleteFieldData(mi, id, fieldName, ctxSlug)
 	fi := mi.fields.MustGet(fieldName)
 	if fi.fieldType == fieldtype.Many2Many {
 		c.removeM2MLinks(fi, id)
@@ -311,7 +334,7 @@ func (c *cache) get(mi *Model, id int64, fieldName string, ctxSlug string) any {
 	case fieldtype.Many2Many:
 		return c.getM2MLinks(fi, id)
 	default:
-		return c.data[mi.name][id][fName]
+		return c.data[mi.name][id][cacheFieldKey(mi, fName, ctxSlug)]
 	}
 }
 
@@ -344,7 +367,7 @@ func (c *cache) isInCache(mi *Model, id int64, path string, ctxSlug string, stri
 		}
 		return false
 	}
-	if _, ok := c.data[mi.name][id][path]; !ok {
+	if _, ok := c.data[mi.name][id][cacheFieldKey(mi, path, ctxSlug)]; !ok {
 		return false
 	}
 	return true

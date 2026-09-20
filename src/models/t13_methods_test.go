@@ -316,17 +316,20 @@ func TestContextedFields(t *testing.T) {
 	t.Run("Testing contexted fields", func(t *testing.T) {
 		assert.Nil(t, ExecuteInNewEnvironment(security.SuperUserID, func(env Environment) {
 			mTags := env.Pool("Tag")
-			decs := env.Pool("TagHexyaDescription")
 			var tagc *RecordCollection
 			t.Run("Creating record with a single contexted field", func(t *testing.T) {
 				tagc = mTags.Call("Create", NewModelData(mTags.model).
 					Set(Name, "Contexted tag").
 					Set(description, "Translated description")).(RecordSet).Collection()
-				assert.EqualValues(t, tagc.Get(descriptionHexyaContexts).(RecordSet).Len(), 1)
+				assert.EqualValues(t, tagc.GetContextedValues(description),
+					ContextedValue{ctxValueKey: "Translated description"})
 				assert.EqualValues(t, tagc.Get(description), "Translated description")
 
 				tagc.WithContext("lang", "fr_FR").Set(description, "Description traduite")
-				assert.EqualValues(t, tagc.Get(descriptionHexyaContexts).(RecordSet).Len(), 2)
+				assert.EqualValues(t, tagc.GetTranslations(description), map[string]string{
+					"":      "Translated description",
+					"fr_FR": "Description traduite",
+				})
 				assert.EqualValues(t, tagc.Get(description), "Translated description")
 
 				newTag := mTags.WithContext("lang", "fr_FR").Search(mTags.Model().Field(Name).Equals("Contexted tag"))
@@ -368,30 +371,81 @@ func TestContextedFields(t *testing.T) {
 				assert.EqualValues(t, tag.WithContext("lang", "fr_FR").Get(description), "Description en français")
 				assert.EqualValues(t, tag.WithContext("lang", "de_DE").Get(description), "Description en français")
 				assert.EqualValues(t, tag.Get(description), "Description en français")
-				thc := decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				assert.EqualValues(t, thc.Len(), 1)
+				assert.EqualValues(t, tag.GetContextedValues(description)[ctxValueKey], "Description en français")
 			})
-			t.Run("Updating in another transaction should not recreate a default value", func(t *testing.T) {
+			t.Run("Updating the default context value should not change the other contexts", func(t *testing.T) {
 				tag := mTags.WithContext("lang", "fr_FR").Search(mTags.Model().Field(Name).Equals("Contexted tag 2"))
 				assert.EqualValues(t, tag.Get(description), "Description en français")
-				thc := decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				assert.EqualValues(t, thc.Len(), 1)
 
 				tag.Set(description, "Nouvelle description en français")
-				thc = decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				assert.EqualValues(t, thc.Len(), 1)
 				assert.EqualValues(t, tag.Get(description), "Nouvelle description en français")
+				assert.EqualValues(t, tag.WithContext("lang", "en_US").Get(description), "Description in English")
+				// The value of the default context has not been modified
+				assert.EqualValues(t, tag.GetContextedValues(description)[ctxValueKey], "Description en français")
 			})
-			t.Run("Changing language should recreate a default value (new transaction)", func(t *testing.T) {
+			t.Run("Writing in a new language should not change the other contexts", func(t *testing.T) {
 				tag := mTags.WithContext("lang", "es_ES").Search(mTags.Model().Field(Name).Equals("Contexted tag 2"))
 				assert.EqualValues(t, tag.Get(description), "Description en français")
-				thc := decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				assert.EqualValues(t, thc.Len(), 1)
 
 				tag.Set(description, "descripción traducida")
-				thc = decs.Search(decs.Model().Field(record).Equals(tag.Ids()[0]).And().Field(lang).IsNull())
-				assert.EqualValues(t, thc.Len(), 1)
 				assert.EqualValues(t, tag.Get(description), "descripción traducida")
+				assert.EqualValues(t, tag.GetTranslations(description), map[string]string{
+					"":      "Description en français",
+					"en_US": "Description in English",
+					"es_ES": "descripción traducida",
+					"fr_FR": "Nouvelle description en français",
+				})
+			})
+			t.Run("Forcing the default contexts should return the context-less value", func(t *testing.T) {
+				tag := mTags.WithContext("lang", "fr_FR").Search(mTags.Model().Field(Name).Equals("Contexted tag 2"))
+				assert.EqualValues(t, tag.Get(description), "Nouvelle description en français")
+				assert.EqualValues(t, tag.WithContext("hexya_default_contexts", true).Get(description),
+					"Description en français")
+			})
+			t.Run("Writing then reading in another language in the same transaction", func(t *testing.T) {
+				tag := mTags.Call("Create", NewModelData(mTags.model).
+					Set(Name, "Contexted tag cache").
+					Set(description, "Base description")).(RecordSet).Collection()
+				tag.WithContext("lang", "fr_FR").Set(description, "Description en français")
+				assert.EqualValues(t, tag.WithContext("lang", "en_US").Get(description), "Base description")
+				assert.EqualValues(t, tag.WithContext("lang", "fr_FR").Get(description), "Description en français")
+				// Writing the default value must invalidate the cache of the other contexts
+				tag.Set(description, "New base description")
+				assert.EqualValues(t, tag.WithContext("lang", "en_US").Get(description), "New base description")
+				assert.EqualValues(t, tag.WithContext("lang", "fr_FR").Get(description), "Description en français")
+				tag.Call("Unlink")
+			})
+			t.Run("Getting and setting all the translations at once", func(t *testing.T) {
+				tag := mTags.Call("Create", NewModelData(mTags.model).
+					Set(Name, "Contexted tag translations").
+					Set(description, "Base description")).(RecordSet).Collection()
+				tag.SetTranslations(description, map[string]string{
+					"fr_FR": "Description en français",
+					"de_DE": "übersetzte Beschreibung",
+				})
+				assert.EqualValues(t, tag.GetTranslations(description), map[string]string{
+					"":      "Base description",
+					"de_DE": "übersetzte Beschreibung",
+					"fr_FR": "Description en français",
+				})
+				assert.EqualValues(t, tag.WithContext("lang", "de_DE").Get(description), "übersetzte Beschreibung")
+				// Unknown languages fall back on the context-less value
+				assert.EqualValues(t, tag.WithContext("lang", "it_IT").Get(description), "Base description")
+				// Setting the whole map overrides everything
+				tag.SetContextedValues(description, ContextedValue{ctxValueKey: "Only base"})
+				assert.EqualValues(t, tag.GetTranslations(description), map[string]string{"": "Only base"})
+				assert.EqualValues(t, tag.WithContext("lang", "fr_FR").Get(description), "Only base")
+				tag.Call("Unlink")
+			})
+			t.Run("Copying a record should copy all its contexts", func(t *testing.T) {
+				tag := mTags.Call("Create", NewModelData(mTags.model).
+					Set(Name, "Contexted tag to copy").
+					Set(description, "Description to copy")).(RecordSet).Collection()
+				tag.WithContext("lang", "fr_FR").Set(description, "Description à copier")
+				tagCopy := tag.Call("Copy", NewModelData(mTags.model)).(RecordSet).Collection()
+				assert.EqualValues(t, tagCopy.Get(description), "Description to copy")
+				assert.EqualValues(t, tagCopy.WithContext("lang", "fr_FR").Get(description), "Description à copier")
+				tag.Union(tagCopy).Call("Unlink")
 			})
 			t.Run("Deleting a record with a contexted field should delete all contexts", func(t *testing.T) {
 				newTag := mTags.Call("Create", NewModelData(mTags.model).
@@ -402,10 +456,122 @@ func TestContextedFields(t *testing.T) {
 				assert.EqualValues(t, newTag.WithContext("lang", "fr_FR").Get(description), "Description en français")
 				newTag.WithContext("lang", "de_DE").Set(description, "übersetzte Beschreibung")
 				assert.EqualValues(t, newTag.WithContext("lang", "de_DE").Get(description), "übersetzte Beschreibung")
-				nID := newTag.Ids()[0]
 				newTag.Call("Unlink")
-				dec := decs.Search(decs.Model().Field(record).Equals(nID).Or().Field(record).IsNull())
-				assert.True(t, dec.IsEmpty())
+				assert.True(t, mTags.Search(mTags.Model().Field(Name).Equals("Contexted tag 3")).IsEmpty())
+			})
+		}))
+	})
+	t.Run("Testing fields with several contexts", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			mTags := env.Pool("Tag")
+			tag := mTags.Call("Create", NewModelData(mTags.model).
+				Set(Name, "Multi contexted tag").
+				Set(slogan, "Chair")).(RecordSet).Collection()
+			tag.WithContext("lang", "fr_FR").Set(slogan, "Siège")
+			tag.WithContext("company", "3").Set(slogan, "Seat")
+			tag.WithContext("company", "3").WithContext("lang", "fr_FR").Set(slogan, "Fauteuil")
+			t.Run("Values should be nested by context name", func(t *testing.T) {
+				assert.EqualValues(t, tag.GetContextedValues(slogan), ContextedValue{
+					ctxValueKey: "Chair",
+					"lang": map[string]any{
+						"fr_FR": map[string]any{ctxValueKey: "Siège"},
+					},
+					"company": map[string]any{
+						"3": map[string]any{
+							ctxValueKey: "Seat",
+							"lang": map[string]any{
+								"fr_FR": map[string]any{ctxValueKey: "Fauteuil"},
+							},
+						},
+					},
+				})
+			})
+			t.Run("Resolution should try each subset of contexts", func(t *testing.T) {
+				assert.EqualValues(t, tag.Get(slogan), "Chair")
+				assert.EqualValues(t, tag.WithContext("lang", "fr_FR").Get(slogan), "Siège")
+				assert.EqualValues(t, tag.WithContext("company", "3").Get(slogan), "Seat")
+				assert.EqualValues(t, tag.WithContext("company", "3").WithContext("lang", "fr_FR").Get(slogan),
+					"Fauteuil")
+				// The per company value is used when the language is unknown
+				assert.EqualValues(t, tag.WithContext("company", "3").WithContext("lang", "de_DE").Get(slogan),
+					"Seat")
+				// The generic translation is used for the other companies
+				assert.EqualValues(t, tag.WithContext("company", "7").WithContext("lang", "fr_FR").Get(slogan),
+					"Siège")
+				assert.EqualValues(t, tag.WithContext("company", "7").WithContext("lang", "de_DE").Get(slogan),
+					"Chair")
+			})
+			t.Run("Searching should operate on the resolved value", func(t *testing.T) {
+				tagFR := mTags.WithContext("company", "3").WithContext("lang", "fr_FR").
+					Search(mTags.Model().Field(slogan).Equals("Fauteuil"))
+				assert.EqualValues(t, tagFR.Len(), 1)
+				assert.True(t, tagFR.Equals(tag))
+				assert.True(t, mTags.WithContext("lang", "fr_FR").
+					Search(mTags.Model().Field(slogan).Equals("Fauteuil")).IsEmpty())
+				assert.EqualValues(t, mTags.WithContext("lang", "fr_FR").
+					Search(mTags.Model().Field(slogan).Equals("Siège")).Len(), 1)
+			})
+		}))
+	})
+	t.Run("Testing non string contexted fields", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			mTags := env.Pool("Tag")
+			tag := mTags.Call("Create", NewModelData(mTags.model).
+				Set(Name, "Priced tag").
+				Set(price, 12.34)).(RecordSet).Collection()
+			assert.EqualValues(t, tag.Get(price), 12.34)
+			tag.WithContext("company", "3").Set(price, 56.78)
+			assert.EqualValues(t, tag.Get(price), 12.34)
+			assert.EqualValues(t, tag.WithContext("company", "3").Get(price), 56.78)
+			assert.EqualValues(t, tag.WithContext("company", "7").Get(price), 12.34)
+			assert.EqualValues(t, mTags.WithContext("company", "3").
+				Search(mTags.Model().Field(price).Greater(50)).Len(), 1)
+			assert.True(t, mTags.Search(mTags.Model().Field(price).Greater(50)).IsEmpty())
+		}))
+	})
+	t.Run("Testing contexted fields through an embedded relation", func(t *testing.T) {
+		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+			mResumes := env.Pool("Resume")
+			mUsers := env.Pool("User")
+			cv := mResumes.Call("Create", NewModelData(mResumes.model).
+				Set(experience, "Professional experience")).(RecordSet).Collection()
+			user := mUsers.Call("Create", NewModelData(mUsers.model).
+				Set(Name, "Embedded Contexted User").
+				Set(email, "embedded.contexted@example.com").
+				Set(resume, cv)).(RecordSet).Collection()
+			t.Run("Reading through the embed should use the current context", func(t *testing.T) {
+				cv.WithContext("lang", "fr_FR").Set(experience, "Expérience professionnelle")
+				assert.EqualValues(t, user.Get(experience), "Professional experience")
+				assert.EqualValues(t, user.WithContext("lang", "fr_FR").Get(experience),
+					"Expérience professionnelle")
+				assert.EqualValues(t, user.WithContext("lang", "de_DE").Get(experience),
+					"Professional experience")
+			})
+			t.Run("Writing through the embed should target the current context", func(t *testing.T) {
+				user.WithContext("lang", "de_DE").Set(experience, "Berufserfahrung")
+				assert.EqualValues(t, user.WithContext("lang", "de_DE").Get(experience), "Berufserfahrung")
+				assert.EqualValues(t, user.WithContext("lang", "fr_FR").Get(experience),
+					"Expérience professionnelle")
+				assert.EqualValues(t, user.Get(experience), "Professional experience")
+				assert.EqualValues(t, cv.GetTranslations(experience), map[string]string{
+					"":      "Professional experience",
+					"de_DE": "Berufserfahrung",
+					"fr_FR": "Expérience professionnelle",
+				})
+				// The values are actually written in the database
+				cv.InvalidateCache()
+				assert.EqualValues(t, user.WithContext("lang", "de_DE").Get(experience), "Berufserfahrung")
+				assert.EqualValues(t, user.Get(experience), "Professional experience")
+			})
+			t.Run("Searching through the embed should use the current context", func(t *testing.T) {
+				userFR := mUsers.WithContext("lang", "fr_FR").
+					Search(mUsers.Model().Field(experience).Equals("Expérience professionnelle"))
+				assert.EqualValues(t, userFR.Len(), 1)
+				assert.True(t, userFR.Equals(user))
+				assert.True(t, mUsers.WithContext("lang", "de_DE").
+					Search(mUsers.Model().Field(experience).Equals("Expérience professionnelle")).IsEmpty())
+				assert.EqualValues(t, mUsers.WithContext("lang", "de_DE").
+					Search(mUsers.Model().Field(experience).Equals("Berufserfahrung")).Len(), 1)
 			})
 		}))
 	})
