@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/hexya-erp/hexya/src/tools/gowork"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -24,6 +25,7 @@ var projectInitCmd = &cobra.Command{
 	Long: `Initialize a new project in the current directory with the given path (e.g. github.com/myuser/my-hexya-project). 
 This will create:
 - A go.mod file
+- A go.work file with a 'use' directive on the project directory
 - A hexya.toml file
 All parameters passed as command line arguments or env variables will be set in the config file.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -37,12 +39,17 @@ All parameters passed as command line arguments or env variables will be set in 
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		// Create the hexya.toml file
 		projectDir, err := os.Getwd()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		// Create or update the go.work file
+		if err = gowork.AddUse(projectDir, projectDir); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		// Create the hexya.toml file
 		if err = writeConfigFile(projectDir); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -56,7 +63,7 @@ var projectCleanCmd = &cobra.Command{
 	Long: `Clean the current directory from all generated and test artifacts.
 You should use this command before committing your work.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runCommand("go", "mod", "edit", "-dropreplace", "github.com/hexya-erp/pool@v1.0.2")
+		dropPoolDirFromGoWork()
 		if err := removeProjectDir(PoolDirRel); err != nil {
 			fmt.Println(err)
 		}
@@ -65,6 +72,19 @@ You should use this command before committing your work.`,
 		}
 		runCommand("go", "mod", "tidy")
 	},
+}
+
+// dropPoolDirFromGoWork removes the 'use' directive of the generated pool
+// module from the go.work file applicable to the current directory.
+func dropPoolDirFromGoWork() {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	if err = gowork.DropUse(cwd, filepath.Join(cwd, PoolDirRel)); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func removeProjectDir(dir string) error {

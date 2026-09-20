@@ -16,16 +16,14 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"text/template"
 
 	"github.com/hexya-erp/hexya/src/tools/generate"
+	"github.com/hexya-erp/hexya/src/tools/gowork"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/tools/go/packages"
@@ -48,6 +46,8 @@ var generateCmd = &cobra.Command{
 This command also :
 - creates the resource directory by symlinking all modules resources into the project directory.
 - creates or updates the main.go of the project.
+- adds a 'use' directive for the generated pool module and the project module in the go.work file.
+  If no go.work file applies to the project directory, a new one is created.
 This command must be rerun after each source code modification, including module import.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
@@ -83,7 +83,7 @@ func runGenerate(projectDir string) {
 	} else {
 		targetPaths = viper.GetStringSlice("Modules")
 	}
-	replacePoolDirInGoMod(poolDir)
+	usePoolDirInGoWork(projectDir, poolDir)
 
 	fmt.Println(`Hexya Generate
 	--------------`)
@@ -159,8 +159,22 @@ func loadProgram(targetPaths []string, tests bool) ([]*packages.Package, error) 
 	return packs, err
 }
 
-func replacePoolDirInGoMod(poolDir string) {
-	runCommand("go", "mod", "edit", "-replace", fmt.Sprintf("github.com/hexya-erp/pool@v1.0.2=%s", poolDir))
+// usePoolDirInGoWork adds the generated pool module and the project module
+// to the go.work file applicable to the project directory.
+// If no go.work file can be found, a new one is created at the root of the
+// module the project directory belongs to, or in the project directory itself.
+func usePoolDirInGoWork(projectDir, poolDir string) {
+	modDirs := []string{poolDir}
+	workDir := projectDir
+	if moduleDir := gowork.FindModuleDir(projectDir); moduleDir != "" {
+		modDirs = append(modDirs, moduleDir)
+		// If no go.work exists yet, create it at the root of the module
+		workDir = moduleDir
+	}
+	if err := gowork.AddUse(workDir, modDirs...); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func computeDirs(projectDir string) (string, string) {
@@ -188,49 +202,13 @@ func cleanPoolDir(dirName string) {
 	if err := writeFileFromTemplate(filepath.Join(dirName, "go.mod"), emptyPoolGoMod, nil); err != nil {
 		log.Panic("Error while saving generated source file", "error", err, "fileName", "go.mod")
 	}
-	copyGoModReplaces(dirName)
-}
-
-func copyGoModReplaces(poolDir string) {
-	type Module struct {
-		Path    string
-		Version string
-	}
-	type GoMod struct {
-		Replace []struct {
-			Old Module
-			New Module
-		}
-	}
-	modJSON, err := exec.Command("go", "mod", "edit", "-json").CombinedOutput()
-	if err != nil {
-		fmt.Println(string(modJSON))
-		panic(err)
-	}
-	var replaces GoMod
-	if err = json.Unmarshal(modJSON, &replaces); err != nil {
-		panic(err)
-	}
-	for _, repl := range replaces.Replace {
-		if repl.Old.Path == "github.com/hexya-erp/pool" {
-			continue
-		}
-		oldPath := repl.Old.Path
-		if repl.Old.Version != "" {
-			oldPath += "@" + repl.Old.Version
-		}
-		newPath := repl.New.Path
-		if repl.New.Version != "" {
-			newPath += "@" + repl.New.Version
-		}
-		runCommand("go", "mod", "edit", "-replace", fmt.Sprintf("%s=%s", oldPath, newPath), filepath.Join(poolDir, "go.mod"))
-	}
+	dropPoolDirFromGoWork()
 }
 
 func writeFileFromTemplate(fileName string, tmpl *template.Template, data interface{}) error {
 	var buf bytes.Buffer
 	tmpl.Execute(&buf, data)
-	err := ioutil.WriteFile(fileName, buf.Bytes(), 0644)
+	err := os.WriteFile(fileName, buf.Bytes(), 0644)
 	return err
 }
 

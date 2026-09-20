@@ -91,18 +91,36 @@ Like all Go programs, you must define the import path though it does not need to
 hexya project init github.com/myusername/myhexyaproject
 ----
 
-This will create the following two files inside your project directory:
+This will create the following files inside your project directory:
 
 [source]
 ----
 go.mod
+go.work
 hexya.toml
 ----
+
+The `go.work` file defines the Go workspace of the project. It contains a `use`
+directive pointing to the project directory, and `hexya generate` will add
+another one pointing to the generated `pool` module.
+
+[NOTE]
+====
+If a `go.work` file already exists in the project directory or in one of its
+parent directories, then it is updated instead of being created.
+
+If you develop a Hexya module alongside your project, just add a `use`
+directive pointing to the module's directory in the same `go.work` file.
+====
 
 === Generate Hexya
 
 This step will generate some source code that depends on the modules you
 selected in the previous step. It takes as argument the project directory.
+
+It also registers the generated `pool` module and the project module in the
+`go.work` file of the project, creating it if no `go.work` file applies to the
+project directory.
 
 [source,shell]
 ----
