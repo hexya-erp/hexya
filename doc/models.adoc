@@ -721,6 +721,25 @@ for json serialization to the client.
 Set to true if the value of this field must be translated in the user
 interface. This can be the case for product names or descriptions for
 instance.
++
+This is a shortcut for setting a `lang` context on the field, i.e. it is
+strictly equivalent to:
++
+[source,go]
+----
+Contexts: models.FieldContexts{
+    "lang": func(rs models.RecordSet) string {
+        return rs.Env().Context().GetString("lang")
+    },
+},
+----
++
+See <<Contexted fields>> for details.
+
+`Contexts` FieldContexts::
+Makes the value of this field depend on the environment's context. The keys of
+the map are the context names and the values are functions returning the value
+of the context for the given RecordSet. See <<Contexted fields>>.
 
 `GoType` interface{}::
 Specifies the go type to which the field should be mapped. `GoType` should be
@@ -767,9 +786,17 @@ Defines if the field should be visible in views. Works the same way as `Required
 
 `Unique` bool::
 Defines the field as unique in the database table.
++
+NOTE: A contexted field cannot be unique.
 
 `Index` bool::
 Creates an index on this field in the database.
++
+NOTE: On a contexted field, the created index is a GIN index on all the values
+of all the contexts. For text-like fields, it is a trigram index, which only
+speeds up `like` and `ilike` conditions, and not equality or ordering. Trigram
+indexes need the `pg_trgm` PostgreSQL extension; if it cannot be created, the
+index is simply skipped with a warning.
 
 `NoCopy` bool::
 Fields marked with this tag will not be copied when a record is duplicated.
@@ -873,6 +900,108 @@ directly from this RecordSet.
 
 NOTE: Only the fields of the embedded model will be accessible from this
 model, not its methods.
+
+==== Contexted fields
+
+The value of a field can be made dependent on the environment's context by
+setting its `Contexts` parameter (or its `Translate` parameter, which is a
+shortcut for a `lang` context). This is typically used to store the
+translations of a field, or to give a different value to a field for each
+company.
+
+[source,go]
+----
+var fields_Product = map[string]models.FieldDefinition{
+    "Name": models.CharField{Translate: true},
+    "Note": models.TextField{Contexts: models.FieldContexts{
+        "company": func(rs models.RecordSet) string {
+            return fmt.Sprintf("%d", rs.Env().Context().GetInteger("company_id"))
+        },
+    }},
+}
+----
+
+A contexted field must be stored, must not be a relation field, must not be a
+related field and must not be unique. It may have up to 4 different contexts.
+
+===== Storage
+
+The values of a contexted field are all stored in the field's own column,
+which is of type `jsonb`. The document is a tree of objects, each level being
+alternatively a context name and a context value. The value of each branch is
+stored in the branch under the reserved `"_"` key.
+
+The following document is the value of a `Name` field with the `company` and
+`lang` contexts, whose context-less value is `Chair`, translated in French as
+`Siège`, and which the company 3 calls `Seat` and translates as `Fauteuil`:
+
+[source,json]
+----
+{
+  "_": "Chair",
+  "company": {
+    "3": {
+      "_": "Seat",
+      "lang": {
+        "fr_FR": { "_": "Fauteuil" }
+      }
+    }
+  },
+  "lang": {
+    "fr_FR": { "_": "Siège" }
+  }
+}
+----
+
+===== Reading and writing
+
+Reading a contexted field with `Get` returns the value of the most specific
+branch that is set for the current context, falling back level by level down
+to the context-less value. Context names are visited in alphabetical order and
+the last one has the highest priority. With the document above:
+
+[cols="1,1"]
+|===
+| Context | Value
+
+| `company=3, lang=fr_FR` | `Fauteuil`
+| `company=3, lang=de_DE` | `Seat`
+| `company=7, lang=fr_FR` | `Siège`
+| no context              | `Chair`
+|===
+
+Setting the `hexya_default_contexts` key in the environment's context forces
+the resolution to the context-less value.
+
+Writing a contexted field only modifies the branch that matches the current
+context; the values of the other contexts are left untouched. When a record is
+created, the value is set both for the context-less branch and for the branch
+of the creating environment, so that it can be read from any other context.
+
+`Search`, `OrderBy` and `GroupBy` on a contexted field all operate on the
+resolved value, without any additional join or query.
+
+===== Accessing all the values at once
+
+The following methods allow reading and writing all the values of a contexted
+field at once:
+
+`*(*RecordCollection) GetContextedValues(field FieldName) ContextedValue*`::
+Returns the whole document of the given contexted field.
+
+`*(*RecordCollection) SetContextedValues(field FieldName, values ContextedValue)*`::
+Overrides the whole document of the given contexted field.
+
+`*(*RecordCollection) GetTranslations(field FieldName) map[string]string*`::
+Returns the translations of the given field as a map of language to value. The
+context-less value is returned under the empty string key.
+
+`*(*RecordCollection) SetTranslations(field FieldName, values map[string]string)*`::
+Sets the translations of the given field from a map of language to value. The
+languages that are not in the map and the other contexts are left unchanged.
+
+The last two methods are also available as model methods, so that they can be
+called through the standard method dispatch.
 
 ==== Reserved field names
 

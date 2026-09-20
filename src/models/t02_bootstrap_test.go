@@ -45,24 +45,6 @@ func (f TestFieldMap) Underlying() FieldMap {
 
 func UnBootStrap() {
 	Registry.bootstrapped = false
-	for _, mi := range Registry.registryByName {
-		if mi.options&ContextsModel > 0 {
-			delete(Registry.registryByName, mi.name)
-			delete(Registry.registryByTableName, mi.tableName)
-			continue
-		}
-		for _, fi := range mi.fields.registryByName {
-			if fi.contexts != nil && len(fi.contexts) > 0 {
-				fi.relatedPathStr = ""
-				fi.relatedPath = nil
-				continue
-			}
-			if strings.HasSuffix(fi.name, "HexyaContexts") {
-				delete(mi.fields.registryByName, fi.name)
-				delete(mi.fields.registryByJSON, fi.json)
-			}
-		}
-	}
 	for seqName, seq := range Registry.sequences {
 		if strings.HasSuffix(seq.JSON, "_manseq") {
 			delete(Registry.sequences, seqName)
@@ -451,6 +433,24 @@ func TestBootStrap(t *testing.T) {
 			assert.False(t, profileField.required)
 			assert.False(t, numsField.index)
 			assert.NotPanics(t, SyncDatabase)
+		})
+		t.Run("Indexing a contexted field", func(t *testing.T) {
+			indexName := "tag_description_index"
+			UnBootStrap()
+			descriptionField := Registry.MustGet("Tag").Fields().MustGet("Description")
+			descriptionField.SetIndex(true)
+			assert.NotPanics(t, BootStrap)
+			assert.NotPanics(t, SyncDatabase)
+			assert.True(t, TestAdapter.indexExists("tag", indexName))
+			// Syncing again should not try to recreate the index
+			assert.NotPanics(t, SyncDatabase)
+			assert.True(t, TestAdapter.indexExists("tag", indexName))
+			// Removing the index should drop it
+			UnBootStrap()
+			descriptionField.SetIndex(false)
+			assert.NotPanics(t, BootStrap)
+			assert.NotPanics(t, SyncDatabase)
+			assert.False(t, TestAdapter.indexExists("tag", indexName))
 		})
 	})
 

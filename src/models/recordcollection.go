@@ -139,7 +139,7 @@ func (rc *RecordCollection) new(data RecordData) *RecordCollection {
 	fMap["id"] = id
 	rc.model.convertValuesToFieldType(&fMap, false)
 	rSet := rc.withIds([]int64{id})
-	rc.env.cache.addRecord(rc.model, id, fMap, rSet.query.ctxArgsSlug())
+	rc.env.cache.addRecord(rc.model, id, fMap, rSet.ctxSlug())
 	return rSet
 }
 
@@ -160,11 +160,9 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	newData := data.Underlying().Copy()
 	rc.applyDefaults(newData, true)
 	fMap := newData.Underlying().FieldMap
-	rc.applyContexts()
 	rc.addAccessFieldsCreateData(&fMap)
 	fMap = rc.addEmbeddedfields(fMap)
 	rc.model.convertValuesToFieldType(&fMap, true)
-	fMap = rc.addContextsFieldsValues(fMap)
 	// clean our fMap from ID and non stored fields
 	fMap.RemovePKIfZero()
 	storedFieldMap := rc.filterMapOnStoredFields(fMap)
@@ -173,7 +171,12 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	query, args := rc.query.insertQuery(storedFieldMap)
 	rc.env.cr.Get(&createdId, query, args...)
 
-	rc.env.cache.addRecord(rc.model, createdId, storedFieldMap, rc.query.ctxArgsSlug())
+	rc.env.cache.addRecord(rc.model, createdId, storedFieldMap, rc.ctxSlug())
+	if rc.ctxSlug() != "" {
+		// Values of contexted fields are also set for the default context at
+		// creation, so we update the cache accordingly.
+		rc.env.cache.addRecord(rc.model, createdId, rc.filterMapOnContextedFields(storedFieldMap), "")
+	}
 	rSet := rc.withIds([]int64{createdId})
 	// update reverse relation fields
 	rSet.updateRelationFields(fMap)
@@ -294,40 +297,13 @@ func (rc *RecordCollection) getDefaults(create bool) *ModelData {
 	return md
 }
 
-// applyContexts adds filtering on contexts when applicable to this RecordSet query.
-func (rc *RecordCollection) applyContexts() *RecordCollection {
-	ctxCond := newCondition()
-	var ctxOrders []orderPredicate
-	for _, fi := range rc.model.fields.registryByName {
-		if fi.contexts == nil {
-			continue
-		}
-		for ctxName, ctxFunc := range fi.contexts {
-			path := rc.model.FieldName(fmt.Sprintf("%sHexyaContexts%s%s", fi.name, ExprSep, ctxName))
-			ctxOrders = append(ctxOrders, orderPredicate{field: path, desc: true})
-			cond := rc.model.Field(path).IsNull()
-			if !rc.env.context.GetBool("hexya_default_contexts") {
-				cond = cond.Or().Field(path).Equals(ctxFunc)
-			}
-			ctxCond = ctxCond.AndCond(cond)
-		}
-	}
-	rc.query.ctxCond = ctxCond
-	rc.query.ctxOrders = ctxOrders
-	return rc
-}
-
-// addContextsFieldsValues adds the contexts to the given fMap so that the resulting set can be filtered
-func (rc *RecordCollection) addContextsFieldsValues(fMap FieldMap) FieldMap {
+// filterMapOnContextedFields returns a new FieldMap with only the entries of
+// fMap that are contexted fields of this model.
+func (rc *RecordCollection) filterMapOnContextedFields(fMap FieldMap) FieldMap {
 	res := make(FieldMap)
 	for k, v := range fMap {
-		res[k] = v
-		fi := rc.model.getRelatedFieldInfo(rc.model.FieldName(k))
-		if fi.contexts != nil {
-			for ctxName, ctxFunc := range fi.contexts {
-				path := fmt.Sprintf("%sHexyaContexts.%s", fi.name, ctxName)
-				res[path] = ctxFunc(rc)
-			}
+		if fi, ok := rc.model.fields.Get(k); ok && fi.isContextedField() {
+			res[fi.json] = v
 		}
 	}
 	return res
@@ -378,8 +354,6 @@ func (rc *RecordCollection) update(data RecordData) bool {
 	data = rc.createFKRelationRecords(data)
 	fMap := data.Underlying().Copy().FieldMap
 	rSet.addAccessFieldsUpdateData(&fMap)
-	rSet.applyContexts()
-	fMap = rSet.addContextsFieldsValues(fMap)
 	// We process inverse method before we convert RecordSets to ids
 	rSet.processInverseMethods(data)
 	rSet.model.convertValuesToFieldType(&fMap, true)
@@ -458,9 +432,16 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 			log.Panic("Unexpected noop on update (num = 0)", "model", rc.ModelName(), "values", fMap, "query", query, "args", args)
 		}
 	}
+	ctxSlug := rc.ctxSlug()
 	for _, rec := range rc.Records() {
 		for k, v := range fMap {
-			rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v, rc.query.ctxArgsSlug())
+			if fi, ok := rc.model.fields.Get(k); ok && fi.isContextedField() {
+				// The value of the other contexts may be impacted by this write,
+				// since they may fall back on the value we are writing.
+				rc.env.cache.removeContextedEntries(rc.model, rec.Ids()[0], fi.json,
+					cacheFieldKey(rc.model, fi.json, ctxSlug))
+			}
+			rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v, ctxSlug)
 		}
 	}
 }
@@ -538,12 +519,12 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 			if createdPaths[prefix.JSON()] {
 				continue
 			}
-			model, id, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path.JSON(), rc.query.ctxArgsSlug())
+			model, id, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path.JSON(), rc.ctxSlug())
 			if err != nil {
 				// Record does not exist, we create it on the fly instead of updating
 				fp := rec.model.getRelatedFieldInfo(prefix)
 				nr := rec.createRelatedRecord(prefix, NewModelDataFromRS(rec.env.Pool(fp.relatedModelName), vals))
-				rec.env.cache.setX2MValue(rec.model.name, rec.ids[0], prefix.JSON(), nr.Ids()[0], rc.query.ctxArgsSlug())
+				rec.env.cache.setX2MValue(rec.model.name, rec.ids[0], prefix.JSON(), nr.Ids()[0], rc.ctxSlug())
 				createdPaths[prefix.JSON()] = true
 				continue
 			}
@@ -551,32 +532,6 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 				continue
 			}
 			updateMap[rsRef{model, id}] = vals
-		}
-	}
-
-	// Create default value for contexted field if we do not have one yet
-	rc.loadRelatedRecords(fields)
-	for _, rec := range rc.Records() {
-		for _, path := range fields {
-			if _, _, _, err := rec.env.cache.getStrictRelatedRef(rec.model, rec.ids[0], path.JSON(), ""); err == nil {
-				continue
-			}
-			// We have no default value
-			fi := rec.model.getRelatedFieldInfo(path)
-			if fi.ctxType != ctxValue {
-				continue
-			}
-			// This is a contexted field and we have no default value so we create it
-			vals, prefix := rc.relatedFieldMap(fMap, path)
-			//
-			field := strings.TrimPrefix(path.JSON(), prefix.JSON()+ExprSep)
-			defVals := FieldMap{
-				"record_id": vals["record_id"],
-				field:       vals[field],
-			}
-			fp := rc.model.getRelatedFieldInfo(prefix)
-			nr := rc.createRelatedRecord(prefix, NewModelDataFromRS(rc.env.Pool(fp.relatedModelName), defVals))
-			rc.env.cache.setX2MValue(rc.model.name, rc.ids[0], prefix.JSON(), nr.Ids()[0], "")
 		}
 	}
 
@@ -593,30 +548,12 @@ func (rc *RecordCollection) updateRelatedFields(fMap FieldMap) {
 // This method also loads default values for contexted fields
 func (rc *RecordCollection) loadRelatedRecords(fields []FieldName) {
 	var toLoad []FieldName
-
-	// load contexted fields default value
-	if rc.query.ctxArgsSlug() != "" {
-		for _, field := range fields {
-			exprs := splitFieldNames(field, ExprSep)
-			if len(exprs) <= 1 {
-				continue
-			}
-			if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{field.JSON()}, "", true) {
-				toLoad = append(toLoad, field)
-			}
-		}
-		if len(toLoad) > 0 {
-			rc.WithContext("hexya_default_contexts", true).Load(toLoad...)
-		}
-	}
-	// Load contexted fields with rc's context
-	toLoad = []FieldName{}
 	for _, field := range fields {
 		exprs := splitFieldNames(field, ExprSep)
 		if len(exprs) <= 1 {
 			continue
 		}
-		if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{field.JSON()}, rc.query.ctxArgsSlug(), true) {
+		if !rc.env.cache.checkIfInCache(rc.model, rc.ids, []string{field.JSON()}, rc.ctxSlug(), true) {
 			toLoad = append(toLoad, field)
 		}
 	}
@@ -762,7 +699,6 @@ func (rc *RecordCollection) SearchAll() *RecordCollection {
 func (rc *RecordCollection) SearchCount() int {
 	rSet := rc.Limit(0)
 	rSet.applyDefaultOrder()
-	rSet.applyContexts()
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
 	rSet = rSet.substituteRelatedInQuery()
 	query, args := rSet.query.countQuery()
@@ -781,7 +717,7 @@ func (rc *RecordCollection) Load(fields ...FieldName) *RecordCollection {
 	for i, v := range fields {
 		cacheFields[i] = v.JSON()
 	}
-	if rc.env.cache.checkIfInCache(rc.model, rc.ids, cacheFields, rc.query.ctxArgsSlug(), true) {
+	if rc.env.cache.checkIfInCache(rc.model, rc.ids, cacheFields, rc.ctxSlug(), true) {
 		return rc
 	}
 	return rc.ForceLoad(fields...)
@@ -822,7 +758,6 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...FieldName) *RecordCollection
 		fields = rSet.model.fields.storedFieldNames()
 	}
 	addNameSearchesToCondition(rSet.model, rSet.query.cond)
-	rSet.applyContexts()
 	subFields, _ := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
 	dbFields := filterOnDBFields(rSet.model, subFields)
@@ -836,7 +771,7 @@ func (rc *RecordCollection) ForceLoad(fieldNames ...FieldName) *RecordCollection
 		if err != nil {
 			log.Panic(err.Error(), "model", rSet.ModelName(), "fields", fields)
 		}
-		rSet.env.cache.addRecord(rSet.model, line["id"].(int64), line, rc.query.ctxArgsSlug())
+		rSet.env.cache.addRecord(rSet.model, line["id"].(int64), line, rc.ctxSlug())
 		ids = append(ids, line["id"].(int64))
 	}
 
@@ -886,7 +821,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
 				relRC = relRC.Search(relRC.Model().Field(relRC.Model().FieldName(fi.reverseFK)).Equals(thisRC)).Call("Fetch").(RecordSet).Collection()
-				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relRC.ids, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relRC.ids, rc.ctxSlug())
 			case fieldtype.Many2Many:
 				query := fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?`, fi.m2mTheirField.json,
 					fi.m2mRelModel.tableName, fi.m2mOurField.json)
@@ -895,7 +830,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 					continue
 				}
 				rc.env.cr.Select(&ids, query, thisRC.ids[0])
-				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), ids, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), ids, rc.ctxSlug())
 			case fieldtype.Rev2One:
 				relRC := rc.env.Pool(fi.relatedModelName)
 				// We do not call "Fetch" directly to have caller method properly set
@@ -904,7 +839,7 @@ func (rc *RecordCollection) loadRelationFields(fields FieldNames) {
 				if len(relRC.ids) > 0 {
 					relID = relRC.ids[0]
 				}
-				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relID, rc.query.ctxArgsSlug())
+				rc.env.cache.updateEntry(rc.model, id, fName.JSON(), relID, rc.ctxSlug())
 			}
 		}
 	}
@@ -988,7 +923,7 @@ func (rc *RecordCollection) convertToRecordSet(val any, relatedModelName string)
 func (rc *RecordCollection) get(field FieldName, all bool) (any, bool) {
 	rc.Fetch()
 	var dbCalled bool
-	isInCache := rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field.JSON()}, rc.query.ctxArgsSlug(), true)
+	isInCache := rc.env.cache.checkIfInCache(rc.model, []int64{rc.ids[0]}, []string{field.JSON()}, rc.ctxSlug(), true)
 	if !rc.hasNegIds && !isInCache {
 		fields := []FieldName{field}
 		if all {
@@ -1001,7 +936,7 @@ func (rc *RecordCollection) get(field FieldName, all bool) (any, bool) {
 		}
 		dbCalled = true
 	}
-	return rc.env.cache.get(rc.model, rc.ids[0], field.JSON(), rc.query.ctxArgsSlug()), dbCalled
+	return rc.env.cache.get(rc.model, rc.ids[0], field.JSON(), rc.ctxSlug()), dbCalled
 }
 
 // Set sets field given by fieldName to the given value. If the RecordSet has several
@@ -1057,7 +992,6 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldName) []GroupAggregate
 	copy(groups, rc.query.groups)
 
 	rSet := rc.addRecordRuleConditions(rc.env.uid, security.Read)
-	rSet.applyContexts()
 	fields := fieldNames
 	subFields, substMap := rSet.substituteRelatedFields(fields)
 	rSet = rSet.substituteRelatedInQuery()
@@ -1093,11 +1027,9 @@ func (rc *RecordCollection) Aggregates(fieldNames ...FieldName) []GroupAggregate
 // It also adds a default order to the grouped fields if it does not exist.
 func (rc *RecordCollection) fixGroupByOrders(fieldNames ...FieldName) *RecordCollection {
 	rSet := rc
-	orderExprs := rc.query.getOrderByExpressions(false)
-	ctxOrderExprs := rc.query.getCtxOrderByExpressions()
+	orderExprs := rc.query.getOrderByExpressions()
 	groupExprs := rc.query.getGroupByExpressions()
 	groupFields := make(map[FieldName]bool)
-	ctxGroupFields := make(map[FieldName]bool)
 	for _, g := range groupExprs {
 		groupFields[joinFieldNames(g, ExprSep)] = true
 	}
@@ -1109,13 +1041,6 @@ func (rc *RecordCollection) fixGroupByOrders(fieldNames ...FieldName) *RecordCol
 		oName := joinFieldNames(o, ExprSep)
 		if !groupFields[oName] && !fieldsMap[oName] {
 			rSet = rSet.GroupBy(oName)
-		}
-	}
-	for _, o := range ctxOrderExprs {
-		oName := joinFieldNames(o, ExprSep)
-		if !ctxGroupFields[oName] && !fieldsMap[oName] {
-			rSet = rSet.clone()
-			rSet.query.ctxGroups = append(rSet.query.ctxGroups, oName)
 		}
 	}
 	if len(rc.query.orders) == 0 {
@@ -1260,7 +1185,7 @@ func (rc *RecordCollection) withIds(ids []int64) *RecordCollection {
 	if len(newIds) > 0 {
 		rc.hasNegIds = hasNegIds
 		for _, id := range rc.ids {
-			rc.env.cache.updateEntry(rc.model, id, "id", id, rc.query.ctxArgsSlug())
+			rc.env.cache.updateEntry(rc.model, id, "id", id, rc.ctxSlug())
 		}
 		rc.query.cond = rc.Model().Field(ID).In(newIds)
 		rc.query.fetchAll = false

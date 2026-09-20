@@ -24,68 +24,69 @@ import (
 )
 
 var (
-	profile                  = fieldName{name: "profile", json: "profile_id"}
-	nums                     = fieldName{name: "Nums", json: "nums"}
-	age                      = fieldName{name: "Age", json: "age"}
-	email                    = fieldName{name: "Email", json: "email"}
-	email2                   = fieldName{name: "Email2", json: "email2"}
-	bestPost                 = fieldName{name: "BestPost", json: "best_post_id"}
-	title                    = fieldName{name: "Title", json: "title"}
-	isStaff                  = fieldName{name: "IsStaff", json: "is_staff"}
-	resume                   = fieldName{name: "Resume", json: "resume_id"}
-	coolType                 = fieldName{name: "CoolType", json: "cool_type"}
-	mana                     = fieldName{name: "Mana", json: "mana"}
-	other                    = fieldName{name: "Other", json: "other"}
-	money                    = fieldName{name: "Money", json: "money"}
-	active                   = fieldName{name: "Active", json: "active"}
-	isActive                 = fieldName{name: "IsActive", json: "is_active"}
-	isPremium                = fieldName{name: "IsPremium", json: "is_premium"}
-	decoratedName            = fieldName{name: "DecoratedName", json: "decorated_name"}
-	displayName              = fieldName{name: "DisplayName", json: "display_name"}
-	writerAge                = fieldName{name: "WriterAge", json: "writer_age"}
-	writerMoney              = fieldName{name: "WriterMoney", json: "writer_money"}
-	postWriter               = fieldName{name: "PostWriter", json: "post_writer_id"}
-	pMoney                   = fieldName{name: "PMoney", json: "p_money"}
-	street                   = fieldName{name: "Street", json: "street"}
-	city                     = fieldName{name: "City", json: "city"}
-	zip                      = fieldName{name: "Zip", json: "zip"}
-	country                  = fieldName{name: "Country", json: "country"}
-	user                     = fieldName{name: "User", json: "user_id"}
-	text                     = fieldName{name: "Text", json: "text"}
-	record                   = fieldName{name: "Record", json: "record_id"}
-	lang                     = fieldName{name: "Lang", json: "lang"}
-	userName                 = fieldName{name: "UserName", json: "user_name"}
-	profileAge               = fieldName{name: "Profile.Age", json: "profile_id.age"}
-	profileMoney             = fieldName{name: "Profile.Money", json: "profile_id.money"}
-	posts                    = fieldName{name: "Posts", json: "posts_ids"}
-	content                  = fieldName{name: "Content", json: "content"}
-	tags                     = fieldName{name: "Tags", json: "tags_ids"}
-	tagsName                 = fieldName{name: "Tags.Name", json: "tags_ids.name"}
-	description              = fieldName{name: "Description", json: "description"}
-	rate                     = fieldName{name: "Rate", json: "rate"}
-	comments                 = fieldName{name: "Comments", json: "comments_ids"}
-	experience               = fieldName{name: "Experience", json: "experience"}
-	leisure                  = fieldName{name: "Leisure", json: "leisure"}
-	education                = fieldName{name: "Education", json: "education"}
-	lastPost                 = fieldName{name: "LastPost", json: "last_post_id"}
-	lastTagName              = fieldName{name: "LastTagName", json: "last_tag_name"}
-	lastCommentText          = fieldName{name: "LastCommentText", json: "last_comment_text"}
-	postsTitle               = fieldName{name: "Posts.Title", json: "posts_ids.title"}
-	postsTags                = fieldName{name: "Posts.Tags", json: "posts_ids.tags_ids"}
-	bestPostTitle            = fieldName{name: "BestPost.Title", json: "best_post_id.title"}
-	profileBestPostTitle     = fieldName{name: "Profile.BestPost.Title", json: "profile_id.best_post_id.title"}
-	profileBestPostUser      = fieldName{name: "Profile.BestPost.User", json: "profile_id.best_post_id.user_id"}
-	resumeEducation          = fieldName{name: "Resume.Education", json: "resume_id.education"}
-	descriptionHexyaContexts = fieldName{name: "DescriptionHexyaContexts", json: "description_hexya_contexts"}
-	lastupdate               = fieldName{name: "LastUpdate", json: "__last_update"}
-	createDate               = fieldName{name: "CreateDate", json: "create_date"}
-	writeDate                = fieldName{name: "WriteDate", json: "write_date"}
-	parent                   = fieldName{name: "Parent", json: "parent_id"}
-	value                    = fieldName{name: "Value", json: "value"}
-	password                 = fieldName{name: "Password", json: "password"}
-	size                     = fieldName{name: "Size", json: "size"}
-	hexyaVersion             = fieldName{name: "HexyaVersion", json: "hexya_version"}
-	hexyaExternalID          = fieldName{name: "HexyaExternalID", json: "hexya_external_id"}
+	profile              = fieldName{name: "profile", json: "profile_id"}
+	nums                 = fieldName{name: "Nums", json: "nums"}
+	age                  = fieldName{name: "Age", json: "age"}
+	email                = fieldName{name: "Email", json: "email"}
+	email2               = fieldName{name: "Email2", json: "email2"}
+	bestPost             = fieldName{name: "BestPost", json: "best_post_id"}
+	title                = fieldName{name: "Title", json: "title"}
+	isStaff              = fieldName{name: "IsStaff", json: "is_staff"}
+	resume               = fieldName{name: "Resume", json: "resume_id"}
+	coolType             = fieldName{name: "CoolType", json: "cool_type"}
+	mana                 = fieldName{name: "Mana", json: "mana"}
+	other                = fieldName{name: "Other", json: "other"}
+	money                = fieldName{name: "Money", json: "money"}
+	active               = fieldName{name: "Active", json: "active"}
+	isActive             = fieldName{name: "IsActive", json: "is_active"}
+	isPremium            = fieldName{name: "IsPremium", json: "is_premium"}
+	decoratedName        = fieldName{name: "DecoratedName", json: "decorated_name"}
+	displayName          = fieldName{name: "DisplayName", json: "display_name"}
+	writerAge            = fieldName{name: "WriterAge", json: "writer_age"}
+	writerMoney          = fieldName{name: "WriterMoney", json: "writer_money"}
+	postWriter           = fieldName{name: "PostWriter", json: "post_writer_id"}
+	pMoney               = fieldName{name: "PMoney", json: "p_money"}
+	street               = fieldName{name: "Street", json: "street"}
+	city                 = fieldName{name: "City", json: "city"}
+	zip                  = fieldName{name: "Zip", json: "zip"}
+	country              = fieldName{name: "Country", json: "country"}
+	user                 = fieldName{name: "User", json: "user_id"}
+	text                 = fieldName{name: "Text", json: "text"}
+	record               = fieldName{name: "Record", json: "record_id"}
+	lang                 = fieldName{name: "Lang", json: "lang"}
+	userName             = fieldName{name: "UserName", json: "user_name"}
+	profileAge           = fieldName{name: "Profile.Age", json: "profile_id.age"}
+	profileMoney         = fieldName{name: "Profile.Money", json: "profile_id.money"}
+	posts                = fieldName{name: "Posts", json: "posts_ids"}
+	content              = fieldName{name: "Content", json: "content"}
+	tags                 = fieldName{name: "Tags", json: "tags_ids"}
+	tagsName             = fieldName{name: "Tags.Name", json: "tags_ids.name"}
+	description          = fieldName{name: "Description", json: "description"}
+	slogan               = fieldName{name: "Slogan", json: "slogan"}
+	price                = fieldName{name: "Price", json: "price"}
+	rate                 = fieldName{name: "Rate", json: "rate"}
+	comments             = fieldName{name: "Comments", json: "comments_ids"}
+	experience           = fieldName{name: "Experience", json: "experience"}
+	leisure              = fieldName{name: "Leisure", json: "leisure"}
+	education            = fieldName{name: "Education", json: "education"}
+	lastPost             = fieldName{name: "LastPost", json: "last_post_id"}
+	lastTagName          = fieldName{name: "LastTagName", json: "last_tag_name"}
+	lastCommentText      = fieldName{name: "LastCommentText", json: "last_comment_text"}
+	postsTitle           = fieldName{name: "Posts.Title", json: "posts_ids.title"}
+	postsTags            = fieldName{name: "Posts.Tags", json: "posts_ids.tags_ids"}
+	bestPostTitle        = fieldName{name: "BestPost.Title", json: "best_post_id.title"}
+	profileBestPostTitle = fieldName{name: "Profile.BestPost.Title", json: "profile_id.best_post_id.title"}
+	profileBestPostUser  = fieldName{name: "Profile.BestPost.User", json: "profile_id.best_post_id.user_id"}
+	resumeEducation      = fieldName{name: "Resume.Education", json: "resume_id.education"}
+	lastupdate           = fieldName{name: "LastUpdate", json: "__last_update"}
+	createDate           = fieldName{name: "CreateDate", json: "create_date"}
+	writeDate            = fieldName{name: "WriteDate", json: "write_date"}
+	parent               = fieldName{name: "Parent", json: "parent_id"}
+	value                = fieldName{name: "Value", json: "value"}
+	password             = fieldName{name: "Password", json: "password"}
+	size                 = fieldName{name: "Size", json: "size"}
+	hexyaVersion         = fieldName{name: "HexyaVersion", json: "hexya_version"}
+	hexyaExternalID      = fieldName{name: "HexyaExternalID", json: "hexya_external_id"}
 )
 
 func TestConditions(t *testing.T) {
@@ -148,7 +149,7 @@ func TestConditions(t *testing.T) {
 				t.Run("Check WHERE clause with additionnal filter", func(t *testing.T) {
 					reset()
 					rs = rs.Search(rs.Model().Field(profileAge).GreaterOrEqual(12))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user__profile__post".title = ?) AND ("user__profile".age >= ?)`)
 					assert.Contains(t, args, 12)
 					assert.Contains(t, args, "foo")
@@ -158,7 +159,7 @@ func TestConditions(t *testing.T) {
 					rs = rs.Search(rs.Model().Field(profileAge).GreaterOrEqual(12))
 					c2 := rs.Model().Field(Name).Contains("jane").Or().Field(profileMoney).Lower(1234.56)
 					rs = rs.Search(c2)
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE (("user__profile__post".title = ?) AND ("user__profile".age >= ?)) AND ("user".name LIKE ? OR "user__profile".money < ?)`)
 					assert.Contains(t, args, "%jane%")
 					assert.Contains(t, args, 1234.56)
@@ -170,7 +171,7 @@ func TestConditions(t *testing.T) {
 					rs = rs.Search(rs.Model().Field(profileAge).GreaterOrEqual(12))
 					c2 := rs.Model().Field(Name).Contains("jane").Or().Field(resumeEducation).Contains("MIT")
 					rs = rs.Search(c2)
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE (("user__profile__post".title = ?) AND ("user__profile".age >= ?)) AND ("user".name LIKE ? OR "user__resume".education LIKE ?)`)
 					assert.Contains(t, args, "%jane%")
 					assert.Contains(t, args, "%MIT%")
@@ -210,7 +211,7 @@ func TestConditions(t *testing.T) {
 					rs = env.Pool("User").Search(rs.Model().Field(profileAge).GreaterOrEqual(12).
 						AndNot().Field(Name).IContains("Jane").
 						OrNot().FilteredOn(profile, env.Pool("Profile").Model().Field(age).Equals(20)))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user__profile".age >= ? AND NOT "user".name ILIKE ? OR NOT "user__profile".age = ?`)
 					assert.Contains(t, args, 12)
 					assert.Contains(t, args, "%Jane%")
@@ -221,7 +222,7 @@ func TestConditions(t *testing.T) {
 						env.Pool("User").Model().Field(age).GreaterOrEqual(30).
 							AndNotCond(cond1).
 							OrNotCond(cond2))
-					sql, args = rs.query.sqlWhereClause(true)
+					sql, args = rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE (("user".age >= ?) AND NOT ("user".name ILIKE ?)) OR NOT ("user".name ILIKE ?)`)
 					assert.Contains(t, args, 30)
 					assert.Contains(t, args, "%Jane%")
@@ -246,119 +247,119 @@ func TestConditions(t *testing.T) {
 				t.Run("NotEquals", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).NotEquals("John"))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name != ?)`)
 					assert.Contains(t, args, "John")
 				})
 				t.Run("Greater", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).Greater(12))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".nums > ?`)
 					assert.Contains(t, args, 12)
 				})
 				t.Run("GreaterOrEqual", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).GreaterOrEqual(12))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".nums >= ?`)
 					assert.Contains(t, args, 12)
 				})
 				t.Run("Lower", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).Lower(12))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".nums < ?`)
 					assert.Contains(t, args, 12)
 				})
 				t.Run("LowerOrEqual", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(nums).LowerOrEqual(12))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".nums <= ?`)
 					assert.Contains(t, args, 12)
 				})
 				t.Run("Contains", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).Contains("John"))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".name LIKE ?`)
 					assert.Contains(t, args, "%John%")
 				})
 				t.Run("Not Contains", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).NotContains("John"))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name NOT LIKE ?)`)
 					assert.Contains(t, args, "%John%")
 				})
 				t.Run("IContains", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).IContains("John"))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".name ILIKE ?`)
 					assert.Contains(t, args, "%John%")
 				})
 				t.Run("Not IContains", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).NotIContains("John"))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name NOT ILIKE ?)`)
 					assert.Contains(t, args, "%John%")
 				})
 				t.Run("Contains pattern", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).Like("John%"))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".name LIKE ?`)
 					assert.Contains(t, args, "John%")
 				})
 				t.Run("IContains pattern", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).ILike("John%"))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".name ILIKE ?`)
 					assert.Contains(t, args, "John%")
 				})
 				t.Run("In", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(ID).In([]int64{23, 31}))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE "user".id IN (?)`)
 					assert.Contains(t, args, []int64{23, 31})
 				})
 				t.Run("Not In", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(ID).NotIn([]int64{23, 31}))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".id IS NULL OR "user".id NOT IN (?))`)
 					assert.Contains(t, args, []int64{23, 31})
 				})
 				t.Run("Is Null", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).IsNull())
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name = ?)`)
 					assert.Contains(t, args, "")
 				})
 				t.Run("Is Not Null", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).IsNotNull())
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".name IS NOT NULL AND "user".name != ?)`)
 					assert.Contains(t, args, "")
 				})
 				t.Run("Empty string", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(Name).Equals(""))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".name IS NULL OR "user".name = ?)`)
 					assert.Contains(t, args, "")
 				})
 				t.Run("False bool", func(t *testing.T) {
 					rs := env.Pool("User")
 					rs = rs.Search(rs.Model().Field(isStaff).Equals(false))
-					sql, args := rs.query.sqlWhereClause(true)
+					sql, args := rs.query.sqlWhereClause()
 					assert.EqualValues(t, sql, `WHERE ("user".is_staff IS NULL OR "user".is_staff = ?)`)
 					assert.Contains(t, args, false)
 				})
@@ -433,5 +434,60 @@ func TestConditionSerialization(t *testing.T) {
 			dom := cond.Serialize()
 			assert.EqualValues(t, fmt.Sprint(dom), "[& | [C = C Value] | [B = B Value] [A = A Value] [D = D Value]]")
 		})
+	})
+}
+
+func TestContextedFieldsQueries(t *testing.T) {
+	t.Run("Testing SQL building for contexted fields", func(t *testing.T) {
+		switch dbArgs.Driver {
+		case "postgres":
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				t.Run("Without any context value, only the default value is read", func(t *testing.T) {
+					rs := env.Pool("Tag")
+					sql, _, _ := rs.query.selectQuery([]FieldName{slogan})
+					assert.Contains(t, sql, `"tag".slogan->>'_' AS slogan`)
+					assert.NotContains(t, sql, "JOIN")
+				})
+				t.Run("Each subset of the contexts is tried, most specific first", func(t *testing.T) {
+					rs := env.Pool("Tag").WithContext("lang", "fr_FR").WithContext("company", "3")
+					sql, _, _ := rs.query.selectQuery([]FieldName{slogan})
+					assert.Contains(t, sql, `COALESCE("tag".slogan->'company'->'3'->'lang'->'fr_FR'->>'_', `+
+						`"tag".slogan->'lang'->'fr_FR'->>'_', "tag".slogan->'company'->'3'->>'_', `+
+						`"tag".slogan->>'_') AS slogan`)
+					assert.NotContains(t, sql, "JOIN")
+				})
+				t.Run("Non text values are cast back to their type", func(t *testing.T) {
+					rs := env.Pool("Tag").WithContext("company", "3")
+					sql, _, _ := rs.query.selectQuery([]FieldName{price})
+					assert.Contains(t, sql,
+						`(COALESCE("tag".price->'company'->'3'->>'_', "tag".price->>'_'))::numeric AS price`)
+				})
+				t.Run("hexya_default_contexts should force the default value", func(t *testing.T) {
+					rs := env.Pool("Tag").WithContext("lang", "fr_FR").WithContext("hexya_default_contexts", true)
+					sql, _, _ := rs.query.selectQuery([]FieldName{slogan})
+					assert.Contains(t, sql, `"tag".slogan->>'_' AS slogan`)
+					assert.NotContains(t, sql, "fr_FR")
+				})
+				t.Run("Conditions should apply on the resolved value", func(t *testing.T) {
+					rs := env.Pool("Tag").WithContext("lang", "fr_FR")
+					rs = rs.Search(rs.Model().Field(description).Equals("Description traduite"))
+					sql, args := rs.query.sqlWhereClause()
+					assert.EqualValues(t, sql,
+						`WHERE COALESCE("tag".description->'lang'->'fr_FR'->>'_', "tag".description->>'_') = ?`)
+					assert.Contains(t, args, "Description traduite")
+				})
+				t.Run("Updates should only patch the current branch", func(t *testing.T) {
+					rs := env.Pool("Tag").WithContext("lang", "fr_FR")
+					sql, args := rs.query.updateQuery(FieldMap{"description": "Description traduite"})
+					assert.Contains(t, sql, `SET description = jsonb_set(jsonb_set(jsonb_set(`+
+						`COALESCE(description, '{}'::jsonb), '{"lang"}', COALESCE(description#>'{"lang"}', '{}'::jsonb), true), `+
+						`'{"lang","fr_FR"}', COALESCE(description#>'{"lang","fr_FR"}', '{}'::jsonb), true), `+
+						`'{"lang","fr_FR","_"}', COALESCE(to_jsonb(?::text), 'null'::jsonb), true)`)
+					assert.Contains(t, args, "Description traduite")
+				})
+			}))
+		default:
+			t.Errorf("%s has no contexted field queries test.", dbArgs.Driver)
+		}
 	})
 }

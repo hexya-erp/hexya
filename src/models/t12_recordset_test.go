@@ -230,7 +230,6 @@ func TestCreateRecordSet(t *testing.T) {
 				resumeModel := Registry.MustGet("Resume")
 				resumeModel.methods.MustGet("Create").AllowGroup(group1, userModel.methods.MustGet("Create"))
 				resumeModel.methods.MustGet("Write").AllowGroup(group1, userModel.methods.MustGet("Create"))
-				updateContextModelsSecurity()
 				userTomData := NewModelData(userModel, FieldMap{
 					"Name":       "Tom Smith",
 					"Email":      "tsmith@example.com",

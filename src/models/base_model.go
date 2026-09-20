@@ -40,8 +40,6 @@ const (
 	// Many2ManyLinkModel is a model that abstracts the link
 	// table of a many2many relationship
 	Many2ManyLinkModel
-	// ContextsModel is a model for holding fields values that depend on contexts
-	ContextsModel
 	// ManualModel is a model whose table is not automatically generated in the
 	// database. Such models include SQL views and materialized SQL views.
 	ManualModel
@@ -93,6 +91,22 @@ func declareCommonMixin() {
 	commonMixin.addMethod("WithContext", commonMixinWithContext)
 	commonMixin.addMethod("WithNewContext", commonMixinWithNewContext)
 	commonMixin.addMethod("Sudo", commonMixinSudo)
+	commonMixin.addMethod("GetTranslations", commonMixinGetTranslations)
+	commonMixin.addMethod("SetTranslations", commonMixinSetTranslations)
+}
+
+// GetTranslations returns the translations of the given contexted field of
+// this record as a map of language to value. The value that does not depend
+// on any language is returned under the empty string key.
+func commonMixinGetTranslations(rc *RecordCollection, field FieldName) map[string]string {
+	return rc.GetTranslations(field)
+}
+
+// SetTranslations sets the translations of the given contexted field of this
+// recordset from the given map of language to value. The value under the
+// empty string key is set as the value that does not depend on any language.
+func commonMixinSetTranslations(rc *RecordCollection, field FieldName, values map[string]string) {
+	rc.SetTranslations(field, values)
 }
 
 // New creates a memory only record from the given data.
@@ -194,6 +208,20 @@ func commonMixinCopy(rc *RecordCollection, overrides RecordData) *RecordCollecti
 	rc.EnsureOne()
 	data := rc.Call("CopyData", overrides).(RecordData).Underlying()
 	newRs := rc.Call("Create", data).(RecordSet).Collection()
+	// CopyData only copies the value of the contexted fields for the current
+	// context, so we copy the values of all their other contexts here.
+	oVal := reflect.ValueOf(overrides)
+	overridden := oVal.IsValid() && (oVal.Kind() == reflect.Struct || !oVal.IsNil())
+	for _, fi := range rc.model.fields.registryByName {
+		if !fi.isContextedField() || fi.noCopy || fi.isComputedField() {
+			continue
+		}
+		fName := rc.model.FieldName(fi.name)
+		if overridden && overrides.Underlying().Has(fName) {
+			continue
+		}
+		newRs.SetContextedValues(fName, rc.GetContextedValues(fName))
+	}
 	return newRs
 }
 

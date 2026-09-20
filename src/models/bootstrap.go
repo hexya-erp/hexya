@@ -17,14 +17,11 @@ package models
 import (
 	"fmt"
 	"maps"
-	"reflect"
-	"strings"
 	"time"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
 	"github.com/hexya-erp/hexya/src/models/security"
 	"github.com/hexya-erp/hexya/src/models/types"
-	"github.com/hexya-erp/hexya/src/tools/strutils"
 )
 
 // A modelCouple holds a model and one of its mixin
@@ -58,8 +55,10 @@ func BootStrap() {
 	updateFieldDefs()
 	updateRelatedPaths()
 	syncRelatedFieldInfo()
-	inflateContexts()
+	// syncRelatedFieldInfo overrides the related fields data with the data of
+	// their target, so we must set their related path again.
 	updateRelatedPaths()
+	checkContextedFields()
 	updateDefaultOrder()
 	bootStrapMethods()
 	processDepends()
@@ -318,60 +317,40 @@ func syncRelatedFieldInfo() {
 	}
 }
 
-// inflateContexts creates the field value tables for fields with contexts.
-func inflateContexts() {
+// maxFieldContexts is the maximum number of contexts a field may have.
+//
+// The number of branches to look up when reading a contexted value grows as
+// 2^n with the number n of contexts, so we keep it reasonable.
+const maxFieldContexts = 4
+
+// checkContextedFields checks that the fields with contexts can actually hold
+// contexted values, i.e. that they are stored, not related and not unique.
+func checkContextedFields() {
 	for _, mi := range Registry.registryByName {
 		for _, fi := range mi.fields.registryByName {
 			if !fi.isContextedField() {
 				continue
 			}
-			contextsModel := createContextsModel(fi, fi.contexts)
-			createContextsTreeView(fi, fi.contexts)
-			// We copy execution permission on CRUD methods to the context model
-			fName := fmt.Sprintf("%sHexyaContexts", fi.name)
-			o2mField := &Field{
-				name:             fName,
-				json:             strutils.SnakeCase(fName),
-				model:            mi,
-				fieldType:        fieldtype.One2Many,
-				relatedModelName: contextsModel.name,
-				relatedModel:     contextsModel,
-				reverseFK:        "Record",
-				jsonReverseFK:    "record_id",
-				structField: reflect.StructField{
-					Name: fName,
-					Type: reflect.TypeFor[[]int64](),
-				},
+			if !fi.isStored() {
+				log.Panic("You cannot add contexts to non stored fields", "model", mi.name, "field", fi.name)
 			}
-			mi.fields.add(o2mField)
-			relPath := fmt.Sprintf("%s%s%s", fName, ExprSep, fi.name)
-			fi.relatedPathStr = relPath
-			fi.index = false
-			fi.unique = false
+			if fi.isRelatedField() {
+				log.Panic("You cannot add contexts to related fields", "model", mi.name, "field", fi.name)
+			}
+			if fi.fieldType.IsRelationType() {
+				log.Panic("You cannot add contexts to relation fields", "model", mi.name, "field", fi.name)
+			}
+			if fi.unique {
+				// Contexted values are stored in a JSON document, so we cannot
+				// set a unique constraint on the column.
+				log.Panic("You cannot add contexts to unique fields", "model", mi.name, "field", fi.name)
+			}
+			if len(fi.contexts) > maxFieldContexts {
+				log.Panic("Too many contexts on field", "model", mi.name, "field", fi.name,
+					"contexts", len(fi.contexts), "max", maxFieldContexts)
+			}
 		}
 	}
-}
-
-// createContextsTreeView creates an editable tree view for the given context model.
-// The created view is added to the Views map which will be processed by the views package at bootstrap.
-func createContextsTreeView(fi *Field, contexts FieldContexts) {
-	arch := strings.Builder{}
-	arch.WriteString("<tree editable=\"bottom\" create=\"false\" delete=\"false\">\n")
-	for ctx := range contexts {
-		arch.WriteString("	<field name=\"")
-		arch.WriteString(ctx)
-		arch.WriteString("\" readonly=\"1\"/>\n")
-	}
-	arch.WriteString(" <field name=\"")
-	arch.WriteString(fi.json)
-	arch.WriteString("\"/>\n")
-	arch.WriteString("</tree>")
-
-	modelName := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
-	view := fmt.Sprintf(`<view id="%s_hexya_contexts_tree" model="%s">
-%s
-</view>`, strutils.SnakeCase(modelName), modelName, arch.String())
-	Views[fi.model] = append(Views[fi.model], view)
 }
 
 // bootStrapMethods freezes the methods of the models.
@@ -385,7 +364,6 @@ func bootStrapMethods() {
 // - the admin group for all methods
 // - to CRUD methods to call "Load"
 // - to "Create" method to call "Write"
-// - to execute CRUD on context models
 func setupSecurity() {
 	for _, model := range Registry.registryByName {
 		loadMeth, loadExists := model.methods.Get("Load")
@@ -403,28 +381,6 @@ func setupSecurity() {
 		if fetchExists {
 			loadMeth.AllowGroup(security.GroupEveryone, fetchMeth)
 		}
-	}
-	updateContextModelsSecurity()
-}
-
-// updateContextModelsSecurity synchronizes the methods permissions of context models with their base model.
-func updateContextModelsSecurity() {
-	for _, model := range Registry.registryByName {
-		if !model.isContext() {
-			continue
-		}
-		baseModel := model.fields.MustGet("Record").relatedModel
-		for _, methName := range []string{"Create", "Load", "Write", "Unlink"} {
-			method := model.methods.MustGet(methName)
-			method.AllowGroup(security.GroupEveryone, baseModel.methods.MustGet(methName))
-			for grp := range baseModel.methods.MustGet(methName).groups {
-				method.AllowGroup(grp)
-			}
-			for cGroup := range baseModel.methods.MustGet(methName).groupsCallers {
-				method.AllowGroup(cGroup.group, cGroup.caller)
-			}
-		}
-		model.methods.MustGet("Load").AllowGroup(security.GroupEveryone, baseModel.methods.MustGet("Create"))
 	}
 }
 

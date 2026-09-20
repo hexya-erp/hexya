@@ -40,15 +40,6 @@ const (
 	Cascade OnDeleteAction = "cascade"
 )
 
-type ctxType int
-
-const (
-	ctxNone = iota
-	ctxValue
-	ctxContext
-	ctxFK
-)
-
 // computeData holds data to recompute another field.
 // - model is a pointer to the Model instance to recompute
 // - fieldName is the name of the field to recompute in model.
@@ -239,7 +230,6 @@ type Field struct {
 	inverse          string
 	filter           *Condition
 	contexts         FieldContexts
-	ctxType          ctxType
 	updates          []map[string]any
 }
 
@@ -421,85 +411,6 @@ func CreateM2MRelModelInfo(relModelName, model1, model2, field1, field2 string, 
 	newMI.fields.add(theirField)
 	Registry.add(newMI)
 	return newMI, ourField, theirField
-}
-
-// createContextsModel creates a new contexts model for holding field values that depends on contexts
-func createContextsModel(fi *Field, contexts FieldContexts) *Model {
-	if !fi.isStored() {
-		log.Panic("You cannot add contexts to non stored fields", "model", fi.model.name, "field", fi.name)
-	}
-	name := fmt.Sprintf("%sHexya%s", fi.model.name, fi.name)
-	newModel := Model{
-		name:            name,
-		rulesRegistry:   newRecordRuleRegistry(),
-		tableName:       strutils.SnakeCase(name),
-		fields:          newFieldsCollection(),
-		methods:         newMethodsCollection(),
-		options:         ContextsModel | SystemModel,
-		sqlErrors:       make(map[string]string),
-		defaultOrderStr: []string{"ID"},
-	}
-	pkField := &Field{
-		name:        "ID",
-		json:        "id",
-		model:       &newModel,
-		required:    true,
-		noCopy:      true,
-		fieldType:   fieldtype.Integer,
-		structField: reflect.TypeFor[struct{ ID int64 }]().Field(0),
-	}
-	newModel.fields.add(pkField)
-	fkField := &Field{
-		name:             "Record",
-		json:             "record_id",
-		model:            &newModel,
-		required:         true,
-		noCopy:           true,
-		fieldType:        fieldtype.Many2One,
-		relatedModelName: fi.model.name,
-		relatedModel:     fi.model,
-		index:            true,
-		onDelete:         Cascade,
-		ctxType:          ctxFK,
-		structField: reflect.StructField{
-			Name: "Record",
-			Type: reflect.TypeFor[int64](),
-		},
-	}
-	newModel.fields.add(fkField)
-	valueField := *fi
-	valueField.model = &newModel
-	valueField.compute = ""
-	valueField.embed = false
-	valueField.stored = false
-	valueField.onChange = ""
-	valueField.constraint = ""
-	valueField.contexts = nil
-	valueField.ctxType = ctxValue
-	if valueField.defaultFunc == nil && valueField.required {
-		valueField.defaultFunc = DefaultValue(reflect.Zero(valueField.structField.Type).Interface())
-	}
-	newModel.fields.add(&valueField)
-
-	for ctName := range contexts {
-		ctField := &Field{
-			name:      ctName,
-			json:      strutils.SnakeCase(ctName),
-			model:     &newModel,
-			noCopy:    true,
-			fieldType: fieldtype.Char,
-			index:     true,
-			ctxType:   ctxContext,
-			structField: reflect.StructField{
-				Name: ctName,
-				Type: reflect.TypeFor[string](),
-			},
-		}
-		newModel.fields.add(ctField)
-	}
-	Registry.add(&newModel)
-	injectMixInModel(Registry.MustGet("BaseMixin"), &newModel)
-	return &newModel
 }
 
 // processDepends populates the dependencies of each Field from the depends strings of

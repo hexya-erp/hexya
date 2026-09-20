@@ -23,6 +23,7 @@ const (
 	Float     Type = "float"
 	HTML      Type = "html"
 	Integer   Type = "integer"
+	JSON      Type = "json"
 	Many2Many Type = "many2many"
 	Many2One  Type = "many2one"
 	One2Many  Type = "one2many"
@@ -71,7 +72,7 @@ func (t Type) Is2ManyRelationType() bool {
 // IsNullInDB returns true if this type's zero value is
 // saved as null in database.
 func (t Type) IsNullInDB() bool {
-	return t.IsFKRelationType() || t == Binary || t == Char || t == Text || t == HTML || t == Selection || t == Date || t == DateTime
+	return t.IsFKRelationType() || t == Binary || t == Char || t == Text || t == HTML || t == Selection || t == Date || t == DateTime || t == JSON
 }
 
 // DefaultGoType returns this Type's default Go type
@@ -80,19 +81,19 @@ func (t Type) DefaultGoType() reflect.Type {
 	case NoType:
 		return reflect.TypeOf(nil)
 	case Binary, Char, Text, HTML, Selection:
-		return reflect.TypeOf(*new(string))
+		return reflect.TypeFor[string]()
 	case Boolean:
-		return reflect.TypeOf(true)
+		return reflect.TypeFor[bool]()
 	case Date:
-		return reflect.TypeOf(*new(dates.Date))
+		return reflect.TypeFor[dates.Date]()
 	case DateTime:
-		return reflect.TypeOf(*new(dates.DateTime))
+		return reflect.TypeFor[dates.DateTime]()
 	case Float:
-		return reflect.TypeOf(*new(float64))
+		return reflect.TypeFor[float64]()
 	case Integer, Many2One, One2One, Rev2One:
-		return reflect.TypeOf(*new(int64))
+		return reflect.TypeFor[int64]()
 	case One2Many, Many2Many:
-		return reflect.TypeOf(*new([]int64))
+		return reflect.TypeFor[[]int64]()
 	}
 	return reflect.TypeOf(nil)
 }

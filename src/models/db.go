@@ -75,6 +75,27 @@ type dbAdapter interface {
 	//
 	// If null is true, then the column will be nullable, whatever the field defines
 	columnSQLDefinition(fi *Field, null bool) string
+	// contextedValueSQL returns the SQL expression that returns the value of the
+	// given contexted field for the given context values.
+	//
+	// colExpr is the SQL expression that returns the contexted value document
+	// of the field (usually the qualified column name).
+	contextedValueSQL(fi *Field, colExpr string, ctxValues map[string]string) string
+	// contextedSetSQL returns the SQL expression that sets the value of the given
+	// path in the contexted value document given by docExpr.
+	//
+	// lookupExpr is the SQL expression to use to retrieve the nodes of the document
+	// that already exist. The returned expression has exactly one placeholder for
+	// the value to set.
+	contextedSetSQL(fi *Field, docExpr, lookupExpr string, path []string) string
+	// emptyContextedValueSQL returns the SQL expression of an empty contexted
+	// value document.
+	emptyContextedValueSQL() string
+	// contextedIndexSQL returns the statement to create an index with the given
+	// name on all the context values of the given contexted field.
+	//
+	// It returns an empty string if this adapter cannot index contexted values.
+	contextedIndexSQL(fi *Field, table, indexName string) string
 	// tables returns a map of table names of the database
 	tables() map[string]bool
 	// columns returns a list of ColumnData for the given tableName
@@ -190,6 +211,16 @@ func dbExecuteNoTx(query string, args ...any) sql.Result {
 	res, err := db.Exec(query, args...)
 	logSQLResult(err, t, query, args...)
 	return res
+}
+
+// dbTryExecuteNoTx executes the given query in the database without any
+// transaction and returns the error instead of panicking if it fails.
+func dbTryExecuteNoTx(query string, args ...any) error {
+	query, args = sanitizeQuery(query, args...)
+	t := time.Now()
+	_, err := db.Exec(query, args...)
+	log.New("query", query, "args", strutils.TrimArgs(args), "duration", time.Since(t)).Debug("Query executed")
+	return err
 }
 
 // dbGet is a wrapper around sqlx.Get
