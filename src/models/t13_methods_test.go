@@ -633,6 +633,109 @@ func TestContextedFields(t *testing.T) {
 	})
 }
 
+func TestUniqueContextedFields(t *testing.T) {
+	createTag := func(env Environment, name string, field FieldName, value any) *RecordCollection {
+		mTags := env.Pool("Tag")
+		md := NewModelData(mTags.model).Set(Name, name)
+		if field != nil {
+			md.Set(field, value)
+		}
+		return mTags.Call("Create", md).(RecordSet).Collection()
+	}
+	t.Run("Testing uniqueness of contexted fields", func(t *testing.T) {
+		t.Run("Records without any value should not conflict", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				createTag(env, "Unique tag 1", nil, nil)
+				createTag(env, "Unique tag 2", nil, nil)
+			}))
+		})
+		t.Run("Creating two records with the same value should fail", func(t *testing.T) {
+			err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				createTag(env, "Unique tag 1", motto, "Carpe diem")
+				createTag(env, "Unique tag 2", motto, "Carpe diem")
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Creating two records with the same value in the same language should fail", func(t *testing.T) {
+			err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag1 := createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag2 := createTag(env, "Unique tag 2", motto, "Seize the day")
+				tag1.WithContext("lang", "fr_FR").Set(motto, "Cueille le jour")
+				tag2.WithContext("lang", "fr_FR").Set(motto, "Cueille le jour")
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("The same value in different languages should be accepted", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag1 := createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag2 := createTag(env, "Unique tag 2", motto, "Seize the day")
+				tag1.WithContext("lang", "fr_FR").Set(motto, "Cueille le jour")
+				tag2.WithContext("lang", "de_DE").Set(motto, "Cueille le jour")
+			}))
+		})
+		t.Run("A record may hold the same value in two of its own languages", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag := createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag.WithContext("lang", "fr_FR").Set(motto, "Cueille le jour")
+				tag.WithContext("lang", "de_DE").Set(motto, "Cueille le jour")
+			}))
+		})
+		t.Run("A translation conflicting with another default value should fail", func(t *testing.T) {
+			err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag2 := createTag(env, "Unique tag 2", motto, "Seize the day")
+				tag2.WithContext("lang", "fr_FR").Set(motto, "Carpe diem")
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Writing an unrelated field should not fail", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag := createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag.Set(description, "Some description")
+			}))
+		})
+		t.Run("Duplicates inside a multi record write should be detected", func(t *testing.T) {
+			err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag1 := createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag2 := createTag(env, "Unique tag 2", motto, "Seize the day")
+				tag1.Union(tag2).Set(motto, "Same motto for all")
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("SetTranslations introducing a duplicate should fail", func(t *testing.T) {
+			err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag1 := createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag2 := createTag(env, "Unique tag 2", motto, "Seize the day")
+				tag1.SetTranslations(motto, map[string]string{"fr_FR": "Cueille le jour"})
+				tag2.SetTranslations(motto, map[string]string{"fr_FR": "Cueille le jour"})
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Copying a record with a unique contexted field should fail", func(t *testing.T) {
+			err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag := createTag(env, "Unique tag 1", motto, "Carpe diem")
+				tag.Call("Copy", NewModelData(tag.model))
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Two contexts should be checked per context combination", func(t *testing.T) {
+			assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag1 := createTag(env, "Unique tag 1", nil, nil)
+				tag2 := createTag(env, "Unique tag 2", nil, nil)
+				tag1.WithContext("lang", "fr_FR").WithContext("company", "3").Set(brand, "Marque")
+				tag2.WithContext("lang", "fr_FR").WithContext("company", "4").Set(brand, "Marque")
+			}))
+			err := SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {
+				tag1 := createTag(env, "Unique tag 1", nil, nil)
+				tag2 := createTag(env, "Unique tag 2", nil, nil)
+				tag1.WithContext("lang", "fr_FR").WithContext("company", "3").Set(brand, "Marque")
+				tag2.WithContext("lang", "fr_FR").WithContext("company", "3").Set(brand, "Marque")
+			})
+			assert.ErrorContains(t, err, "Brand must be unique")
+		})
+	})
+}
+
 func TestRecursionProtection(t *testing.T) {
 	t.Run("Testing protection against recursion", func(t *testing.T) {
 		assert.Nil(t, SimulateInNewEnvironment(security.SuperUserID, func(env Environment) {

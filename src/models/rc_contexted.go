@@ -6,150 +6,10 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 )
-
-// ctxValueKey is the key under which the value of a branch of a contexted
-// value document is stored.
-const ctxValueKey = "_"
-
-// A ContextedValue holds all the values of a contexted field for a record.
-//
-// It is a tree of nested objects where each level is alternatively a context
-// name and a context value. The value of each branch is stored in the branch
-// node under the ctxValueKey key.
-//
-// For instance, a field with the "lang" and "company" contexts could hold:
-//
-//	{
-//	    "_": "Product",
-//	    "lang": {
-//	        "fr_FR": { "_": "Produit" }
-//	    },
-//	    "company": {
-//	        "3": {
-//	            "_": "Item",
-//	            "lang": { "fr_FR": { "_": "Article" } }
-//	        }
-//	    }
-//	}
-type ContextedValue map[string]any
-
-// contextedPaths returns all the paths at which a value may be found in a
-// ContextedValue document, from the most specific to the most generic.
-//
-// ctxNames is the list of the context names defined on the field and ctxValues
-// holds the value of each context in the current environment. Contexts that
-// have no value in ctxValues are not taken into account.
-//
-// Context names are sorted alphabetically and the last one takes precedence
-// over the others. Each returned path ends with ctxValueKey so that it points
-// directly at a value. The last returned path is always the default one, i.e.
-// the value that does not depend on any context.
-func contextedPaths(ctxNames []string, ctxValues map[string]string) [][]string {
-	var names []string
-	for _, name := range ctxNames {
-		if ctxValues[name] == "" {
-			continue
-		}
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	res := make([][]string, 0, 1<<len(names))
-	for weight := 1<<len(names) - 1; weight >= 0; weight-- {
-		var path []string
-		for i, name := range names {
-			if weight&(1<<i) == 0 {
-				continue
-			}
-			path = append(path, name, ctxValues[name])
-		}
-		res = append(res, append(path, ctxValueKey))
-	}
-	return res
-}
-
-// get returns the value of this ContextedValue at the given path.
-//
-// Second returned value is false if there is no value at the given path.
-func (cv ContextedValue) get(path []string) (any, bool) {
-	node := map[string]any(cv)
-	for i, key := range path {
-		val, ok := node[key]
-		if !ok {
-			return nil, false
-		}
-		if i == len(path)-1 {
-			return val, true
-		}
-		node, ok = val.(map[string]any)
-		if !ok {
-			return nil, false
-		}
-	}
-	return nil, false
-}
-
-// set sets the given value at the given path of this ContextedValue,
-// creating the intermediate nodes if necessary.
-func (cv ContextedValue) set(path []string, value any) {
-	node := map[string]any(cv)
-	for _, key := range path[:len(path)-1] {
-		next, ok := node[key].(map[string]any)
-		if !ok {
-			next = make(map[string]any)
-			node[key] = next
-		}
-		node = next
-	}
-	node[path[len(path)-1]] = value
-}
-
-// resolve returns the value of this ContextedValue for the given context
-// values, falling back to less specific values and finally to the default
-// value if it is not set for the given contexts.
-//
-// Second returned value is false if no value at all could be found.
-func (cv ContextedValue) resolve(ctxNames []string, ctxValues map[string]string) (any, bool) {
-	for _, path := range contextedPaths(ctxNames, ctxValues) {
-		if val, ok := cv.get(path); ok && val != nil {
-			return val, true
-		}
-	}
-	return nil, false
-}
-
-// contextNames returns the sorted list of the context names of this field.
-func (f *Field) contextNames() []string {
-	res := make([]string, 0, len(f.contexts))
-	for name := range f.contexts {
-		res = append(res, name)
-	}
-	sort.Strings(res)
-	return res
-}
-
-// contextValues returns the value of each context of this field evaluated
-// against the given RecordSet.
-//
-// Contexts which evaluate to an empty string are not returned. An empty map
-// is returned if the "hexya_default_contexts" key is set in the environment's
-// context, so that the default values of contexted fields are used.
-func (f *Field) contextValues(rs RecordSet) map[string]string {
-	res := make(map[string]string)
-	if rs.Env().Context().GetBool("hexya_default_contexts") {
-		return res
-	}
-	for name, ctxFunc := range f.contexts {
-		val := ctxFunc(rs)
-		if val == "" {
-			continue
-		}
-		res[name] = val
-	}
-	return res
-}
 
 // contextValues returns the value of all the contexts of all the contexted
 // fields of this RecordCollection's model in the current environment.
@@ -255,6 +115,7 @@ func (rc *RecordCollection) SetContextedValues(field FieldName, values Contexted
 	for _, id := range rc.Ids() {
 		rc.env.cache.removeContextedEntries(rc.model, id, fi.json, "")
 	}
+	rc.checkContextedUniqueValues(fi, values)
 }
 
 // GetTranslations returns the translations of the given contexted field of the
@@ -299,18 +160,60 @@ func (rc *RecordCollection) SetTranslations(field FieldName, values map[string]s
 	}
 }
 
-// cacheFieldKey returns the key under which the value of the given field must
-// be stored in the cache for the given context slug.
+// checkContextedUnique panics if another record than those of this
+// RecordCollection already has, in the current context, one of the values of
+// the given FieldMap for a unique contexted field.
 //
-// Only contexted fields are keyed by context, since the value of the other
-// fields does not depend on the environment's context.
-func cacheFieldKey(mi *Model, jsonName, ctxSlug string) string {
-	if ctxSlug == "" {
-		return jsonName
+// Uniqueness of contexted fields is checked here instead of by a SQL
+// constraint, since all the values of a contexted field are stored in a single
+// JSON document. As a consequence, it is not race safe: two concurrent
+// transactions may both pass this check and commit duplicate values.
+func (rc *RecordCollection) checkContextedUnique(fMap FieldMap) {
+	for _, fi := range rc.model.fields.uniqueCtxFields {
+		value, ok := fMap.Get(rc.model.FieldName(fi.name))
+		if !ok {
+			continue
+		}
+		rc.checkContextedUniqueValue(fi, value)
 	}
-	fi, ok := mi.fields.Get(jsonName)
-	if !ok || !fi.isContextedField() {
-		return jsonName
+}
+
+// checkContextedUniqueValue panics if another record than those of this
+// RecordCollection already has the given value for the given unique contexted
+// field in the current context.
+func (rc *RecordCollection) checkContextedUniqueValue(fi *Field, value any) {
+	if rc.hasNegIds || value == nil || reflect.ValueOf(value).IsZero() {
+		return
 	}
-	return jsonName + ContextSep + ctxSlug
+	fName := rc.model.FieldName(fi.name)
+	if len(rc.Ids()) > 1 {
+		// All the records of this RecordCollection are given the same value.
+		log.Panic(fmt.Sprintf("%s must be unique", fi.name), "model", rc.model.name,
+			"field", fi.name, "value", value, "ids", rc.Ids())
+	}
+	cond := rc.Model().Field(fName).Equals(value)
+	if len(rc.Ids()) > 0 {
+		cond = cond.AndNot().Field(ID).In(rc.Ids())
+	}
+	if !rc.model.Search(*rc.env, cond).Sudo().IsEmpty() {
+		log.Panic(fmt.Sprintf("%s must be unique", fi.name), "model", rc.model.name,
+			"field", fi.name, "value", value)
+	}
+}
+
+// checkContextedUniqueValues panics if another record than those of this
+// RecordCollection already has, in one of the contexts of the given contexted
+// value document, the value of this document for the given unique contexted
+// field.
+func (rc *RecordCollection) checkContextedUniqueValues(fi *Field, values ContextedValue) {
+	if !fi.unique {
+		return
+	}
+	for _, leaf := range contextedLeaves(values, nil) {
+		rSet := rc
+		for ctxName, ctxValue := range leaf.contexts {
+			rSet = rSet.WithContext(ctxName, ctxValue)
+		}
+		rSet.checkContextedUniqueValue(fi, leaf.value)
+	}
 }

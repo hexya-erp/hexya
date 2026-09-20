@@ -187,6 +187,7 @@ func (rc *RecordCollection) create(data RecordData) *RecordCollection {
 	// compute stored fields
 	rSet.processInverseMethods(data)
 	rSet.processTriggers(fMap.FieldNames(rSet.model))
+	rSet.checkContextedUnique(storedFieldMap)
 	rSet.CheckConstraints(data.Underlying().FieldNames())
 	return rSet
 }
@@ -444,6 +445,7 @@ func (rc *RecordCollection) doUpdate(fMap FieldMap) {
 			rc.env.cache.updateEntry(rc.model, rec.Ids()[0], k, v, ctxSlug)
 		}
 	}
+	rc.checkContextedUnique(fMap)
 }
 
 // updateRelationFields updates reverse relations fields of the

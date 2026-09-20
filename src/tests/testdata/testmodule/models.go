@@ -230,6 +230,8 @@ var fields_Tag = map[string]models.FieldDefinition{
 	"Description": fields.Char{Constraint: h.Tag().Methods().CheckNameDescription()},
 	"Rate":        fields.Float{Constraint: h.Tag().Methods().CheckRate(), GoType: new(float32)},
 	"Note":        fields.Text{Translate: true},
+	"Motto":       fields.Char{Translate: true, Unique: true},
+	"Emblem":      fields.Char{Contexts: langCompanyContexts, Unique: true},
 	"Slogan":      fields.Char{Contexts: langCompanyContexts},
 	"Price":       fields.Float{Contexts: companyContexts},
 }

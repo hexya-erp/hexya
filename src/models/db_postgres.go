@@ -131,8 +131,9 @@ func (d *postgresAdapter) typeSQL(fi *Field) string {
 func (d *postgresAdapter) columnSQLDefinition(fi *Field, null bool) string {
 	if fi.isContextedField() {
 		// Contexted values are stored in a jsonb document which holds the value
-		// of the field for each context. Such column can neither be constrained
-		// nor unique.
+		// of the field for each context. Such column cannot be constrained,
+		// nor be given a SQL UNIQUE constraint: uniqueness of unique contexted
+		// fields is checked per context by the ORM.
 		return pgContextedType
 	}
 	var res string

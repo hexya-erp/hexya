@@ -17,6 +17,7 @@ package models
 import (
 	"fmt"
 	"maps"
+	"sort"
 	"time"
 
 	"github.com/hexya-erp/hexya/src/models/fieldtype"
@@ -324,9 +325,15 @@ func syncRelatedFieldInfo() {
 const maxFieldContexts = 4
 
 // checkContextedFields checks that the fields with contexts can actually hold
-// contexted values, i.e. that they are stored, not related and not unique.
+// contexted values, i.e. that they are stored and not related.
+//
+// Unique contexted fields are allowed: since their values are stored in a
+// JSON document, uniqueness cannot be enforced by a SQL constraint and is
+// checked by the ORM instead, per context. Such fields are indexed so that
+// the uniqueness lookups are backed by an index.
 func checkContextedFields() {
 	for _, mi := range Registry.registryByName {
+		mi.fields.uniqueCtxFields = nil
 		for _, fi := range mi.fields.registryByName {
 			if !fi.isContextedField() {
 				continue
@@ -341,15 +348,22 @@ func checkContextedFields() {
 				log.Panic("You cannot add contexts to relation fields", "model", mi.name, "field", fi.name)
 			}
 			if fi.unique {
-				// Contexted values are stored in a JSON document, so we cannot
-				// set a unique constraint on the column.
-				log.Panic("You cannot add contexts to unique fields", "model", mi.name, "field", fi.name)
+				// Uniqueness of contexted fields is checked by the ORM, so we
+				// make sure the column is indexed to speed up the lookups.
+				if !fi.index {
+					log.Debug("Indexing unique contexted field", "model", mi.name, "field", fi.name)
+					fi.index = true
+				}
+				mi.fields.uniqueCtxFields = append(mi.fields.uniqueCtxFields, fi)
 			}
 			if len(fi.contexts) > maxFieldContexts {
 				log.Panic("Too many contexts on field", "model", mi.name, "field", fi.name,
 					"contexts", len(fi.contexts), "max", maxFieldContexts)
 			}
 		}
+		sort.Slice(mi.fields.uniqueCtxFields, func(i, j int) bool {
+			return mi.fields.uniqueCtxFields[i].json < mi.fields.uniqueCtxFields[j].json
+		})
 	}
 }
 

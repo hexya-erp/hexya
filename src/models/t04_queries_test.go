@@ -63,6 +63,8 @@ var (
 	tagsName             = fieldName{name: "Tags.Name", json: "tags_ids.name"}
 	description          = fieldName{name: "Description", json: "description"}
 	slogan               = fieldName{name: "Slogan", json: "slogan"}
+	motto                = fieldName{name: "Motto", json: "motto"}
+	brand                = fieldName{name: "Brand", json: "brand"}
 	price                = fieldName{name: "Price", json: "price"}
 	rate                 = fieldName{name: "Rate", json: "rate"}
 	comments             = fieldName{name: "Comments", json: "comments_ids"}
