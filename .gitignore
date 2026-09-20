@@ -77,6 +77,8 @@ _testmain.go
 
 # Hexya Specifics
 pool/
+/go.work
+/go.work.sum
 /src/server/static/
 /src/server/templates/
 /src/server/data/

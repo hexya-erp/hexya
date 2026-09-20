@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/hexya-erp/hexya/src/tools/gowork"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ var moduleInitCmd = &cobra.Command{
 	Long: `Initialize and scaffold a new module in the current directory with the given path (e.g. github.com/myuser/my-hexya-module).
 Use this command if you plan to distribute your module.
 Note that you will need to commit your module to its remote repository before consuming it in a project.
-Alternatively, you can manually set the replace directive in your project go.mod to point to this directory.
+Alternatively, you can manually add a 'use' directive pointing to this directory in your project go.work.
 
 For local only modules (i.e. modules tied to a project), use 'hexya module new' from the project directory instead.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -55,6 +56,16 @@ For local only modules (i.e. modules tied to a project), use 'hexya module new' 
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				fmt.Println(err)
 			}
+		}
+		// Create or update the go.work file with this module
+		moduleDir, err := os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		if err = gowork.AddUse(moduleDir, moduleDir); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
 		runCommand("go", "mod", "tidy")
 	},
@@ -120,7 +131,7 @@ var moduleCleanCmd = &cobra.Command{
 	Long: `Clean the current directory from all generated and test artifacts.
 You should use this command before committing your work.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		runCommand("go", "mod", "edit", "-dropreplace", "github.com/hexya-erp/pool@v1.0.2")
+		dropPoolDirFromGoWork()
 		if err := removeProjectDir(PoolDirRel); err != nil {
 			fmt.Println(err)
 		}
