@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
@@ -25,7 +26,12 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version Hexya",
 	Long:  `Print the version of the Hexya framework`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Hexya version 0.1")
+		info, ok := debug.ReadBuildInfo()
+		if !ok {
+			fmt.Println("Could not find version information")
+			return
+		}
+		fmt.Printf("Hexya version %s\n", info.Main.Version)
 	},
 }
 
