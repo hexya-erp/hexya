@@ -64,6 +64,7 @@ type FieldsCollection struct {
 	computedFields       []*Field
 	computedStoredFields []*Field
 	relatedFields        []*Field
+	uniqueCtxFields      []*Field
 	bootstrapped         bool
 }
 
@@ -293,6 +294,27 @@ func (f *Field) isContextedField() bool {
 		return true
 	}
 	return false
+}
+
+// contextValues returns the value of each context of this field evaluated
+// against the given RecordSet.
+//
+// Contexts which evaluate to an empty string are not returned. An empty map
+// is returned if the "hexya_default_contexts" key is set in the environment's
+// context, so that the default values of contexted fields are used.
+func (f *Field) contextValues(rs RecordSet) map[string]string {
+	res := make(map[string]string)
+	if rs.Env().Context().GetBool("hexya_default_contexts") {
+		return res
+	}
+	for name, ctxFunc := range f.contexts {
+		val := ctxFunc(rs)
+		if val == "" {
+			continue
+		}
+		res[name] = val
+	}
+	return res
 }
 
 // JSON returns this field name as FieldName type

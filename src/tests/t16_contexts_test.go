@@ -241,6 +241,103 @@ func TestContextedFieldsAPI(t *testing.T) {
 			})
 		}))
 	})
+	t.Run("Testing unique contexted fields with the type safe API", func(t *testing.T) {
+		t.Run("Records without any value should not conflict", func(t *testing.T) {
+			assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1"))
+				h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2"))
+			}))
+		})
+		t.Run("Creating two records with the same value should fail", func(t *testing.T) {
+			err := models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetMotto("Carpe diem"))
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Creating two records with the same value in the same language should fail", func(t *testing.T) {
+			err := models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				tag1 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetMotto("Seize the day"))
+				tag1.WithContext("lang", "fr_FR").SetMotto("Cueille le jour")
+				tag2.WithContext("lang", "fr_FR").SetMotto("Cueille le jour")
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("The same value in different languages should be accepted", func(t *testing.T) {
+			assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				tag1 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetMotto("Seize the day"))
+				tag1.WithContext("lang", "fr_FR").SetMotto("Cueille le jour")
+				tag2.WithContext("lang", "de_DE").SetMotto("Cueille le jour")
+			}))
+		})
+		t.Run("A record may hold the same value in two of its own languages", func(t *testing.T) {
+			assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				tag := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				tag.WithContext("lang", "fr_FR").SetMotto("Cueille le jour")
+				tag.WithContext("lang", "de_DE").SetMotto("Cueille le jour")
+			}))
+		})
+		t.Run("A translation conflicting with another default value should fail", func(t *testing.T) {
+			err := models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetMotto("Seize the day"))
+				tag2.WithContext("lang", "fr_FR").SetMotto("Carpe diem")
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Writing on another field should not fail", func(t *testing.T) {
+			assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				tag := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				tag.Write(h.Tag().NewData().SetDescription("Another description"))
+			}))
+		})
+		t.Run("Writing a duplicate value on several records at once should fail", func(t *testing.T) {
+			err := models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetMotto("Seize the day"))
+				h.Tag().Search(env, q.Tag().Name().Like("Unique Tag %")).
+					Write(h.Tag().NewData().SetMotto("Same motto"))
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("SetTranslations introducing a duplicate should fail", func(t *testing.T) {
+			err := models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				tag1 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetMotto("Seize the day"))
+				tag1.SetTranslations(h.Tag().Fields().Motto(), map[string]string{"fr_FR": "Cueille le jour"})
+				tag2.SetTranslations(h.Tag().Fields().Motto(), map[string]string{"fr_FR": "Cueille le jour"})
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Copying a record with a unique contexted field should fail", func(t *testing.T) {
+			err := models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+				tag := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetMotto("Carpe diem"))
+				tag.Copy(h.Tag().NewData().SetName("Unique Tag 1 Copy"))
+			})
+			assert.ErrorContains(t, err, "Motto must be unique")
+		})
+		t.Run("Uniqueness of a field with two contexts", func(t *testing.T) {
+			t.Run("Duplicates in the same company and language should fail", func(t *testing.T) {
+				err := models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+					tag1 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetEmblem("Chair"))
+					tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetEmblem("Seat"))
+					tag1.WithContext("company", "3").WithContext("lang", "fr_FR").SetEmblem("Fauteuil")
+					tag2.WithContext("company", "3").WithContext("lang", "fr_FR").SetEmblem("Fauteuil")
+				})
+				assert.ErrorContains(t, err, "Emblem must be unique")
+			})
+			t.Run("The same value in different companies should be accepted", func(t *testing.T) {
+				assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
+					tag1 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 1").SetEmblem("Chair"))
+					tag2 := h.Tag().Create(env, h.Tag().NewData().SetName("Unique Tag 2").SetEmblem("Seat"))
+					tag1.WithContext("company", "3").WithContext("lang", "fr_FR").SetEmblem("Fauteuil")
+					tag2.WithContext("company", "7").WithContext("lang", "fr_FR").SetEmblem("Fauteuil")
+				}))
+			})
+		})
+	})
 	t.Run("Testing group by queries on contexted fields", func(t *testing.T) {
 		assert.Nil(t, models.SimulateInNewEnvironment(security.SuperUserID, func(env models.Environment) {
 			h.Tag().NewSet(env).SearchAll().Unlink()

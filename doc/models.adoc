@@ -921,8 +921,8 @@ var fields_Product = map[string]models.FieldDefinition{
 }
 ----
 
-A contexted field must be stored, must not be a relation field, must not be a
-related field and must not be unique. It may have up to 4 different contexts.
+A contexted field must be stored, must not be a relation field and must not be
+a related field. It may have up to 4 different contexts.
 
 ===== Storage
 
@@ -1002,6 +1002,33 @@ languages that are not in the map and the other contexts are left unchanged.
 
 The last two methods are also available as model methods, so that they can be
 called through the standard method dispatch.
+
+===== Unique contexted fields
+
+A contexted field may be declared `Unique`. Since all the values of such a
+field live in a single `jsonb` document, no SQL `UNIQUE` constraint can be
+created. Uniqueness is instead enforced by the ORM, *per context*: two records
+must not have the same French name, nor the same English name, nor the same
+context-less name, but a record may have the same value in two of its own
+contexts, and two records may share a value in two different contexts.
+
+The comparison is made on the *resolved* value, i.e. on the value a reader
+would actually see in a given context. So a record whose French name falls
+back on its context-less value `Chair` conflicts with another record whose
+French name is explicitly `Chair`. As with a SQL `UNIQUE` constraint, unset
+(`NULL`) resolved values never conflict.
+
+The check runs on every write path that can change a contexted value
+(`Create`, `Write`, `SetContextedValues`, `SetTranslations` and `Copy`). It
+simply searches the model for the value being written, in the context in which
+it is written, and rejects the write if another record is found. A violation
+panics with the message `"<Field> must be unique"`, exactly as an ordinary
+unique column would. Unique contexted fields are automatically indexed.
+
+CAUTION: Because the check is performed by the ORM and not by the database, it
+is not race safe: two concurrent transactions may both pass the check and
+commit duplicate values. Existing duplicates are not detected either, since
+only the records being written are checked.
 
 ==== Reserved field names
 

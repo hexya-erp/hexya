@@ -172,27 +172,25 @@ type MethodsCollection struct {
 	*models.MethodsCollection
 }
 
-// A TypedMethod is a generic strongly typed method definition.
-// T is the typed function definition with the recordset as first parameter.
-type TypedMethod[T any] struct {
+{{ range .AllMethods }}
+// p{{ .Name }} holds the metadata of the {{ $.Name }}.{{ .Name }}() method
+type p{{ .Name }} struct {
 	*models.Method
 }
 
 // Extend adds the given fnct function as a new layer on this method.
-func (m TypedMethod[T]) Extend(fnct T) TypedMethod[T] {
-	return TypedMethod[T]{
+func (m p{{ .Name }}) Extend(fnct func({{ $.InterfacesPackageName }}.{{ $.Name }}Set{{ if ne .ParamsTypes "" }}, {{ .ParamsTypes }}{{ end }}) ({{ .ReturnString }})) p{{ .Name }} {
+	return p{{ .Name }} {
 		Method: m.Method.Extend(fnct),
 	}
 }
 
 // Underlying returns a pointer to the underlying Method data object.
-func (m TypedMethod[T]) Underlying() *models.Method {
+func (m p{{ .Name }}) Underlying() *models.Method {
 	return m.Method
 }
 
-{{ range .AllMethods }}
-// p{{ .Name }} holds the metadata of the {{ $.Name }}.{{ .Name }}() method
-type p{{ .Name }} TypedMethod[{{ $.InterfacesPackageName }}.{{ $.Name }}Set]
+var _ models.Methoder = p{{ .Name }}{}
 
 // {{ .Name }} returns a pointer to the {{ .Name }} Method.
 func (c MethodsCollection) {{ .Name }}() p{{ .Name }} {
@@ -249,10 +247,17 @@ func (d {{ $.Name }}Data) MergeWith(other {{ .InterfacesPackageName }}.{{ $.Name
 // If this {{ .Name }} is not set in this {{ $.Name }}Data, then
 // the Go zero value for the type is returned.
 func (d {{ $.Name }}Data) {{ .Name }}() {{ .Type }} {
+	val := d.ModelData.Get(models.NewFieldName("{{ .Name }}", "{{ .JSON }}"))
 {{- if .IsRS }}	
-	return models.ReadRelatedDataValue[{{ .Type }}](d.ModelData, models.NewFieldName("{{ .Name }}", "{{ .JSON }}"))
+	if !d.Has(models.NewFieldName("{{ .Name }}", "{{ .JSON }}")) || val == nil || val == (*interface{})(nil) {
+		val = models.InvalidRecordCollection("{{ .RelModel }}")
+	}
+	return val.(models.RecordSet).Collection().Wrap().({{ .Type }})
 {{- else }}
-	return models.ReadDataValue[{{ .Type }}](d.ModelData, models.NewFieldName("{{ .Name }}", "{{ .JSON }}"))
+	if !d.Has(models.NewFieldName("{{ .Name }}", "{{ .JSON }}")) {
+		return *new({{ .Type }})
+	}
+	return val.({{ .Type }})
 {{- end }}
 }
 

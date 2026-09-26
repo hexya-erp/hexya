@@ -868,6 +868,33 @@ func TestModelDeclaration(t *testing.T) {
 		})
 		tag.fields.add(&Field{
 			model:       tag,
+			name:        "Motto",
+			json:        "motto",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
+			contexts: FieldContexts{"lang": func(rs RecordSet) string {
+				return rs.Env().Context().GetString("lang")
+			}},
+			unique: true,
+		})
+		tag.fields.add(&Field{
+			model:       tag,
+			name:        "Brand",
+			json:        "brand",
+			fieldType:   fieldtype.Char,
+			structField: reflect.StructField{Type: reflect.TypeFor[string]()},
+			contexts: FieldContexts{
+				"lang": func(rs RecordSet) string {
+					return rs.Env().Context().GetString("lang")
+				},
+				"company": func(rs RecordSet) string {
+					return rs.Env().Context().GetString("company")
+				},
+			},
+			unique: true,
+		})
+		tag.fields.add(&Field{
+			model:       tag,
 			name:        "Price",
 			json:        "price",
 			fieldType:   fieldtype.Float,
